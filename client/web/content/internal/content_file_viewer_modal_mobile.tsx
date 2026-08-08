@@ -41,14 +41,14 @@ import {
 } from "~/client/web/styles/styles.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {isFileModelDataLoading} from "~/shared/files/file_model.js";
 import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_content_file_download_name_from_content_type.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Render the provided file in a fullscreen modal on mobile platforms.

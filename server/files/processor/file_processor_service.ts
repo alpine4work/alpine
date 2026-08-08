@@ -23,12 +23,12 @@ import {
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {Context} from "~/shared/context/context.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type Options = ServiceOptions<typeof options>;
 

@@ -8,8 +8,8 @@ import {
     AccountModelWithoutSpaceData,
 } from "~/shared/accounts/account_model_without_space.js";
 import {createAvatarModelFromItem} from "~/shared/avatar/create_avatar_model_from_item.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 export function createAccountModelFromItem(

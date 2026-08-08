@@ -2,10 +2,10 @@ import {ChildProcessByStdio, spawn} from "child_process";
 import path from "path";
 import {Readable as ReadableStream, Writable as WritableStream} from "stream";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 export type ProcessArgs = Array<string | undefined | null | false | ProcessArgs>;
 
@@ -224,6 +224,9 @@ export function getProcessEnvToPropagate() {
         RUNFILES: process.env.RUNFILES,
         BUILD_WORKSPACE_DIRECTORY: process.env.BUILD_WORKSPACE_DIRECTORY,
         BAZEL_BINDIR: process.env.BAZEL_BINDIR,
+        TEST_SRCDIR: process.env.TEST_SRCDIR,
+        TEST_TMPDIR: process.env.TEST_TMPDIR,
+        BAZEL_TEST: process.env.BAZEL_TEST,
     };
 
     for (const [key, value] of Object.entries(process.env)) {

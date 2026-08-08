@@ -1,4 +1,4 @@
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SearchEntityModelData} from "~/shared/search/search_entity_model.js";
 import {
     SiteItemSearchEntityId,

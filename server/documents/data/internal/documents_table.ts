@@ -15,24 +15,27 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_from.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {AddMarksAfterRemoveAllStepRangeSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const DocumentCommentThreadAttributesSchema = Schema.object({
     /** The time at which the thread was created. */
     createdTime: Schema.date,
+
+    /** The time zone the thread was created in. */
+    createdTimeZone: TimeZoneSchema.default(defaultTimeZone),
 
     /**
      * When all instances of a comment thread's mark are removed from a document we
@@ -326,6 +329,35 @@ export const DocumentsTable = DynamoTableSchema.new({
                          * entry.
                          */
                         hasAddedFeedCandidateEntry: Schema.boolean.default(false),
+
+                        /**
+                         * Information about when this document was soft-deleted and by whom. We keep a
+                         * record of deleted documents so they can still be referenced in search results
+                         * and mentions.
+                         */
+                        deleted: Schema.object({
+                            time: Schema.date,
+                            deletor: Schema.object({
+                                /**
+                                 * The account that soft-deleted this document.
+                                 */
+                                id: Schema.id<AccountId>().nullable().default(null),
+
+                                /**
+                                 * What soft-deleted this document on behalf of the account ID, if anything.
+                                 */
+                                from: Schema.union({
+                                    Bot: Schema.object({
+                                        type: Schema.value("Bot"),
+                                        accountId: Schema.id<AccountId>(),
+                                    }),
+                                })
+                                    .nullable()
+                                    .default(null),
+                            }),
+                        })
+                            .nullable()
+                            .default(null),
                     }),
                 },
 

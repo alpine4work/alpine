@@ -7,7 +7,7 @@ import {MessageInputDraftSyncState} from "~/client/web/messaging/message_input_d
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
@@ -21,8 +21,10 @@ import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js"
  * ApplyFiles: The server draft has files that should be applied, but don't
  * overwrite any local content.
  *
- * Apply: The server draft has content and possibly files and/or a parent that
- * should be applied to the input.
+ * Apply: The server draft has content and possibly files and/or a reply target
+ * that should be applied to the input. `<MessageInput>` applies `parentToApply` at
+ * most once per draft surface, so a draft can't re-apply a reply target the user
+ * has since cleared.
  */
 export type ApplyServerMessageDraftToInputStateResult =
     | {
@@ -110,17 +112,13 @@ export function applyServerMessageDraftToInputState({
         ? null
         : createInitialMessageInputState({spaceId, draft: serverDraft});
 
-    const shouldApplyParentIfPresent = isContentEmpty(serverDraft.content.doc)
-        ? serverDraft.parent !== null
-        : true;
-
     const resolvedState = newState ?? currentState;
 
     return {
         type: "Apply",
         state: resolvedState,
         files: createMessageInputFilesFromMessageDraft(serverDraft),
-        parentToApply: shouldApplyParentIfPresent ? serverDraft.parent : null,
+        parentToApply: serverDraft.parent,
         draftSyncState: createDraftSyncStateForServerDraft(serverDraft, resolvedState),
     };
 }

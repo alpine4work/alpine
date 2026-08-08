@@ -1,9 +1,9 @@
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {TracerEvent} from "~/shared/tracer/tracer_event.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
 
 const isNode = typeof process !== "undefined" && !!process.versions.node;
 

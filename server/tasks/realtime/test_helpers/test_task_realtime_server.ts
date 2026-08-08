@@ -14,6 +14,7 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/after_commit_task_action_transaction_event_emitter_for_test.js";
+import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {waitForProcessTaskActionTransactionsForTest} from "~/server/tasks/data/task_context_module.js";
 import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
@@ -28,20 +29,20 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
 import {
     SpaceId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -56,6 +57,7 @@ import {
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {
     TaskRealtimeLoadQueriesInput,
     TaskRealtimeLoadQueriesOutput,
@@ -248,6 +250,56 @@ export class TestTaskRealtimeServer {
         };
     }
 
+    public async expensivelyLoadQueryAfterCursor(
+        session: TestSpaceSession,
+        options?: {
+            filters?: ReadonlyArray<TaskQueryFilter> | TaskQueryNormalizedFilters;
+            sorts?: ReadonlyArray<TaskQuerySort> | ReadonlyArray<TaskQueryNormalizedSort>;
+            limit?: number;
+            afterCursor?: TaskQuerySortCursor | TaskIndexDoc | null;
+        },
+    ): Promise<{
+        hasMoreTasks: boolean;
+        tasks: Array<TaskIndexDoc>;
+    }> {
+        const evaluationContext: TaskQueryEvaluationContext = {
+            currentAccountId: session.account.id,
+            currentDate: toCalendarDate(
+                parseAbsolute(new Date(testTaskClock.now()[0]).toISOString(), defaultTimeZone),
+            ),
+        };
+
+        const filters = options?.filters
+            ? isReadonlyArray(options.filters)
+                ? normalizeTaskQueryFilters(options.filters, evaluationContext)
+                : ({type: "Possible", normalizedFilters: options.filters} as const)
+            : normalizeTaskQueryFilters([], evaluationContext);
+
+        if (filters.type === "Impossible") return {tasks: [], hasMoreTasks: false};
+
+        const sorts = normalizeTaskQuerySorts(options?.sorts ?? []);
+
+        const {loadedState, tasks} = await this.server.expensivelyLoadQueryAfterCursor(
+            session.space.systemAction(),
+            {
+                spaceId: session.space.id,
+                filters: filters.normalizedFilters,
+                sorts,
+                limit: options?.limit ?? 100,
+                afterCursor: options?.afterCursor
+                    ? isReadonlyArray(options.afterCursor)
+                        ? options.afterCursor
+                        : getTaskQueryNormalizedSortCursorForIndexDoc(sorts, options.afterCursor)
+                    : null,
+            },
+        );
+
+        return {
+            hasMoreTasks: loadedState.type === "Partial",
+            tasks,
+        };
+    }
+
     public evictAll() {
         this.server.evictAllForTest();
     }
@@ -370,7 +422,13 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
-        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+        {
+            consistency = "Eventual",
+            dangerouslyAllowDeleted = false,
+        }: {
+            consistency?: DynamoCacheReadConsistency;
+            dangerouslyAllowDeleted?: boolean;
+        } = emptyObject,
     ): Promise<Result<TaskModel> | null> {
         const {taskResult} = await getTaskWithoutDependenciesForRealtime(this._context, {
             server: this._getServer().server,
@@ -378,6 +436,7 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             spaceId,
             taskId,
             consistency,
+            dangerouslyAllowDeleted,
         });
 
         return taskResult;
@@ -388,7 +447,13 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             ContextModuleBase<ServerAccountActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+        {
+            consistency = "Eventual",
+            dangerouslyAllowDeleted = false,
+        }: {
+            consistency?: DynamoCacheReadConsistency;
+            dangerouslyAllowDeleted?: boolean;
+        } = emptyObject,
     ): Promise<Result<TaskCollectionModel> | null> {
         const {collectionResult} = await getTaskCollectionForRealtime(this._context, {
             server: this._getServer().server,
@@ -396,6 +461,7 @@ class TestTaskContextModuleWithRealtimeServer extends TestTaskContextModule {
             spaceId,
             collectionId,
             consistency,
+            dangerouslyAllowDeleted,
         });
 
         return collectionResult;

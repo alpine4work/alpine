@@ -10,10 +10,10 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
-import {generateId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const {context, services} = createTestServices();
 

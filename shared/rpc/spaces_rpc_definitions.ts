@@ -2,11 +2,11 @@ import {AvatarThemeSchema} from "~/shared/avatar/avatar_schema.js";
 import {selectableSpaceThemeColors} from "~/shared/design/core/theme_colors.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceAccountSettingsSchema} from "~/shared/spaces/space_account_settings.js";
 import {SpaceModel, SpaceRoleSchema} from "~/shared/spaces/space_model.js";
@@ -72,8 +72,22 @@ export const getOurAccountSpaces = defineRpc({
             Schema.object({
                 space: SpaceModel.schema(),
                 inbox: createRynamoItemSchema(InboxModel.schema()).nullable(),
+                isInvitePending: Schema.boolean.default(false),
             }),
         ),
+    },
+});
+
+export const loadSpaceInviteContent = defineRpc({
+    name: "loadSpaceInviteContent",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+    },
+    output: {
+        allAccounts: Schema.array(AccountModel.schema),
+        currentAccount: AccountModel.schema,
+        space: SpaceModel.schema(),
     },
 });
 

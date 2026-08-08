@@ -56,16 +56,16 @@ import {
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {safe} from "~/shared/helpers/string/safe_string.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 
 // NOTE(calebmer, 2023-02-17): An observation I've had after working on scrolling
 // for a while is it is better to have a scroll animation that drops the occasional

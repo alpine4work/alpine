@@ -15,16 +15,16 @@ import {
     applyContentDuplicationVariableValues,
 } from "~/shared/content/content_duplication_variable_schema.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {assertTaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 

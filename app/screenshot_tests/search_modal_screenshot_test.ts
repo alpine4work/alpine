@@ -10,11 +10,11 @@ import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 
@@ -346,7 +346,7 @@ instance sees a ramp, not a wall. Writing it up in the reliability doc.
     // notifications, and the nav-rail badge count is delivered over realtime so it
     // climbs as the page settles — flaking every screenshot. Clear the inbox so the
     // badge is deterministically absent, then drain the archive writes.
-    await clearAccountInbox(accounts.cassCade);
+    await clearAccountInbox(accounts.cassCade, runner);
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 
@@ -498,7 +498,7 @@ instance sees a ramp, not a wall. Writing it up in the reliability doc.
 
     // The site-add actions can land their own loud notifications in Cass's inbox.
     // Clear them so the nav-rail badge stays deterministically absent.
-    await clearAccountInbox(accounts.cassCade);
+    await clearAccountInbox(accounts.cassCade, runner);
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 

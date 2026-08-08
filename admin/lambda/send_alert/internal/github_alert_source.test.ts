@@ -6,8 +6,17 @@ import {
     GitHubWorkflowRunEventPayload,
 } from "~/admin/lambda/send_alert/internal/github_alert_source_types.js";
 import {sendAlertAvailableChannels} from "~/admin/lambda/send_alert/internal/send_alert_available_channels.js";
-import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {assertDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, PostId} from "~/shared/id/types/id_types.open_source.js";
+
+type ApiCreatePostRequestBody =
+    ApiSpecification.paths["/posts"]["post"]["requestBody"]["content"]["application/json"];
+type ApiSearchResponse =
+    ApiSpecification.paths["/spaces/{id}/search"]["get"]["responses"]["200"]["content"]["application/json"];
 
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
@@ -23,6 +32,9 @@ const nonDeployGithubWorkflowId = 789;
 let mockFetchCalls: Array<{url: string; body: unknown}> = [];
 
 const mockFetch = import.meta.jest.fn().mockImplementation((_url: string, options?: any) => {
+    if (_url.endsWith("/posts") && mockFetchCalls.at(-1)?.url.includes("/channels/")) {
+        mockFetchCalls.pop();
+    }
     mockFetchCalls.push({
         url: _url,
         body: options?.body ? JSON.parse(options.body) : null,
@@ -32,7 +44,19 @@ const mockFetch = import.meta.jest.fn().mockImplementation((_url: string, option
         ok: true,
         status: 200,
         statusText: "OK",
-        text: () => Promise.resolve(JSON.stringify({post: {id: "generated-post-id"}})),
+        text: () =>
+            Promise.resolve(
+                _url.includes("/channels/")
+                    ? JSON.stringify({
+                          spaceId: "test-space-id",
+                          channel: {
+                              id: _url.split("/").at(-1),
+                              name: "Alert Channel",
+                              description: {elements: []},
+                          },
+                      })
+                    : JSON.stringify({post: {id: "generated-post-id"}}),
+            ),
     });
 });
 
@@ -51,7 +75,17 @@ function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): st
     if (!fetchCall.body) {
         return `URL: ${fetchCall.url}`;
     }
-    const body = fetchCall.body as {channelId?: string; content?: ApiContent};
+    const body = fetchCall.body as Partial<ApiCreatePostRequestBody> & {
+        channelId?: string;
+        content?: ApiContent;
+    };
+    if (body.post?.content) {
+        const markdown = printApiContentToMarkdown(body.post.content);
+        return `URL: ${fetchCall.url}
+Channel: ${body.post.channel.id}
+
+${markdown}`;
+    }
     if (body.content) {
         const markdown = printApiContentToMarkdown(body.content);
         return `URL: ${fetchCall.url}
@@ -778,7 +812,86 @@ describe("GitHubAlertSource", () => {
 
         const postCalls = mockFetchCalls.filter(call => call.body !== null);
         expect(postCalls).toHaveLength(1);
+        expect(postCalls[0]!.body).toMatchObject({
+            post: {
+                content: {
+                    elements: expect.arrayContaining([
+                        {
+                            type: "Quote",
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {type: "Text", text: "Fix bug in user authentication"},
+                                    ],
+                                },
+                            ],
+                        },
+                    ]),
+                },
+            },
+        });
         expect(formatFetchCallForSnapshot(postCalls[0]!)).toMatchSnapshot();
+    });
+
+    test("build failure preserves multiline commit messages in a quote", async () => {
+        const payload = createGitHubFixture({
+            workflow_run: {
+                ...createGitHubFixture().workflow_run,
+                conclusion: "failure",
+                head_commit: {
+                    id: "abc123def456",
+                    tree_id: "tree123456",
+                    message: "Fix bug in user authentication\n\nDetails (#123)",
+                    timestamp: "2023-11-10T09:55:00Z",
+                    author: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                    committer: {
+                        name: "developer123",
+                        email: "developer123@example.com",
+                    },
+                },
+            },
+        });
+
+        await handleGitHubWorkflowRunPayload(payload);
+
+        const postCalls = mockFetchCalls.filter(call => call.body !== null);
+        expect(postCalls).toHaveLength(1);
+        expect(postCalls[0]!.body).toMatchObject({
+            post: {
+                content: {
+                    elements: expect.arrayContaining([
+                        {
+                            type: "Quote",
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [
+                                        {type: "Text", text: "Fix bug in user authentication"},
+                                        {type: "Break"},
+                                        {type: "Break"},
+                                        {type: "Text", text: "Details "},
+                                        {
+                                            type: "Text",
+                                            text: "(#123)",
+                                            marks: [
+                                                {
+                                                    type: "Link",
+                                                    url: "https://app.graphite.com/github/pr/cyberworlds/cyberworlds/123",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ]),
+                },
+            },
+        });
     });
 
     test("build failure with PR reference", async () => {
@@ -1189,45 +1302,32 @@ describe("GitHubAlertSource", () => {
                                             type: "Post",
                                             id: postId1,
                                             title: `in GitHub: cursor pushed a commit (${shortHash})`,
-                                            bodyMatch: [
-                                                {isMatch: true, text: "in"},
-                                                {text: " "},
-                                                {isMatch: true, text: "GitHub"},
-                                                {text: ": cursor pushed a commit ("},
-                                                {isMatch: true, text: shortHash},
-                                                {text: ")"},
-                                            ],
+                                            bodySnippet: `in GitHub: cursor pushed a commit (${shortHash})`,
+                                            matches: [],
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: postId2,
                                             title: `in GitHub: another post with ${shortHash}`,
-                                            bodyMatch: [
-                                                {isMatch: true, text: "in"},
-                                                {text: " "},
-                                                {isMatch: true, text: "GitHub"},
-                                                {text: `: another post with ${shortHash}`},
-                                            ],
+                                            bodySnippet: `in GitHub: another post with ${shortHash}`,
+                                            matches: [],
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: "post-without-commit-hash",
                                             title: "in GitHub: unrelated post",
-                                            bodyMatch: [
-                                                {isMatch: true, text: "in"},
-                                                {text: " "},
-                                                {isMatch: true, text: "GitHub"},
-                                                {text: ": unrelated post"},
-                                            ],
+                                            bodySnippet: "in GitHub: unrelated post",
+                                            matches: [],
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: humanPostId,
                                             title: `in GitHub: manual mention of ${shortHash}`,
-                                            bodyMatch: [{text: `manual mention of ${shortHash}`}],
+                                            bodySnippet: `manual mention of ${shortHash}`,
+                                            matches: [],
                                             author: {},
                                         },
                                     ],
@@ -1307,6 +1407,73 @@ describe("GitHubAlertSource", () => {
             );
         });
 
+        test("comments when the commit hash is only in the post title", async () => {
+            const commitHash = "abc123def456";
+            const shortHash = commitHash.substring(0, 7);
+            const spaceId = "test-space-id";
+            const postId = assertId<PostId>("11111111111111111111111111");
+            const searchResponse = {
+                results: [
+                    {
+                        type: "Post",
+                        id: postId,
+                        title: `in GitHub: cursor pushed a commit (${shortHash})`,
+                        bodySnippet: null,
+                        matches: [],
+                        author: {
+                            id: assertId<AccountId>("22222222222222222222222222"),
+                            name: "Paul",
+                            shortName: "Paul",
+                            bot: {id: assertId<BotId>("33333333333333333333333333")},
+                            space: {
+                                role: "Member",
+                                addedTime: assertDateString("2025-10-29T22:36:02.933Z"),
+                            },
+                        },
+                    },
+                ],
+            } satisfies ApiSearchResponse;
+
+            mockFetch.mockClear();
+            mockFetchCalls = [];
+
+            mockFetch
+                .mockImplementationOnce((_url: string) => {
+                    mockFetchCalls.push({url: _url, body: null});
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify({spaceId, channel: {}})),
+                    });
+                })
+                .mockImplementationOnce((_url: string) => {
+                    mockFetchCalls.push({url: _url, body: null});
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () => Promise.resolve(JSON.stringify(searchResponse)),
+                    });
+                });
+
+            const payload = createGitHubFixture({
+                workflow_run: {
+                    ...createGitHubFixture().workflow_run,
+                    head_sha: commitHash,
+                    conclusion: "success",
+                    workflow_id: deployGithubWorkflowId,
+                },
+            });
+
+            await handleGitHubWorkflowRunPayload(payload);
+
+            expect(mockFetchCalls).toHaveLength(3);
+            expect(mockFetchCalls[2]?.url).toBe(
+                `https://api.test.cyberworlds.com/posts/${postId}/messages`,
+            );
+        });
+
         test("comments on posts with commit hash when deploy fails", async () => {
             const commitHash = "abc123def456";
             const spaceId = "test-space-id";
@@ -1316,6 +1483,24 @@ describe("GitHubAlertSource", () => {
             mockFetchCalls = [];
 
             mockFetch
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
+                                    spaceId,
+                                    channel: {id: sendAlertAvailableChannels.builds},
+                                }),
+                            ),
+                    });
+                })
                 .mockImplementationOnce((_url: string, options?: any) => {
                     mockFetchCalls.push({
                         url: _url,
@@ -1369,14 +1554,16 @@ describe("GitHubAlertSource", () => {
                                             type: "Post",
                                             id: postId,
                                             title: `in GitHub: commit ${commitHash.substring(0, 7)}`,
-                                            bodyMatch: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            bodySnippet: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            matches: [],
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: "builds-post-id",
                                             title: `in Builds: Build failed for ${commitHash.substring(0, 7)}`,
-                                            bodyMatch: `Build failed for ${commitHash.substring(0, 7)}`,
+                                            bodySnippet: `Build failed for ${commitHash.substring(0, 7)}`,
+                                            matches: [],
                                             author: {botId: "paul-bot-id"},
                                         },
                                     ],
@@ -1408,15 +1595,15 @@ describe("GitHubAlertSource", () => {
 
             await handleGitHubWorkflowRunPayload(payload);
 
-            expect(mockFetchCalls.length).toBe(5);
+            expect(mockFetchCalls.length).toBe(6);
 
-            expect(mockFetchCalls[0]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
+            expect(mockFetchCalls[1]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
 
-            const commentCallIndex = 3;
+            const commentCallIndex = 4;
             expect(mockFetchCalls[commentCallIndex]?.url).toBe(
                 `https://api.test.cyberworlds.com/posts/${postId}/messages`,
             );
-            expect(mockFetchCalls[4]?.url).toBe(
+            expect(mockFetchCalls[5]?.url).toBe(
                 "https://api.test.cyberworlds.com/posts/builds-post-id/messages",
             );
 
@@ -1426,7 +1613,7 @@ describe("GitHubAlertSource", () => {
                     {
                         element: {
                             type: "Preview",
-                            target: {
+                            reference: {
                                 type: "Post",
                                 id: "builds-post-id",
                             },
@@ -1515,6 +1702,24 @@ describe("GitHubAlertSource", () => {
                         text: () =>
                             Promise.resolve(
                                 JSON.stringify({
+                                    spaceId,
+                                    channel: {id: sendAlertAvailableChannels.builds},
+                                }),
+                            ),
+                    });
+                })
+                .mockImplementationOnce((_url: string, options?: any) => {
+                    mockFetchCalls.push({
+                        url: _url,
+                        body: options?.body ? JSON.parse(options.body) : null,
+                    });
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        statusText: "OK",
+                        text: () =>
+                            Promise.resolve(
+                                JSON.stringify({
                                     post: {id: "builds-post-id"},
                                     spaceId,
                                 }),
@@ -1556,14 +1761,16 @@ describe("GitHubAlertSource", () => {
                                             type: "Post",
                                             id: postId,
                                             title: `in GitHub: commit ${commitHash.substring(0, 7)}`,
-                                            bodyMatch: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            bodySnippet: `commit ${commitHash.substring(0, 7)} in GitHub`,
+                                            matches: [],
                                             author: {botId: "paul-bot-id"},
                                         },
                                         {
                                             type: "Post",
                                             id: "builds-post-id",
                                             title: `in Builds: Build failed for ${commitHash.substring(0, 7)}`,
-                                            bodyMatch: `Build failed for ${commitHash.substring(0, 7)}`,
+                                            bodySnippet: `Build failed for ${commitHash.substring(0, 7)}`,
+                                            matches: [],
                                             author: {botId: "paul-bot-id"},
                                         },
                                     ],
@@ -1595,15 +1802,15 @@ describe("GitHubAlertSource", () => {
 
             await handleGitHubWorkflowRunPayload(payload);
 
-            expect(mockFetchCalls.length).toBe(5);
+            expect(mockFetchCalls.length).toBe(6);
 
-            expect(mockFetchCalls[0]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
+            expect(mockFetchCalls[1]?.url).toBe(`https://api.test.cyberworlds.com/posts`);
 
-            const commentCallIndex = 3;
+            const commentCallIndex = 4;
             expect(mockFetchCalls[commentCallIndex]?.url).toBe(
                 `https://api.test.cyberworlds.com/posts/${postId}/messages`,
             );
-            expect(mockFetchCalls[4]?.url).toBe(
+            expect(mockFetchCalls[5]?.url).toBe(
                 "https://api.test.cyberworlds.com/posts/builds-post-id/messages",
             );
 
@@ -1613,7 +1820,7 @@ describe("GitHubAlertSource", () => {
                     {
                         element: {
                             type: "Preview",
-                            target: {
+                            reference: {
                                 type: "Post",
                                 id: "builds-post-id",
                             },

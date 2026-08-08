@@ -5,9 +5,9 @@ import {
     TaskClientStore,
     TaskClientStoreUndoManager,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 export function showTaskDeleteConfirmationModalDialog({
     context,

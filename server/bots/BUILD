@@ -8,6 +8,7 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/spaces",
         "//server/spaces/test_helpers",
+        "//shared/content",
         "//shared/test_helpers",
     ],
     visibility = [
@@ -19,7 +20,7 @@ ts_project(
         "//:node_modules/date-fns",
         "//server/accounts",
         "//shared/api/content",
-        "//shared/api/markdown",
+        "//shared/api/content/closed_source",
         "//server/context",
         "//server/dynamo/core",
         "//shared/bots",

@@ -9,12 +9,12 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
     const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
@@ -27,7 +27,7 @@ runScalableDemoRecorder(async (context, services, recorder) => {
             .toDate(timeZone);
 
     const accountMentionUrl = (accountSession: {account: {id: string}}) =>
-        `https://alpine.inc/mention/${accountSession.account.id}?short`;
+        `https://alpine.inc/mention/${accountSession.account.id}#short`;
 
     const [announcementsChannel, engineeringChannel, craftChannel, salesChannel, planningChannel] =
         await runAllPromises([

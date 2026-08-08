@@ -5,9 +5,9 @@ import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
 import {orderedReactionCharactersByType} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
 import {getReactionCharacterTypeAltText} from "~/shared/reactions/get_reaction_alt_text.js";
 import {ReactionCharacter, areReactionCharactersEqual} from "~/shared/reactions/reaction.js";
 

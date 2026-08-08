@@ -9,8 +9,8 @@ use swc_core::{
     },
 };
 
-const ASSERT_MODULE: &str = "~/shared/helpers/control/assert.js";
-const ASSERT_EXISTS_MODULE: &str = "~/shared/helpers/control/assert_exists.js";
+const ASSERT_MODULE: &str = "~/shared/helpers/control/assert.open_source.js";
+const ASSERT_EXISTS_MODULE: &str = "~/shared/helpers/control/assert_exists.open_source.js";
 
 #[derive(Clone, Copy)]
 enum AssertKind {

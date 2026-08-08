@@ -18,8 +18,8 @@ import {
     emptyDocumentWithoutTitleContent,
 } from "~/shared/documents/document_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 

@@ -4,7 +4,7 @@ import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export const serviceTaskRealtimeServiceRouterOptions = {
     taskRealtimeServiceLocalPort: {type: "string"},

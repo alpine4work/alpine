@@ -5,10 +5,10 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {ChatId, SiteId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {ChatId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the provided chat by `ChatId`.

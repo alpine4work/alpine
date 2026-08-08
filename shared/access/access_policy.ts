@@ -1,14 +1,14 @@
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {AccountId, SiteId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
+import {AccountId, SiteId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Level of access someone may have against an entity in our system.

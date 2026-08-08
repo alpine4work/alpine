@@ -1,7 +1,7 @@
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Scan every channel and post in our database. Use when migrating data.

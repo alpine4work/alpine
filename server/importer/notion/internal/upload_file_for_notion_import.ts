@@ -25,9 +25,12 @@ import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_direc
 import {ImporterServiceSystemActionContext} from "~/server/importer/importer_service_context.js";
 import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
-import {FileContentType, getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    FileContentType,
+    getPathFileContentTypeIfExists,
+} from "~/shared/files/file_content_type.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export interface NotionImportUploadSingleFileOptions {
     spaceId: SpaceId;
@@ -172,7 +175,6 @@ export async function uploadFileForNotionImport(
                         const {jobType, reason} = routeFileToProcessor({
                             contentType,
                             contentLength,
-                            spaceId,
                         });
 
                         await impersonatedContext.jobs.sendAndWait({

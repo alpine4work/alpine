@@ -5,9 +5,9 @@ import {
     SpaceItem,
     SpacesTable,
 } from "~/server/spaces/internal/spaces_table.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import type {DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Return the database group assigned to a space, or `null` if the space has no

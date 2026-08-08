@@ -1,8 +1,8 @@
 import {BotItem, BotsTable} from "~/server/bots/internal/bots_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Allow loading the full bot item in tests.

@@ -15,7 +15,6 @@ import {
 import {getSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
 import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
-import {getOurAccountInvitePendingSpaceIds} from "~/server/spaces/get_our_account_invite_pending_space_ids.js";
 import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
 import {getSpace, getSpaceIfPossible} from "~/server/spaces/get_space.js";
@@ -52,14 +51,14 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnauthenticatedError,
-} from "~/shared/error/error.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+} from "~/shared/error/error.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {
     createTestAccountModel,
@@ -102,10 +101,10 @@ const expectAccountSpaceIds = async (
     session: TestSession,
     expected: {spaceIds: ReadonlySet<SpaceId>; invitePendingSpaceIds: ReadonlySet<SpaceId>},
 ) => {
-    expect((await getOurAccountSpaceIds(session.action())).spaceIds).toEqual(expected.spaceIds);
-    expect(await getOurAccountInvitePendingSpaceIds(session.action())).toEqual(
-        expected.invitePendingSpaceIds,
-    );
+    expect(await getOurAccountSpaceIds(session.action())).toMatchObject({
+        spaceIds: expected.spaceIds,
+        invitePendingSpaceIds: expected.invitePendingSpaceIds,
+    });
 };
 
 test("can not get all accounts for a space we are not in", async () => {
@@ -4806,6 +4805,10 @@ test("`addSpaceAccount()` and `moveSpaceAccountOwnerRole()` shouldn\u2019t add t
         role: "Owner",
         withoutInviteForTest: true,
     });
+
+    // Don't treat the expected rejection as an uncaught exception while we wait for
+    // the other operation to reach its checkpoint.
+    promise1.catch(() => {});
 
     const promise2 = moveSpaceAccountOwnerRoleForTest(space.systemAction(), {
         spaceId: space.id,

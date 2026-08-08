@@ -17,11 +17,11 @@ import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {ParsableRemLength, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Modal that appears when duplicating a document or task to inform users about the

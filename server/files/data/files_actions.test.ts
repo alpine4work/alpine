@@ -29,28 +29,27 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnauthenticatedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {
     FileContentType,
     isFileAudioContentType,
+    isFileCodeContentType,
+    isFileDocumentContentType,
     isFileImageContentType,
     isFileVideoContentType,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel as SharedFileModel} from "~/shared/files/file_model.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
-import {hasFileAnalysisFeature} from "~/shared/spaces/has_file_analysis_feature.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {
+    generateChronologicalId,
+    getChronologicalIdTime,
+} from "~/shared/id/chronological_id.open_source.js";
+import {PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
-const originalNodeEnv = process.env.NODE_ENV;
-
-afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-});
 
 const fileImagePreviewPlaceholder1 = new FileImagePreviewPlaceholder([
     [
@@ -162,17 +161,16 @@ class FileModel extends SharedFileModel {
 function fileAnalysisAndTranscriptDefaultsForTest({
     analysis,
     contentType,
-    spaceId,
     transcript,
 }: ConstructorParameters<typeof SharedFileModel>[0]) {
-    if (!hasFileAnalysisFeature(spaceId)) return {};
-
     const analysisDefault = {isProcessing: true} as const;
     const transcriptDefault = {isProcessing: true} as const;
     const hasAnalysis =
         isFileImageContentType(contentType) ||
         isFileAudioContentType(contentType) ||
-        isFileVideoContentType(contentType);
+        isFileVideoContentType(contentType) ||
+        isFileDocumentContentType(contentType) ||
+        isFileCodeContentType(contentType);
     const hasTranscript =
         isFileAudioContentType(contentType) || isFileVideoContentType(contentType);
 
@@ -365,37 +363,6 @@ test("can start uploading and processing files", async () => {
     }
 });
 
-test("does not create analysis or transcript slots outside the feature flag", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-    process.env.NODE_ENV = "production";
-
-    const {fileId} = await startUploadingFile(session.action(), {
-        spaceId: space.id,
-        contentType: "audio/mpeg",
-        contentLength: 100,
-    });
-
-    expect(await getFileAsUploader(space.systemAction(), fileId)).toEqual(
-        new FileModel({
-            spaceId: space.id,
-            id: fileId,
-            contentType: "audio/mpeg",
-            contentLength: 100,
-            isUploading: true,
-            alternative: null,
-            preview: {
-                type: "Audio",
-                isProcessing: true,
-                duration: "Processing",
-                metadata: "Processing",
-            },
-            analysis: null,
-            transcript: null,
-        }),
-    );
-});
-
 test("can finish processing file analysis", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -536,13 +503,73 @@ test("can finish processing file analysis with an error", async () => {
     );
 });
 
+test("can upgrade file analysis error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileAnalysisAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "Unknown",
+    });
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+
+    const file = await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+        consistency: "Strong",
+    });
+
+    expect(file.initialData.analysis).toEqual({
+        isProcessing: false,
+        ok: false,
+        error: {type: "PasswordProtected"},
+    });
+});
+
+test("does not downgrade file analysis error", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    let fileUploader = await uploadAndStartProcessingFile(session.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 100,
+    });
+
+    fileUploader = await markFileAnalysisAsProcessingForTest(session.action(), fileUploader);
+
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "PasswordProtected",
+    });
+    await fileUploader.finishProcessingAnalysisWithError(session.action(), {
+        type: "Unknown",
+    });
+
+    const file = await getFileAsUploader(space.systemAction(), fileUploader.fileId, {
+        consistency: "Strong",
+    });
+
+    expect(file.initialData.analysis).toEqual({
+        isProcessing: false,
+        ok: false,
+        error: {type: "PasswordProtected"},
+    });
+});
+
 test("throws when finishing file analysis that was not declared", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
     const fileUploader = await uploadAndStartProcessingFile(session.action(), {
         spaceId: space.id,
-        contentType: "text/plain",
+        contentType: "application/octet-stream",
         contentLength: 100,
     });
 

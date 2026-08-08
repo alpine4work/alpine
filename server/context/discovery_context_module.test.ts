@@ -1,7 +1,7 @@
 import {DiscoveryContextModule} from "~/server/context/discovery_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 function createDiscoveryContext() {
     return Context.new({discovery: new DiscoveryContextModule()});

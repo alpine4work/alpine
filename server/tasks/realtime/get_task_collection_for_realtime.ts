@@ -10,7 +10,7 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskRealtimeGetCollectionOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 
 export async function getTaskCollectionForRealtime(
@@ -21,6 +21,7 @@ export async function getTaskCollectionForRealtime(
         spaceId,
         collectionId,
         consistency,
+        dangerouslyAllowDeleted,
     }: {
         server: TaskRealtimeServer;
         dangerouslyEscalateToSystemContext: <Value>(
@@ -36,6 +37,7 @@ export async function getTaskCollectionForRealtime(
         spaceId: SpaceId;
         collectionId: TaskCollectionId;
         consistency: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted: boolean;
     },
 ): Promise<TaskRealtimeGetCollectionOutput> {
     // If a strong read consistency was requested then expect strong consistency in
@@ -50,7 +52,7 @@ export async function getTaskCollectionForRealtime(
         spaceId,
         collectionId,
         "View",
-        {consistency},
+        {consistency, dangerouslyAllowDeleted},
     );
     if (!result?.ok) return {ok: true, collectionResult: result};
 

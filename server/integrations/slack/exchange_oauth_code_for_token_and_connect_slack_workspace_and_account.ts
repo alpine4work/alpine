@@ -6,10 +6,10 @@ import {getConnectedSlackWorkspaceIfExists} from "~/server/integrations/slack/ge
 import {generateSlackMessageBodyFromTemplate} from "~/server/integrations/slack/internal/message_templates/slack_message_templates.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getSpace} from "~/server/spaces/get_space.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Exchanges a short-lived OAuth code for an access token and connects a Slack

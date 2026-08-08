@@ -15,12 +15,12 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {SystemTokenPayload} from "~/server/tokens/token_payload.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {Tuple} from "~/shared/helpers/types/tuple.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 

@@ -2,9 +2,9 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {getMessageDraftFiles} from "~/server/messaging/drafts/get_message_draft_files.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({spacesInjection});
 

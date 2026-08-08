@@ -5,7 +5,7 @@ import {
     sprinkles,
 } from "~/client/web/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 

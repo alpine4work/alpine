@@ -3,10 +3,10 @@ import chalk from "chalk";
 import {ChildProcess, ChildProcessByStdio, SpawnOptionsWithoutStdio, spawn} from "child_process";
 import {Readable as ReadableStream, Writable as WritableStream} from "stream";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 type AnsiCode = {
     readonly code: string;

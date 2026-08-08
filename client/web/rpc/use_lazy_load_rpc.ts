@@ -4,7 +4,7 @@ import {useIdlyPreloadSwr} from "~/client/web/rpc/internal/use_idly_preload_swr.
 import {preloadSwr} from "~/client/web/rpc/preload_swr.js";
 import {createRpcCacheFetcher, getRpcCacheKey} from "~/client/web/rpc/rpc_cache.js";
 import {useSwr} from "~/client/web/rpc/use_swr.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
 /**

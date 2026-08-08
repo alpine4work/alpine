@@ -2,7 +2,7 @@ import {useSearchParams} from "@remix-run/react";
 import {Box} from "~/client/web/design/box.js";
 import {Link} from "~/client/web/design/link.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 
 // This route is mostly used for integration tests. If you want an empty route to
 // open a peek on top of, here you are!

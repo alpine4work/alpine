@@ -4,8 +4,8 @@ import {ErrorDisplayMessageRenderer} from "~/client/web/design/error_display_mes
 import {ErrorIcon} from "~/client/web/design/error_icon.js";
 import {fontSizes, sprinkles} from "~/client/web/styles/styles.js";
 import {invertColor} from "~/shared/design/core/inverted_colors.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 
 /**
  * Renders an error with a title at body content size.

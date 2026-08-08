@@ -6,10 +6,10 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChatId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChatId, DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {emptyMessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageDraftSurface} from "~/shared/messaging/message_draft_surface.js";
 

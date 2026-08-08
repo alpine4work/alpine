@@ -10,8 +10,8 @@ import {
 import {TaskGridViewDroppableData} from "~/client/web/tasks/task_grid_view_dnd_context.js";
 import {parseRemLength, screenPaddingXRem, spacing} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this

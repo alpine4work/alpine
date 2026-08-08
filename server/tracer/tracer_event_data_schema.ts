@@ -2,30 +2,33 @@ import {
     tracerEventDataDynamoConsumedCapacityKeys,
     tracerEventDataDynamoPartitionTypesByTableName,
 } from "~/server/tracer/tracer_event_data_dynamo.js";
-import {allPlatforms} from "~/shared/design/core/platform.js";
-import {allRouteLayouts} from "~/shared/design/core/route_layout.js";
-import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
-import {DateString, isDateString} from "~/shared/helpers/date/date_string.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.js";
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
+import {allPlatforms} from "~/shared/design/core/platform.open_source.js";
+import {allRouteLayouts} from "~/shared/design/core/route_layout.open_source.js";
+import {allSpacingScales} from "~/shared/design/core/spacing_scale.open_source.js";
+import {DateString, isDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
+import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.open_source.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.open_source.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
 import {
     Schema,
     SchemaDeserializationError,
     SchemaWithOnlyDeserialization,
-} from "~/shared/schema/schema.js";
-import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data.js";
+} from "~/shared/schema/schema.open_source.js";
+import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data.open_source.js";
 import {
     TracerEventHttpHeaderName,
     tracerEventHttpHeaderNames,
-} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
+} from "~/shared/tracer/helpers/tracer_event_http_header_names.open_source.js";
 import {
     TracerEventHttpSearchParamName,
     tracerEventHttpSearchParamNames,
-} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
-import {TracerEventDataBase, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
+} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.open_source.js";
+import {
+    TracerEventDataBase,
+    TracerEventFullData,
+} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 type TracerEventDataSchemaType<Data extends TracerEventDataBase> = {
     [Key in keyof Data]-?: NonNullable<Data[Key]> extends TracerEventDataBase

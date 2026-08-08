@@ -1,5 +1,5 @@
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";

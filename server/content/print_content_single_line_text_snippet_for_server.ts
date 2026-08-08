@@ -1,16 +1,16 @@
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {
-    ContentReferences,
     ContentReferencesSearchEntity,
     ContentWithReferences,
 } from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippet} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
  * Calls `printContentSingleLineTextSnippet()` to print some content using the
@@ -31,24 +31,21 @@ export function printContentSingleLineTextSnippetForServer(content: ContentWithR
     );
 }
 
-export function getContentReferencesForServerPrintSingleLineTextSnippet(
-    references:
-        | ContentReferences
-        | Replace<
-              ContentReferences,
-              {
-                  readonly accountById: ReadonlyMap<
-                      AccountId,
-                      Omit<AccountModelWithoutSpaceData, "avatar">
-                  >;
-                  readonly searchEntityById: ReadonlyMap<
-                      SearchMentionEntityId,
-                      | (RenderContentMentionToTextSearchEntity & {entity?: undefined})
-                      | ContentReferencesSearchEntity
-                  >;
-              }
-          >,
-): {
+export function getContentReferencesForServerPrintSingleLineTextSnippet(references: {
+    readonly accountById: ReadonlyMap<
+        AccountId,
+        AccountModel | Omit<AccountModelWithoutSpaceData, "avatar">
+    >;
+    readonly searchEntityById: ReadonlyMap<
+        SearchMentionEntityId,
+        | ContentReferencesSearchEntity
+        | (RenderContentMentionToTextSearchEntity & {entity?: undefined})
+    >;
+    readonly fileById?: ReadonlyMap<
+        FileId,
+        {readonly file: FileModel; readonly signedUrlSearch: string} | FileModel
+    >;
+}): {
     getAccountIfExists: (
         accountId: AccountId,
     ) => Omit<AccountModelWithoutSpaceData, "avatar"> | null;
@@ -86,6 +83,11 @@ export function getContentReferencesForServerPrintSingleLineTextSnippet(
                 getAuthorData: author ? () => author.initialData : null,
             };
         },
-        getFileIfExists: fileId => references.fileById?.get(fileId)?.file.initialData ?? null,
+        getFileIfExists: fileId => {
+            let file = references.fileById?.get(fileId);
+            if (!file) return null;
+            if (!(file instanceof FileModel)) file = file.file;
+            return file.initialData;
+        },
     };
 }

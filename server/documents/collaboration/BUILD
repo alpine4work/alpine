@@ -1,8 +1,16 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+alias(
+    testonly = True,
+    name = "collaboration_testonly",
+    actual = ":collaboration",
+    visibility = ["//server:__subpackages__"],
+)
+
 ts_project(
     name = "collaboration",
     test_deps = [
+        "//server/bots/test_helpers",
         "//server/cloudflare/test_helpers",
         "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",

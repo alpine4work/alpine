@@ -5,8 +5,8 @@ import {createDebug} from "~/admin/helpers/create_debug.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
@@ -105,15 +105,15 @@ syncs later.
         title: "Q2 Product Roadmap",
         body: Mustache.render(
             markdown`
-In our [Q1 Product Roadmap]({{spaceUrl}}/documents/{{otherDocumentId}}?mention) we focused on small
+In our [Q1 Product Roadmap]({{spaceUrl}}/documents/{{otherDocumentId}}#mention) we focused on small
 and medium sized businesses (SMBs). That _directly contributed_ to our 16% revenue growth last
 quarter. We\u2019re going to add a couple features for larger businesses this quarter.
 
 | Project                  | DRI                                                                       | Priority <span hidden data-column-widths="4,3,2"/> |
 | ------------------------ | ------------------------------------------------------------------------- | -------------------------------------------------- |
-| Receipt Mobile Scanner   | [Mason Clay]({{spaceUrl}}/accounts/{{masonClayAccountId}}?mention)        | <mark class="highlight-blue">Low</mark>            |
-| Profit by Acre Dashboard | [Elle Kappa-Tan]({{spaceUrl}}/accounts/{{elleKappaTanAccountId}}?mention) | <mark class="highlight-red">High</mark>            |
-| Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}?mention)          | <mark class="highlight-orange">Medium</mark>       |
+| Receipt Mobile Scanner   | [Mason Clay]({{spaceUrl}}/accounts/{{masonClayAccountId}}#mention)        | <mark class="highlight-blue">Low</mark>            |
+| Profit by Acre Dashboard | [Elle Kappa-Tan]({{spaceUrl}}/accounts/{{elleKappaTanAccountId}}#mention) | <mark class="highlight-red">High</mark>            |
+| Grants Navigator         | [Cass Cade]({{spaceUrl}}/accounts/{{cassCadeAccountId}}#mention)          | <mark class="highlight-orange">Medium</mark>       |
             `,
             {
                 spaceUrl: `https://alpine.inc/home/${space.id}`,

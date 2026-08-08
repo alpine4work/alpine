@@ -4,8 +4,8 @@ import looksSame from "looks-same";
 import {join as joinPath} from "path";
 import sharp from "sharp";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 test("`sharp` dependency can process bmp files", async () => {
     const metadata = await sharp(

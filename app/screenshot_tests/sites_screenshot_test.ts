@@ -14,10 +14,10 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId, PostId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const schema = DocumentContentProsemirrorSchema;
@@ -168,12 +168,12 @@ Third case study published, demo script in Cliff\u2019s hands
 </table>
             `,
             {
-                cassMention: `[](https://alpine.inc/mention/${accounts.cassCade.account.id}?short)`,
-                masonMention: `[](https://alpine.inc/mention/${accounts.masonClay.account.id}?short)`,
-                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
-                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}?short)`,
-                cliffMention: `[](https://alpine.inc/mention/${accounts.cliffWeathers.account.id}?short)`,
-                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}?short)`,
+                cassMention: `[](https://alpine.inc/mention/${accounts.cassCade.account.id}#short)`,
+                masonMention: `[](https://alpine.inc/mention/${accounts.masonClay.account.id}#short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}#short)`,
+                elleMention: `[](https://alpine.inc/mention/${accounts.elleKappaTan.account.id}#short)`,
+                cliffMention: `[](https://alpine.inc/mention/${accounts.cliffWeathers.account.id}#short)`,
+                hollyMention: `[](https://alpine.inc/mention/${accounts.hollyEvergreen.account.id}#short)`,
             },
         ),
         sitePosition: {
@@ -514,6 +514,7 @@ async function createH2PlanningSite(runner: ScreenshotTestRunner, accounts: Demo
 
     // Depth-0 entry at the very top — depth-0 rows should never render a line slot.
     const okrsTask = await TestTask.create(accounts.cassCade, {
+        time: [new Date("2025-10-15T15:13:00-04:00").getTime(), 0],
         title: "Lock the OKRs",
         assignee: accounts.cassCade,
         priority: "High",
@@ -725,13 +726,7 @@ last open design question is how column resizing should feel.
         orderKey: assertOrderKey("a3"),
     });
 
-    // The chat room and status channel above leave Cass with unread loud
-    // notifications, and the nav-rail badge count is realtime-delivered so it climbs
-    // as the page settles — flaking every screenshot in this suite. Clear the inbox
-    // before loading the page so it mounts at inbox zero with no badge.
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-    await clearAccountInbox(accounts.cassCade);
+    await clearAccountInbox(accounts.cassCade, runner);
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 

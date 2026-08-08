@@ -8,7 +8,7 @@ import {
     MessageContentWithReferences,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {MessageStream} from "~/shared/messaging/message_schema.js";
 
 /**

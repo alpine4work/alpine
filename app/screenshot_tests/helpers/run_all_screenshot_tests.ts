@@ -9,8 +9,8 @@ import {
     parseScreenshotTestMode,
     runScreenshotTests,
 } from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 
 async function runAllScreenshotTests() {
     const mode = parseScreenshotTestMode(process.argv[2]);

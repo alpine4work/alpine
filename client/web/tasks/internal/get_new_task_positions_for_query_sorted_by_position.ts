@@ -1,13 +1,17 @@
 import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {OrderKey, generateOrderKeysBetween, isOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    OrderKey,
+    generateOrderKeysBetween,
+    isOrderKey,
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {getTaskQueryNormalizedSortCursorForModel} from "~/shared/tasks/model/get_task_query_normalized_sort_cursor_for_model.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
@@ -19,6 +23,14 @@ import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_curso
  * This function is to help implement the `getMoveTasksToQueryActions()` prop of
  * `useTaskGridViewVirtualizedList()`.
  */
+// TODO(calebmer): The API implements moves in `updateTaskWithoutNotesFromApi()`
+// with behavior we should eventually mirror here since the client behavior today
+// is weird/unexpected. Notably in the when moving between two neighboring tasks
+// that share the exact same position (equal `orderTime` and `orderKey`, e.g. from
+// task duplication) it re-keys every task with that position with
+// `generateOrderKeysBetween()` so their order is preserved and the moved task has
+// space to land between them. This function instead tries to generates a key
+// between two equal keys which throws.
 export function getNewTaskPositionForQuerySortedByPosition(
     time: HybridLogicalTime,
     query: TaskClientQuery,

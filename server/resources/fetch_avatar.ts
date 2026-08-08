@@ -9,14 +9,14 @@ import {
     printAvatarEntityPathIntoCloudflareR2Key,
 } from "~/shared/avatar/avatar_entity_path.js";
 import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {AvatarId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
 import {
     getHeadersTracerData,
     obfuscateCookieHeader,
     obfuscateSetCookieHeaders,
-} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // You can change the version number to bust the Cloudflare cache.
 const avatarCacheName = "avatars_v1";

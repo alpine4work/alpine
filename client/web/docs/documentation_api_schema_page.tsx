@@ -1,17 +1,6 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
-import {createDocumentationApiPageUrl} from "~/client/web/docs/create_documentation_api_page_url.js";
-import {
-    DocumentationApiBacklink,
-    DocumentationApiSchemaNode,
-    createDocumentationApiOperationUrl,
-    createDocumentationApiSchemaUrl,
-    getDocumentationApiSchemaBaseName,
-    getDocumentationApiSchemaNameVariant,
-    getDocumentationApiSchemaRefName,
-} from "~/client/web/docs/documentation_api_model.js";
-import {buildDocumentationApiSchemaSample} from "~/client/web/docs/internal/build_api_documentation_schema_sample.js";
 import {DocumentationAnchorHeading} from "~/client/web/docs/internal/documentation_anchor_heading.js";
 import {useDocumentationApiModel} from "~/client/web/docs/internal/documentation_api_context.js";
 import {DocumentationApiDocBlock} from "~/client/web/docs/internal/documentation_api_doc_block.js";
@@ -20,8 +9,19 @@ import {DocumentationApiTypeLabel} from "~/client/web/docs/internal/documentatio
 import {DocumentationLink} from "~/client/web/docs/internal/documentation_link.js";
 import {DocumentationMethodPill} from "~/client/web/docs/internal/documentation_method_pill.js";
 import {DocumentationPill} from "~/client/web/docs/internal/documentation_pill.js";
-import {getDocumentationApiSchemaKindLabel} from "~/client/web/docs/internal/get_api_documentation_schema_kind_label.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {buildDocumentationApiSchemaSample} from "~/shared/docs/build_api_documentation_schema_sample.js";
+import {createDocumentationApiPageUrl} from "~/shared/docs/create_documentation_api_page_url.js";
+import {
+    DocumentationApiBacklink,
+    DocumentationApiSchemaNode,
+    createDocumentationApiOperationUrl,
+    createDocumentationApiSchemaUrl,
+    getDocumentationApiSchemaBaseName,
+    getDocumentationApiSchemaNameVariant,
+    getDocumentationApiSchemaRefName,
+} from "~/shared/docs/documentation_api_model.js";
+import {getDocumentationApiSchemaKindLabel} from "~/shared/docs/get_api_documentation_schema_kind_label.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * One schema page: the schema's doc block plus a precomputed "Referenced by"

@@ -1,12 +1,13 @@
 import {CalendarDate, GregorianCalendar, toCalendar} from "@internationalized/date";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
-import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
+import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskLayout} from "~/shared/tasks/task_layout.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
@@ -717,23 +718,36 @@ function deserializeTaskQueryTitleFilter(view: DataView): {
     };
 }
 
+export type TaskQueryFilterAccountOperationAccount =
+    | {readonly type: "Account"; readonly accountId: AccountId}
+    | {readonly type: "CurrentAccount"}
+    | {readonly type: "MissingAccount"};
+
 export type TaskQueryFilterAccountOperation =
     | {
           readonly type: "OneOf";
-          readonly accounts: ReadonlyArray<
-              | {readonly type: "Account"; readonly accountId: AccountId}
-              | {readonly type: "CurrentAccount"}
-              | {readonly type: "MissingAccount"}
-          >;
+          readonly accounts: ReadonlyArray<TaskQueryFilterAccountOperationAccount>;
       }
     | {
           readonly type: "NoneOf";
-          readonly accounts: ReadonlyArray<
-              | {readonly type: "Account"; readonly accountId: AccountId}
-              | {readonly type: "CurrentAccount"}
-              | {readonly type: "MissingAccount"}
-          >;
+          readonly accounts: ReadonlyArray<TaskQueryFilterAccountOperationAccount>;
       };
+
+export type TaskQueryFilterCreatorAccountOperationAccount =
+    | {readonly type: "Account"; readonly accountId: AccountId}
+    | {readonly type: "CurrentAccount"};
+
+export type TaskQueryFilterCreatorAccountOperation =
+    | {
+          readonly type: "OneOf";
+          readonly accounts: ReadonlyArray<TaskQueryFilterCreatorAccountOperationAccount>;
+      }
+    | {
+          readonly type: "NoneOf";
+          readonly accounts: ReadonlyArray<TaskQueryFilterCreatorAccountOperationAccount>;
+      };
+
+assertAssignableTypes<TaskQueryFilterCreatorAccountOperation, TaskQueryFilterAccountOperation>();
 
 function getTaskQueryFilterAccountOperationByteLength(operation: TaskQueryFilterAccountOperation) {
     return (
@@ -796,11 +810,7 @@ function deserializeTaskQueryFilterAccountOperation(view: DataView): {
     }
 
     const accountsLength = typeAndAccountsLengthByte & 0b00111111;
-    const accounts: Array<
-        | {readonly type: "Account"; readonly accountId: AccountId}
-        | {readonly type: "CurrentAccount"}
-        | {readonly type: "MissingAccount"}
-    > = [];
+    const accounts: Array<TaskQueryFilterAccountOperationAccount> = [];
     let byteOffset = 1;
 
     for (let i = 0; i < accountsLength; i++) {
@@ -857,7 +867,7 @@ function deserializeTaskQueryAssigneeFilter(view: DataView): {
 
 export type TaskQueryCreatorFilter = {
     readonly type: "Creator";
-    readonly operation: TaskQueryFilterAccountOperation;
+    readonly operation: TaskQueryFilterCreatorAccountOperation;
 };
 
 function getTaskQueryCreatorFilterByteLength(filter: TaskQueryCreatorFilter) {
@@ -873,7 +883,14 @@ function deserializeTaskQueryCreatorFilter(view: DataView): {
     byteLength: number;
 } {
     const {operation, byteLength} = deserializeTaskQueryFilterAccountOperation(view);
+    assert(isTaskQueryFilterCreatorAccountOperation(operation));
     return {filter: {type: "Creator", operation}, byteLength};
+}
+
+export function isTaskQueryFilterCreatorAccountOperation(
+    operation: TaskQueryFilterAccountOperation,
+): operation is TaskQueryFilterCreatorAccountOperation {
+    return operation.accounts.every(account => account.type !== "MissingAccount");
 }
 
 export type TaskQueryAssignerFilter = {

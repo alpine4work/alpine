@@ -11,9 +11,9 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getDatabaseGroupIdForSpaceIfExists} from "~/server/spaces/get_database_group_id_for_space.js";
-import {InternalError} from "~/shared/error/error.js";
-import type {DatabaseGroupId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import type {DatabaseGroupId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const LoaderSchema = Schema.object({
     databaseGroupId: Schema.id<DatabaseGroupId>().nullable(),

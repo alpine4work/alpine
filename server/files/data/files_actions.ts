@@ -31,12 +31,12 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {maxFileContentLength} from "~/shared/files/file_constants.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {
@@ -46,15 +46,23 @@ import {
 } from "~/shared/files/file_preview.js";
 import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
-import {generateChronologicalId, getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {AccountId, DocumentId, FileId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
-import {hasFileAnalysisFeature} from "~/shared/spaces/has_file_analysis_feature.js";
+import {
+    generateChronologicalId,
+    getChronologicalIdTime,
+} from "~/shared/id/chronological_id.open_source.js";
+import {
+    AccountId,
+    DocumentId,
+    FileId,
+    PostDraftId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**
@@ -162,22 +170,22 @@ export async function createFileAttachmentTarget(
 }
 
 /**
- * Get the uploader account ID for a file, verifying it exists in the given space.
+ * Get a file and its uploader account ID, verifying it exists in the given space.
  * Returns `null` if the file doesn't exist or belongs to a different space. Used
- * by bot file attachment to decide whether the bot uploaded the file or needs to
- * prove access through an existing attachment.
+ * by bot file attachment so the authorization read can also supply the file data
+ * needed by the caller.
  */
-export async function getFileUploaderIdIfExists(
+export async function getFileWithUploaderIdIfExists(
     context: ServerActionContext,
     fileId: FileId,
     spaceId: SpaceId,
-): Promise<AccountId | null> {
+): Promise<{file: FileModel; uploaderId: AccountId} | null> {
     const item = await getFileItemIfExistsWithCache(context, fileId, {
         consistency: "StrongWithinCache",
     });
     if (!item) return null;
     if (item.spaceId !== spaceId) return null;
-    return item.uploaderId;
+    return {file: createFileModelFromItem(item), uploaderId: item.uploaderId};
 }
 
 /**
@@ -301,13 +309,10 @@ export async function startUploadingFile(
     const fileProcessorDeclaration = fileProcessorDeclarationByContentType[contentType];
     const {
         hasAlternative,
-        hasAnalysis: declaresAnalysis = false,
+        hasAnalysis = false,
         hasPreview,
-        hasTranscript: declaresTranscript = false,
+        hasTranscript = false,
     } = fileProcessorDeclaration;
-    const hasFileAnalysisFeatureEnabled = hasFileAnalysisFeature(spaceId);
-    const hasAnalysis = hasFileAnalysisFeatureEnabled && declaresAnalysis;
-    const hasTranscript = hasFileAnalysisFeatureEnabled && declaresTranscript;
 
     let fileId: FileId;
     if (providedFileId === null) {
@@ -1286,6 +1291,22 @@ export class FileUploader {
                 item => {
                     if (!item.analysis) {
                         throw new InternalError("File does not have analysis");
+                    }
+
+                    if (!item.analysis.isProcessing && !item.analysis.ok) {
+                        // Concurrent file processors can race to save an analysis error. Keep a specific
+                        // error once we have one, but allow a later specific error to replace `Unknown`.
+                        if (item.analysis.error.type !== "Unknown" || error.type === "Unknown") {
+                            return item;
+                        }
+
+                        return {
+                            ...item,
+                            analysis: {
+                                ...item.analysis,
+                                error,
+                            },
+                        };
                     }
 
                     // No-op if we've already finished processing analysis. This makes the function

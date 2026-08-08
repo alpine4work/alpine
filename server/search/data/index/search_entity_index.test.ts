@@ -60,20 +60,24 @@ import {
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {wikipediaYoutubeDocumentContent} from "~/shared/documents/fixtures/wikipedia_youtube_document_content.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {ContentEditorClientId, DatabaseTableId, DocumentId} from "~/shared/id/types/id_types.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    ContentEditorClientId,
+    DatabaseTableId,
+    DocumentId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
@@ -176,10 +180,7 @@ test("database table search result respects its access policy", async () => {
     expect({
         creator: (await searchByKeywords(creator.action(), input)).map(result => result.id),
         other: (await searchByKeywords(other.action(), input)).map(result => result.id),
-    }).toEqual({
-        creator: [`DatabaseTable:${tableId}`],
-        other: [],
-    });
+    }).toEqual({creator: [`DatabaseTable:${tableId}`], other: []});
 });
 
 test("database table search result can appear by affinity", async () => {

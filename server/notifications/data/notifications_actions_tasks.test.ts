@@ -23,12 +23,12 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 type ProcessingType = "Once" | "TwiceSerially" | "ThriceConcurrently";
 
@@ -854,6 +854,33 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     loudNotificationCount: 0,
                     latestComment: {
                         comment: comment,
+                        contentTextSnippet: "",
+                    },
+                    otherCommentAuthor: null,
+                }),
+            ]);
+        });
+
+        test("sets isTaskDeleted when task is deleted after creating an inbox entry", async () => {
+            const space = await TestSpace.create(context);
+            const [session1, session2] = await space.createSessions(2);
+
+            const task = await TestTask.create(session1);
+            await task.updateAssignee(session1, session2);
+            const comment = await task.createComment(session1, "foo");
+
+            await ProcessContextModule.waitForTestTasks();
+
+            await task.delete(session1);
+
+            expect(await testGetInboxEntries(session2)).toEqual([
+                expectInboxTaskEntryModel({
+                    session: session2,
+                    task: {isPrivate: true, taskId: task.id},
+                    isTaskDeleted: true,
+                    loudNotificationCount: 0,
+                    latestComment: {
+                        comment,
                         contentTextSnippet: "",
                     },
                     otherCommentAuthor: null,

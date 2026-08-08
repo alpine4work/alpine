@@ -1,9 +1,9 @@
 import {type Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export type SqliteMigration = SqlQuery | ((db: Database) => void);
 

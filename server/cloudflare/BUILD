@@ -8,6 +8,8 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@cloudflare/workers-types",
+        "//:node_modules/@types/bintrees",
+        "//:node_modules/bintrees",
         "//server/cloudflare/types",
         "//server/helpers",
         "//server/tokens",

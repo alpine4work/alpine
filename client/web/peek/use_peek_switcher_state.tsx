@@ -8,15 +8,18 @@ import {
     PeekRemixEmbedRouter,
     usePeekRemixEmbedRouter,
 } from "~/client/web/peek/peek_remix_embed_router.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
-import {generateId} from "~/shared/id/id.js";
-import {PeekId} from "~/shared/id/types/id_types.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {PeekId} from "~/shared/id/types/id_types.open_source.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 
 export type PeekSwitcherStatePeekBase<Extra> = {

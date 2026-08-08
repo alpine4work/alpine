@@ -3,7 +3,7 @@ import {Memo, ReactElement, ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useStateWithOptimisticUpdates} from "~/client/web/helpers/use_state_with_optimistic_updates.js";
-import {InboxContext} from "~/client/web/inbox/inbox_context_types.js";
+import {InboxContext} from "~/client/web/inbox/context/inbox_context_types.js";
 import {
     OnDeleteMessageReactionFunction,
     OnSetMessageReactionFunction,

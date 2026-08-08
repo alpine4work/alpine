@@ -25,8 +25,8 @@ import {Context, ContextWithDestroy} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 type TestContextExtraModules = {
     email: EmailContextModuleBase;

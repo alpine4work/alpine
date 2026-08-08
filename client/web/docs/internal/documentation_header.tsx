@@ -2,14 +2,14 @@ import {useNavigate} from "@remix-run/react";
 import {List} from "phosphor-react";
 import {ReactNode, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
-import {documentationApiHomeUrl} from "~/client/web/docs/documentation_api_home_url.js";
-import {documentationHomeUrl} from "~/client/web/docs/documentation_home_url.js";
-import {blogHomeUrl} from "~/client/web/docs/internal/blog_home_url.js";
 import {DocumentationLink} from "~/client/web/docs/internal/documentation_link.js";
 import {DocumentationSearch} from "~/client/web/docs/internal/documentation_search.js";
 import {DocumentationUnstyledButton} from "~/client/web/docs/internal/documentation_unstyled_button.js";
-import {DocumentationSearchIndex} from "~/client/web/docs/search_documentation_entries.js";
 import {LogoMark} from "~/client/web/icons/brand/logo_mark.js";
+import {blogHomeUrl} from "~/shared/docs/blog_home_url.js";
+import {documentationApiHomeUrl} from "~/shared/docs/documentation_api_home_url.js";
+import {documentationHomeUrl} from "~/shared/docs/documentation_home_url.js";
+import {DocumentationSearchIndex} from "~/shared/docs/search_documentation_entries.js";
 
 export type DocumentationSurface = "guides" | "api" | "blog";
 

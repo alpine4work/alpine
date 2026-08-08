@@ -1,7 +1,7 @@
 import {SearchEntityUpdateSchema} from "~/server/search/core/search_entity_update.js";
-import {Id} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Id} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
@@ -41,6 +41,6 @@ export const IndexSearchEntityEmbeddingChunksJobDescriptionSchema = Schema.objec
     type: Schema.value("IndexSearchEntityEmbeddingChunks"),
     id: Schema.id<Id>(),
     spaceId: Schema.id<SpaceId>(),
-    entityId: Schema.string as Schema<SearchDynamicEntityId>,
+    entityId: Schema.stringAs<SearchDynamicEntityId>(),
     forceMetadataUpdate: Schema.boolean.default(false),
 });

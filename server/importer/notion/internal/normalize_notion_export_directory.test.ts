@@ -4,7 +4,7 @@ import {join as joinPath} from "path";
 
 import {unzipToDisk} from "~/server/importer/internal/unzip_to_disk.js";
 import {normalizeNotionExportDirectory} from "~/server/importer/notion/internal/normalize_notion_export_directory.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Tests for normalizeNotionExportDirectory which handles Notion-specific export

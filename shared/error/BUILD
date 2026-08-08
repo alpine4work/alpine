@@ -1,13 +1,13 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 CORE_SRCS = [
-    "aggregate_error.ts",
-    "error.ts",
-    "error_code.ts",
-    "error_display_message.ts",
-    "is_system_error_code.ts",
-    "is_transient_error.ts",
-    "types/error_display_message_type.ts",
+    "aggregate_error.open_source.ts",
+    "error.open_source.ts",
+    "error_code.open_source.ts",
+    "error_display_message.open_source.ts",
+    "is_system_error_code.open_source.ts",
+    "is_transient_error.open_source.ts",
+    "types/error_display_message_type.open_source.ts",
 ]
 
 # We have a separate `error_core` package that `//shared/helpers` and

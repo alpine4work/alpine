@@ -28,12 +28,12 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
-import {minAspectRatioIfNotSingleFileRow} from "~/shared/content/compute_file_row_widths.js";
+import {minAspectRatioIfNotSingleFileRow} from "~/shared/content/compute_file_row_layout.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
-import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {getFileContentTypeNoun} from "~/shared/files/get_file_content_type_noun.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {HtmlFragmentGenerator} from "~/shared/helpers/html/html_generator.js";
 
 export function ContentFileAudioViewerDesktop({

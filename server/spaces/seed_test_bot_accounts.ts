@@ -5,8 +5,8 @@ import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condit
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries} from "~/server/spaces/instantiate_bot_space_account.js";
 import {Context} from "~/shared/context/context.js";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export async function seedTestBotAccounts(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,

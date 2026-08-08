@@ -7,7 +7,7 @@ import {
     removeResizeListenerForElement,
 } from "~/client/web/helpers/use_resize_observer.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {safe} from "~/shared/helpers/string/safe_string.js";
 
 const TextAreaWithAutoGrowingHeightForwardRef = forwardRef(TextAreaWithAutoGrowingHeight);

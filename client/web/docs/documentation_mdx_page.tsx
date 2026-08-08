@@ -1,38 +1,14 @@
 import {Box} from "~/client/web/design/box.js";
-import {DocumentationOnThisPageItem} from "~/client/web/docs/documentation_on_this_page.js";
+import {documentationMdxComponents} from "~/client/web/docs/documentation_mdx_components.js";
 import {getDocumentationMdxContent} from "~/client/web/docs/internal/get_documentation_mdx_content.js";
-import {documentationMdxComponents} from "~/client/web/docs/internal/markdown/components/documentation_mdx_components.js";
+import {DocumentationMdxPageData} from "~/shared/docs/documentation_mdx_page_data.js";
 
-export type DocumentationMdxPageData = {
-    title: string;
-    description: string | null;
-    mdxCode: string;
-};
-
-export type GeneratedDocumentationPageData = DocumentationMdxPageData & {
-    slug: string;
-    toc: Array<DocumentationOnThisPageItem>;
-};
-
-/**
- * A sidebar link to one API "Get started" page (Introduction, Authentication, …),
- * derived from `content/api/`. The first page is the home page at `/docs/api`; the
- * rest live at `/docs/api/<name>`.
- */
-export type DocumentationApiPageLink = {
-    name: string;
-    title: string;
-    url: string;
-    isHome: boolean;
-};
-
-/**
- * A loaded API "Get started" page: its link plus the compiled MDX body and toc.
- */
-export type DocumentationApiPageData = DocumentationApiPageLink &
-    DocumentationMdxPageData & {
-        toc: Array<DocumentationOnThisPageItem>;
-    };
+export type {
+    DocumentationApiPageData,
+    DocumentationApiPageLink,
+    DocumentationMdxPageData,
+    GeneratedDocumentationPageData,
+} from "~/shared/docs/documentation_mdx_page_data.js";
 
 /**
  * One authored docs article: the frontmatter title + description, then the

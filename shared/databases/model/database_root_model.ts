@@ -17,11 +17,15 @@ import {DatabaseTableModel} from "~/shared/databases/model/database_table_model.
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {
+    DatabaseFieldId,
+    DatabaseTableId,
+    DatabaseViewId,
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export class DatabaseModel {
     /**

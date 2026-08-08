@@ -10,11 +10,11 @@ import {AppContext} from "~/client/web/context/app_context.js";
 import {getPlatformWithoutListening} from "~/client/web/remix/platform_context.js";
 import {searchWordTypingDebounceMs} from "~/client/web/search/core/search_word_typing_debounce_ms.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Manages when spell checking runs for `<ContentEditor>`. As the user types we run

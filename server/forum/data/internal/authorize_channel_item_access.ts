@@ -3,12 +3,12 @@ import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {AccessLevel, AccessPolicy} from "~/shared/access/access_policy.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
 import {channelPermissionDeniedErrorDisplayMessageByExpectedAccessLevel} from "~/shared/forum/forum_error_messages.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function authorizeChannelItemAccess(
     context: ServerActionContext,

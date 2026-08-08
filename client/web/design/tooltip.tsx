@@ -41,11 +41,11 @@ import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.
 import {parseCubicBezier} from "~/shared/design/core/easing.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * Time it takes before we present a tooltip to the user if the user has not taken
@@ -343,6 +343,15 @@ export type TooltipProps = {
     offsetAlong?: Spacing | `-${Spacing}`;
 
     /**
+     * Maximum width of the tooltip content.
+     *
+     * Defaults to `64`. Most tooltip content is short so the default keeps tooltips
+     * compact, but a wider maximum is useful when the content is long, like a tooltip
+     * that shows the full text of a truncated line.
+     */
+    maxWidth?: Spacing;
+
+    /**
      * Do we show the tooltip if our target is focused?
      *
      * Defaults to `true`.
@@ -413,6 +422,7 @@ function Tooltip(
         fallbackPlacements,
         offset = defaultTooltipOffset,
         offsetAlong = "0",
+        maxWidth,
         isVisibleWhenFocused = true,
         isVisibleWhenFocusWithin = false,
         isVisibleAfterPress = false,
@@ -1051,7 +1061,9 @@ function Tooltip(
                         pointerEvents="none"
                         className={overlayAnimateContainerClassName}
                     >
-                        <TooltipContent ref={tooltipContentRef}>{content}</TooltipContent>
+                        <TooltipContent ref={tooltipContentRef} maxWidth={maxWidth}>
+                            {content}
+                        </TooltipContent>
                     </Box>
                 }
                 children={children}
@@ -1064,6 +1076,7 @@ function Tooltip(
         fallbackPlacements,
         offset,
         offsetAlong,
+        maxWidth,
         tooltipId,
         content,
         children,
@@ -1071,11 +1084,19 @@ function Tooltip(
     ]);
 }
 
-export function TooltipContent({ref, children}: {ref?: Ref<HTMLDivElement>; children?: ReactNode}) {
+export function TooltipContent({
+    ref,
+    maxWidth = "64",
+    children,
+}: {
+    ref?: Ref<HTMLDivElement>;
+    maxWidth?: Spacing;
+    children?: ReactNode;
+}) {
     return (
         <Box
             ref={ref}
-            maxWidth="64"
+            maxWidth={maxWidth}
             paddingX="1.5"
             paddingY="1"
             fontSize="50"

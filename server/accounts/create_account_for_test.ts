@@ -7,13 +7,13 @@ import {
 import {getInitialAccountSettingsItem} from "~/server/accounts/internal/get_initial_account_settings_item.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
 import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 

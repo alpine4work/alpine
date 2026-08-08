@@ -2,8 +2,8 @@ import {GlProgram} from "~/client/web/helpers/gl/gl_program.js";
 import {GlShader} from "~/client/web/helpers/gl/gl_shader.js";
 import {GlTexture2d} from "~/client/web/helpers/gl/gl_texture_2d.js";
 import {GlShaderType, GlTextureFormat} from "~/client/web/helpers/gl/gl_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {getOwnProperty} from "~/shared/helpers/object/get_own_property.js";
 
 export class Gl {

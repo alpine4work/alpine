@@ -18,8 +18,8 @@ import {
 import {AccountSettings} from "~/shared/accounts/accounts_settings.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get an account without authorizing whether the current context has access or

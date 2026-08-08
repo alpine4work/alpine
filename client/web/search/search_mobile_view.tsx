@@ -39,8 +39,8 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
 import {getSearchEntityPath} from "~/shared/search/path/get_search_entity_path.js";

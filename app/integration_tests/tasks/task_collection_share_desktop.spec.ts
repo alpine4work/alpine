@@ -12,11 +12,11 @@ import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 
@@ -605,6 +605,7 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
 
         if (hasAccessLevel(accessLevel, "Comment")) {
             await expect(page.getByRole("textbox", {name: "New comment"})).toBeVisible();
+            await expect(page.getByTestId("DisabledMessageInput")).toHaveCount(0);
             await expect(page.getByText("Test task comment")).toBeVisible();
 
             await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
@@ -620,7 +621,14 @@ for (const accessLevel of [...allAccessLevels].reverse()) {
             await page.keyboard.press("Escape");
         } else {
             await expect(page.getByRole("textbox", {name: "New comment"})).toBeHidden();
-            await expect(page.getByText("Test task comment")).toBeHidden();
+            await expect(page.getByTestId("DisabledMessageInput")).toBeVisible();
+
+            const comment = page.getByText("Test task comment");
+            await expect(comment).toBeVisible();
+            await comment.click({button: "right"});
+            await expect(page.getByText("Add reaction")).toHaveCount(0);
+            await expect(page.getByText("Reply", {exact: true})).toHaveCount(0);
+            await page.keyboard.press("Escape");
 
             await page.getByTestId("PeekStackOverlay").getByLabel("More").click();
 
@@ -763,8 +771,16 @@ test("can switch other account access level between comment and view in realtime
 
     await expect(page1.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeVisible();
     await expect(page2a.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeVisible();
-    await expect(page1.getByText("Test task comment")).toBeHidden();
+    await expect(page1.getByText("Test task comment")).toBeVisible();
     await expect(page2a.getByText("Test task comment")).toBeVisible();
+    await expect(page1.getByRole("textbox", {name: "New comment"})).toBeHidden();
+    await expect(page1.getByTestId("DisabledMessageInput")).toBeVisible();
+
+    const comment = page1.getByText("Test task comment");
+    await comment.click({button: "right"});
+    await expect(page1.getByText("Add reaction")).toHaveCount(0);
+    await expect(page1.getByText("Reply", {exact: true})).toHaveCount(0);
+    await page1.keyboard.press("Escape");
 
     await page2b
         .getByTestId(`ShareOverlayAccountGrant:${session1.account.id}`)
@@ -773,7 +789,7 @@ test("can switch other account access level between comment and view in realtime
 
     await expect(page1.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeVisible();
     await expect(page2a.getByTestId("TaskDetailViewMain").getByLabel("Title")).toBeVisible();
-    await expect(page1.getByText("Test task comment")).toBeHidden();
+    await expect(page1.getByText("Test task comment")).toBeVisible();
     await expect(page2a.getByText("Test task comment")).toBeVisible();
 
     await page2b.getByRole("menuitem", {name: "can comment"}).click();

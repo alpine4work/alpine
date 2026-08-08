@@ -62,8 +62,8 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     # `swift_library()` and `ios_application()` which we can't do on our Linux CI
     # server since Swift isn't installed.
     "//native/mobile/ios/Resources/Assets.xcassets",
-    "//server/agents",
     "//server/agents/api/test_helpers:test_helpers",
+    "//server/agents/bots",
     "//server/api",
     "//server/api/internal/test_helpers:test_helpers",
     "//server/deploy/script",
@@ -75,7 +75,7 @@ WORKSPACE_TYPESCRIPT_PROJECT_ROOTS = [
     "//server/notifications/data:notifications_actions_forum_test",
     "//server/resources",
     "//server/tasks/realtime:task_realtime_connection_test",
-    "//shared/api/markdown/test_helpers:test_helpers",
+    "//shared/api/content/test_helpers:test_helpers",
     "//shared/api/specification:specification_generate_lib",
     "//shared/spaces/test_helpers",
 ]

@@ -1,8 +1,8 @@
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 /**

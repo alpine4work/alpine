@@ -41,20 +41,20 @@ import {
     MessageContentProsemirrorSchema as schema,
 } from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {PermissionDeniedError, UnimplementedError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {MyAccountBroadcastInboxRealtimeEventsSchema} from "~/shared/notifications/my_account_protocol.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
@@ -3208,7 +3208,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     expect.objectContaining({
                         botAccountId: bot.id,
                         event: expect.objectContaining({
-                            type: "NewMessage",
+                            type: "CreatedMessage",
                             room: {type: "Chat", id: chat.id},
                             index: message.index,
                         }),
@@ -3247,7 +3247,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     expect.objectContaining({
                         botAccountId: bot1.id < bot2.id ? bot1.id : bot2.id,
                         event: expect.objectContaining({
-                            type: "NewMessage",
+                            type: "CreatedMessage",
                             room: {type: "Chat", id: chat.id},
                             index: message.index,
                         }),
@@ -3257,7 +3257,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     expect.objectContaining({
                         botAccountId: bot1.id < bot2.id ? bot2.id : bot1.id,
                         event: expect.objectContaining({
-                            type: "NewMessage",
+                            type: "CreatedMessage",
                             room: {type: "Chat", id: chat.id},
                             index: message.index,
                         }),
@@ -3339,7 +3339,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                     expect.objectContaining({
                         botAccountId: bot2.id,
                         event: expect.objectContaining({
-                            type: "NewMessage",
+                            type: "CreatedMessage",
                             room: {type: "Chat", id: chat.id},
                             index: message.index,
                         }),

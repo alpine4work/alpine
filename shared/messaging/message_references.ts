@@ -1,5 +1,5 @@
-import {parseApiMentionTarget} from "~/shared/api/specification/parse_api_path.js";
-import {ApiMentionTarget} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {parseApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     ContentReferencedIds,
     ContentReferencedIdsSchema,
@@ -9,10 +9,10 @@ import {
 } from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadModelFileSchema} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayload,
@@ -23,7 +23,7 @@ import {
     MessageStreamToolCallPartPayloadCall,
 } from "~/shared/messaging/message_schema.js";
 import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -142,19 +142,19 @@ function collectContentReferencesForToolCall(
 ) {
     switch (toolCall.type) {
         case "Read": {
-            const targetObject = parseApiMentionTarget(toolCall.targetPath);
+            const targetObject = parseApiMentionReference(toolCall.targetPath);
             if (targetObject.type === "Account") {
                 referencedIds.accountIds.add(targetObject.id);
             } else {
                 referencedIds.searchEntityIds.add(
-                    intoSearchEntityIdFromApiMentionTarget(targetObject),
+                    intoSearchEntityIdFromApiMentionReference(targetObject),
                 );
             }
             return;
         }
         case "Create": {
             referencedIds.searchEntityIds.add(
-                intoSearchEntityIdFromApiMentionTarget(toolCall.target),
+                intoSearchEntityIdFromApiMentionReference(toolCall.target),
             );
             return;
         }
@@ -207,8 +207,8 @@ function collectContentReferencesForApprovals(
     }
 }
 
-function intoSearchEntityIdFromApiMentionTarget(
-    target: Exclude<ApiMentionTarget, {readonly type: "Account"}>,
+function intoSearchEntityIdFromApiMentionReference(
+    target: Exclude<ApiMentionReference, {readonly type: "Account"}>,
 ): SearchMentionEntityId {
     switch (target.type) {
         case "Channel":

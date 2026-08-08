@@ -19,25 +19,30 @@ import {
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
 import {
     ApiContent,
     ApiContentBlockElement,
     ApiContentInlineElement,
     ApiContentQuoteBlockElement,
     ApiContentTableBlockElementCellBlockElement,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {DocumentId, FileId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    DocumentId,
+    FileId,
+    NotionImportId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
 /**
@@ -945,7 +950,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
             type: "Paragraph",
             elements: [
                 {type: "Text", text: "Parent document: "},
-                {type: "Mention", target: {type: "Document", id: parentId}},
+                {type: "Mention", reference: {type: "Document", id: parentId}},
             ],
         });
     }
@@ -970,7 +975,9 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
                     elements: [
                         {
                             type: "Paragraph",
-                            elements: [{type: "Mention", target: {type: "Document", id: childId}}],
+                            elements: [
+                                {type: "Mention", reference: {type: "Document", id: childId}},
+                            ],
                         },
                     ],
                 });
@@ -1023,7 +1030,10 @@ function isApiContentOnlyChildMentions(
                     return false;
                 }
                 if (inline.type === "Mention") {
-                    if (inline.target.type !== "Document" || !childIds.has(inline.target.id)) {
+                    if (
+                        inline.reference.type !== "Document" ||
+                        !childIds.has(inline.reference.id)
+                    ) {
                         return false;
                     }
                 }
@@ -1039,8 +1049,8 @@ function isApiContentOnlyChildMentions(
                             }
                             if (inline.type === "Mention") {
                                 if (
-                                    inline.target.type !== "Document" ||
-                                    !childIds.has(inline.target.id)
+                                    inline.reference.type !== "Document" ||
+                                    !childIds.has(inline.reference.id)
                                 ) {
                                     return false;
                                 }
@@ -1249,7 +1259,7 @@ function transformTableFileLinksToFileRowTables(
                 if (files) {
                     changed = true;
                     for (const file of files) {
-                        newElements.push({type: "File", id: file.fileId});
+                        newElements.push({type: "File", file: {id: file.fileId}});
                     }
                 } else {
                     newElements.push(cellElement);
@@ -1299,7 +1309,7 @@ function transformFileLinksToFileElementsIfPossible(
             if (batch.length === 1) {
                 result.push({
                     type: "File",
-                    id: assertExists(batch[0]).fileId,
+                    file: {id: assertExists(batch[0]).fileId},
                 });
             } else {
                 result.push({
@@ -1309,7 +1319,7 @@ function transformFileLinksToFileElementsIfPossible(
                             items: batch.map(file => ({
                                 element: {
                                     type: "File" as const,
-                                    id: file.fileId,
+                                    file: {id: file.fileId},
                                 },
                             })),
                         },
@@ -1562,7 +1572,7 @@ function transformMdLinksToMentions(
                 // Replace the element in the parent array using context
                 context.elements[context.index] = {
                     type: "Mention",
-                    target: {type: "Document", id: documentId},
+                    reference: {type: "Document", id: documentId},
                 };
             }
         },

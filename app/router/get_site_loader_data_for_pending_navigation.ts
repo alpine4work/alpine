@@ -1,5 +1,5 @@
-import {isId} from "~/shared/id/id.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
 import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";

@@ -18,21 +18,22 @@ import {
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadContentUpdate,
@@ -48,7 +49,7 @@ const testMessageCountByConstructor = new DefaultMap<
 
 type TestMessagingRoomCreateMessageOptions = {
     parent?: TestMessage | MessageContentPayloadParent;
-    files?: Iterable<TestFile | FileId>;
+    files?: Iterable<TestFile | FileId | FileEntityId>;
     createdTimeZone?: TimeZone;
     overrideCreatedTime?: Date;
     isStream?: boolean;
@@ -75,7 +76,7 @@ export abstract class TestMessagingRoomBase {
         options: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
-            fileIds: ReadonlyArray<FileId>;
+            fileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone?: TimeZone;
             overrideCreatedTime?: Date;
             isStream?: boolean;

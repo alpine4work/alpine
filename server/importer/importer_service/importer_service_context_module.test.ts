@@ -3,8 +3,8 @@ import {existsSync, mkdirSync, rmSync, writeFileSync} from "fs";
 import {dirname, join as joinPath} from "path";
 
 import {ImporterServiceDevelopmentContextModule} from "~/server/importer/importer_service/importer_service_development_context_module.js";
-import {DataLossError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Tests for the importer service context modules (development and production).

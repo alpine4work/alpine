@@ -5,11 +5,11 @@ import {attemptOneTimePasswordSignUpThenCreateSpace} from "~/server/spaces/creat
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     await seedScreenshotTestBots(context, runner.services);
@@ -38,6 +38,49 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     const {session: inviteAcceptSession} = await space.inviteEmailAddressAndCreateSession(
         accounts.cassCade,
         inviteAcceptEmailAddress,
+    );
+
+    const spaceSwitcherAccount = await TestAccount.create(context, {
+        id: unsafelyGenerateStableId<AccountId>(runner.stableRandom, "spaceSwitcherAccount"),
+        name: "Morgan Reed",
+    });
+    const spaceSwitcherEmailAddress =
+        await spaceSwitcherAccount.createEmailAddress("morgan.reed@example.com");
+    const spaceSwitcherSession = await TestSession.create(spaceSwitcherAccount);
+    const spaceSwitcherActiveSpace = await TestSpace.create(context, {
+        id: unsafelyGenerateStableId<SpaceId>(runner.stableRandom, "spaceSwitcherActiveSpace"),
+        name: "My Space",
+    });
+    await spaceSwitcherActiveSpace.addAccount(spaceSwitcherAccount);
+
+    const spaceSwitcherInvitedSpace = await TestSpace.create(context, {
+        id: unsafelyGenerateStableId<SpaceId>(runner.stableRandom, "spaceSwitcherInvitedSpace"),
+        name: "Acme Inc",
+    });
+    const spaceSwitcherInviterSession = await spaceSwitcherInvitedSpace.createSession({
+        id: unsafelyGenerateStableId<AccountId>(runner.stableRandom, "spaceSwitcherInviter"),
+        name: "Jordan Lee",
+        overrideCreatedTime: new Date("2026-01-01T00:00:00.000Z"),
+        role: "Owner",
+    });
+    const spaceSwitcherMemberNames = ["Avery Stone", "Riley Chen", "Sam Rivera", "Taylor Kim"];
+    await runAllPromises(
+        spaceSwitcherMemberNames.map((name, index) =>
+            spaceSwitcherInvitedSpace.createSession({
+                id: unsafelyGenerateStableId<AccountId>(
+                    runner.stableRandom,
+                    `spaceSwitcherMember${index}`,
+                ),
+                name,
+                overrideCreatedTime: new Date(
+                    `2026-01-${String(index + 2).padStart(2, "0")}T00:00:00.000Z`,
+                ),
+            }),
+        ),
+    );
+    await spaceSwitcherInvitedSpace.inviteEmailAddress(
+        spaceSwitcherInviterSession,
+        spaceSwitcherEmailAddress,
     );
 
     const minInviteSpace = await TestSpace.create(context, {
@@ -166,6 +209,20 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     assert(open.type === "ActiveSpace");
     await runner.goto(signUpSession, `/home/${open.spaceId}`);
     await runner.screenshot("a7", "sign-up-space");
+
+    await runner.goto(spaceSwitcherSession, "/switch-space");
+    await runner.getByText("Acme Inc", {exact: true}).waitFor();
+    await runner.screenshot("a7a", "space-switcher-pending-invites");
+
+    await runner.goto(spaceSwitcherSession, `/home/${spaceSwitcherActiveSpace.id}`);
+    await runner.getByLabel("Space").click();
+    await runner.getByRole("menuitem", {name: "Switch space"}).hover();
+    await runner.getByText("Acme Inc", {exact: true}).waitFor();
+    await runner.screenshot("a7b", "space-menu-pending-invites");
+
+    await runner.getByText("Acme Inc", {exact: true}).click();
+    await runner.getByRole("alertdialog", {name: "Join Acme Inc?"}).waitFor();
+    await runner.screenshot("a7c", "space-invite-decision-modal");
 
     await runner.goto(inviteAcceptSession, `/invite/${space.id}`);
     await runner.screenshot("a8", "invite");

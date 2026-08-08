@@ -6,8 +6,8 @@ import {createTestWebPushSubscription} from "~/server/notifications/data/push/te
 import {addSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {generateId} from "~/shared/id/id.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
 

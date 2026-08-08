@@ -5,10 +5,16 @@ import {
     defaultSpaceThemeColor,
     selectableSpaceThemeColors,
 } from "~/shared/design/core/theme_colors.js";
-import {AccountId, BotId, ChannelId, DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    BotId,
+    ChannelId,
+    DatabaseGroupId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
     AccountModelDataSpaceState,
     AccountModelDataSpaceStateSchema,
@@ -60,12 +66,6 @@ export const SpacesTable = DynamoTableSchema.new({
                         themeColor: Schema.enum(selectableSpaceThemeColors).default(
                             defaultSpaceThemeColor,
                         ),
-
-                        /**
-                         * The workspace's database group — the SQLite instance (backed by a Cloudflare
-                         * Durable Object) that holds all of the workspace's database tables. Assigned when
-                         * the first database is created, so spaces without databases do not have it.
-                         */
                         databaseGroupId: Schema.id<DatabaseGroupId>().optional(),
                     }),
                 },
@@ -319,10 +319,8 @@ export const SpacesTable = DynamoTableSchema.new({
         },
 
         /**
-         * Reverse lookup for a workspace's database group.
-         *
-         * This is manually maintained instead of using a DynamoDB index so callers can
-         * resolve a `databaseGroupId` to its owning `SpaceId` with strong consistency.
+         * Reverse lookup for a workspace's database group. This is manually maintained so
+         * callers can resolve it with strong consistency.
          */
         {
             name: "DatabaseGroup",

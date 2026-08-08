@@ -12,10 +12,10 @@ import {
 } from "~/server/emails/mime/parse_content_disposition_parameters.js";
 import {parseEmailAddressListHeader} from "~/server/emails/mime/parse_email_address_list_header.js";
 import type {EmailMessage} from "~/shared/emails/email_message.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 type MimePart = {
     headers: Map<string, string>;

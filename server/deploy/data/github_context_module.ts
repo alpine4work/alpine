@@ -9,11 +9,11 @@ import type {
 } from "@octokit/types";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {convertSnakeCaseToCamelCase} from "~/shared/helpers/string/convert_snake_case_to_camel_case.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {getHeadersTracerData} from "~/shared/tracer/fetch_with_tracer.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {getHeadersTracerData} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export type GithubContextModuleAuth = (
     request: RequestInterface,

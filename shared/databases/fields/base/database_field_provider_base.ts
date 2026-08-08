@@ -4,9 +4,9 @@ import {
     type DatabaseFieldModelOfType,
 } from "~/shared/databases/model/database_field_model.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import type {Result} from "~/shared/helpers/control/result.js";
-import type {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import type {Result} from "~/shared/helpers/control/result.open_source.js";
+import type {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 export type SqliteStorageType = "INTEGER" | "REAL" | "TEXT" | "BLOB";
 

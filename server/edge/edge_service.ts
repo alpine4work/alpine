@@ -2,12 +2,15 @@ import "~/server/databases/sqlite3_wasm_init_worker.js";
 
 import {parse as parseCookieHeader} from "cookie";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
+import {getAppStaticCacheControlHeaders} from "~/app/static/get_app_static_cache_control_headers.js";
 import {
     WorkerRpcContextBatcher,
     WorkerRpcContextModule,
 } from "~/server/cloudflare/context/worker_rpc_context_module.js";
+import {fetchCachedR2Object} from "~/server/cloudflare/fetch_cached_r2_object.js";
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
 import {EdgeServiceEnv} from "~/server/edge/edge_service_env.js";
+import {fetchAppServiceWithDocumentationCache} from "~/server/edge/fetch_app_service_with_documentation_cache.js";
 import {fetchFile} from "~/server/edge/fetch_file.js";
 import {
     completeFileMultipartUpload,
@@ -42,25 +45,29 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {
+    DeadlineExceededError,
+    InternalError,
+    InvalidArgumentError,
+} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isTransientError} from "~/shared/error/is_transient_error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {CookieJar} from "~/shared/helpers/http/cookie_jar.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     RpcHttpBatchCallErrorOutputSchema,
     RpcHttpCallOutputSchema,
 } from "~/shared/rpc/helpers/rpc_http_schema.js";
-import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // Cache some shared resources across requests.
 let sharedResources: EdgeServiceSharedResources | null = null;
@@ -97,6 +104,7 @@ type EdgeServiceRoute =
     | {type: "UploadAvatar"; avatarEntityPath: AvatarEntityPath}
     | {type: "MeetCaleb"};
 
+/** Route an edge request through static fast paths and application services. */
 async function handleFetch(
     request: Request,
     env: EdgeServiceEnv,
@@ -172,63 +180,23 @@ async function handleFetch(
             return await fetch(request);
         }
 
-        const cache: Cache =
-            // @ts-expect-error: `@cloudflare/workers-types` doesn't seem to be providing
-            // the correct types for us.
-            caches.default;
-
-        // We follow R2's "[Use the Cache API][1]" example for caching R2 objects in
-        // Cloudflare's global cache.
-        //
-        // [1]: https://developers.cloudflare.com/r2/examples/cache-api/
-        const cachedResponse = await cache.match(request);
-        if (cachedResponse) return cachedResponse;
-
-        const object = await env.AppStaticBucket.get(`files${url.pathname}`);
-        if (object === null) {
+        const {clientCacheControl, edgeCacheControl} = getAppStaticCacheControlHeaders(
+            url.pathname,
+        );
+        const response = await fetchCachedR2Object({
+            request,
+            bucket: env.AppStaticBucket,
+            objectKey: `files${url.pathname}`,
+            executionContext,
+            clientCacheControl,
+            edgeCacheControl,
+        });
+        if (response === null) {
             return new Response("404 Not Found", {
                 status: 404,
                 headers: {"content-type": "text/plain"},
             });
         }
-
-        const headers = new Headers();
-        object.writeHttpMetadata(headers);
-        headers.set("etag", object.httpEtag);
-
-        // Remix fingerprints its assets so we can cache them forever. Other assets (like
-        // `favicon.ico`) are cached for a day then can be updated.
-        //
-        // We manually version our font assets so fonts can be cached forever too. If we
-        // need to update a font the file name will change.
-        if (
-            url.pathname.startsWith("/fonts/") ||
-            url.pathname.startsWith("/assets/") ||
-            // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we used
-            // Vite for compilation. Can remove once clients that expect static assets under
-            // `/build` no longer exist.
-            url.pathname.startsWith("/build/")
-        ) {
-            // - `public`: Means we can store the asset in a shared cache since they don't
-            //   depend on authorization.
-            // - `max-age=31536000`: The asset lives for one year.
-            // - `immutable`: Indicates the response will never update.
-            headers.set("cache-control", "public, max-age=31536000, immutable");
-        } else {
-            // - `public`: Means we can store the asset in a shared cache since they don't
-            //   depend on authorization.
-            // - `max-age=86400`: The asset lives for one day.
-            // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
-            //   allowed to continue using it for a year as long as the cache revalidates the
-            //   asset in the background.
-            headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=31536000");
-        }
-
-        const response = new Response(object.body, {headers});
-
-        // Put the R2 object in Cloudflare's cache to speed up future requests.
-        executionContext.waitUntil(cache.put(request, response.clone()));
-
         return response;
     }
 
@@ -1101,11 +1069,13 @@ async function actuallyHandleFetch(
         const appServiceStartTime = span.clock.now();
 
         // This forwards the request from `EdgeService` to `AppService` completely
-        // untouched. To `AppService` it will look like the request is coming from a
-        // web browser.
-        //
-        // eslint-disable-next-line cyberworlds/no-global-fetch
-        response = await fetch(request, {headers});
+        // untouched. To `AppService` it will look like the request is coming from a web
+        // browser.
+        response = await fetchAppServiceWithDocumentationCache({
+            request,
+            headers,
+            executionContext,
+        });
 
         const appServiceEndTime = span.clock.now();
 

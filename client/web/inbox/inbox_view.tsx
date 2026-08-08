@@ -16,8 +16,8 @@ import {
     useArchiveInboxEntry,
     useUnarchiveInboxEntry,
 } from "~/client/web/inbox/archive_inbox_entry_optimistically.js";
+import {InboxContextNavigation} from "~/client/web/inbox/context/inbox_context_types.js";
 import {InboxContextProvider} from "~/client/web/inbox/inbox_context_provider.js";
-import {InboxContextNavigation} from "~/client/web/inbox/inbox_context_types.js";
 import {InboxEntryView, inboxEntryWidth} from "~/client/web/inbox/inbox_entry_view.js";
 import {InboxViewEntriesEmpty} from "~/client/web/inbox/inbox_view_entries_empty.js";
 import {InboxViewTopBar} from "~/client/web/inbox/inbox_view_top_bar.js";
@@ -30,6 +30,7 @@ import {
     usePeekSwitcherState,
 } from "~/client/web/peek/use_peek_switcher_state.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
+import {NavigationEventContextProvider, useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {
     inboxBannerHeight,
     inboxEntryViewMinHeight,
@@ -42,10 +43,10 @@ import {
 import {spacing} from "~/shared/design/core/spacing.js";
 import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {PeekId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {PeekId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 
@@ -632,6 +633,8 @@ function InboxViewPeekContent({
     peekId: PeekId;
     routerResult: Result<PeekRemixEmbedRouter>;
 }) {
+    const rootNavigate = useRootNavigate();
+
     if (!routerResult.ok) throw routerResult.error;
     const router = routerResult.value;
 
@@ -641,7 +644,36 @@ function InboxViewPeekContent({
                 keepAssumedPadding={true}
                 paddingLeft={inboxEntryWidth}
             >
-                <PeekRemixEmbed peekId={peekId} layout="wide" router={router} />
+                <NavigationEventContextProvider
+                    // Navigations from an inbox peek should leave the inbox instead of navigating its
+                    // in-memory router. Stop propagation so the outer peek handler doesn't also
+                    // intercept the navigation.
+                    onNavigate={(to, options) => {
+                        if (options?.replace) return;
+
+                        const unstableHeaders = new Headers(options?.unstable_headers ?? {});
+
+                        // NOTE(ifitzsimmons, 2026-07-27): This prevents the active site id from being
+                        // passed to the root router when leaving the inbox. Although an inbox entry fills
+                        // the available space, it is rendered by `<PeekRemixEmbed>`, so its site context
+                        // belongs to the embedded peek router. When we execute a root navigation (full
+                        // page navigation), we won't have a site in context anymore. If we were to pass
+                        // the active site id header along, the destination loader basically throws a
+                        // "cache hit" error because it doesn't have an active site.
+                        unstableHeaders.delete("cyberworlds-active-site-id");
+
+                        return {
+                            preventDefault: true,
+                            stopPropagation: true,
+                            promise: rootNavigate(to, {
+                                ...options,
+                                unstable_headers: unstableHeaders,
+                            }),
+                        };
+                    }}
+                >
+                    <PeekRemixEmbed peekId={peekId} layout="wide" router={router} />
+                </NavigationEventContextProvider>
             </ContentBlockWidthContextProvider>
         </Box>
     );

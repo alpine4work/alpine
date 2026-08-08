@@ -7,11 +7,14 @@ import {
     InternalError,
     UnavailableError,
     UnknownError,
-} from "~/shared/error/error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SchemaType} from "~/shared/schema/schema.js";
+} from "~/shared/error/error.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {SchemaType} from "~/shared/schema/schema.open_source.js";
 
 // # Unique worker
 //

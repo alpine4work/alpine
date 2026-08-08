@@ -7,9 +7,9 @@ import {
     DatabaseActionObjectSchema,
     type DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.js";
-import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import type {DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
+import type {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Executes a database action against a database group's durable object via HTTP

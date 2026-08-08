@@ -14,7 +14,7 @@ import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_ta
 import {TaskProjectDetailViewParentBreadcrumbs} from "~/client/web/tasks/internal/task_detail_view_parent_breadcrumbs.js";
 import {TaskChildTasksProgressWheel} from "~/client/web/tasks/task_child_tasks_progress_wheel.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {
     TaskTitleUpdateModel,
     addFallbackToTaskTitle,

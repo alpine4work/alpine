@@ -1,7 +1,11 @@
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
-import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
+import type {
+    DatabaseGroupId,
+    DatabaseTableId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export class DatabaseTableMetadataModel extends Model(
     Schema.object({

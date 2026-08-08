@@ -11,11 +11,11 @@ import {
     WebSocketClient,
     WebSocketClientProcedures,
 } from "~/client/web/web_socket/web_socket_client.js";
-import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
+import {TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,

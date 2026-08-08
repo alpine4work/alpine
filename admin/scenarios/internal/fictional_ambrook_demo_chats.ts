@@ -9,10 +9,10 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {parseTestMessageContent} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {getInboxEntry} from "~/server/notifications/data/get_inbox_entry.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
@@ -68,7 +68,7 @@ Hi Elle! I finally made it back to land today
 
 There were some weather delays which is why I didn\u2019t respond sooner, but everything is good!
 I\u2019m pretty tired but I\u2019ll send you +
-[Matt](https://alpine.inc/mention/{{mattRHornAccountId}}?short) the sorted/tagged customer feedback
+[Matt](https://alpine.inc/mention/{{mattRHornAccountId}}#short) the sorted/tagged customer feedback
 as soon as I can
             `,
             {
@@ -199,7 +199,7 @@ async function createFictionalAmbrookDemoChat2(
         Mustache.render(
             markdown`
 [ChatGPT](https://alpine.inc/mention/{{chatGptAccountId}}) please sort and tag the feedback in
-[Customer Feedback from Sales](https://alpine.inc/doc/{{documentId}}?mention).
+[Customer Feedback from Sales](https://alpine.inc/doc/{{documentId}}#mention).
             `,
             {
                 spaceId: space.id,

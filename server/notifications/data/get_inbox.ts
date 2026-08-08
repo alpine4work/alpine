@@ -3,7 +3,7 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {getInboxForAccount} from "~/server/notifications/data/get_inbox_for_account.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 
 /**

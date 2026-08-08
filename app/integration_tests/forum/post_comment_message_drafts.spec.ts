@@ -6,6 +6,7 @@ import {
     getMessageDraftBehaviorTests,
     getMessageDraftInput,
     seedMessageDraft,
+    seedMessageDraftWithParent,
     waitForDraftToBeEmpty,
     waitForDraftToContainText,
     waitForPageReady,
@@ -73,6 +74,8 @@ const prepares = {
             session,
             surface: {type: "PostComment" as const, postId: post.id},
             path: `/post/${post.id}`,
+            channelPath: `/channel/${channel.id}`,
+            commentCountLabel: "2 comments",
             messageNoun: "comment" as const,
             draftLabel: "post comment parent draft",
             replyMessageText: "jklmnopqr",
@@ -90,6 +93,64 @@ for (const behaviorTest of getMessageDraftBehaviorTests()) {
         await behaviorTest.run({page, context: browserContext, isMobile}, prepares, services);
     });
 }
+
+test("clears the reply parent after sending when the draft was resaved from the client", async ({
+    page,
+    context: browserContext,
+    isMobile,
+}) => {
+    if (isMobile) return;
+
+    const scenario = await prepares.prepareWithReplyParent();
+    const {surface} = scenario;
+
+    await seedMessageDraftWithParent(scenario.session, surface, "reply draft", {
+        type: "MessagesRange",
+        startIndex: scenario.replyParentStartIndex,
+        endIndex: scenario.replyParentEndIndex,
+        startContentVersion: 0,
+        endContentVersion: 0,
+        startPos: 3,
+        endPos: 9,
+    });
+
+    await services.signIn(browserContext, scenario.session);
+    await page.goto(scenario.channelPath);
+    await waitForPageReady(page);
+
+    await openPostComments(page, scenario.commentCountLabel);
+
+    const input = getMessageDraftInput(page, scenario.messageNoun);
+    await expect(page.getByTestId("MessageInputParent")).toBeVisible();
+    await expect(input).toHaveText("reply draft", {timeout: 10_000});
+
+    // Re-save the draft from the client so a draft write carrying the reply parent
+    // lands on the server before sending. Regression guard: a resaved draft must never
+    // be reflected back into the input in a way that re-applies its reply parent after
+    // send clears it. Wait for the save to round-trip before sending.
+    const draftSaved = page.waitForResponse(response => {
+        const url = response.url();
+        if (url.includes("/api/rpc/updateMessageDraft")) return true;
+        return (
+            url.includes("/api/rpc/_batch") &&
+            !!response.request().postData()?.includes("updateMessageDraft")
+        );
+    });
+    await input.click();
+    await input.press("End");
+    await input.pressSequentially(" edited");
+    await expect(input).toHaveText("reply draft edited");
+    await draftSaved;
+    await waitForDraftToContainText(scenario.session, surface, "reply draft edited");
+
+    await page.getByRole("button", {name: `Send ${scenario.messageNoun}`}).click();
+    await expect(input).toHaveText("");
+
+    // Regression: the reply parent must not be re-applied from the resaved draft after
+    // `onParentClear()` runs on send.
+    await expect(page.getByTestId("MessageInputParent")).toBeHidden();
+    await waitForDraftToBeEmpty(scenario.session, surface);
+});
 
 test("hydrates a prefetched post comment draft when comments open", async ({
     page,

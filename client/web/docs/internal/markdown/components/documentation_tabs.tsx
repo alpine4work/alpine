@@ -2,7 +2,7 @@ import {Children, ReactElement, ReactNode, isValidElement, useState} from "react
 import {Box} from "~/client/web/design/box.js";
 import {DocumentationSegmentedControl} from "~/client/web/docs/internal/documentation_segmented_control.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {documentationMarkdownChildItems} from "~/client/web/docs/internal/markdown/documentation_markdown_child_items.js";
+import {documentationMarkdownChildItems} from "~/shared/docs/documentation_markdown_child_items.js";
 
 /**
  * Pill-style tabs for guides. Each child must be a `<Tab title="...">`. In

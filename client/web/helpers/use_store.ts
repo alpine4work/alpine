@@ -1,5 +1,5 @@
 import {Memo, useSyncExternalStore} from "react";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {Store} from "~/shared/store/store.js";
 
 /**

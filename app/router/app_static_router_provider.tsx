@@ -12,8 +12,8 @@ import {
 } from "react-router";
 import {UNSAFE_FetchersContext as FetchersContext} from "react-router-dom";
 import {StaticHandlerContext} from "react-router-dom/server.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * This is a fork of the [`<StaticRouterProvider>` component in `react-router`][1].

@@ -7,7 +7,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/web/tasks/internal/task_query_filter_operator_editor.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {TaskQueryTitleFilter} from "~/shared/tasks/task_query_filter.js";
 
 export function TaskQueryTitleFilterOperationEditor({

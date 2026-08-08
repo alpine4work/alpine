@@ -18,19 +18,20 @@ import {
     subscribeToSpacingScaleChange,
 } from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {isShallowEqual} from "~/shared/helpers/control/is_shallow_equal.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {isId} from "~/shared/id/id.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
 const contentEditorFileRowTableParentUpdateEventEmitter =
@@ -164,9 +165,9 @@ export function createContentEditorFileRowLikeNodeViewConstructor({
                 if (lastLayouts !== layouts) {
                     lastLayouts = layouts;
 
-                    dom.style.height = `${Math.max(...layouts.map(({height}) => height))}px`;
+                    dom.style.height = `${toFixedWithoutTrailingZeros(Math.max(...layouts.map(({height}) => height)), 3)}px`;
                     dom.style.gridTemplateColumns = layouts
-                        .map(({widthFr}) => `${widthFr}fr`)
+                        .map(({widthFr}) => `${toFixedWithoutTrailingZeros(widthFr, 6)}fr`)
                         .join(" ");
                 }
             };

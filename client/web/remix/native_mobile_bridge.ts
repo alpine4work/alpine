@@ -1,5 +1,5 @@
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Each of the tabs in our mobile app's tab bar.

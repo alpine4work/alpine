@@ -151,8 +151,8 @@ order-preserving binary encoding for strings can be tricky.)
 
 When base64 encoding, we use a URL-safe base64 dictionary that preserves order. Instead of the
 standard base64 dictionary (see `Rfc4648UrlWithOrderPreservation` in
-`shared/helpers/binary/base64.ts`). This way, the item key/cursor string order is the same as the
-binary order. And the binary order is the same as the underlying value order.
+`shared/helpers/binary/base64.open_source.ts`). This way, the item key/cursor string order is the
+same as the binary order. And the binary order is the same as the underlying value order.
 
 #### Client event backfill
 

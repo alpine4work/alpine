@@ -1,6 +1,6 @@
 import {IGif} from "@giphy/js-types";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/web/helpers/elements/is_html_image_element_loaded_and_decoded.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 /**
  * Maximum number of preloaded thumbnails to keep cached. When the limit is

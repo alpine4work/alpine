@@ -7,23 +7,26 @@ import {
     BlogPostPageData,
     createBlogPostUrl,
 } from "~/client/web/docs/blog.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     DocumentationSearchIndex,
     parseDocumentationSearchIndex,
-} from "~/client/web/docs/search_documentation_entries.js";
-import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+} from "~/shared/docs/search_documentation_entries.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 const generatedDocumentationDirectoryPath = join(
     runfilesPath,
-    "cyberworlds/client/web/docs/generated",
+    "cyberworlds/app/docs/codegen/generated",
 );
-const generatedBlogDirectoryPath = join(runfilesPath, "cyberworlds/client/web/docs/generated/blog");
+const generatedBlogDirectoryPath = join(
+    runfilesPath,
+    "cyberworlds/app/docs/codegen/generated/blog",
+);
 const generatedBlogPagesDirectoryPath = join(
     runfilesPath,
-    "cyberworlds/client/web/docs/generated/pages",
+    "cyberworlds/app/docs/codegen/generated/pages",
 );
 
 /**
@@ -181,6 +184,7 @@ function isBlogPostListItem(value: unknown): value is BlogPostListItem {
         typeof value.title === "string" &&
         typeof value.summary === "string" &&
         typeof value.publishDate === "string" &&
+        typeof value.modifiedDate === "string" &&
         (value.authorId === "josh" ||
             value.authorId === "caleb" ||
             value.authorId === "rachel" ||
@@ -188,7 +192,19 @@ function isBlogPostListItem(value: unknown): value is BlogPostListItem {
         Array.isArray(value.tags) &&
         value.tags.every(tag => typeof tag === "string") &&
         (typeof value.previewImage === "string" || value.previewImage === null) &&
+        (isDocumentationImageData(value.previewImageData) || value.previewImageData === null) &&
         (typeof value.previewImageAlt === "string" || value.previewImageAlt === null)
+    );
+}
+
+/** Check generated intrinsic dimensions and responsive image candidates. */
+function isDocumentationImageData(value: unknown): boolean {
+    return (
+        isPlainObject(value) &&
+        typeof value.src === "string" &&
+        typeof value.srcSet === "string" &&
+        typeof value.width === "number" &&
+        typeof value.height === "number"
     );
 }
 

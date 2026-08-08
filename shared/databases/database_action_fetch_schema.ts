@@ -1,6 +1,6 @@
 import {DatabaseActionResultSchema} from "~/shared/databases/database_actions.js";
 import {DatabasePagesSchema} from "~/shared/databases/database_protocol_schemas.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Wire format for the HTTP action endpoint response. Used by the durable object to

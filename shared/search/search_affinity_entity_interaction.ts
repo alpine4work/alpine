@@ -1,4 +1,4 @@
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * We fire one of these interactions once every 5 minutes while the user is viewing

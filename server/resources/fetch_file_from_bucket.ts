@@ -1,7 +1,7 @@
 import {getContentLengthAndRangeStartForR2Object} from "~/server/helpers/get_content_length_and_range_start_for_r2_object.js";
 import {isIfRangeConditionSatisfied} from "~/server/helpers/is_if_range_condition_satisfied.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export async function fetchFileFromBucket(
     objectKey: string,

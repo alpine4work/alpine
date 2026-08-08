@@ -1,4 +1,4 @@
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defaultDigestNotificationSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 import {ModelPartialDataType} from "~/shared/schema/model/model.js";

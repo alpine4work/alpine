@@ -5,10 +5,10 @@ import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 /**
  * Sends an HTTP request to a durable object running in the spawned edge service,

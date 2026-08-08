@@ -1,7 +1,7 @@
 import {sql} from "~/shared/databases/sql.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 type DatabaseDurableObjectSqlMigration = (db: SqlStorage) => void;
 

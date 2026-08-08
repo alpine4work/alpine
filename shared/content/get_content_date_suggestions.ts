@@ -1,9 +1,9 @@
+import {CalendarDate} from "@internationalized/date";
 import {
-    contentDateFullMonthNames,
     formatContentDateString,
-    isValidContentDate,
     parseContentDateString,
-} from "~/shared/content/content_date_helpers.js";
+} from "~/shared/content/format_content_date_string.js";
+import {dateFullMonthNames} from "~/shared/helpers/date/date_month_names.open_source.js";
 
 export type ContentDateSuggestion = {
     readonly label: string;
@@ -106,11 +106,15 @@ export function getContentDateSuggestions(
                 year = parseInt(yearStr, 10);
             }
 
-            if (!isValidContentDate(year, month.number, day)) continue;
+            const date = new CalendarDate(year, month.number, day);
+
+            // Make sure the original values were valid and weren't clamped by the
+            // `CalendarDate` constructor
+            if (date.year !== year || date.month !== month.number || date.day !== day) continue;
 
             results.push({
                 label: `${month.display} ${day}, ${year}`,
-                dateString: formatContentDateString(year, month.number, day),
+                dateString: date.toString(),
             });
         }
     }
@@ -130,7 +134,7 @@ const weekdays = [
     {lower: "sunday", display: "Sunday", iso: 7},
 ] as const;
 
-const months = contentDateFullMonthNames.map((name, i) => ({
+const months = dateFullMonthNames.map((name, i) => ({
     full: name.toLowerCase(),
     display: name,
     number: i + 1,

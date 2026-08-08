@@ -1,7 +1,7 @@
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
-import {DataLossError} from "~/shared/error/error.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagePayload,
     MessageStream,

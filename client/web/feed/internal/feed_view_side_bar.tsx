@@ -17,6 +17,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {forceRevalidateSearchByAffinity} from "~/client/web/search/core/force_revalidate_search_by_affinity.js";
+import {isDeletedSearchEntityResult} from "~/client/web/search/core/is_deleted_search_entity_result.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {
     useSearchEntityModel,
@@ -38,14 +39,14 @@ import {
     searchEntityViewDefaultPaddingX,
 } from "~/client/web/styles/search_shared_styles.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {generateId} from "~/shared/id/id.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {RpcDefinitionOutputType} from "~/shared/rpc/rpc_definition.js";
 import {
     clearSearchEntityAffinity,
@@ -93,10 +94,18 @@ export function FeedViewSideBar({
         {initialOutput: initialAffinitySearch},
     );
 
-    const hasFavorites =
-        output && (output.hasMoreFavoriteResults || output.favoriteResults.length > 0);
+    const unfilteredFavoriteResults = output ? output.favoriteResults : emptyArray;
+    const favoriteResults = useStore(
+        useMemo(() => {
+            return computeStore(get => {
+                return unfilteredFavoriteResults.filter(
+                    result => !isDeletedSearchEntityResult(get, searchEntityRegistry, result),
+                );
+            });
+        }, [searchEntityRegistry, unfilteredFavoriteResults]),
+    );
+    const hasFavorites = output && (output.hasMoreFavoriteResults || favoriteResults.length > 0);
     const hasMoreFavoriteResults = hasFavorites && output.hasMoreFavoriteResults;
-    const favoriteResults = hasFavorites ? output.favoriteResults : emptyArray;
 
     const sectionHeaderHeight = convertRemLengthToPx(
         addRemLengths(searchEntityHeaderPaddingTop, searchEntityHeaderLineHeight),
@@ -138,7 +147,10 @@ export function FeedViewSideBar({
 
                 if (output) {
                     for (const result of sliceIterable(
-                        output.results,
+                        output.results.filter(
+                            result =>
+                                !isDeletedSearchEntityResult(get, searchEntityRegistry, result),
+                        ),
                         0,
                         estimatedVisibleResultCount - favoriteResults.length,
                     )) {

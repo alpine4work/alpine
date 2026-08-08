@@ -4,13 +4,13 @@ import {authorizeSiteAccessIfPossible} from "~/server/sites/data/authorize_site_
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {DynamoItemKey, DynamoItemPartitionKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteOrSiteEntryModel} from "~/shared/sites/site_model.js";
 
 /**

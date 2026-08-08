@@ -39,21 +39,21 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {ErrorCode} from "~/shared/error/error_code.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     BrowserId,
@@ -64,7 +64,7 @@ import {
     TaskRealtimeCollectionSubscriptionId,
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";

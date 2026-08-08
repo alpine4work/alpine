@@ -38,13 +38,13 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/web/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
 export function ContentEditorFloater({

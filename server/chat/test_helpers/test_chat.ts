@@ -5,7 +5,7 @@ import {
     deleteChatMessage,
     deleteChatMessageReaction,
     getChatMessage,
-    putChatMessageStreamPart,
+    putChatMessageStreamPartAndBroadcastEvent,
     sendChatMessage,
     setChatMessageReaction,
     updateChatMessageContent,
@@ -32,11 +32,12 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {AccountId, ChatId, FileId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {AccountId, ChatId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
@@ -209,7 +210,7 @@ export class TestChat extends TestMessageRoomBase {
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
-            fileIds: ReadonlyArray<FileId>;
+            fileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone?: TimeZone;
             overrideCreatedTime?: Date;
             isStream?: boolean;
@@ -270,7 +271,7 @@ export class TestChat extends TestMessageRoomBase {
             overrideCreatedTime?: Date;
         },
     ) {
-        await putChatMessageStreamPart(context, {
+        await putChatMessageStreamPartAndBroadcastEvent(context, {
             chatId: this.id,
             messageIndex,
             partIndex,

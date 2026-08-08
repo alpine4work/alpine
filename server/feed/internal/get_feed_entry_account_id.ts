@@ -1,6 +1,6 @@
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the account ID associated with a feed entry. For posts this is the author,

@@ -1,11 +1,9 @@
-import {Node} from "prosemirror-model";
-import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
+import {getMessageReactionContentRanges} from "~/shared/messaging/get_message_reaction_content_ranges.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
 import {
     MessageContentPayload,
@@ -49,7 +47,7 @@ export function computeSetMessageReaction({
         return {...message.payload, filesReactions: new ReactionSet(newFilesReactions)};
     }
 
-    const {payload, pos} = unwrapResult(
+    const {payload, pos, range} = unwrapResult(
         findMessageReactionPosIfPossible({
             message,
             contentVersion: clientContentVersion,
@@ -64,6 +62,7 @@ export function computeSetMessageReaction({
     // The client needs a correct `pos` calculation implementation to know if the user
     // has already reacted to an arbitrary range of text in the message.
     if (
+        message.stream === null &&
         (payload.contentUpdate?.mappings.length ?? 0) === clientContentVersion &&
         pos !== clientPos
     ) {
@@ -73,6 +72,27 @@ export function computeSetMessageReaction({
     }
 
     const newReactionsByPos = new Map(payload.reactionsByPos);
+
+    if (message.stream !== null) {
+        // Stream parts can grow while a reaction is being set, which can leave older
+        // reactions for the same account at stale positions inside the same block range.
+        // Keep only the canonical block-end position.
+        for (const [existingPos, existingReactions] of newReactionsByPos) {
+            if (existingPos <= range.from || existingPos > range.to || existingPos === pos) {
+                continue;
+            }
+
+            const newExistingReactions = new Map(existingReactions.get());
+            newExistingReactions.delete(actorAccountId);
+
+            if (newExistingReactions.size === 0) {
+                newReactionsByPos.delete(existingPos);
+            } else {
+                newReactionsByPos.set(existingPos, new ReactionSet(newExistingReactions));
+            }
+        }
+    }
+
     const newReactions = new Map(newReactionsByPos.get(pos)?.get());
     newReactions.set(actorAccountId, reaction);
     newReactionsByPos.set(pos, new ReactionSet(newReactions));
@@ -80,6 +100,13 @@ export function computeSetMessageReaction({
     return {...payload, reactionsByPos: newReactionsByPos};
 }
 
+/**
+ * Finds the canonical content block-end position for a message reaction.
+ *
+ * For regular messages this mirrors ProseMirror's block-boundary lookup. For
+ * streams, it searches the combined message content and stream content ranges
+ * without materializing a synthetic document.
+ */
 export function findMessageReactionPosIfPossible({
     message,
     contentVersion: clientContentVersion,
@@ -94,6 +121,7 @@ export function findMessageReactionPosIfPossible({
 }): Result<{
     payload: MessageContentPayload;
     pos: number;
+    range: {from: number; to: number};
 }> {
     if (message.payload.type !== "Content") {
         return {
@@ -102,37 +130,6 @@ export function findMessageReactionPosIfPossible({
                 "Can\u2019t set reaction on messages with a non-content payload",
             ),
         };
-    }
-
-    let content: Node;
-
-    if (message.stream === null) {
-        content = message.payload.content;
-    } else {
-        const newContent: Array<Node> = [];
-
-        if (!isContentEmpty(message.payload.content)) {
-            for (const node of message.payload.content.content.content) {
-                newContent.push(node);
-            }
-        }
-
-        const usableStreamPartCount =
-            message.stream.parts.length -
-            // If the stream is incomplete then we can't react to the last part. Since the last
-            // part may still be receiving updates.
-            (message.stream.completedTime === null ? 1 : 0);
-
-        for (let i = 0; i < usableStreamPartCount; i++) {
-            const part = message.stream.parts[i]!;
-            if (part.payload.type !== "Content") continue;
-
-            for (const node of part.payload.content.content.content) {
-                newContent.push(node);
-            }
-        }
-
-        content = MessageContentProsemirrorSchema.node("doc", {}, newContent);
     }
 
     const contentVersion = message.payload.contentUpdate?.mappings.length ?? 0;
@@ -169,10 +166,51 @@ export function findMessageReactionPosIfPossible({
         };
     }
 
-    // Selection is out of bounds. This may happen if the selection is in the last part
-    // of a message stream that hasn't completed. That last incomplete part won't be
-    // added to the `content` variable created in this function.
-    if (clientPos > content.content.size) {
+    if (message.stream === null) {
+        const content = message.payload.content;
+
+        if (clientPos > content.content.size) {
+            return {
+                ok: false,
+                error: new FailedPreconditionError(
+                    "Can\u2019t set reaction with position outside the message\u2019s bounds",
+                ),
+            };
+        }
+
+        const $clientPos = content.resolve(clientPos);
+        const pos = $clientPos.after(1);
+        const $pos = content.resolve(pos);
+
+        // Creating `pos` with `.after(1)` means we should be at the root level.
+        assert($pos.depth === 0);
+
+        if (!$pos.nodeBefore) {
+            return {
+                ok: false,
+                error: new FailedPreconditionError(
+                    "Can\u2019t set reaction on the content\u2019s start position",
+                ),
+            };
+        }
+
+        return {
+            ok: true,
+            value: {
+                payload: message.payload,
+                pos,
+                range: {from: pos - $pos.nodeBefore.nodeSize, to: pos},
+            },
+        };
+    }
+
+    const ranges = getMessageReactionContentRanges({
+        payload: message.payload,
+        stream: message.stream,
+    });
+    const contentSize = ranges[ranges.length - 1]?.to ?? 0;
+
+    if (ranges.length === 0 || clientPos > contentSize) {
         return {
             ok: false,
             error: new FailedPreconditionError(
@@ -181,27 +219,25 @@ export function findMessageReactionPosIfPossible({
         };
     }
 
-    const $clientPos = content.resolve(clientPos);
-    const pos = $clientPos.after(1);
-    const $pos = content.resolve(pos);
+    for (const range of ranges) {
+        // Ranges are open on the left and closed on the right because reaction positions
+        // live immediately after block nodes.
+        if (clientPos <= range.from || clientPos > range.to) continue;
 
-    // Creating `pos` with `.after(1)` means we should be at the root level.
-    assert($pos.depth === 0);
-
-    if (!$pos.nodeBefore) {
         return {
-            ok: false,
-            error: new FailedPreconditionError(
-                "Can\u2019t set reaction on the content\u2019s start position",
-            ),
+            ok: true,
+            value: {
+                payload: message.payload,
+                pos: range.to,
+                range,
+            },
         };
     }
 
     return {
-        ok: true,
-        value: {
-            payload: message.payload,
-            pos,
-        },
+        ok: false,
+        error: new FailedPreconditionError(
+            "Can\u2019t set reaction on the content\u2019s start position",
+        ),
     };
 }

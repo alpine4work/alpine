@@ -2,7 +2,7 @@ import {ServerActionContextModules} from "~/server/context/server_action_context
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {Context} from "~/shared/context/context.js";
-import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Dangerous since we create a channel item for `channelId` without checking
@@ -36,7 +36,7 @@ export function internalDangerouslyCreateChannelTransactionEntries(
                 channelId,
                 spaceId,
                 createdTime,
-                creatorId: ownerAccountId,
+                creator: {accountId: ownerAccountId, from: null},
                 name: channelName,
                 description: channelDescription,
                 accessPolicy: {

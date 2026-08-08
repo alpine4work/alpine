@@ -2,11 +2,15 @@ import {getMessageContentReferencesForNode} from "~/server/content/get_content_r
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {MessageDraftsTable} from "~/server/messaging/drafts/internal/message_drafts_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array.js";
-import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft, emptyMessageDraft} from "~/shared/messaging/message_draft_schema.js";
 import {getMessageDraftSurfaceKey} from "~/shared/messaging/message_draft_surface.js";
 

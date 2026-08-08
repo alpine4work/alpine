@@ -1,4 +1,4 @@
-import {Result} from "~/shared/helpers/control/result.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 
 /**
  * Maps a result value. If the `action` throws then the error is thrown by

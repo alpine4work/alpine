@@ -1,0 +1,37 @@
+{
+    "title": "Unstructured Recording",
+    "meeting_title": null,
+    "meeting_type": null,
+    "recording_id": 910003,
+    "url": "https://fathom.video/calls/unstructured-recording",
+    "meeting_url": null,
+    "share_url": "https://fathom.video/share/unstructured-recording",
+    "created_at": "2026-09-02T14:16:30Z",
+    "scheduled_start_time": "2026-09-02T14:00:00Z",
+    "scheduled_end_time": "2026-09-02T14:15:00Z",
+    "recording_start_time": "2026-09-02T14:00:12Z",
+    "recording_end_time": "2026-09-02T14:15:55Z",
+    "calendar_invitees_domains_type": "only_internal",
+    "shared_with": "no_teams",
+    "transcript_language": "en",
+    "transcript": null,
+    "default_summary": null,
+    "action_items": null,
+    "highlights": null,
+    "calendar_invitees": [
+        {
+            "name": "Josh Johnson",
+            "matched_speaker_display_name": null,
+            "email": "josh@alpine.inc",
+            "is_external": false,
+            "email_domain": "alpine.inc"
+        }
+    ],
+    "recorded_by": {
+        "name": "Josh Johnson",
+        "email": "josh@alpine.inc",
+        "team": "Product",
+        "email_domain": "alpine.inc"
+    },
+    "crm_matches": null
+}

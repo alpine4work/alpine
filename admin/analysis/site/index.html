@@ -3,10 +3,15 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex,nofollow" />
         <title>analysis</title>
         <style>
+            * {
+                box-sizing: border-box;
+            }
             body {
                 align-items: center;
+                color: #111827;
                 display: flex;
                 font-family:
                     Inter,
@@ -20,16 +25,20 @@
                 margin: 0;
                 min-height: 100vh;
             }
-
             main {
+                align-items: center;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                padding: 24px;
+            }
+            .primary-links {
                 display: flex;
                 flex-wrap: wrap;
                 gap: 16px;
                 justify-content: center;
-                padding: 24px;
             }
-
-            a {
+            .primary-link {
                 align-items: center;
                 background: #111827;
                 border: 1px solid #111827;
@@ -42,16 +51,180 @@
                 padding: 0 18px;
                 text-decoration: none;
             }
-
-            a:hover {
+            .primary-link:hover {
                 background: #374151;
                 border-color: #374151;
+            }
+            button,
+            input {
+                font: inherit;
+            }
+            button {
+                cursor: pointer;
+            }
+            .switch-button {
+                background: transparent;
+                border: 0;
+                color: #3b82f6;
+                font-size: 13px;
+                opacity: 0.68;
+                padding: 4px 8px;
+            }
+            .switch-button:hover {
+                opacity: 1;
+                text-decoration: underline;
+            }
+            dialog {
+                border: 0;
+                border-radius: 14px;
+                box-shadow: 0 20px 45px rgb(17 24 39 / 20%);
+                max-height: 80vh;
+                padding: 0;
+                width: min(560px, calc(100% - 32px));
+            }
+            dialog::backdrop {
+                background: rgb(17 24 39 / 28%);
+            }
+            .dialog-header {
+                align-items: center;
+                display: flex;
+                justify-content: space-between;
+                padding: 20px 20px 16px;
+            }
+            .dialog-header h1 {
+                font-size: 18px;
+                margin: 0;
+            }
+            .close-button {
+                background: transparent;
+                border: 0;
+                color: #6b7280;
+                font-size: 24px;
+                line-height: 1;
+                padding: 4px;
+            }
+            .dialog-body {
+                padding: 0 20px 20px;
+            }
+            input {
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                padding: 10px 12px;
+                width: 100%;
+            }
+            ul {
+                display: grid;
+                gap: 8px;
+                list-style: none;
+                margin: 16px 0 0;
+                max-height: 52vh;
+                overflow-y: auto;
+                padding: 0;
+            }
+            .branch-link {
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                color: #111827;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                padding: 12px;
+                text-decoration: none;
+            }
+            .branch-link:hover {
+                border-color: #9ca3af;
+            }
+            .branch-name {
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                overflow-wrap: anywhere;
+            }
+            time,
+            #empty {
+                color: #6b7280;
+            }
+            #empty {
+                margin-bottom: 0;
             }
         </style>
     </head>
     <body>
         <main>
-            <a href="/coverage/">Coverage</a>
+            <div class="primary-links">
+                <a class="primary-link" href="/coverage/">Coverage</a>
+                <a class="primary-link" href="/landing/">Landing</a>
+            </div>
+            <button id="switch-branch" class="switch-button" type="button">Switch Branch</button>
         </main>
+        <dialog id="branch-dialog" aria-labelledby="branch-dialog-title">
+            <div class="dialog-header">
+                <h1 id="branch-dialog-title">Switch Branch</h1>
+                <button class="close-button" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <label>
+                    <span hidden>Search branches</span>
+                    <input id="branch-search" type="search" placeholder="Search branches" />
+                </label>
+                <ul id="branches"></ul>
+                <p id="empty" hidden>No matching branches.</p>
+            </div>
+        </dialog>
+        <script>
+            const switchBranchButton = document.querySelector("#switch-branch");
+            const branchDialog = document.querySelector("#branch-dialog");
+            const closeButton = branchDialog.querySelector(".close-button");
+            const search = document.querySelector("#branch-search");
+            const list = document.querySelector("#branches");
+            const empty = document.querySelector("#empty");
+            let branches = [];
+
+            function render() {
+                const query = search.value.trim().toLowerCase();
+                const filtered = branches.filter(branch =>
+                    branch.name.toLowerCase().includes(query),
+                );
+                list.replaceChildren(
+                    ...filtered.map(branch => {
+                        const item = document.createElement("li");
+                        const link = document.createElement("a");
+                        link.className = "branch-link";
+                        link.href = branch.url;
+                        const name = document.createElement("span");
+                        name.className = "branch-name";
+                        name.textContent = branch.name;
+                        const lastUpdate = document.createElement("time");
+                        lastUpdate.dateTime = branch.lastUpdate;
+                        lastUpdate.textContent = `Updated ${new Date(
+                            branch.lastUpdate,
+                        ).toLocaleString()}`;
+                        link.append(name, lastUpdate);
+                        item.append(link);
+                        return item;
+                    }),
+                );
+                empty.hidden = filtered.length !== 0;
+            }
+
+            switchBranchButton.addEventListener("click", () => {
+                branchDialog.showModal();
+                search.focus();
+            });
+            closeButton.addEventListener("click", () => branchDialog.close());
+            search.addEventListener("input", render);
+            fetch("/branches.json")
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (!Array.isArray(data)) throw new Error("Unexpected branch catalog");
+                    branches = data;
+                    render();
+                })
+                .catch(error => {
+                    empty.hidden = false;
+                    empty.textContent = `Could not load branches: ${error.message}`;
+                });
+        </script>
     </body>
 </html>

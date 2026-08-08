@@ -1,7 +1,7 @@
 import {
     assertAssignableTypes,
     assertNotAssignableTypes,
-} from "~/shared/helpers/control/assert_assignable_types.js";
+} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 
 test("works with primitive types", () => {
     // @ts-expect-error

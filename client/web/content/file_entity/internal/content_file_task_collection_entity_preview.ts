@@ -8,9 +8,9 @@ import {
     taskRowTitleInputPaddingYPx,
     taskRowViewMinHeight,
 } from "~/client/web/styles/tasks_shared_styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {Store} from "~/shared/store/store.js";

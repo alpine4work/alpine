@@ -21,8 +21,8 @@ import {
 } from "~/client/web/styles/space_settings_shared_styles.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 
 type SettingsRoute = keyof typeof titleBySettingsRoute;
 

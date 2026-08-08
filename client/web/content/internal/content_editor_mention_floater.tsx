@@ -64,24 +64,24 @@ import {
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {formatContentDateString} from "~/shared/content/content_date_helpers.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {formatContentDateAbsolute} from "~/shared/content/format_content_date.js";
+import {formatContentDateString} from "~/shared/content/format_content_date_string.js";
 import {getContentDateSuggestions} from "~/shared/content/get_content_date_suggestions.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {getFileEntityIfPossible} from "~/shared/rpc/files_rpc_definitions.js";
@@ -319,12 +319,14 @@ export function ContentEditorMentionFloater({
         saveAccountMention: (accountData: AccountModelData) => {
             const view = assertExists(viewRef.current);
 
+            const accountShortName = getAccountShortNameWithoutFullNameTooltip(accountData);
+
             // If the account's short name is not ambiguous when searching all account names
             // then we will insert a short mention by default. The user can undo (cmd-z) to get
             // the long version of the mention.
             const isShortNameAmbiguous = allAccountsFuse
                 ? allAccountsFuse
-                      .search(getAccountShortNameWithoutFullNameTooltip(accountData))
+                      .search(accountShortName)
                       .filter(
                           result =>
                               !result.item.botId &&
@@ -340,7 +342,13 @@ export function ContentEditorMentionFloater({
                 // Only use short name for a non-ambiguous name on desktop. Since on mobile the
                 // quick undo capability doesn't really exist. Instead the user may tap delete to
                 // get a short name.
-                isShort: !isBot && platform !== "mobile" && !isShortNameAmbiguous,
+                isShort:
+                    !isBot &&
+                    platform !== "mobile" &&
+                    !isShortNameAmbiguous &&
+                    // Make sure the name can be shortened. If it can't be shortened then marking the
+                    // mention as short can be confusing in other parts of our system.
+                    accountShortName !== accountData.name,
             };
 
             let transaction = updateContentEditorReferences(

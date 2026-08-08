@@ -21,18 +21,18 @@ import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_spac
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqualForUnknownValues} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {DistributiveKeyOf} from "~/shared/helpers/types/distributive_key_of.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export const updateInboxEntryBeforeExecuteTransactionTestCheckpoint =
     new TestCheckpoint<AccountId>();

@@ -3,13 +3,13 @@ import type {
     DynamoKeyAttributeSchemaDescription,
     DynamoKeyAttributeSchemaType,
 } from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
-import {IdentityType} from "~/shared/helpers/types/identity_type.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import type {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {IdentityType} from "~/shared/helpers/types/identity_type.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import type {ObjectSchema, SchemaType} from "~/shared/schema/schema.js";
-import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.js";
+import type {ObjectSchema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.open_source.js";
 
 /**
  * Types for the `DynamoTableSchema` file. These types get a little complicated. So
@@ -182,18 +182,29 @@ export namespace DynamoTableSchemaTypes {
     export namespace Partition {
         export type ConfigBase = {
             readonly name: string;
+            readonly strongConsistencyIndex?: {
+                readonly itemTypes: ReadonlyArray<StrongConsistencyIndexItemType>;
+            };
             readonly partitionKeyAttributes: KeyAttributes.ConfigBase;
             readonly sortRanges: ReadonlyArray<SortRange.ConfigBase>;
         };
 
         export type Description = {
             readonly id: number;
+            readonly strongConsistencyIndex?: {
+                readonly itemTypes: ReadonlyArray<StrongConsistencyIndexItemType>;
+            };
             readonly partitionKeyAttributeByKey: {
                 readonly [key: string]: DynamoKeyAttributeSchemaDescription;
             };
             readonly sortRangeByType: {
                 readonly [type: string]: SortRange.Description;
             };
+        };
+
+        export type StrongConsistencyIndexItemType = {
+            readonly partitionType: string;
+            readonly sortRangeType: string;
         };
 
         /**

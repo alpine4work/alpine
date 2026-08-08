@@ -6,8 +6,8 @@ import {extname} from "path";
 // with types.
 import * as prettier from "prettier/index.mjs";
 import Yaml from "yaml";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.open_source.js";
 
 async function main() {
     await runAllPromises(

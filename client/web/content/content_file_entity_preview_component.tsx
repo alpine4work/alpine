@@ -25,9 +25,9 @@ import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 

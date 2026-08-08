@@ -39,31 +39,35 @@ import {
     TaskRealtimeActionTransactionUpdateEventBuilder,
     TaskRealtimeUpdateEventBuilderBase,
 } from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
-import {InternalError} from "~/shared/error/error.js";
-import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {
     AccountId,
     SpaceId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
@@ -180,6 +184,23 @@ export class TaskRealtimeStore {
     }> {
         return await this._withFatalErrorHandling(context, () =>
             this._internal.loadQuery(context, options),
+        );
+    }
+
+    public async expensivelyLoadQueryAfterCursor(
+        context: TaskRealtimeSystemActionContext,
+        options: {
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+            afterCursor: TaskQuerySortCursor | null;
+        },
+    ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    }> {
+        return await this._withFatalErrorHandling(context, () =>
+            this._internal.expensivelyLoadQueryAfterCursor(context, options),
         );
     }
 
@@ -607,6 +628,45 @@ export class TaskRealtimeStoreInternal {
         return query.getLoadedTasks({
             limit,
             afterCursor: null,
+        });
+    }
+
+    /**
+     * Loads tasks after `afterCursor` into a query by first extending the contiguous
+     * loaded range from the start of the query up to `afterCursor`.
+     *
+     * This can be expensive for random access deep into a large query. Prefer forward
+     * pagination from the beginning of the query.
+     */
+    public async expensivelyLoadQueryAfterCursor(
+        context: TaskRealtimeSystemActionContext,
+        {
+            filters,
+            sorts,
+            limit,
+            afterCursor,
+        }: {
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+            afterCursor: TaskQuerySortCursor | null;
+        },
+    ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    }> {
+        assert(Number.isInteger(limit));
+
+        const query = this.getQuery({filters, sorts});
+
+        await query.expensivelyLoadMoreTasksAfterCursor(context, {
+            limit,
+            afterCursor,
+        });
+
+        return query.getLoadedTasks({
+            limit,
+            afterCursor,
         });
     }
 
@@ -1184,6 +1244,7 @@ export class TaskRealtimeStoreInternal {
                         version,
                         lastIndexSearchEntityJob,
                         approximateActionCountByAccountId,
+                        titleIndexVersion,
                         ...freshTask
                     } = task;
 

@@ -25,18 +25,18 @@ import {SqlQuery, sql} from "~/shared/databases/sql.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {
     generateChronologicalId,
     unsafelyConstructChronologicalId,
-} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     AccountId,
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 
 // ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import {
 } from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
 import {screenshotFileEntity} from "~/app/screenshot_tests/helpers/screenshot_file_entity.js";
 import {scrollLocatorToBottom} from "~/app/screenshot_tests/helpers/scroll_locator_to_bottom.js";
+import {runTaskActivityFeedScreenshots} from "~/app/screenshot_tests/run_task_activity_feed_screenshots.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
@@ -17,14 +18,14 @@ import {
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {generateId, unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
@@ -815,6 +816,8 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         await site.removeEntity(accounts.cassCade, `TaskCollection:${collections.bugs.id}`);
         await collections.bugs.access.set(accounts.cassCade, oldBugsCollectionAccessPolicy);
     }
+
+    await runTaskActivityFeedScreenshots(context, runner, accounts);
 }
 
 async function createTaskCollections(session: TestSpaceSession) {
@@ -1204,6 +1207,7 @@ selection state.
     });
 
     const featuredProjectTask = await TestTask.create(accounts.cassCade, {
+        time: [new Date("2025-10-06T14:17:00-04:00").getTime(), 0],
         // A stable `Id` here is important for `<ReactionParty>`'s `randomSeed` prop. This
         // makes sure the reaction party on any messages is stable across renders.
         id: unsafelyGenerateStableId<TaskId>(stableRandom, "featuredProjectTask"),
@@ -1335,7 +1339,7 @@ the last tricky part because document position and visual line are not the same 
 wraps
             `,
             {
-                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}?short)`,
+                mattMention: `[](https://alpine.inc/mention/${accounts.mattRHorn.account.id}#short)`,
             },
         ),
         {overrideCreatedTime: new Date("2025-10-06T14:18:00-04:00")},
@@ -1499,6 +1503,7 @@ async function createSprintTasksAndBugTasks(
         priority: "Low",
     });
     const featuredBugTask = await TestTask.create(accounts.cassCade, {
+        time: [new Date("2025-10-08T09:15:00-04:00").getTime(), 0],
         title: "App crashes if user has deleted a previously-favorited task",
         collections: bugs,
         priority: "Urgent",

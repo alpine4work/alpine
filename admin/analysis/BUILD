@@ -1,8 +1,23 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_test")
 load("//admin/typescript:typescript.bzl", "ts_lint_and_format_test")
 
 ts_lint_and_format_test(
     name = "analysis",
+    srcs = glob(
+        [
+            "**/*.cjs",
+            "**/*.html",
+            "**/*.js",
+            "**/*.json",
+            "**/*.md",
+            "**/*.mjs",
+        ],
+        exclude = [
+            "html/**",
+            "landing-html/**",
+        ],
+        allow_empty = True,
+    ),
 )
 
 MERGE_JEST_COVERAGE_DEPS = [
@@ -40,6 +55,25 @@ js_binary(
 )
 
 js_binary(
+    name = "generate_landing_html",
+    data = [
+        "//:node_modules",
+        "//app:app_landing_static_generation",
+    ],
+    entry_point = "generate_landing_html.cjs",
+)
+
+js_test(
+    name = "generate_landing_html_test",
+    data = [
+        "//:node_modules",
+        "//app:app_landing_static_generation",
+    ],
+    entry_point = "generate_landing_html.cjs",
+    size = "medium",
+)
+
+js_binary(
     name = "merge_jest_coverage",
     data = MERGE_JEST_COVERAGE_DEPS + [
         "coverage_source_file.cjs",
@@ -59,4 +93,10 @@ js_binary(
     name = "publish_analysis_html",
     data = glob(["site/**"]) + ["//:node_modules"],
     entry_point = "publish_analysis_html.cjs",
+)
+
+js_binary(
+    name = "publish_landing_catalog",
+    data = ["//:node_modules"],
+    entry_point = "publish_landing_catalog.cjs",
 )

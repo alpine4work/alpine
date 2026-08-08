@@ -1,5 +1,5 @@
 import {oneTimePasswordSignInEmailsForTest} from "~/server/accounts/internal/actually_regenerate_one_time_password_sign_in.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 
 /**

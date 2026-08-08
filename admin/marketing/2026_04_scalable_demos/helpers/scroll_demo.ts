@@ -1,5 +1,5 @@
 import {Locator} from "playwright";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 export type ScrollDemoOptions = {
     /**

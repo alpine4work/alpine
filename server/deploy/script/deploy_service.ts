@@ -15,10 +15,10 @@ import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TracerClient} from "~/server/tracer/tracer_client.js";
 import {Context} from "~/shared/context/context.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type Options = ServiceOptions<typeof options>;
 

@@ -24,9 +24,9 @@ import {TestImporterContextModule} from "~/server/importer/test_helpers/test_imp
 import {getSearchEntityTableForTest} from "~/server/search/data/table/get_search_entity_table_for_test.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId, FileId, NotionImportId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId, FileId, NotionImportId} from "~/shared/id/types/id_types.open_source.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
 /**

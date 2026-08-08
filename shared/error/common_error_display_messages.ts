@@ -1,4 +1,4 @@
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 
 /**
  * Error message we show when the user hasn't authenticated (signed in) with our

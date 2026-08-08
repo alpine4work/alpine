@@ -20,14 +20,14 @@ import {
     DocumentContentProsemirrorSchema,
     DocumentWithoutTitleContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;

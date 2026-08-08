@@ -1,6 +1,6 @@
-import {InternalError} from "~/shared/error/error.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {BrowserId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {BrowserId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 // If the schema of the web push store changes, increment the version number to

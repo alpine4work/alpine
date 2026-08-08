@@ -22,17 +22,17 @@ import {
     AlphaConfigurationSchema,
 } from "~/shared/alpha/alpha_configuration_schema.js";
 import {Context} from "~/shared/context/context.js";
-import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {filterMapAsyncIterableIterator} from "~/shared/helpers/iterable/filter_map_async_iterable_iterator.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {emailAddressMaxLength} from "~/shared/schema/helpers/email_address_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const AlphaAccessTable = DynamoTableSchema.new({
     name: "AlphaAccess",

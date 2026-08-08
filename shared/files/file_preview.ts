@@ -1,10 +1,10 @@
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
-import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
+import {FileContentTypeSchema} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileProcessorError, FileProcessorErrorSchema} from "~/shared/files/file_processor_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export type FileImagePreviewSize = SchemaType<typeof FileImagePreviewSizeSchema>;
 

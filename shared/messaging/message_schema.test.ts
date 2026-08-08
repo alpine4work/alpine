@@ -1,8 +1,8 @@
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {MessageContentPayloadSchema} from "~/shared/messaging/message_schema.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
-import {JsonStringifiableUint8Array} from "~/shared/schema/schema.js";
+import {JsonStringifiableUint8Array} from "~/shared/schema/schema.open_source.js";
 
 test("serializes message content payload with null `parent` and null `contentUpdate`", () => {
     const serializedMessage = MessageContentPayloadSchema.serialize({

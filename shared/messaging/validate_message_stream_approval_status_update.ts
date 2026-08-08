@@ -1,6 +1,6 @@
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {createMessageApprovalAlreadyDecidedError} from "~/shared/messaging/message_approval_error_messages.js";
 import {
     MessageExperimentalApprovalDecisionSchemaSchema,

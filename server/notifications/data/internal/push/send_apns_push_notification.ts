@@ -5,8 +5,8 @@ import {deleteAccountAppleDeviceTokenIfExists} from "~/server/notifications/data
 import {getPushNotificationThreadId} from "~/server/notifications/data/push/get_push_notification_thread_id.js";
 import {getRegisteredAppleDevicesForAccount} from "~/server/notifications/data/push/get_registered_apple_devices_for_account.js";
 import {Context} from "~/shared/context/context.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function sendApnsPushNotification(
     context: Context<ServerActionContextModules & {apns: ApnsContextModuleBase}>,

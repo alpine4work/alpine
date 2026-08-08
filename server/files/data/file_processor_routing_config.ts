@@ -4,7 +4,7 @@ import {
     getFileMicrosoftOfficeContentTypes,
     getFileVideoContentTypes,
     isFileWebSafeAudioContentType,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 /**
  * Configuration for routing files to appropriate processor tiers.
  */
@@ -15,7 +15,6 @@ export interface FileProcessorRoutingRule {
         readonly contentTypes?: ReadonlySet<FileContentType>;
         readonly maxFileSize?: number;
         readonly minFileSize?: number;
-        readonly requiresFileAnalysisFeature?: boolean;
     };
     readonly target: "ProcessFileLight" | "ProcessFileHeavy";
 }
@@ -111,7 +110,6 @@ export const fileProcessorRoutingConfig: FileProcessorRoutingConfig = {
                     ),
                 ),
                 minFileSize: twentyFiveMb + 1,
-                requiresFileAnalysisFeature: true,
             },
             target: "ProcessFileHeavy",
         },

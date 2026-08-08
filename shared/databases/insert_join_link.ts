@@ -1,8 +1,8 @@
 import type {DatabaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
 import {sql} from "~/shared/databases/sql.js";
 import type {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import type {DatabaseRowId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 type ResolvedDatabaseRelation = ReturnType<DatabaseRelationFieldProvider["resolveRelation"]>;
 

@@ -1,4 +1,4 @@
-import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
+import {JsonObjectValue} from "~/shared/helpers/types/json_value.open_source.js";
 
 /**
  * Sort clause for an OpenSearch search request.

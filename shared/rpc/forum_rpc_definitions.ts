@@ -23,7 +23,13 @@ import {RynamoChannelOrPostEventSchema} from "~/shared/forum/channel_realtime_pr
 import {PostContentSchema, PostContentStepSchema} from "~/shared/forum/post_content_schema.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {RynamoPostEventSchema} from "~/shared/forum/post_realtime_protocol.js";
-import {AccountId, ChannelId, PostDraftId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChannelId,
+    PostDraftId,
+    PostId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
     MessageReferencedIdsSchema,
@@ -38,7 +44,7 @@ import {PutMessageApprovalDecisionsPayloadSchema} from "~/shared/messaging/put_m
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";

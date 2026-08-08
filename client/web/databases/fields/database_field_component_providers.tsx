@@ -4,7 +4,7 @@ import {databaseNumberFieldComponentProvider} from "~/client/web/databases/field
 import {databasePlainTextFieldComponentProvider} from "~/client/web/databases/fields/database_plain_text_field_component.js";
 import {databaseRelationFieldComponentProvider} from "~/client/web/databases/fields/database_relation_field_component.js";
 import type {DatabaseFieldType} from "~/shared/databases/fields/all_database_field_providers.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * All known field component providers. Use this for iteration (e.g. rendering the

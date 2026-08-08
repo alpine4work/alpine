@@ -1,6 +1,7 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {TextSelection} from "prosemirror-state";
 import {AddMarkStep, DocAttrStep, RemoveMarkStep, ReplaceStep} from "prosemirror-transform";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {WorkerSessionActionContextModules} from "~/server/cloudflare/context/worker_action_context.js";
 import {WorkerProcessContextModules} from "~/server/cloudflare/context/worker_process_context.js";
 import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_test_worker_context.js";
@@ -23,8 +24,8 @@ import {
 } from "~/server/documents/data/documents_actions.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {attachFileAsUploader} from "~/server/files/data/files_actions.js";
-import {testFileAnalysis, uploadTestFile} from "~/server/files/test_helpers/test_file.js";
+import {attachFileAsUploader, getFileFromAttachment} from "~/server/files/data/files_actions.js";
+import {TestFile, testFileAnalysis, uploadTestFile} from "~/server/files/test_helpers/test_file.js";
 import {
     testMessagingRealtimeImplementation,
     testMessagingRealtimeImplementationSearchInjection,
@@ -38,12 +39,18 @@ import {getAccount} from "~/server/spaces/get_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {WebSocketServerTestConnection} from "~/server/web_socket/web_socket_server.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {ApiContentPosition} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {ContentSelectionWrapper} from "~/shared/content/content_selection_schema.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
+    DocumentCollaborationCreateCommentThreadForApiRequestBodySchema,
+    DocumentCollaborationCreateCommentThreadForApiResponseBodySchema,
     DocumentCollaborationProtocol,
+    DocumentCollaborationSetCommentThreadResolvedRequestBodySchema,
+    DocumentCollaborationSetCommentThreadResolvedResponseBodySchema,
     DocumentCollaborationUpdateContentWithDiffRequestBodySchema,
     DocumentCollaborationUpdateContentWithDiffResponseBodySchema,
 } from "~/shared/documents/document_collaboration_protocol.js";
@@ -57,24 +64,32 @@ import {
     decodeDocumentCommentRoomKey,
     encodeDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
-import {InternalError, NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    NotFoundError,
+    PermissionDeniedError,
+} from "~/shared/error/error.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
+    FileId,
     SiteId,
     SiteSideBarId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
@@ -109,23 +124,110 @@ function textSlice(text: string) {
     return new Slice(Fragment.from(schema.text(text)), 0, 0);
 }
 
-function createUpdateContentWithDiffRequest({version, text}: {version: number; text: string}) {
+async function createDocumentManagerAndEditorConnectionsForTest() {
+    const space = await TestSpace.create(context);
+    const [managerSession, editorSession] = await space.createSessions(2);
+    const document = await TestDocument.create(managerSession);
+    await document.access.grant(managerSession, editorSession, "Edit");
+
+    const managerConnection = await connectForTest(
+        context.action(managerSession, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+    );
+    const editorConnection = await connectForTest(
+        context.action(editorSession, {serviceName: "DocumentCollaborationService"}),
+        document.id,
+        {accessLevel: "Edit"},
+    );
+
+    return {document, managerConnection, editorConnection};
+}
+
+function createUpdateContentWithDiffRequest({
+    version,
+    title,
+    text,
+}: {
+    version: number;
+    title?: string;
+    text?: string;
+}) {
     return new Request("https://cyberworlds.local/update-content-with-diff", {
         method: "POST",
         body: JSON.stringify(
             DocumentCollaborationUpdateContentWithDiffRequestBodySchema.serialize({
                 version,
-                content: [
-                    schema.node("title", {}, []),
-                    schema.node("paragraph", {}, text.length > 0 ? [schema.text(text)] : []),
-                ],
+                title,
+                content:
+                    text === undefined
+                        ? undefined
+                        : [
+                              schema.node(
+                                  "paragraph",
+                                  {},
+                                  text.length > 0 ? [schema.text(text)] : [],
+                              ),
+                          ],
             }),
         ),
     });
 }
 
+function createSetCommentThreadResolvedRequest(
+    commentThreadId: DocumentCommentThreadId,
+    resolved: boolean,
+) {
+    return new Request(`https://cyberworlds.local/set-comment-thread-resolved/${commentThreadId}`, {
+        method: "POST",
+        body: JSON.stringify(
+            DocumentCollaborationSetCommentThreadResolvedRequestBodySchema.serialize({
+                resolved,
+            }),
+        ),
+    });
+}
+
+async function readSetCommentThreadResolvedResponse(response: Response) {
+    return DocumentCollaborationSetCommentThreadResolvedResponseBodySchema.deserialize(
+        await response.json(),
+    );
+}
+
 async function readUpdateContentWithDiffResponse(response: Response) {
     return DocumentCollaborationUpdateContentWithDiffResponseBodySchema.deserialize(
+        await response.json(),
+    );
+}
+
+function createCreateCommentThreadForApiRequest({
+    range,
+    content,
+    fileIds = [],
+    createdTimeZone = defaultTimeZone,
+}: {
+    range: {
+        start: ApiContentPosition;
+        end: ApiContentPosition;
+    };
+    content: ReturnType<typeof createSimpleMessageContent>;
+    fileIds?: ReadonlyArray<FileId>;
+    createdTimeZone?: typeof defaultTimeZone;
+}) {
+    return new Request("https://cyberworlds.local/create-comment-thread-for-api", {
+        method: "POST",
+        body: JSON.stringify(
+            DocumentCollaborationCreateCommentThreadForApiRequestBodySchema.serialize({
+                range,
+                content,
+                fileIds,
+                createdTimeZone,
+            }),
+        ),
+    });
+}
+
+async function readCreateCommentThreadForApiResponse(response: Response) {
+    return DocumentCollaborationCreateCommentThreadForApiResponseBodySchema.deserialize(
         await response.json(),
     );
 }
@@ -237,6 +339,7 @@ test("can update document content", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -258,6 +361,7 @@ test("can update document content", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -279,6 +383,7 @@ test("can update document content", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -328,6 +433,7 @@ test("will optimistically update the document and then persist later", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -337,6 +443,7 @@ test("will optimistically update the document and then persist later", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -346,6 +453,7 @@ test("will optimistically update the document and then persist later", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -452,6 +560,7 @@ test("updateContentWithoutOptimisticBroadcast persists before broadcasting", asy
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -540,6 +649,7 @@ test("updateContentWithoutOptimisticBroadcast failure leaves state untouched and
         clientId,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
     await waitForPersistence(connection, 1);
@@ -568,6 +678,7 @@ test("updateContentWithoutOptimisticBroadcast failure leaves state untouched and
                 },
                 notification: null,
             },
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         }),
     ).rejects.toThrow();
@@ -593,6 +704,7 @@ test("updateContentWithoutOptimisticBroadcast failure leaves state untouched and
         clientId,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
     await waitForPersistence(connection, 2);
@@ -664,6 +776,7 @@ test("updateContentWithoutOptimisticBroadcast waits for in-flight optimistic per
         clientId,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -679,6 +792,7 @@ test("updateContentWithoutOptimisticBroadcast waits for in-flight optimistic per
         clientId,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -743,6 +857,7 @@ test("will not batch updates from different accounts when persisting", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -752,6 +867,7 @@ test("will not batch updates from different accounts when persisting", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -761,6 +877,7 @@ test("will not batch updates from different accounts when persisting", async () 
         clientId: client3Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -891,6 +1008,7 @@ test("will respond optimistically with a comment thread even if it has not been 
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1173,6 +1291,7 @@ test("will respond optimistically to backfills with a comment thread even if it 
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1344,6 +1463,7 @@ test("will respond optimistically with a comment thread with files even if it ha
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1776,6 +1896,7 @@ test("when comment threads are added back to the document they will be loaded", 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1901,6 +2022,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1921,6 +2043,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -1932,6 +2055,7 @@ test("comment thread can be optimistic at first and then loaded from the databas
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -2153,6 +2277,7 @@ test("can create comments in comment threads", async () => {
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -2590,6 +2715,7 @@ test("if comment thread is persisting we will wait to create messages but respon
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -2886,6 +3012,7 @@ test("if comment thread update message hasn\u2019t been processed we will wait t
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -3199,6 +3326,7 @@ test("while comment thread is persisting we will respond to comment load request
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4110,6 +4238,7 @@ test("will cleanup comment thread marks if from a different document", async () 
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4204,6 +4333,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4327,6 +4457,7 @@ test("will cleanup comment thread marks if from a different document", async () 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4492,6 +4623,7 @@ test("can add comment thread marks back to document after they\u2019ve been remo
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4573,6 +4705,7 @@ test("can add comment thread marks back to document after they\u2019ve been remo
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -4642,6 +4775,7 @@ test("can add comment thread marks back to document after they\u2019ve been remo
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -5266,6 +5400,7 @@ test("can\u2019t update content as a viewer", async () => {
             clientId: generateId(),
             createCommentThreads: [],
             intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         }),
     ).rejects.toThrow("Can\u2019t update document");
@@ -5277,6 +5412,7 @@ test("can\u2019t update content as a viewer", async () => {
             clientId: generateId(),
             createCommentThreads: [],
             intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         }),
     ).rejects.toThrow("Can\u2019t update document");
@@ -5285,6 +5421,130 @@ test("can\u2019t update content as a viewer", async () => {
 
     expect(connection1.takeEvents()).toEqual([]);
     expect(connection2.takeEvents()).toEqual([]);
+});
+
+test("editor cannot optimistically delete a document", async () => {
+    const {document, managerConnection, editorConnection} =
+        await createDocumentManagerAndEditorConnectionsForTest();
+    const version = await document.getVersion();
+    const deletedTime = new Date();
+
+    const result = await captureResultPromise(
+        editorConnection.procedures.updateContent({
+            version,
+            steps: [new DocAttrStep("deletedTime", deletedTime)],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: {deletedTime},
+            updateOurPresenceState: {state: null},
+        }),
+    );
+
+    expect({
+        result,
+        deletedTime: (await document.get()).content.doc.attrs.deletedTime,
+        managerEvents: managerConnection.takeEvents(),
+        backfill: await editorConnection.procedures.backfill({version}),
+    }).toMatchObject({
+        result: {ok: false, error: expect.any(PermissionDeniedError)},
+        deletedTime: null,
+        managerEvents: [],
+        backfill: {newVersion: version, persistedVersion: version, steps: []},
+    });
+});
+
+test("editor cannot synchronously delete a document", async () => {
+    const {document, managerConnection, editorConnection} =
+        await createDocumentManagerAndEditorConnectionsForTest();
+    const version = await document.getVersion();
+    const deletedTime = new Date();
+
+    const result = await captureResultPromise(
+        editorConnection.procedures.updateContentWithoutOptimisticBroadcast({
+            version,
+            steps: [new DocAttrStep("deletedTime", deletedTime)],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: {deletedTime},
+            updateOurPresenceState: {state: null},
+        }),
+    );
+
+    expect({
+        result,
+        deletedTime: (await document.get()).content.doc.attrs.deletedTime,
+        managerEvents: managerConnection.takeEvents(),
+        backfill: await editorConnection.procedures.backfill({version}),
+    }).toMatchObject({
+        result: {ok: false, error: expect.any(PermissionDeniedError)},
+        deletedTime: null,
+        managerEvents: [],
+        backfill: {newVersion: version, persistedVersion: version, steps: []},
+    });
+});
+
+test("deleted time is not optimistically applied without deletion intent", async () => {
+    const {document, managerConnection, editorConnection} =
+        await createDocumentManagerAndEditorConnectionsForTest();
+    const version = await document.getVersion();
+    const deletedTime = new Date();
+
+    const result = await captureResultPromise(
+        editorConnection.procedures.updateContent({
+            version,
+            steps: [new DocAttrStep("deletedTime", deletedTime)],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: null,
+            updateOurPresenceState: {state: null},
+        }),
+    );
+
+    expect({
+        result,
+        deletedTime: (await document.get()).content.doc.attrs.deletedTime,
+        managerEvents: managerConnection.takeEvents(),
+        backfill: await editorConnection.procedures.backfill({version}),
+    }).toMatchObject({
+        result: {ok: false, error: expect.any(PermissionDeniedError)},
+        deletedTime: null,
+        managerEvents: [],
+        backfill: {newVersion: version, persistedVersion: version, steps: []},
+    });
+});
+
+test("deleted time is not optimistically applied when it does not match deletion intent", async () => {
+    const {document, managerConnection, editorConnection} =
+        await createDocumentManagerAndEditorConnectionsForTest();
+    const version = await document.getVersion();
+    const deletedTime = new Date();
+
+    const result = await captureResultPromise(
+        managerConnection.procedures.updateContent({
+            version,
+            steps: [new DocAttrStep("deletedTime", deletedTime)],
+            clientId: generateId(),
+            createCommentThreads: [],
+            intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: {deletedTime: new Date(deletedTime.getTime() + 1)},
+            updateOurPresenceState: {state: null},
+        }),
+    );
+
+    expect({
+        result,
+        deletedTime: (await document.get()).content.doc.attrs.deletedTime,
+        editorEvents: editorConnection.takeEvents(),
+        backfill: await managerConnection.procedures.backfill({version}),
+    }).toMatchObject({
+        result: {ok: false, error: expect.any(PermissionDeniedError)},
+        deletedTime: null,
+        editorEvents: [],
+        backfill: {newVersion: version, persistedVersion: version, steps: []},
+    });
 });
 
 test("commenter can only update comment marks", async () => {
@@ -5321,6 +5581,7 @@ test("commenter can only update comment marks", async () => {
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -5331,6 +5592,7 @@ test("commenter can only update comment marks", async () => {
             clientId: generateId<ContentEditorClientId>(),
             createCommentThreads: [],
             intentionallyUpdateAccessPolicy: null,
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         }),
     ).rejects.toThrow("Can\u2019t update document");
@@ -5601,6 +5863,7 @@ test("viewer receives update events without comment data", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -5678,6 +5941,7 @@ test("viewer receives update events without comment data", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -5764,6 +6028,7 @@ test("viewer receives update events without comment data", async () => {
             },
         ],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6137,6 +6402,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6152,6 +6418,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy1, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6172,6 +6439,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6187,6 +6455,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy1, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6206,6 +6475,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6221,6 +6491,7 @@ test("can update access policy", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6263,6 +6534,7 @@ test("can\u2019t update access policy unintentionally", async () => {
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: null,
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6338,6 +6610,7 @@ test("can\u2019t update access policy with the wrong intentional policy", async 
         clientId: client1Id,
         createCommentThreads: [],
         intentionallyUpdateAccessPolicy: {accessPolicy: accessPolicy2b, notification: null},
+        intentionallyUpdateDeletedTime: null,
         updateOurPresenceState: {state: null},
     });
 
@@ -6521,8 +6794,8 @@ test("can get presence updates across viewer/editor connections", async () => {
     });
 });
 
-describe("update-content-with-diff route", () => {
-    test("updates document content", async () => {
+describe("create-comment-thread-for-api route", () => {
+    test("requires POST", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession();
         const document = await TestDocument.create(session);
@@ -6530,15 +6803,857 @@ describe("update-content-with-diff route", () => {
         const response = await fetchForTest(
             context.action(session),
             document.id,
-            createUpdateContentWithDiffRequest({version: 0, text: "New notes"}),
+            new Request("https://cyberworlds.local/create-comment-thread-for-api"),
+        );
+
+        expect(response).toMatchObject({status: 405});
+    });
+
+    test("returns the created thread details", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+
+        await document.type(session, "Hello world");
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph") return;
+
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(paragraphKey !== null);
+
+        const commentContent = createSimpleMessageContent("Initial comment");
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: paragraphKey, index: 0},
+                    end: {type: "Inline", key: paragraphKey, index: 5},
+                },
+                content: commentContent,
+            }),
+        );
+
+        expect(response.status).toBe(200);
+
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        expect(responseBody.ok).toBe(true);
+        assert(responseBody.ok);
+        const commentThreadId = responseBody.commentThread.id;
+        const expectedDocumentContent = schema.node(
+            "doc",
+            {accessPolicy: document.initialAccessPolicy},
+            [
+                schema.node("title"),
+                schema.node("paragraph", {}, [
+                    schema.text("Hello", [schema.mark("comment", {commentThreadId})]),
+                    schema.text(" world"),
+                ]),
+            ],
+        );
+
+        expect(responseBody).toMatchObject({
+            ok: true,
+            spaceId: space.id,
+            commentThread: {
+                id: commentThreadId,
+                createdTime: expect.any(Date),
+            },
+        });
+        expect(massageDocument(await document.get())).toEqual({
+            version: documentBeforeCreate.version + 1,
+            content: expectedDocumentContent.toJSON(),
+        });
+    });
+
+    test("creates a comment thread on a target paragraph", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const targetText = "Target paragraph";
+        const document = await TestDocument.create(session, {
+            content: [
+                schema.node("title"),
+                ...["One", "Two", "Three", "Four", "Five", targetText].map(text =>
+                    schema.node("paragraph", {}, [schema.text(text)]),
+                ),
+            ],
+        });
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph" || node.textContent !== targetText) return;
+
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(paragraphKey !== null);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: paragraphKey, index: 0},
+                    end: {type: "Inline", key: paragraphKey, index: targetText.length},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+            }),
+        );
+
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        assert(responseBody.ok);
+
+        const commentedText: Array<string> = [];
+        (await document.get()).content.doc.descendants(node => {
+            if (
+                node.isText &&
+                node.marks.some(
+                    mark =>
+                        mark.type.name === "comment" &&
+                        mark.attrs.commentThreadId === responseBody.commentThread.id,
+                )
+            ) {
+                commentedText.push(node.textContent);
+            }
+        });
+
+        expect(commentedText).toEqual(["Target paragraph"]);
+    });
+
+    test("creates a comment thread on a whitespace-only range", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        await document.type(session, "  ");
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph") return;
+
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(paragraphKey !== null);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: paragraphKey, index: 0},
+                    end: {type: "Inline", key: paragraphKey, index: 1},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+            }),
+        );
+
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        assert(responseBody.ok);
+
+        const commentedText: Array<string> = [];
+        (await document.get()).content.doc.descendants(node => {
+            if (
+                node.isText &&
+                node.marks.some(
+                    mark =>
+                        mark.type.name === "comment" &&
+                        mark.attrs.commentThreadId === responseBody.commentThread.id,
+                )
+            ) {
+                commentedText.push(node.textContent);
+            }
+        });
+
+        expect(commentedText).toEqual([" "]);
+    });
+
+    test("creates a comment thread on a whole leaf node", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        const file = await TestFile.create(session);
+        await document.attachFile(session, file);
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let fileKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "file") return;
+            fileKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(fileKey !== null);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Before", key: fileKey},
+                    end: {type: "After", key: fileKey},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+            }),
+        );
+
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        assert(responseBody.ok);
+
+        let fileCommentThreadId: DocumentCommentThreadId | null = null;
+        (await document.get()).content.doc.descendants(node => {
+            if (node.type.name !== "file") return;
+            fileCommentThreadId =
+                node.marks.find(mark => mark.type.name === "comment")?.attrs.commentThreadId ??
+                null;
+        });
+
+        expect(fileCommentThreadId).toBe(responseBody.commentThread.id);
+    });
+
+    test("creates a comment thread on multiple whole leaf nodes", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const [file1, file2, file3] = await runAllPromises([
+            TestFile.create(session),
+            TestFile.create(session),
+            TestFile.create(session),
+        ]);
+        const document = await TestDocument.create(session, {
+            content: [
+                schema.node("title"),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: file1.id}),
+                    schema.node("file", {fileId: file2.id}),
+                    schema.node("file", {fileId: file3.id}),
+                ]),
+            ],
+        });
+        await runAllPromises(
+            [file1, file2, file3].map(file =>
+                attachFileAsUploader(
+                    session.action(),
+                    file.id,
+                    FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+                ),
+            ),
+        );
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        const fileKeys: Array<ReturnType<ApiContentKeyEncoder["encode"]>> = [];
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "file") return;
+            fileKeys.push(
+                encoder.encode({
+                    pos,
+                    nodeSize: node.nodeSize,
+                    inlineContent: node.inlineContent,
+                }),
+            );
+        });
+        const firstFileKey = fileKeys[0];
+        const lastFileKey = fileKeys[2];
+        assert(firstFileKey !== undefined && lastFileKey !== undefined);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Before", key: firstFileKey},
+                    end: {type: "After", key: lastFileKey},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+            }),
+        );
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        assert(responseBody.ok);
+
+        const commentThreadIds: Array<DocumentCommentThreadId | null> = [];
+        (await document.get()).content.doc.descendants(node => {
+            if (node.type.name !== "file") return;
+            commentThreadIds.push(
+                node.marks.find(mark => mark.type.name === "comment")?.attrs.commentThreadId ??
+                    null,
+            );
+        });
+
+        expect(commentThreadIds).toEqual([
+            responseBody.commentThread.id,
+            responseBody.commentThread.id,
+            responseBody.commentThread.id,
+        ]);
+    });
+
+    test("creates a comment thread across text and whole leaf nodes", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const [file1, file2] = await runAllPromises([
+            TestFile.create(session),
+            TestFile.create(session),
+        ]);
+        const document = await TestDocument.create(session, {
+            content: [
+                schema.node("title"),
+                schema.node("paragraph", {}, [schema.text("Before")]),
+                schema.node("fileRow", {}, [
+                    schema.node("file", {fileId: file1.id}),
+                    schema.node("file", {fileId: file2.id}),
+                ]),
+                schema.node("paragraph", {}, [schema.text("After")]),
+            ],
+        });
+        await runAllPromises(
+            [file1, file2].map(file =>
+                attachFileAsUploader(
+                    session.action(),
+                    file.id,
+                    FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+                ),
+            ),
+        );
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        const paragraphKeys: Array<ReturnType<ApiContentKeyEncoder["encode"]>> = [];
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph") return;
+            paragraphKeys.push(
+                encoder.encode({
+                    pos,
+                    nodeSize: node.nodeSize,
+                    inlineContent: node.inlineContent,
+                }),
+            );
+        });
+        const firstParagraphKey = paragraphKeys[0];
+        const lastParagraphKey = paragraphKeys[1];
+        assert(firstParagraphKey !== undefined && lastParagraphKey !== undefined);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: firstParagraphKey, index: 0},
+                    end: {type: "Inline", key: lastParagraphKey, index: "After".length},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+            }),
+        );
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        assert(responseBody.ok);
+
+        const commentedNodes: Array<{type: string; text: string}> = [];
+        (await document.get()).content.doc.descendants(node => {
+            if (
+                !node.marks.some(
+                    mark =>
+                        mark.type.name === "comment" &&
+                        mark.attrs.commentThreadId === responseBody.commentThread.id,
+                )
+            ) {
+                return;
+            }
+            commentedNodes.push({type: node.type.name, text: node.textContent});
+        });
+
+        expect(commentedNodes).toEqual([
+            {type: "text", text: "Before"},
+            {type: "file", text: ""},
+            {type: "file", text: ""},
+            {type: "text", text: "After"},
+        ]);
+    });
+
+    test("attaches files after validating the target range", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const document = await TestDocument.create(session);
+        await document.type(session, "Hello world");
+
+        const {fileId} = await uploadTestFile(session.action(), space.id);
+        await attachFileAsUploader(
+            session.action(),
+            fileId,
+            FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+        );
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph") return;
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(paragraphKey !== null);
+
+        const response = await fetchForTest(
+            context.botAction(space.id, bot.id, {
+                type: "Document",
+                documentId: document.id,
+            }),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: paragraphKey, index: 0},
+                    end: {type: "Inline", key: paragraphKey, index: 5},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+                fileIds: [fileId],
+            }),
+        );
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        const attachedFile = await getFileFromAttachment(
+            space.systemAction(),
+            fileId,
+            FileDocumentAuthorizer.bind({
+                type: "DocumentComments",
+                documentId: document.id,
+            }),
+            {consistency: "Strong"},
+        );
+
+        expect({responseBody, attachedFile}).toMatchObject({
+            responseBody: {
+                ok: true,
+            },
+            attachedFile: {id: fileId},
+        });
+    });
+
+    test("creates a comment without attachments when an attachment is invalid", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const document = await TestDocument.create(session);
+        await document.type(session, "Hello world");
+
+        const {fileId} = await uploadTestFile(session.action(), space.id);
+        await attachFileAsUploader(
+            session.action(),
+            fileId,
+            FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+        );
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph") return;
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(paragraphKey !== null);
+
+        const response = await fetchForTest(
+            context.botAction(space.id, bot.id, {
+                type: "Document",
+                documentId: document.id,
+            }),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: paragraphKey, index: 0},
+                    end: {type: "Inline", key: paragraphKey, index: 5},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+                fileIds: [fileId, generateChronologicalId<FileId>()],
+            }),
+        );
+
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        const attachmentResult = await captureResultPromise(
+            getFileFromAttachment(
+                space.systemAction(),
+                fileId,
+                FileDocumentAuthorizer.bind({
+                    type: "DocumentComments",
+                    documentId: document.id,
+                }),
+                {consistency: "Strong"},
+            ),
+        );
+
+        expect({responseBody, attachmentResult}).toMatchObject({
+            responseBody: {ok: true},
+            attachmentResult: {
+                ok: false,
+                error: {message: "File isn\u2019t attached to target"},
+            },
+        });
+    });
+
+    test("does not attach files when the target range is reversed", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const document = await TestDocument.create(session);
+        await document.type(session, "Hello world");
+
+        const {fileId} = await uploadTestFile(session.action(), space.id);
+        await attachFileAsUploader(
+            session.action(),
+            fileId,
+            FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+        );
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph") return;
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(paragraphKey !== null);
+
+        const response = await fetchForTest(
+            context.botAction(space.id, bot.id, {
+                type: "Document",
+                documentId: document.id,
+            }),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: paragraphKey, index: 1},
+                    end: {type: "Inline", key: paragraphKey, index: 0},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+                fileIds: [fileId],
+            }),
+        );
+
+        const responseBody = await readCreateCommentThreadForApiResponse(response);
+        const attachmentResult = await captureResultPromise(
+            getFileFromAttachment(
+                space.systemAction(),
+                fileId,
+                FileDocumentAuthorizer.bind({
+                    type: "DocumentComments",
+                    documentId: document.id,
+                }),
+                {consistency: "Strong"},
+            ),
+        );
+
+        expect({responseBody, attachmentResult}).toMatchObject({
+            responseBody: {
+                ok: false,
+                error: {
+                    message: "Range start position is greater than range end position",
+                },
+            },
+            attachmentResult: {
+                ok: false,
+                error: {message: "File isn\u2019t attached to target"},
+            },
+        });
+    });
+
+    test("rejects an empty target range", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        await document.type(session, "Hello world");
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph") return;
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(paragraphKey !== null);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: paragraphKey, index: 1},
+                    end: {type: "Inline", key: paragraphKey, index: 1},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+            }),
+        );
+
+        expect(await readCreateCommentThreadForApiResponse(response)).toMatchObject({
+            ok: false,
+            error: {
+                message: "Range start position is equal to range end position",
+            },
+        });
+    });
+
+    test("authorizes before validating the target range", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+
+        const document = await TestDocument.create(session1, {
+            access: {
+                type: "Local",
+                accountGrantById: new Map([
+                    [session1.account.id, {level: "Manage", generation: 0}],
+                ]),
+                defaultGrant: {level: "View"},
+                urlGrant: null,
+            },
+        });
+
+        await document.type(session1, "Hello world");
+        await connectForTest(context.action(session1), document.id);
+
+        const documentBeforeCreate = await document.get();
+        const encoder = new ApiContentKeyEncoder({
+            entityId: `Document:${document.id}`,
+            version: documentBeforeCreate.version,
+        });
+        let paragraphKey: ReturnType<ApiContentKeyEncoder["encode"]> | null = null;
+        documentBeforeCreate.content.doc.descendants((node, pos) => {
+            if (node.type.name !== "paragraph") return;
+
+            paragraphKey = encoder.encode({
+                pos,
+                nodeSize: node.nodeSize,
+                inlineContent: node.inlineContent,
+            });
+            return false;
+        });
+        assert(paragraphKey !== null);
+
+        const response = await fetchForTest(
+            context.action(session2),
+            document.id,
+            createCreateCommentThreadForApiRequest({
+                range: {
+                    start: {type: "Inline", key: paragraphKey, index: 0},
+                    end: {type: "Inline", key: paragraphKey, index: 999},
+                },
+                content: createSimpleMessageContent("Initial comment"),
+            }),
+        );
+
+        expect(await readCreateCommentThreadForApiResponse(response)).toMatchObject({
+            ok: false,
+            error: expect.any(PermissionDeniedError),
+        });
+    });
+});
+
+describe("set-comment-thread-resolved route", () => {
+    test("rejects non-POST requests", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            new Request(
+                `https://cyberworlds.local/set-comment-thread-resolved/${generateId<DocumentCommentThreadId>()}`,
+                {method: "GET"},
+            ),
+        );
+
+        expect({status: response.status, body: await response.text()}).toEqual({
+            status: 405,
+            body: "405 Method Not Allowed",
+        });
+    });
+
+    test("returns a structured error", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createSetCommentThreadResolvedRequest(generateId(), true),
+        );
+
+        expect({
+            status: response.status,
+            body: await readSetCommentThreadResolvedResponse(response),
+        }).toMatchObject({
+            status: 400,
+            body: {ok: false, error: {message: "Document comment thread not found"}},
+        });
+    });
+
+    test("resolves a comment thread before responding", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        const oldVersion = (await document.get()).version;
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createSetCommentThreadResolvedRequest(commentThread.id, true),
+        );
+
+        expect({
+            response: await readSetCommentThreadResolvedResponse(response),
+            commentThread: await commentThread.get(),
+            documentVersion: (await document.get()).version,
+        }).toMatchObject({
+            response: {ok: true},
+            commentThread: {isResolved: true},
+            documentVersion: oldVersion + 1,
+        });
+    });
+
+    test("unresolves a comment thread before responding", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+        const {range} = await document.type(session, "Commented text");
+        const commentThread = await document.createCommentThread(session, range, "Comment");
+        await commentThread.resolve(session);
+        const oldVersion = (await document.get()).version;
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createSetCommentThreadResolvedRequest(commentThread.id, false),
+        );
+
+        expect({
+            response: await readSetCommentThreadResolvedResponse(response),
+            commentThread: await commentThread.get(),
+            documentVersion: (await document.get()).version,
+        }).toMatchObject({
+            response: {ok: true},
+            commentThread: {isResolved: false},
+            documentVersion: oldVersion + 1,
+        });
+    });
+});
+
+describe("update-content-with-diff route", () => {
+    test("updates the title without replacing document content", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session, {
+            title: "Original title",
+            body: "Original body",
+        });
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createUpdateContentWithDiffRequest({version: 0, title: "Updated title"}),
         );
 
         expect(await readUpdateContentWithDiffResponse(response)).toMatchObject({
             ok: true,
             spaceId: space.id,
             newVersion: 1,
+            newContent: expect.objectContaining({textContent: "Updated titleOriginal body"}),
+        });
+    });
+
+    test("updates document title and content", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+        const document = await TestDocument.create(session);
+
+        const response = await fetchForTest(
+            context.action(session),
+            document.id,
+            createUpdateContentWithDiffRequest({
+                version: 0,
+                title: "New title",
+                text: "New notes",
+            }),
+        );
+
+        expect(await readUpdateContentWithDiffResponse(response)).toMatchObject({
+            ok: true,
+            spaceId: space.id,
+            newVersion: 2,
             newContent: expect.objectContaining({
-                textContent: "New notes",
+                textContent: "New titleNew notes",
             }),
         });
     });
@@ -6865,6 +7980,7 @@ describe("adding and removing documents from sites", () => {
                 accessPolicy: siteAccessPolicy,
                 notification: null,
             },
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         });
 
@@ -6941,6 +8057,7 @@ describe("adding and removing documents from sites", () => {
                 accessPolicy: siteAccessPolicy,
                 notification: null,
             },
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         });
 
@@ -6966,6 +8083,7 @@ describe("adding and removing documents from sites", () => {
                 accessPolicy: localAccessPolicy,
                 notification: null,
             },
+            intentionallyUpdateDeletedTime: null,
             updateOurPresenceState: {state: null},
         });
 
@@ -7041,6 +8159,7 @@ describe("adding and removing documents from sites", () => {
                     accessPolicy: siteAccessPolicy,
                     notification: null,
                 },
+                intentionallyUpdateDeletedTime: null,
                 updateOurPresenceState: {state: null},
             }),
         ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");
@@ -7097,6 +8216,7 @@ describe("adding and removing documents from sites", () => {
                     accessPolicy: siteAccessPolicy,
                     notification: null,
                 },
+                intentionallyUpdateDeletedTime: null,
                 updateOurPresenceState: {state: null},
             }),
         ).rejects.toThrow("Actor doesn\u2019t have `Manage` access level");

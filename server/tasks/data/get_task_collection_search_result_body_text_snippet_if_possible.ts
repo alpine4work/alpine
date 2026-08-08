@@ -2,8 +2,8 @@ import {ServerAccountActionContext} from "~/server/context/server_action_context
 import {authorizeTaskCollectionItemAccessIfPossible} from "~/server/tasks/data/internal/authorize_task_item_access.js";
 import {isTaskCollectionItemDeleted} from "~/server/tasks/data/internal/is_task_collection_item_deleted.js";
 import {TaskTable} from "~/server/tasks/data/internal/task_table.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {printTaskCollectionSearchResultBodyTextSnippet} from "~/shared/tasks/print_task_collection_search_result_body_text_snippet.js";
 
 export async function getTaskCollectionSearchResultBodyTextSnippetIfPossible(

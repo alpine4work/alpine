@@ -2,7 +2,7 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {IntegrationsTable} from "~/server/integrations/internal/integrations_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SlackWorkspace} from "~/shared/integrations/slack/slack_space_integration_schema.js";
 
 /**

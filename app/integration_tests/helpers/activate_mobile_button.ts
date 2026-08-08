@@ -1,5 +1,5 @@
 import {type Page, expect} from "@playwright/test";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 /**
  * Activates a mobile button after clearing focus-driven mobile UI.

@@ -18,7 +18,7 @@ import {
 } from "~/shared/design/core/font_metrics.js";
 import {createFontStyles, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RemLength} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 
 /**

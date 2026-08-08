@@ -3,10 +3,13 @@ import type {
     DatabaseActionName,
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DatabaseGroupId, DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import type {
+    DatabaseGroupId,
+    DatabaseReactiveActionId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 type MockUniqueWorkerClientOptions = {
     key: string;

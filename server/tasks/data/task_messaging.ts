@@ -44,7 +44,7 @@ import {getNotificationMessageContentSnippet} from "~/server/notifications/core/
 import {NotificationEvent} from "~/server/notifications/core/notification_event.js";
 import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/search_entity_actions.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {getAccount} from "~/server/spaces/get_account.js";
+import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {authorizeTaskAccess} from "~/server/tasks/data/authorization/authorize_task_access.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
@@ -61,7 +61,7 @@ import {
     TaskTable,
 } from "~/server/tasks/data/internal/task_table.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
-import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
     MessageContent,
@@ -73,27 +73,36 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {
+    runAllPromiseThunks,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, FileId, SiteId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    FileId,
+    SiteId,
+    SpaceId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
@@ -137,7 +146,7 @@ export async function getTaskComment(
     {taskId, commentIndex}: {taskId: TaskId; commentIndex: number},
 ): Promise<TaskCommentModel> {
     const [{spaceId}, item] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "Comment"),
+        authorizeTaskAccess(context, taskId, "View"),
         getTaskCommentItemIfExists(context, taskId, commentIndex),
     ]);
 
@@ -191,7 +200,7 @@ export async function getTaskCommentPayload(
     },
 ): Promise<MessageItem & {spaceId: SpaceId}> {
     const [{spaceId}, item] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "Comment", null, {consistency}),
+        authorizeTaskAccess(context, taskId, "View", null, {consistency}),
         getTaskCommentItemIfExists(context, taskId, commentIndex, {consistency}),
     ]);
 
@@ -216,7 +225,7 @@ export async function getTaskCommentMessageApprovals(
     approvals: ReadonlyArray<MessageExperimentalApproval>;
 }> {
     const [{spaceId}, commentItem] = await runAllPromises([
-        authorizeTaskAccess(context, taskId, "Comment", null, {
+        authorizeTaskAccess(context, taskId, "View", null, {
             consistency,
         }),
         // NOTE(ifitzsimmons, 2026-07-06): We decided to fetch the entire comment item (a
@@ -349,7 +358,7 @@ export async function backfillTaskComments(
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
         taskId,
-        "Comment",
+        "View",
     );
     const [{commentsSummaryItem}, {comments, otherReferencedComments}, commentUpdatesResult] =
         await runAllPromises([
@@ -420,7 +429,7 @@ export async function getTaskCommentsFromStart(
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
         taskId,
-        "Comment",
+        "View",
     );
 
     const [{commentsSummaryItem}, {comments, otherReferencedComments}] = await runAllPromises([
@@ -468,7 +477,7 @@ export async function getTaskCommentsFromEnd(
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
         taskId,
-        "Comment",
+        "View",
     );
 
     const [{commentsSummaryItem}, {comments, otherReferencedComments}] = await runAllPromises([
@@ -516,8 +525,10 @@ export async function getTaskCommentPayloadsFromStart(
     commentCount: number;
     comments: Array<MessageItem>;
 }> {
-    const queryStartCommentIndex =
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+    const queryStartCommentIndex = Math.max(
+        0,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const queryEndCommentIndex = Math.min(
         queryStartCommentIndex + limit - 1,
@@ -525,7 +536,7 @@ export async function getTaskCommentPayloadsFromStart(
     );
 
     const [{item: taskItem, commentsSummaryItem}, commentItems] = await runAllPromises([
-        authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "Comment", {consistency}),
+        authorizeTaskAccessAndGetCommentsSummaryItem(context, taskId, "View", {consistency}),
         arrayFromAsyncIterable(
             runCommentsQuery(context, {
                 cache: TaskCommentItemContextCache,
@@ -583,23 +594,19 @@ export async function getTaskCommentPayloadsFromEnd(
     const authorizationPromise = authorizeTaskAccessAndGetCommentsSummaryItem(
         context,
         taskId,
-        "Comment",
+        "View",
         {consistency},
     );
 
-    const queryStartCommentIndex = Math.max(
-        typeof beforeCommentIndex === "number"
-            ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - limit,
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    const queryEndCommentIndex = Math.min(
+        getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndCommentIndex =
-        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartCommentIndex = Math.max(
+        queryEndCommentIndex - limit + 1,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const [{item: taskItem, commentsSummaryItem}, commentItems] = await runAllPromises([
         authorizationPromise,
@@ -746,7 +753,7 @@ export async function getTaskNotesContentAndOptionalInitialCommentsIfExists(
 
     const commentAuthorizationResultPromise = authorizationPromiseResolver.promise.then(
         async ({item}) => {
-            const result = await authorizeTaskItemAccessIfPossible(context, item, "Comment", {
+            const result = await authorizeTaskItemAccessIfPossible(context, item, "View", {
                 getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
                 getCollectionItem: collectionId =>
                     getTaskCollectionItemForAuthorization(context, collectionId, null),
@@ -938,8 +945,10 @@ export async function getTaskCommentsFromStartAssumingAuthorizedTask(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
-    const queryStartCommentIndex =
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+    const queryStartCommentIndex = Math.max(
+        0,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const queryEndCommentIndex = Math.min(
         queryStartCommentIndex + limit - 1,
@@ -1061,19 +1070,15 @@ export async function getTaskCommentsFromEndAssumingAuthorizedTask(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
-    const queryStartCommentIndex = Math.max(
-        typeof beforeCommentIndex === "number"
-            ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - limit,
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    const queryEndCommentIndex = Math.min(
+        getTaskCommentCount((await authorizationPromise).commentsSummaryItem) - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndCommentIndex =
-        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartCommentIndex = Math.max(
+        queryEndCommentIndex - limit + 1,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
@@ -1202,9 +1207,7 @@ export async function createTaskComment(
                             context,
                             taskId,
                             "Comment",
-                            {
-                                consistency,
-                            },
+                            {consistency},
                         );
                     const spaceId = item.spaceId;
                     const taskAccessPolicy = item.accessPolicy?.value ?? null;
@@ -1225,7 +1228,7 @@ export async function createTaskComment(
 
                     return {spaceId, commentsSummaryItem, taskAccessPolicy};
                 },
-                async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+                async (): Promise<ApiBotWebhookCreatedMessageEventParent | null> => {
                     if (!parent) return null;
 
                     switch (parent.type) {
@@ -1473,7 +1476,7 @@ export async function createTaskCommentModelFromItem(
     item: MessageItem,
 ): Promise<TaskCommentModel> {
     const [author, payload] = await runAllPromises([
-        getAccount(context, spaceId, item.authorId),
+        getAccountOrDangerouslyGetStubWithoutAuthorization(context, spaceId, item.authorId),
         createMessagePayloadModel(
             context,
             spaceId,
@@ -1495,7 +1498,14 @@ export async function createTaskCommentModelFromItem(
     });
 }
 
-export function putTaskCommentStreamPart(
+// NOTE(ifitzsimmons, 2026-07-16): This function adds/updates a part of the message
+// stream and broadcasts an event to all connected clients. Stream parts can/should
+// only be added in two scenarios:
+//
+// 1. A bot is sending a message via our API.
+// 2. We've detected that a message stream has timed out and we're completing the
+//    stream with an error message.
+export function putTaskCommentStreamPartAndBroadcastEvent(
     context: ServerActionContext,
     {
         taskId,

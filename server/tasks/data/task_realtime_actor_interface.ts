@@ -1,6 +1,6 @@
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * A limited subset of `ActorContextModule` we pass around realtime service to

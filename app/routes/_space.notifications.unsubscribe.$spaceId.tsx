@@ -12,9 +12,9 @@ import {spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {unsubscribeFromEmailNotificationWithUrl} from "~/shared/rpc/notifications_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const LoaderSchema = Schema.object({
     url: Schema.string,

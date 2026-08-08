@@ -9,9 +9,9 @@ import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {SiteTopBarId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteTopBarId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";
 

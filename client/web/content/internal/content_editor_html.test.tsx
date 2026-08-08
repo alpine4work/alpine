@@ -46,17 +46,23 @@ import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_pla
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {assertId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, DocumentId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    ChannelId,
+    DocumentId,
+    SiteId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
 import {attachFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";

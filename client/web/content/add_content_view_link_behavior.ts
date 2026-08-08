@@ -9,7 +9,7 @@ import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {linkClassName} from "~/shared/design/core/constant_class_names.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export function addContentViewLinkBehavior(element: HTMLAnchorElement, navigate: NavigateFunction) {
     const isLink = element.classList.contains(linkClassName);

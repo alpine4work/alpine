@@ -1,7 +1,7 @@
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Scan every account by space pair in our database. Use when migrating data.

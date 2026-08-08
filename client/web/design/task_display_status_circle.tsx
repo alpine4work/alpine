@@ -11,7 +11,7 @@ import {
 } from "~/client/web/design/task_display_status_circle_html.js";
 import {buttonStyles, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 // Since we can't import `shared/tasks` from `client/design`, manually inline the
 // `TaskDisplayStatus` type. This component lives in `client/design` so we can use

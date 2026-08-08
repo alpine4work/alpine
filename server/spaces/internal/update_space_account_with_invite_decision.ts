@@ -9,9 +9,12 @@ import {createAccountModelFromItem} from "~/server/spaces/internal/create_accoun
 import {dangerouslyApplySpaceWelcomePackage} from "~/server/spaces/internal/dangerously_apply_space_welcome_package.js";
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {SpaceWelcomePackageItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
-import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
-import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {
+    runAllObjectPromises,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel, AccountModelDataSpaceState} from "~/shared/spaces/account_model.js";
 
 /**

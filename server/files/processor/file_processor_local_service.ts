@@ -15,11 +15,11 @@ import {
 import {createServiceTokenAgent} from "~/server/node/create_service_token_agent.js";
 import {ServiceOptions} from "~/server/node/run_service.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {InternalError} from "~/shared/error/error.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type Options = ServiceOptions<typeof options>;
 

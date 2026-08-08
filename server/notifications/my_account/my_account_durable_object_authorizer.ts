@@ -2,9 +2,9 @@ import {differenceInMinutes} from "date-fns";
 import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getAccount} from "~/shared/rpc/accounts_rpc_definitions.js";
 
 // NOTE(calebmer, 2024-04-12): I added this before `WebSocketServer` performed

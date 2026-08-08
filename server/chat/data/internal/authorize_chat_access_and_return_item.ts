@@ -12,14 +12,20 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {AccessLevel, AccessPolicy, ResolvedAccessPolicy} from "~/shared/access/access_policy.js";
+import {
+    AccessLevel,
+    AccessPolicy,
+    ResolvedAccessPolicy,
+    hasAccessLevel,
+} from "~/shared/access/access_policy.js";
 import {chatPermissionDeniedErrorDisplayMessageByAccessLevel} from "~/shared/chat/chat_error_messages.js";
-import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {AccountId, ChatId, SiteId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {AccountId, ChatId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function authorizeChatAccessAndReturnItem(
     context: ServerActionContext,
@@ -100,6 +106,7 @@ export async function authorizeChatAccessAndReturnItemIfPossible(
         }
 
         case "Bot": {
+            const botAccountId = context.actor.getBotAccountId();
             const chatItem = await getChatItemForAuthorization(context, chatId, options);
 
             const accessPolicy: AccessPolicy | ResolvedAccessPolicy =
@@ -134,6 +141,26 @@ export async function authorizeChatAccessAndReturnItemIfPossible(
                         aggregateDedupeKey: chatId,
                         displayMessages: chatPermissionDeniedErrorDisplayMessageByAccessLevel,
                     }),
+                };
+            }
+
+            // Special case: we don't allow bots to send messages in direct chats where the bot
+            // isn't a member (even if the bot's scope would otherwise allow it). Bots can't
+            // "pop in" to 1:1 chats (even if they can view the messages in 1:1 chats). You
+            // must explicitly add a bot to a chat for it to send a message to that chat.
+            if (
+                hasAccessLevel(expectedAccessLevel, "Comment") &&
+                chatItem.attributesItem.definition.type === "Direct" &&
+                chatItem.accountItems.every(accountItem => accountItem.accountId !== botAccountId)
+            ) {
+                return {
+                    ok: false,
+                    error: new PermissionDeniedError(
+                        "Bot can only view messages in direct chat it\u2019s not a member of",
+                        {
+                            displayMessage: errorDisplayMessage`Can\u2019t create messages in chat the bot isn\u2019t a member of. Try creating a new chat that includes the bot and send a message to that chat.`,
+                        },
+                    ),
                 };
             }
 

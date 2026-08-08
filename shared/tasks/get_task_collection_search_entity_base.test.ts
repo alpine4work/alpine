@@ -1,7 +1,7 @@
 import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collection_search_entity_base.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {

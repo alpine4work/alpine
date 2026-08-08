@@ -14,6 +14,7 @@ import {Step} from "prosemirror-transform";
 import {EditorView} from "prosemirror-view";
 import {contentEditorDateDecorationPlugin} from "~/client/web/content/state/content_editor_date_decoration_plugin.js";
 import {ContentEditorFloaterState} from "~/client/web/content/state/content_editor_floater_state.js";
+import {contentEditorHeadingCollapsePlugin} from "~/client/web/content/state/content_editor_heading_collapse_plugin.js";
 import {
     openContentEditorCommentInputFloaterMetaKey,
     openContentEditorKeyboardHighlightFloaterMetaKey,
@@ -38,21 +39,21 @@ import {
 } from "~/shared/content/content_references.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {undoMergeTextUpdatesDelayMs} from "~/shared/design/core/timing.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {Id, generateId, isId} from "~/shared/id/id.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {Id, generateId, isId} from "~/shared/id/id.open_source.js";
 import {
     ContentEditorClientId,
     DocumentCommentThreadId,
     FileId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
@@ -62,6 +63,7 @@ import {hasSpellCheckFeature} from "~/shared/spaces/has_spell_check_feature.js";
 
 export const createContentCommentThreadMetaKey = "createCommentThread";
 export const intentionallyUpdateContentAccessPolicyMetaKey = "intentionallyUpdateAccessPolicy";
+export const intentionallyUpdateContentDeletedTimeMetaKey = "intentionallyUpdateDeletedTime";
 
 function buildPlugins<Content extends ContentWithReferences>({
     spaceId,
@@ -101,6 +103,15 @@ function buildPlugins<Content extends ContentWithReferences>({
         contentEditorTablePlugin(),
         sharedContentEditorTrackSelectionWithinPlugin(),
     ];
+
+    // Heading sections can only be collapsed in documents. Checking for a `title` node
+    // is just how we detect a document-like schema (titles themselves can't be
+    // collapsed; only headings can). The plugin is inert until a heading is collapsed,
+    // so this gate mostly keeps collapse state out of surfaces (chat, posts, task
+    // notes) that will never expose a collapse affordance.
+    if (schema.nodes.title && schema.nodes.heading) {
+        plugins.push(contentEditorHeadingCollapsePlugin());
+    }
 
     if (
         spaceId &&
@@ -627,6 +638,28 @@ export class ContentEditorState<Content extends ContentWithReferences> {
                     // Don't allow undoing access policy changes with cmd-z. Trying to undo an access
                     // policy change will cause an error since it doesn't have the
                     // `intentionallyUpdateAccessPolicy` property set.
+                    .setMeta("addToHistory", false),
+            ),
+        );
+    }
+
+    /**
+     * Soft-delete the document by setting `deletedTime` on the doc attrs.
+     *
+     * Throws an error if the content doesn't have a `deletedTime` attr. The change is
+     * not added to the undo history to prevent accidentally un-deleting a document
+     * with cmd-z.
+     */
+    public setDeletedTime(deletedTime: Date): ContentEditorState<Content> {
+        assert(this._state.schema.topNodeType.spec.attrs?.deletedTime);
+
+        return new ContentEditorState(
+            this._state.apply(
+                this._state.tr
+                    .setDocAttribute("deletedTime", deletedTime)
+                    .setMeta(intentionallyUpdateContentDeletedTimeMetaKey, {
+                        deletedTime,
+                    })
                     .setMeta("addToHistory", false),
             ),
         );

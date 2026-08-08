@@ -1,10 +1,10 @@
-import {InternalError} from "~/shared/error/error.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import {isId} from "~/shared/id/id.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     ChannelId,
     ChatId,
@@ -14,8 +14,8 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Search entities you can create file nodes in content for. This embeds a preview
@@ -30,7 +30,7 @@ export type FileEntityId =
     | `Post:${PostId}`
     | `Site:${SiteId}`;
 
-export const FileEntityIdSchema = Schema.string as Schema<FileEntityId>;
+export const FileEntityIdSchema = Schema.stringAs<FileEntityId>();
 
 export const FileIdOrFileEntityIdSchema = Schema.string.validation(
     "Is `FileId` or `FileEntityId`",

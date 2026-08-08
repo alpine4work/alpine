@@ -1,4 +1,4 @@
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Thrown when a query references a table whose per-db file is not attached to the

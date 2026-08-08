@@ -5,7 +5,7 @@ import {useScrollbar} from "~/client/web/design/scrollbar.js";
 import {ScriptBeforeAppInitialRender} from "~/client/web/helpers/lifecycle/script_before_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {safe} from "~/shared/helpers/string/safe_string.js";
 
 export function DesignPlaygroundScrollPreview({

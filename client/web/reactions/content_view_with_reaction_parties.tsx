@@ -49,6 +49,7 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     getClipboardSerializerAuthorPrefix,
     jumpAnimation = null,
     reactionsByPos,
+    getReactionPartKey,
     isReadOnly,
     onSetReaction,
     onDeleteReaction,
@@ -64,6 +65,11 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
     | ContentViewWithReactionPartiesSupportedPropsKey
 > & {
     reactionsByPos: ReadonlyMap<number, ReactionSet>;
+    getReactionPartKey?: (args: {
+        pos: number;
+        reactions: ReactionSet | null;
+        index: number;
+    }) => string | number;
     isReadOnly: boolean;
     onSetReaction: (pos: number | "Files", reaction: Reaction | "GenericLike") => void;
     onDeleteReaction: (pos: number | "Files") => void;
@@ -96,7 +102,10 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
         <>
             {orderedReactionsByPosEntries.map(([pos, reactions], index) => (
                 <ContentViewWithReactionPartiesPart
-                    key={pos}
+                    key={
+                        getReactionPartKey?.({pos, reactions, index}) ??
+                        getContentViewWithReactionPartiesPartKey(pos, reactions, index)
+                    }
                     content={content}
                     contentUpdatedTime={contentUpdatedTime}
                     posAttributeOffset={posAttributeOffset}
@@ -117,6 +126,20 @@ export function ContentViewWithReactionParties<Content extends ContentWithRefere
             ))}
         </>
     );
+}
+
+/**
+ * Builds a stable key for each rendered content slice around reaction parties.
+ */
+function getContentViewWithReactionPartiesPartKey(
+    pos: number,
+    reactions: ReactionSet | null,
+    index: number,
+): string | number {
+    // Quick reaction placeholders can share the same position across renders. Include
+    // the index so React does not reuse a neighboring reaction part.
+    if (reactions !== null && reactions.get().size === 0) return `empty-reactions:${index}`;
+    return pos;
 }
 
 function ContentViewWithReactionPartiesPart<Content extends ContentWithReferences>({

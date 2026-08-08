@@ -20,14 +20,14 @@ import {
     InvalidArgumentError,
     NotFoundError,
     UnimplementedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {waitForReadableStreamString} from "~/shared/helpers/binary/wait_for_readable_stream_string.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**
  * A mock R2 client backed by Miniflare that we use in local development and tests.

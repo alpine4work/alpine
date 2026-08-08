@@ -4,7 +4,7 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 
 export function MessageInputFileEntityPreview({
     fileEntityId,

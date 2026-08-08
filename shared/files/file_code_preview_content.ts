@@ -1,12 +1,13 @@
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {lezerClassHighlighterClasses} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {
     JsonStringifiableUint8Array,
     Schema,
     SchemaDeserializationError,
-} from "~/shared/schema/schema.js";
+} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Preview content for a code file. To preview a code file we take the first couple
@@ -113,54 +114,6 @@ const maxFileCodePreviewByteLength =
  * double the buffer's size with `resize()` this many times.
  */
 const maxFileCodePreviewByteLength2FactorCount = 4;
-
-export type LezerClassHighlighterClass = (typeof lezerClassHighlighterClasses)[number];
-
-/**
- * All the Lezer highlight classes we use.
- *
- * This lives in `shared/files` to prevent cyclic import errors with
- * `shared/content/code`.
- *
- * IMPORTANT: Do not change the order of items in this array!
- * `FileCodePreviewContent`'s binary format depends on the index of each class
- * staying the same. If you need to add a new class then add it to the end.
- */
-const lezerClassHighlighterClasses = [
-    "tok-atom",
-    "tok-bool",
-    "tok-className",
-    "tok-comment",
-    "tok-controlKeyword",
-    "tok-definition",
-    "tok-deleted",
-    "tok-emphasis",
-    "tok-heading",
-    "tok-inserted",
-    "tok-invalid",
-    "tok-keyword",
-    "tok-labelName",
-    "tok-link",
-    "tok-literal",
-    "tok-local",
-    "tok-macroName",
-    "tok-meta",
-    "tok-moduleKeyword",
-    "tok-namespace",
-    "tok-number",
-    "tok-operator",
-    "tok-propertyName",
-    "tok-punctuation",
-    "tok-punctuation2",
-    "tok-string",
-    "tok-string2",
-    "tok-strong",
-    "tok-typeName",
-    "tok-url",
-    "tok-variableName",
-    "tok-variableName2",
-    "tok-monospace",
-] as const;
 
 let lezerClassHighlighterByteByClass: Map<string, number> | null = null;
 

@@ -3,7 +3,7 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const {context, services} = createTestServices();
 

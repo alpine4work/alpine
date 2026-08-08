@@ -1,7 +1,7 @@
 import {deserializeMimeStringToEmailMessage} from "~/server/emails/mime/deserialize_mime_string_to_email_message.js";
 import {serializeEmailMessageToMimeString} from "~/server/emails/mime/serialize_email_message_to_mime_string.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {RandomId, generateId} from "~/shared/id/id.js";
+import {RandomId, generateId} from "~/shared/id/id.open_source.js";
 
 const aliceEmailAddress = validateEmailAddress("alice@example.com");
 const bobEmailAddress = validateEmailAddress("bob@example.com");

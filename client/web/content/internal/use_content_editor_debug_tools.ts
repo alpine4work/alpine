@@ -3,8 +3,8 @@ import {EditorView} from "prosemirror-view";
 import {RefObject, useCallback} from "react";
 import {useDevConsoleTool} from "~/client/web/helpers/dev_console.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 /**
  * Add a `ContentEditorDebugTools` object with some helpers in debug environments

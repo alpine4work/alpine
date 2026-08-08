@@ -1,6 +1,6 @@
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Describes the expanded structure of tasks in a grid view. A top level task may

@@ -20,11 +20,17 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, PostId, SiteId, SiteSideBarId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    PostId,
+    SiteId,
+    SiteSideBarId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 

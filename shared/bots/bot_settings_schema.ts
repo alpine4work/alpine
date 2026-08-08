@@ -3,7 +3,7 @@ import {
     LabelStringSchema,
     LabelStringWithoutMaxLengthSchema,
 } from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Schema for the bot's settings. We use this to render inputs on the bot settings

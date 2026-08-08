@@ -2,10 +2,10 @@
 
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {Store} from "~/shared/store/store.js";

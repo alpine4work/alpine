@@ -1,8 +1,8 @@
 import {Children, ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {documentationMarkdownChildItems} from "~/client/web/docs/internal/markdown/documentation_markdown_child_items.js";
-import {indentDocumentationMarkdownContinuationLines} from "~/client/web/docs/internal/markdown/indent_documentation_markdown_continuation_lines.js";
+import {documentationMarkdownChildItems} from "~/shared/docs/documentation_markdown_child_items.js";
+import {indentDocumentationMarkdownContinuationLines} from "~/shared/docs/indent_documentation_markdown_continuation_lines.js";
 
 /**
  * A numbered walkthrough. Each step gets an accent-tinted pill number joined to

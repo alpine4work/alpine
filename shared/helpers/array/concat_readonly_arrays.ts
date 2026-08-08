@@ -1,4 +1,4 @@
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 
 /**
  * Concatenate read-only arrays. This is more efficient than `Array.concat()` since

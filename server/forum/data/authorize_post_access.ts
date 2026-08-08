@@ -4,11 +4,11 @@ import {authorizeChannelAccessIfPossible} from "~/server/forum/data/authorize_ch
 import {getPostItemForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ErrorBase, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Authorizes that the session user can access the provided post. Implicitly also
@@ -70,7 +70,7 @@ export async function authorizePostAccessIfPossible(
                 case "Session":
                 case "ImpersonatedAccount":
                 case "Bot": {
-                    if (postItem.authorId !== context.actor.getPossiblyBotAccountId()) {
+                    if (postItem.author.accountId !== context.actor.getPossiblyBotAccountId()) {
                         return {
                             ok: false,
                             error: new PermissionDeniedError(

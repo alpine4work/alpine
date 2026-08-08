@@ -1,6 +1,6 @@
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {AccountId, BotId} from "~/shared/id/types/id_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {AccountId, BotId} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction, ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {getAvatarDefaultDesign} from "~/shared/spaces/get_avatar_default_design.js";

@@ -5,9 +5,9 @@ import {
     actuallyCreateUnitTestEnvironment,
 } from "~/admin/environment/test/unit/with_unit_test_environment.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 
 // This file should only run in a Node.js test environment. Either Jest or
 // Playwright.

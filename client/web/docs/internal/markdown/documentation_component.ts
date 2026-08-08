@@ -1,5 +1,5 @@
 import {ReactNode} from "react";
-import {DocumentationMarkdownComponent} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
+import {DocumentationMarkdownComponent} from "~/shared/docs/documentation_markdown_component.js";
 
 /**
  * A documentation component that also knows how to render itself to markdown: the

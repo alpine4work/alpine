@@ -6,7 +6,7 @@ import {
     actuallyCreateIntegrationTestEnvironment,
 } from "~/admin/environment/test/integration/with_integration_test_environment.js";
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Runs a test server for Playwright tests using the test context's DynamoDB. Also

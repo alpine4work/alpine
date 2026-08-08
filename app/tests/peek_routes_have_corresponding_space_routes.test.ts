@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import {join as joinPath} from "path";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 // Increase test timeout since it might take a while to import all our routes.
 // Especially during a big test run in CI.

@@ -29,9 +29,9 @@ import {
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

@@ -59,14 +59,14 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type Options = ServiceOptions<typeof options>;
 

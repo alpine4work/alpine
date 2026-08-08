@@ -15,8 +15,8 @@ import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 export function ChannelViewNameEditor({

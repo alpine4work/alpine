@@ -9,11 +9,11 @@ import {sitesInjection} from "~/server/sites/data/sites_injection.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 
 const context = createTestContext({

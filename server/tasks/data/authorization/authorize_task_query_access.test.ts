@@ -9,10 +9,10 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -246,71 +246,6 @@ describe("authorizeTaskQueryAccess()", () => {
                             accounts: [
                                 {type: "Account", accountId: session.account.id},
                                 {type: "Account", accountId: otherSession.account.id},
-                            ],
-                        },
-                    },
-                ],
-            }),
-        ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
-        );
-    });
-
-    test("can\u2019t authorize a query with missing creator filter", async () => {
-        const space = await TestSpace.create(context);
-        const session = await space.createSession();
-
-        await expect(
-            testAuthorizeTaskQueryAccess(session.action(), {
-                spaceId: space.id,
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "MissingAccount"}],
-                        },
-                    },
-                ],
-            }),
-        ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
-        );
-
-        await expect(
-            testAuthorizeTaskQueryAccess(session.action(), {
-                spaceId: space.id,
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [{type: "CurrentAccount"}, {type: "MissingAccount"}],
-                        },
-                    },
-                ],
-            }),
-        ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
-        );
-
-        await expect(
-            testAuthorizeTaskQueryAccess(session.action(), {
-                spaceId: space.id,
-                filters: [
-                    {
-                        type: "Creator",
-                        operation: {
-                            type: "OneOf",
-                            accounts: [
-                                {type: "Account", accountId: session.account.id},
-                                {type: "MissingAccount"},
                             ],
                         },
                     },

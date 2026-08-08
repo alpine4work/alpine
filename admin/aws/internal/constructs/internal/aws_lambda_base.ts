@@ -16,10 +16,10 @@ import {join as joinPath} from "path";
 import {AwsObservability} from "~/admin/aws/internal/aws_observability.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 export interface AwsLambdaBaseOptions extends Omit<
     FunctionProps,

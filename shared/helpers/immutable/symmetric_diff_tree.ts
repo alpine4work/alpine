@@ -57,7 +57,7 @@
  */
 
 import {Tree, Node as TreeNode} from "functional-red-black-tree";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export type TreeChange<Key, Value> =
     | {

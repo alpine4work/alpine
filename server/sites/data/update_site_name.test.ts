@@ -4,9 +4,9 @@ import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {updateSiteName} from "~/server/sites/data/update_site_name.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 const context = createTestContext();

@@ -4,7 +4,7 @@ import {getFileRegistry} from "~/client/web/content/file_registry_context.js";
 import {printContentSingleLineTextSnippetForClient} from "~/client/web/content/print_content_single_line_text_snippet_for_client.js";
 import {getSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {Store} from "~/shared/store/store.js";
 
 /**

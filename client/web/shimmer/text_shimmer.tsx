@@ -3,8 +3,8 @@ import {Box} from "~/client/web/design/box.js";
 import {Sprinkles, fontSizes, pulseAnimationClassName} from "~/client/web/styles/styles.js";
 import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {Spacing, parseRemLength} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 
 const textShimmerFontSizePercentage =
     (parseRemLength("3") * remPxBySpacingScale.small) /

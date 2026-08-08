@@ -16,8 +16,8 @@ import {
 } from "~/server/spaces/test_helpers/test_context.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 
 type TestWorkerSessionActionContext = Context<TestWorkerSessionActionContextModules>;
 
@@ -56,7 +56,12 @@ export function createTestWorkerContext(
     options?: Parameters<typeof createTestContext>[0],
 ): TestWorkerContext {
     const baseContext = createTestContext(options);
+    return createTestWorkerContextFromBaseContext(baseContext);
+}
 
+export function createTestWorkerContextFromBaseContext(
+    baseContext: TestActualContext,
+): TestWorkerContext {
     const context: TestWorkerContext = Object.assign(baseContext.cloneWithHelpers({}), {
         action: ((session, options) => {
             return baseContext.action(session, options).clone({

@@ -26,20 +26,25 @@ import {
     compareHybridLogicalTimes,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {isTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {isTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {decodeIdInto, encodeId, idByteLength, isId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
+import {decodeIdInto, encodeId, idByteLength, isId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {
     HybridLogicalTimeSchema,
     serializeHybridLogicalTime,
 } from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,
@@ -52,7 +57,7 @@ import {
     TaskAssigneeStatusSchema,
 } from "~/shared/tasks/task_assignee_status.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";
 import {
     TaskDisplayStatus,
     TaskDisplayStatusIntegerMapping,
@@ -108,7 +113,7 @@ const TaskIndexCreatorType = OpensearchIndexObjectType.new({
         accountId: new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
         workingAccountName: new OpensearchIndexKeywordType({isSortable: true}),
         workingAccountNameVersion: new OpensearchIndexIntegerType({isFilterable: true}),
-        from: new OpensearchIndexIgnoredObjectType(TaskCreatorFromSchema).nullable().default(null),
+        from: new OpensearchIndexIgnoredObjectType(TaskActorFromSchema).nullable().default(null),
     },
 });
 
@@ -466,7 +471,7 @@ export type TaskIndexDoc = MergeObjectIntersection<
         readonly id: TaskId;
     } & Omit<
         OpensearchIndexTypeType<typeof TaskIndexDocType>,
-        "lastIndexSearchEntityJob" | "approximateActionCountByAccountId"
+        "lastIndexSearchEntityJob" | "approximateActionCountByAccountId" | "titleIndexVersion"
     > & {
             // This type is used throughout `TaskRealtimeService` to represent a task. It
             // should not include bookkeeping properties from OpenSearch that won't be updated
@@ -474,6 +479,7 @@ export type TaskIndexDoc = MergeObjectIntersection<
             readonly version?: undefined;
             readonly lastIndexSearchEntityJob?: undefined;
             readonly approximateActionCountByAccountId?: undefined;
+            readonly titleIndexVersion?: undefined;
         }
 >;
 
@@ -488,7 +494,7 @@ export type TaskIndexActualDoc = OpensearchIndexTypeType<typeof TaskIndexDocType
  */
 export type TaskIndexDocBase = Omit<
     TaskIndexActualDoc,
-    "lastIndexSearchEntityJob" | "approximateActionCountByAccountId"
+    "lastIndexSearchEntityJob" | "approximateActionCountByAccountId" | "titleIndexVersion"
 >;
 
 assertAssignableTypes<TaskIndexDoc, TaskIndexDocBase>();
@@ -637,6 +643,19 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             .default(new TaskAssigneePositionRegister(null, zeroHybridLogicalTime)),
 
         title: TaskIndexTitleType,
+
+        /**
+         * Counts the effective title updates ever applied to this doc. Advanced only by
+         * the winning index write of an update that changed the title text (replays apply
+         * as identity noops), so it gives task activity a total order over title updates
+         * without a separate update log. Not part of the realtime in-memory doc — only
+         * indexing maintains it.
+         */
+        // NOTE(ifitzsimmons, 2026-07-30): There is no per-version title text stored
+        // anywhere. These versions exist to ORDER out-of-order absorbs and identify
+        // windows, not for text lookup. This is primarily used for grouping title updates
+        // into windows in the TaskActivityTable.
+        titleIndexVersion: new OpensearchIndexIntegerType().default(0),
         dueDate: TaskIndexDueDateType,
         priority: TaskIndexPriorityType,
 

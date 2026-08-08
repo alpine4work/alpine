@@ -1,6 +1,6 @@
 import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const {services} = createTestServices();

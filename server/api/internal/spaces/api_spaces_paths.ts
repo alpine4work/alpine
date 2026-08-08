@@ -12,18 +12,46 @@ import {
 } from "~/server/search/data/index/search_entity_index.js";
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {getSpace} from "~/server/spaces/get_space.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {mergeKeywordAndSemanticSearchResults} from "~/shared/search/merge_keyword_and_semantic_search_results.js";
+import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {standardSearchOptions} from "~/shared/search/search_options.js";
 
 export const apiSpacesPaths: Pick<
     ApiPaths,
-    keyof ApiPaths & (`/spaces/${string}` | `/accounts/${string}`)
+    keyof ApiPaths & ("/auth" | `/spaces/${string}` | `/accounts/${string}`)
 > = {
+    "/auth": {
+        get: async context => {
+            const spaceId = context.actor.getSpaceId();
+            const accountId = context.actor.getBotAccountId();
+
+            const account = await getApiAccount(context, spaceId, accountId, {
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    auth: {
+                        type: "BotAccount",
+                        spaceId,
+                        botAccount: {
+                            ...account,
+                            bot: assertExists(account.bot),
+                        },
+                    },
+                },
+            };
+        },
+    },
+
     "/accounts/{id}": {
         get: async (context, {pathParameters}) => {
             // We load the account data using the `SpaceId` the bot is instantiated in. So if
@@ -36,6 +64,11 @@ export const apiSpacesPaths: Pick<
             );
 
             return {
+                // IMPORTANT: We don't include the `SpaceId` since we want to allow the flexibility
+                // for this endpoint to be spaceless in the future. Since accounts aren't "owned"
+                // by any one space. For now every bot actor is within a space but that may not be
+                // the case forever.
+
                 content: {
                     account: omitObject(account, ["space"]),
                 },
@@ -43,25 +76,29 @@ export const apiSpacesPaths: Pick<
         },
     },
 
-    "/accounts/{id}/mention": {
+    "/accounts/{id}-reference": {
         get: async (context, {pathParameters}) => {
             // We load the account data using the `SpaceId` the bot is instantiated in. So if
             // an account was removed from the space then our bot will see old data.
-            const account = await getAccountWithoutAvatar(
-                context,
-                context.actor.getSpaceId(),
-                pathParameters.id,
-                {consistency: "StrongWithinCache"},
-            );
+            const spaceId = context.actor.getSpaceId();
+
+            const account = await getAccountWithoutAvatar(context, spaceId, pathParameters.id, {
+                consistency: "StrongWithinCache",
+            });
 
             return {
                 content: {
-                    mention: {
-                        target: {
-                            type: "Account",
-                            id: pathParameters.id,
-                        },
+                    // IMPORTANT: We don't include the `SpaceId` since we want to allow the flexibility
+                    // for this endpoint to be spaceless in the future. Since accounts aren't "owned"
+                    // by any one space. For now every bot actor is within a space but that may not be
+                    // the case forever.
+
+                    reference: {
+                        type: "Account",
+                        id: pathParameters.id,
                         title: account.name,
+                        shortName: getAccountShortNameWithoutFullNameTooltip(account),
+                        bot: account.botId == null ? undefined : {id: account.botId},
                     },
                 },
             };
@@ -102,8 +139,6 @@ export const apiSpacesPaths: Pick<
         },
     },
 
-    // TODO(#public-api): Document that reads from this endpoint will always be
-    // eventually consistent.
     "/spaces/{id}/accounts/{accountId}/inbox": {
         get: async (context, {pathParameters}) => {
             const {id: spaceId, accountId} = pathParameters;
@@ -126,6 +161,8 @@ export const apiSpacesPaths: Pick<
         },
     },
 
+    // TODO(#public-api): Document that reads from this endpoint will always be
+    // eventually consistent.
     "/spaces/{id}/accounts/{accountId}/inbox/entries": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {id: spaceId, accountId} = pathParameters;
@@ -154,14 +191,31 @@ export const apiSpacesPaths: Pick<
                     ? (entriesResult.items[entriesResult.items.length - 1]?.cursor ?? null)
                     : null;
 
+            const entries = await runAllPromises(
+                entriesResult.items.map(async ({model}) => {
+                    // Task and chat entries carry a title (and, for tasks, a status) that isn't on the
+                    // inbox model, so we resolve the referenced entities from the search index. The
+                    // resolver access-checks each entity for the request actor, matching how the entry
+                    // models were hydrated.
+                    const entityId = getInboxEntrySearchEntityIdIfExists(model);
+                    const resolvedEntity = entityId
+                        ? await inboxContext.searchInjection.getSearchMentionEntityIfPossible(
+                              spaceId,
+                              entityId,
+                          )
+                        : null;
+                    return intoApiInboxEntry(model, resolvedEntity);
+                }),
+            );
+
             return {
                 content: {
                     inbox: {
                         loudNotificationCount: inbox.model.loudNotificationCount,
                         newEntryCount: inbox.model.entryCount,
                     },
-                    entries: entriesResult.items.map(({model}) => intoApiInboxEntry(model)),
                     nextCursor,
+                    entries,
                 },
             };
         },
@@ -251,9 +305,30 @@ export const apiSpacesPaths: Pick<
 
             return {
                 content: {
-                    results: results.map(intoApiSearchResult).filter(isNonNullable).slice(0, limit),
+                    results: results
+                        .map(result => intoApiSearchResult(result, queryText))
+                        .filter(isNonNullable)
+                        .slice(0, limit),
                 },
             };
         },
     },
 };
+
+/**
+ * The search-index entity id for an inbox entry that references a title-bearing
+ * entity not carried on the model (tasks and chats), or `undefined` for entries
+ * that don't need resolution.
+ */
+function getInboxEntrySearchEntityIdIfExists(
+    entry: InboxEntryModel,
+): SearchMentionEntityId | undefined {
+    switch (entry.type) {
+        case "Task":
+            return `Task:${entry.task.taskId}`;
+        case "Chat":
+            return `Chat:${entry.chatId}`;
+        default:
+            return undefined;
+    }
+}

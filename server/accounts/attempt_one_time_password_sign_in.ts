@@ -9,14 +9,14 @@ import {
 } from "~/server/accounts/one_time_password_constants.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type AttemptOneTimePasswordSignInOptions = {
     /**

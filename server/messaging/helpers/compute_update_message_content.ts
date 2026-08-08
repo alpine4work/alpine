@@ -1,8 +1,8 @@
 import {Mapping, Step, StepResult} from "prosemirror-transform";
 import {MessageContent, isMessageContent} from "~/shared/content/message_content_schema.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayload,
     MessageContentPayloadContentUpdate,

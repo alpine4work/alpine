@@ -2,9 +2,9 @@ import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_servi
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {getTaskNotesContentWithCustomReferences} from "~/server/tasks/data/get_task_notes_content_with_custom_references.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import {ApiTaskNotesResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {ApiTaskNotesResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Reads a task's notes and returns them as an `ApiTaskNotesResponse`. The notes
@@ -21,21 +21,15 @@ export async function getApiTaskNotes(
         context,
         taskId,
         async (context, spaceId, task) =>
-            await intoApiContentWithReferences(
-                context,
+            await intoApiContentWithReferences(context, {
                 spaceId,
-                FileTaskAuthorizer.bind({
-                    type: "TaskNotes",
-                    taskId,
+                fileAuthorizer: FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                content: task.notesContent,
+                contentKeyEncoder: new ApiContentKeyEncoder({
+                    entityId: `Task:${taskId}`,
+                    version: task.notesVersion,
                 }),
-                task.notesContent,
-                {
-                    encoder: new ApiContentKeyEncoder({
-                        entityId: `Task:${taskId}`,
-                        version: task.notesVersion,
-                    }),
-                },
-            ),
+            }),
         {consistency},
     );
 

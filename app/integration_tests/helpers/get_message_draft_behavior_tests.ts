@@ -15,10 +15,10 @@ import {
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraftSurface} from "~/shared/messaging/message_draft_surface.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 

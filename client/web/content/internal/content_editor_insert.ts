@@ -7,8 +7,8 @@ import {
     isInContentTable,
     isSelectionInContentTable,
 } from "~/client/web/content/state/table/content_table_client_util.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Check if a node is a tableBlock node. In

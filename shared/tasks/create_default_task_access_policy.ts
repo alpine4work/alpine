@@ -1,5 +1,5 @@
 import {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export function createDefaultTaskAccessPolicy(creatorId: AccountId): LocalAccessPolicy {
     return {

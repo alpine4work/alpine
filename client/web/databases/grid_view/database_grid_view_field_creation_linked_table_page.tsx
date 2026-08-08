@@ -24,8 +24,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {type DatabaseActionOutput} from "~/shared/databases/database_actions.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 type DatabaseGridViewLinkedTable = DatabaseActionOutput<"listTables">["tables"][number];
 

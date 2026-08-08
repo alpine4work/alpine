@@ -9,14 +9,14 @@ import {
     FileAttachmentTarget,
     FileAttachmentTargetByArea,
 } from "~/shared/files/file_attachment_target.js";
-import {FileContentTypeSchema} from "~/shared/files/file_content_type.js";
+import {FileContentTypeSchema} from "~/shared/files/file_content_type.open_source.js";
 import {FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {FileTranscriptSchema} from "~/shared/files/file_transcript.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {If} from "~/shared/helpers/types/if.js";
 import {
     AccountId,
@@ -27,8 +27,8 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export const FilesTable = DynamoTableSchema.new({
     name: "Files",

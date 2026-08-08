@@ -6,7 +6,7 @@ import {
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {Bot} from "~/shared/bots/bot_schema.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the information associated with a bot. Currently, basic information about a

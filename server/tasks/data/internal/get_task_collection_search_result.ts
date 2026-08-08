@@ -2,7 +2,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {authorizeTaskCollectionItemAccess} from "~/server/tasks/data/internal/authorize_task_item_access.js";
 import {createTaskCollectionModelSearchResultFromItem} from "~/server/tasks/data/internal/create_task_collection_model_search_result_from_item.js";
 import {TaskTable} from "~/server/tasks/data/internal/task_table.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
 export async function getTaskCollectionSearchResult(

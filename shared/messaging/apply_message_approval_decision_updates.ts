@@ -1,10 +1,10 @@
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {
     createMessageApprovalAlreadyDecidedError,
     createMessageApprovalNotFoundError,

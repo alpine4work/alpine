@@ -6,8 +6,8 @@ import {ContentEditorDomParser} from "~/client/web/content/internal/content_edit
 import {contentEditorTextClipboardSerializer} from "~/client/web/content/internal/content_editor_text_clipboard_serializer.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Write some content including its rich styles to the clipboard.

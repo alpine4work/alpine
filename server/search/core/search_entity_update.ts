@@ -2,11 +2,11 @@ import {
     SearchEntityDependencyId,
     isSearchEntityIdAlsoEntityDependencyId,
 } from "~/server/search/core/search_entity_dependency_id.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -18,8 +18,8 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     SearchDynamicEntityIdObject,
     printSearchDynamicEntityId,

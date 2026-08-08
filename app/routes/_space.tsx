@@ -84,27 +84,31 @@ import {alpioneers} from "~/shared/accounts/known_account_ids.js";
 import {Context} from "~/shared/context/context.js";
 import {addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {defaultThemeColor} from "~/shared/design/core/theme_colors.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    PermissionDeniedError,
+} from "~/shared/error/error.open_source.js";
 import {
     FileAttachmentTarget,
     deserializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, BotId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getAccountByEmailAddressAsAdmin,
@@ -116,7 +120,7 @@ import {
     createAlphaSpaceAsAdmin,
     instantiateBotSpaceAccount,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     SearchOptions,
     SearchOptionsSchema,

@@ -5,9 +5,9 @@ import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_con
 import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
-import {InternalError} from "~/shared/error/error.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 // ---------------------------------------------------------------------------
 // Test storage backend

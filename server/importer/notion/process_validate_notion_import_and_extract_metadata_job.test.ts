@@ -16,9 +16,9 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
-import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.open_source.js";
 import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
 
 const context = createTestContext();

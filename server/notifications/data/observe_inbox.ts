@@ -6,8 +6,8 @@ import {observeInboxItem} from "~/server/notifications/data/internal/observe_inb
 import {clearPendingSubtleNotificationsForInbox} from "~/server/notifications/data/internal/push/clear_pending_subtle_notifications_for_inbox.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Mark the current account's inbox as observed. Any loud notifications will freeze

@@ -2,8 +2,8 @@ import fs from "fs/promises";
 import {basename, join as joinPath} from "path";
 import {fileURLToPath, pathToFileURL} from "url";
 import {type ScreenshotTestDefinition} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 const screenshotTestNamePattern = /^[a-z0-9_]+$/;
 const screenshotTestFileSuffix = "_screenshot_test.js";

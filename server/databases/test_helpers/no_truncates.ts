@@ -1,4 +1,4 @@
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Shared empty truncate map for {@link DatabaseServer.writePages} calls that only

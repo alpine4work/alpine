@@ -1,6 +1,6 @@
 import {NodeType} from "prosemirror-model";
 import {Command, Transaction} from "prosemirror-state";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Creates a command that converts list items in the same visual list segment and

@@ -5,7 +5,7 @@ import {createSpaceAccountNotFoundError} from "~/server/spaces/get_account.js";
 import {SpaceAccountItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export const SpaceAccountItemContextCache = new DynamoContextCache<
     `${SpaceId}:${AccountId}`,

@@ -2,15 +2,15 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {MessageDraftsTable} from "~/server/messaging/drafts/internal/message_drafts_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftSurface,
     getMessageDraftSurfaceKey,

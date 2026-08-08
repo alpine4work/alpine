@@ -5,7 +5,7 @@ import {
     getAllSpaceAccountsWithoutCachingAndWithoutAuthorization,
     spaceAccountsCache,
 } from "~/server/spaces/internal/space_accounts_cache.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**

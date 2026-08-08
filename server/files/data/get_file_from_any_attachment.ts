@@ -2,15 +2,15 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableItemType} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {getFileAttachmentTargetAuthorizer} from "~/server/files/data/get_file_attachment_target_authorizer.js";
 import {FilesTable} from "~/server/files/data/internal/files_table.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 type FileItem = DynamoTableItemType<typeof FilesTable, "File2", "Attributes">;
 

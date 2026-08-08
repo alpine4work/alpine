@@ -50,40 +50,49 @@ import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_a
 import {getSiteIfPossible} from "~/server/sites/data/get_site.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
+import {
+    getEmptyTaskActivityEntries,
+    getTaskActivityEntries,
+} from "~/server/tasks/data/get_task_activity_entries.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {getTaskNotesContentAndOptionalInitialCommentsIfExists} from "~/server/tasks/data/task_messaging.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {getOpenGraphContent} from "~/shared/content/open_graph_content.js";
-import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError, InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createRynamoItemSchema, createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    NotFoundError,
+} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {throwError} from "~/shared/helpers/control/throw_error.js";
 import {roundDateToHour} from "~/shared/helpers/date/round_date_to_hour.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {iterableWithIndex} from "~/shared/helpers/iterable/iterable_with_index.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {AccountId, BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {AccountId, BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftWithFilesSchema,
     emptyMessageDraftWithFiles,
 } from "~/shared/messaging/message_draft_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
+import {TaskActivityModelSchema} from "~/shared/tasks/task_activity.js";
 import {createTaskNotFoundError} from "~/shared/tasks/task_error_messages.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -134,6 +143,9 @@ const LoaderSchema = Schema.object({
         commentCount: Schema.integer,
         comments: Schema.array(TaskCommentModel.schema()),
         otherReferencedComments: Schema.array(TaskCommentModel.schema()),
+    }),
+    initialActivity: Schema.object({
+        entriesResult: createRynamoQuerySchema(TaskActivityModelSchema),
     }),
     inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
     isFavorite: Schema.boolean,
@@ -276,6 +288,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
             initialFieldsAssignee,
             initialFieldsLoadQueriesOutput,
             filterReferences,
+            initialActivityResult,
         ] = throwError(new InternalError("Expected `SpaceId` to be discovered")),
         siteLoaderData,
     } = await loadWithSpaceAndSiteDiscovery(context, {
@@ -366,6 +379,13 @@ export async function loader({params, context: unauthenticatedContext, request}:
                     : null,
 
                 getTaskQueryFilterReferences(context, spaceId, filters),
+
+                // Ghost tasks (`?create=`) have no committed activity to load. Captured so a
+                // missing task surfaces as the friendly not-found error from the task load instead
+                // of this one racing it.
+                !isCreatingTask
+                    ? captureResultPromise(getTaskActivityEntries(context, {taskId}))
+                    : null,
             ]);
         },
     });
@@ -388,6 +408,10 @@ export async function loader({params, context: unauthenticatedContext, request}:
             throw loadQueriesOutputResult.error;
         }
     }
+
+    const initialActivity = initialActivityResult
+        ? unwrapResult(initialActivityResult)
+        : getEmptyTaskActivityEntries(spaceId, taskId);
 
     const backfillTask = loadQueriesOutput?.updateEvent.backfillTasks.find(
         (
@@ -444,6 +468,7 @@ export async function loader({params, context: unauthenticatedContext, request}:
                 comments: emptyArray,
                 otherReferencedComments: emptyArray,
             },
+            initialActivity,
             inboxEntry,
             isFavorite,
             messageDraft,
@@ -538,6 +563,7 @@ function TaskRouteInner() {
         notesVersion: initialNotesVersion,
         notesContent: initialNotesContent,
         initialComments,
+        initialActivity,
         inboxEntry,
         isFavorite: initialIsFavorite,
         messageDraft,
@@ -1080,6 +1106,7 @@ function TaskRouteInner() {
                 affinityManager={affinityManager}
                 shouldInitiallyFocus={shouldInitiallyFocus}
                 initialComments={initialComments}
+                initialActivity={initialActivity}
                 initialMessageDraft={messageDraft}
                 initialScrollToCommentIndex={initialScrollToCommentIndex}
                 shareActivationHint={

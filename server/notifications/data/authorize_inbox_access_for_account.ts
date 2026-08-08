@@ -9,11 +9,11 @@ import {
 } from "~/server/notifications/data/inbox_error_messages.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Returns the effective access policy for an inbox partition owned by `accountId`.

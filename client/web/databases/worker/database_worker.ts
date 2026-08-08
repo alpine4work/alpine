@@ -14,7 +14,7 @@ import {
     UniqueWorkerHost,
     UniqueWorkerHostConnection,
 } from "~/client/web/helpers/workers/unique_worker_host.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 
 // Entry script for the databases unique worker. The host must attach before the
 // first `connect-port` message can arrive, so OPFS initialization happens behind a

@@ -1,7 +1,7 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {
     TaskSortableAccountSchema,

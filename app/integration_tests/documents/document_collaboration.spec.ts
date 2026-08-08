@@ -2,12 +2,12 @@ import {Page, expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 
 const {context, services} = createTestServices();
 

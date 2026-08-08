@@ -1,5 +1,5 @@
 import {type Page} from "@playwright/test";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 
 const isAppleDeviceByPage = new WeakMap<Page, Promise<boolean>>();
 

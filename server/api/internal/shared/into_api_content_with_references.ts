@@ -1,5 +1,5 @@
 import {Node} from "prosemirror-model";
-import {getContentFileReference} from "~/server/content/get_content_references.js";
+import {getContentFileReferenceWithoutSignedUrlSearch} from "~/server/content/get_content_references.js";
 import {
     ServerAccountActionContext,
     ServerActionContext,
@@ -8,30 +8,27 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getSearchEntityWithStrongConsistency} from "~/server/search/data/index/search_entity_index.js";
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
+import {prepareApiMentionTitle} from "~/shared/api/content/closed_source/prepare_api_mention_title.js";
 import {
-    ApiContentMarkdownIntoOptionsWithoutKeys,
+    ApiContentResponse,
     ApiContentResponseWithoutKeys,
-    intoApiContent,
-} from "~/shared/api/content/into_api_content.js";
-import {prepareApiMentionTitle} from "~/shared/api/content/prepare_api_mention_title.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
-import {
-    ContentReferencesFile,
-    ContentReferencesSearchEntity,
-} from "~/shared/content/content_references.js";
+import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {FileModel} from "~/shared/files/file_model.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {AccountId, FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
+    deletedSearchEntityTitle,
     missingSearchEntityTitle,
     privateSearchEntityTitle,
 } from "~/shared/search/missing_and_private_search_entity_titles.js";
@@ -39,174 +36,83 @@ import {
     SearchMentionEntityId,
     parseSearchMentionEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
-type IntoApiContentWithReferencesOptions = {
-    encoder: ApiContentKeyEncoder;
-    posOffset?: number;
-};
+export async function intoApiContentWithReferences<
+    ContentKeyEncoder extends ApiContentKeyEncoder | null,
+>(
+    context: ServerAccountActionContext,
+    options: {
+        spaceId: SpaceId;
+        fileAuthorizer: FileAuthorizer | "AssertHasNoFiles";
+        content: Node;
+        contentKeyEncoder: ContentKeyEncoder;
+        posOffset?: number;
+    },
+): Promise<
+    ContentKeyEncoder extends ApiContentKeyEncoder
+        ? ApiContentResponse
+        : ApiContentResponseWithoutKeys
+> {
+    const {content} = await intoApiContentWithReferencesAndReturnReferences(context, options);
 
-type IntoApiContentWithReferencesOptionsWithoutKeys = {
-    encoder?: undefined;
-    posOffset?: undefined;
-};
+    // Can't safely assign to a conditional type in TypeScript so cast to `any`.
+    return content as any;
+}
 
-type IntoApiContentWithReferencesOptionsForConversion =
-    | IntoApiContentWithReferencesOptions
-    | IntoApiContentWithReferencesOptionsWithoutKeys;
+export async function intoApiMessageContentWithReferences(
+    context: ServerAccountActionContext,
+    options: {
+        spaceId: SpaceId;
+        content: MessageContent;
+        contentKeyEncoder: ApiContentKeyEncoder;
+        posOffset?: number;
+    },
+): Promise<ApiContentResponse> {
+    const {content} = await intoApiContentWithReferencesAndReturnReferences(context, {
+        ...options,
+        fileAuthorizer: "AssertHasNoFiles",
+    });
+    return content;
+}
 
-type IntoApiMessageContentWithReferencesOptions = {
-    spaceId: SpaceId;
-    node: MessageContent;
-} & IntoApiContentWithReferencesOptions;
-
-type IntoApiMessageContentWithReferencesOptionsWithoutKeys = {
-    spaceId: SpaceId;
-    node: MessageContent;
-} & IntoApiContentWithReferencesOptionsWithoutKeys;
-
-type IntoApiMessageContentWithReferencesOptionsForConversion =
-    | IntoApiMessageContentWithReferencesOptions
-    | IntoApiMessageContentWithReferencesOptionsWithoutKeys;
-
-type IntoApiContentResponseForOptions<Options> = Options extends IntoApiContentWithReferencesOptions
-    ? ApiContentResponse
-    : ApiContentResponseWithoutKeys;
-
-type IntoApiContentWithReferencesResult<Content> = {
-    content: Content;
+export async function intoApiContentWithReferencesAndReturnReferences<
+    ContentKeyEncoder extends ApiContentKeyEncoder | null,
+>(
+    context: ServerAccountActionContext,
+    {
+        spaceId,
+        fileAuthorizer,
+        content,
+        contentKeyEncoder,
+        posOffset,
+    }: {
+        spaceId: SpaceId;
+        fileAuthorizer: FileAuthorizer | "AssertHasNoFiles";
+        content: Node;
+        contentKeyEncoder: ContentKeyEncoder;
+        posOffset?: number;
+    },
+): Promise<{
+    content: ContentKeyEncoder extends ApiContentKeyEncoder
+        ? ApiContentResponse
+        : ApiContentResponseWithoutKeys;
     references: {
         accountById: ReadonlyMap<AccountId, Omit<AccountModelWithoutSpaceData, "avatar">>;
         searchEntityById: ReadonlyMap<SearchMentionEntityId, ContentReferencesSearchEntity>;
-        fileById: ReadonlyMap<FileId, ContentReferencesFile>;
+        fileById: ReadonlyMap<FileId, FileModel>;
     };
-};
-
-type IntoApiContentWithReferencesResultForOptions<Options> = IntoApiContentWithReferencesResult<
-    IntoApiContentResponseForOptions<Options>
->;
-
-/**
- * Converts content and loads its references while guaranteeing content keys on
- * paragraphs and headings unless `WithoutKeys` options are used.
- *
- * TODO: make these args an object per our style guide
- */
-export async function intoApiContentWithReferences<
-    Options extends IntoApiContentWithReferencesOptionsForConversion =
-        IntoApiContentWithReferencesOptionsWithoutKeys,
->(
-    context: ServerAccountActionContext,
-    spaceId: SpaceId,
-    fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
-    node: Node,
-    ...optionsArgs: Options extends IntoApiContentWithReferencesOptions
-        ? [options: Options]
-        : [options?: Options]
-): Promise<IntoApiContentResponseForOptions<Options>> {
-    const options: IntoApiContentWithReferencesOptionsForConversion = optionsArgs[0] ?? {};
-
-    if (options.encoder === undefined) {
-        const {content} = await intoApiContentWithReferencesAndReturnReferences(
-            context,
-            spaceId,
-            fileAuthorizer,
-            node,
-        );
-        // This cast is acknowledged as type unsafe. This branch asserts that keys are not
-        // needed. To provide a tight contract between this logic and callers while keeping
-        // this logic type-maintainable, we require this generic boundary cast. If this
-        // branch changes, assert whether keys are needed before returning.
-        return content as IntoApiContentResponseForOptions<Options>;
-    }
-
-    const {content} = await intoApiContentWithReferencesAndReturnReferences(
-        context,
-        spaceId,
-        fileAuthorizer,
-        node,
-        options,
-    );
-    // This cast is acknowledged as type unsafe. The branch above asserts that keyed
-    // options are present, and the shared converter asserts keyed content before
-    // returning. To provide a tight contract between this logic and callers while
-    // keeping this logic type-maintainable, we require this generic boundary cast. If
-    // this branch changes, assert whether keys are needed before returning.
-    return content as IntoApiContentResponseForOptions<Options>;
-}
-
-/**
- * Converts message content and loads mention references while guaranteeing content
- * keys unless `WithoutKeys` options are used.
- */
-export async function intoApiMessageContentWithReferences<
-    Options extends IntoApiMessageContentWithReferencesOptionsForConversion,
->(
-    context: ServerAccountActionContext,
-    options: Options,
-): Promise<IntoApiContentResponseForOptions<Options>> {
-    const {spaceId, node} = options;
-
-    if (options.encoder === undefined) {
-        const {content} = await intoApiContentWithReferencesAndReturnReferences(
-            context,
-            spaceId,
-            // `MessageContent` doesn't have referenced files.
-            "AssertHasNoFiles",
-            node,
-        );
-        // This cast is acknowledged as type unsafe. This branch asserts that keys are not
-        // needed. To provide a tight contract between this logic and callers while keeping
-        // this logic type-maintainable, we require this generic boundary cast. If this
-        // branch changes, assert whether keys are needed before returning.
-        return content as IntoApiContentResponseForOptions<Options>;
-    }
-
-    const {content} = await intoApiContentWithReferencesAndReturnReferences(
-        context,
-        spaceId,
-        // `MessageContent` doesn't have referenced files.
-        "AssertHasNoFiles",
-        node,
-        {
-            encoder: options.encoder,
-            posOffset: options.posOffset,
-        },
-    );
-    // This cast is acknowledged as type unsafe. The branch above asserts that keyed
-    // options are present, and the shared converter asserts keyed content before
-    // returning. To provide a tight contract between this logic and callers while
-    // keeping this logic type-maintainable, we require this generic boundary cast. If
-    // this branch changes, assert whether keys are needed before returning.
-    return content as IntoApiContentResponseForOptions<Options>;
-}
-
-/**
- * Converts content, returns the loaded references, and guarantees content keys
- * unless `WithoutKeys` options are used.
- *
- * TODO: make these args an object per our style guide
- */
-export async function intoApiContentWithReferencesAndReturnReferences<
-    Options extends IntoApiContentWithReferencesOptionsForConversion =
-        IntoApiContentWithReferencesOptionsWithoutKeys,
->(
-    context: ServerAccountActionContext,
-    spaceId: SpaceId,
-    fileAuthorizer: FileAuthorizer | "AssertHasNoFiles",
-    node: Node,
-    ...optionsArgs: Options extends IntoApiContentWithReferencesOptions
-        ? [options: Options]
-        : [options?: Options]
-): Promise<IntoApiContentWithReferencesResultForOptions<Options>> {
-    const options: IntoApiContentWithReferencesOptionsForConversion = optionsArgs[0] ?? {};
-
+}> {
     // Content references are loaded with eventual consistency. We clearly document
     // this for public API users.
     const referencesContext = context.dynamo.unexpectStrongReadConsistency();
 
-    const referencedIds = getContentReferencedIdsForNode(node);
-    const searchEntityIds = Array.from(referencedIds.searchEntityIds);
+    const referencedIds = getContentReferencedIdsForNode(content);
+
+    const searchEntityIds = Array.from(
+        new Set(concatIterables(referencedIds.searchEntityIds, referencedIds.fileEntityIds)),
+    );
 
     const [accounts, searchEntities, fileReferences] = await runAllPromises([
         runAllPromises(
@@ -227,7 +133,11 @@ export async function intoApiContentWithReferencesAndReturnReferences<
                 if (fileAuthorizer === "AssertHasNoFiles") {
                     throw new InternalError("Expected content to not include any referenced files");
                 }
-                return getContentFileReference(referencesContext, spaceId, fileId, fileAuthorizer);
+                return getContentFileReferenceWithoutSignedUrlSearch(
+                    referencesContext,
+                    fileId,
+                    fileAuthorizer,
+                );
             }),
         ),
     ]);
@@ -248,37 +158,21 @@ export async function intoApiContentWithReferencesAndReturnReferences<
     );
 
     const fileById = new Map(
-        filterMapIterable(fileReferences, fileReference => {
-            if (!fileReference) return;
-            return [fileReference.file.id, fileReference];
+        filterMapIterable(fileReferences, file => {
+            if (!file) return;
+            return [file.id, file];
         }),
     );
 
-    const intoApiContentOptions: ApiContentMarkdownIntoOptionsWithoutKeys = {
-        getAccountMentionTitleIfExists: (accountId, {isShort}) => {
-            const account = accountById.get(accountId);
-            if (!account) return missingAccountName;
-            if (!isShort) return account.name;
-            return getAccountShortNameWithoutFullNameTooltip(account);
+    const apiContent = intoApiContent(content, {
+        encoder: contentKeyEncoder ?? undefined,
+        posOffset,
+        getAccountIfExists: accountId => {
+            return accountById.get(accountId);
         },
         getSearchEntityMentionTitleIfExists: entityId => {
             const entityResult = searchEntityById.get(entityId);
-
-            if (!entityResult) {
-                const {type} = parseSearchMentionEntityId(entityId);
-                return `${missingSearchEntityTitle} ${getSearchEntityNoun(type)}`;
-            }
-
-            if (entityResult.isPrivate) {
-                const {type} = parseSearchMentionEntityId(entityId);
-                return `${privateSearchEntityTitle} ${getSearchEntityNoun(type)}`;
-            }
-
-            return prepareApiMentionTitle(
-                entityId,
-                entityResult.entity.initialData,
-                account => account.initialData,
-            );
+            return getSearchEntityMentionTitleForApi(entityId, entityResult);
         },
         getSearchTaskEntityDisplayStatusIfExists: taskId => {
             const entity = searchEntityById.get(`Task:${taskId}`);
@@ -289,49 +183,55 @@ export async function intoApiContentWithReferencesAndReturnReferences<
             return entity.entity.initialData.task.displayStatus.value;
         },
         getFileIfExists: fileId => {
-            const fileRef = fileById.get(fileId);
-            if (!fileRef) return undefined;
-
-            const preview = fileRef.file.initialData.preview;
-            const size =
-                preview !== null &&
-                preview.type === "Image" &&
-                preview.size !== "Error" &&
-                preview.size !== "Processing" &&
-                preview.size !== undefined
-                    ? preview.size
-                    : undefined;
-
-            return {
-                contentType: fileRef.file.initialData.contentType,
-                contentLength: fileRef.file.initialData.contentLength,
-                size,
-            };
+            const file = fileById.get(fileId);
+            if (!file) return undefined;
+            return file.initialData;
         },
-    };
-
-    const apiContent =
-        options.encoder !== undefined
-            ? intoApiContent(node, {
-                  ...intoApiContentOptions,
-                  encoder: options.encoder,
-                  posOffset: options.posOffset,
-              })
-            : intoApiContent(node, intoApiContentOptions);
+    });
 
     return {
-        content: apiContent,
+        // Can't safely assign to a conditional type in TypeScript so cast to `any`.
+        content: apiContent as any,
         references: {
             accountById,
             searchEntityById,
             fileById,
         },
-        // This cast is acknowledged as type unsafe. The `apiContent` construction above
-        // asserts whether keys are needed before calling the shared converter. To provide
-        // a tight contract between this logic and callers while keeping this logic
-        // type-maintainable, we require this generic boundary cast. If this logic changes,
-        // assert whether keys are needed before returning.
-    } as IntoApiContentWithReferencesResultForOptions<Options>;
+    };
+}
+
+export function getSearchEntityMentionTitleForApi(
+    entityId: SearchMentionEntityId,
+    entityResult:
+        | {isPrivate: true}
+        | {isDeleted: true}
+        | {isPrivate: false; entity: SearchEntityModel}
+        | null
+        | undefined,
+): string {
+    if (!entityResult) {
+        const {type} = parseSearchMentionEntityId(entityId);
+        return `${missingSearchEntityTitle} ${getSearchEntityNoun(type)}`;
+    }
+
+    // Callers that already know an entity was deleted (e.g. the inbox, where the model
+    // has no title to resolve) can signal it explicitly. Resolvable entities with a
+    // `null` title are surfaced as deleted by `prepareApiMentionTitle` below.
+    if ("isDeleted" in entityResult) {
+        const {type} = parseSearchMentionEntityId(entityId);
+        return `${deletedSearchEntityTitle} ${getSearchEntityNoun(type)}`;
+    }
+
+    if (entityResult.isPrivate) {
+        const {type} = parseSearchMentionEntityId(entityId);
+        return `${privateSearchEntityTitle} ${getSearchEntityNoun(type)}`;
+    }
+
+    return prepareApiMentionTitle(
+        entityId,
+        entityResult.entity.initialData,
+        account => account.initialData,
+    );
 }
 
 export async function getApiMentionTitleWithStrongConsistency(

@@ -1,8 +1,8 @@
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
 import {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {Schema, type SchemaType} from "~/shared/schema/schema.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export const DatabasePlainTextFieldConfigSchema = Schema.object({type: Schema.value("plainText")});
 export type DatabasePlainTextFieldConfig = SchemaType<typeof DatabasePlainTextFieldConfigSchema>;

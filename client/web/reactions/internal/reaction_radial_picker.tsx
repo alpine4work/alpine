@@ -33,9 +33,9 @@ import {
     parseRemLength,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {Reaction, areReactionsEqual} from "~/shared/reactions/reaction.js";

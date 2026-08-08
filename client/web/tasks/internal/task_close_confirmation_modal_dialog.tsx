@@ -3,8 +3,8 @@ import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {TaskClientReadonlyStore} from "~/client/web/tasks/core/task_client_store.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 export function TaskCloseConfirmationModalDialog({
     store,

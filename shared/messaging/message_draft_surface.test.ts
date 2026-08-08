@@ -1,5 +1,9 @@
-import {generateId} from "~/shared/id/id.js";
-import {ChatId, DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    ChatId,
+    DocumentCommentThreadId,
+    DocumentId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftSurface,
     MessageDraftSurfaceSchema,

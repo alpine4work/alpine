@@ -7,12 +7,12 @@ import {FileAttachmentTargetSchema} from "~/shared/files/file_attachment_target.
 import {FileEntityIdSchema, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export type MessageDraft = SchemaType<typeof MessageDraftSchema>;
 

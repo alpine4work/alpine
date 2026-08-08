@@ -1,5 +1,5 @@
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction, ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 

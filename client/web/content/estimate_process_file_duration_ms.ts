@@ -1,5 +1,5 @@
-import {FileContentType} from "~/shared/files/file_content_type.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Returns the estimated processing throughput for a content type in bytes per

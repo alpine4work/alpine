@@ -1,13 +1,13 @@
 import {ReactNode} from "react";
-import {DocumentationApiModel} from "~/client/web/docs/documentation_api_model.js";
 import {DocumentationPageLayout} from "~/client/web/docs/documentation_page_layout.js";
-import {GeneratedDocumentationApiNav} from "~/client/web/docs/generated_documentation.js";
 import {DocumentationApiModelProvider} from "~/client/web/docs/internal/documentation_api_context.js";
 import {
     DocumentationApiSidebar,
     DocumentationApiSidebarActive,
 } from "~/client/web/docs/internal/documentation_api_sidebar.js";
-import {DocumentationSearchIndex} from "~/client/web/docs/search_documentation_entries.js";
+import {DocumentationApiModel} from "~/shared/docs/documentation_api_model.js";
+import {GeneratedDocumentationApiNav} from "~/shared/docs/generated_documentation.js";
+import {DocumentationSearchIndex} from "~/shared/docs/search_documentation_entries.js";
 
 /**
  * The shared assembly for every API reference route: the docs shell with the API

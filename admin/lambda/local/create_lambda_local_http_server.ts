@@ -10,10 +10,10 @@ import {
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {InternalError} from "~/shared/error/error.js";
-import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type LambdaLocalRoute = {
     /**

@@ -9,11 +9,14 @@ import {
     contentMentionTextTruncatedSuffix,
     truncateContentMentionText,
 } from "~/shared/content/truncate_content_mention_text.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {PostContent, assertPostContent} from "~/shared/forum/post_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {countGraphemes, iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {
+    countGraphemes,
+    iterateGraphemes,
+} from "~/shared/helpers/string/iterate_graphemes.open_source.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 export function getPostSearchEntityTitleContentSnippet(content: PostContent): PostContent {

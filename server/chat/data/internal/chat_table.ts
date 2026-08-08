@@ -8,13 +8,13 @@ import {
 } from "~/server/messaging/helpers/message_stream_schema.js";
 import {AccessPolicySchema} from "~/shared/access/access_policy.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export const ChatTable = DynamoTableSchema.new({
     name: "Chat",
@@ -316,9 +316,14 @@ export const AccountChatsIndex = ChatTable.addIndex({
 const FileChatAuthorizer = FileAuthorizer.new(
     ChatTable,
     "Chat",
-    async (context, target, expectedAccessLevel) =>
+    async (context, target, expectedAccessLevel, options) =>
         mapResult(
-            await authorizeChatAccessIfPossible(context, target.chatId, expectedAccessLevel),
+            await authorizeChatAccessIfPossible(
+                context,
+                target.chatId,
+                expectedAccessLevel,
+                options,
+            ),
             () => {},
         ),
 );

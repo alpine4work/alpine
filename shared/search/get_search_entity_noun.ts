@@ -1,4 +1,4 @@
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
 
 /**

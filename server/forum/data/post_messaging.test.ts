@@ -20,7 +20,7 @@ import {
     getPostCommentsFromStart,
     pingPostCommentStream,
     putPostCommentMessageApprovalDecisions,
-    putPostCommentStreamPart,
+    putPostCommentStreamPartAndBroadcastEvent,
     setPostCommentReaction,
     updatePostCommentContent,
 } from "~/server/forum/data/post_messaging.js";
@@ -28,11 +28,11 @@ import {updateChannelAccessPolicy} from "~/server/forum/data/update_channel_acce
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/suite/test_messaging_implementation.js";
 import {AccessPolicyAccountGrant, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, PostId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, PostId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     forumInjection,
@@ -178,7 +178,7 @@ testMessagingImplementation<PostId>(context, {
         context,
         {roomKey: postId, messageIndex: commentIndex, partIndex, payload, isTimeoutErrorCompletion},
     ) {
-        return await putPostCommentStreamPart(context, {
+        return await putPostCommentStreamPartAndBroadcastEvent(context, {
             postId,
             commentIndex,
             partIndex,

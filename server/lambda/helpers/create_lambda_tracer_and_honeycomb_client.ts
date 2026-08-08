@@ -1,13 +1,13 @@
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {KinesisClient} from "~/server/kinesis/kinesis_client.js";
 import {HoneycombDataset, TracerClient} from "~/server/tracer/tracer_client.js";
-import {InternalError} from "~/shared/error/error.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {writeTracerEventToFileInDev} from "~/shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
-import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
-import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 export function createLambdaTracerAndHoneycombClient({
     serviceName,

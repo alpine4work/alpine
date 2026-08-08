@@ -1,5 +1,5 @@
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Id, decodeId, encodeId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Id, decodeId, encodeId} from "~/shared/id/id.open_source.js";
 
 /**
  * Convert an `Id` into [UUID][1] format. Both formats are backed by 128 bits so

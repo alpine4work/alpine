@@ -2,7 +2,7 @@ import type {
     WebSocketPair as WebSocketPairType,
     WebSocket as WebSocketType,
 } from "~/server/web_socket/internal/web_socket_pair_node.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 // In Cloudflare Workers `WebSocket` and `WebSocketPair` should be available
 // globally.

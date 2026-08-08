@@ -1,7 +1,7 @@
 import {BlobsSettings} from "~/client/web/blobs/helpers/blobs_settings.js";
 import {BlobFactoryBlob} from "~/client/web/blobs/helpers/draw_blobs_factory.js";
 import {Color} from "~/shared/design/core/colors.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {Vector2} from "~/shared/helpers/geometry/vector2.js";
 
 export const BlobFactoryDrawOutsideFlag = 1;

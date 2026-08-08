@@ -31,14 +31,14 @@ import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_a
 import {authorizeSiteAccess} from "~/server/sites/data/authorize_site_access.js";
 import {createSite} from "~/server/sites/data/create_site.js";
 import {getSite} from "~/server/sites/data/get_site.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {throwError} from "~/shared/helpers/control/throw_error.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {getSearchDynamicEntityPathFromEntityIdObject} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";

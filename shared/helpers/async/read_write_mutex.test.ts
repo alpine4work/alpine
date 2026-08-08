@@ -3,7 +3,7 @@
 // https://gist.github.com/CMCDragonkai/4de5c1526fc58dac259e321db8cf5331?permalink_comment_id=4030688#gistcomment-4030688
 
 import {ReadWriteMutex} from "~/shared/helpers/async/read_write_mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {waitMicrotask} from "~/shared/helpers/async/wait_microtask.js";
 
 type TestCase = {

@@ -20,12 +20,15 @@ import {
     DatabaseRealtimeProtocol,
 } from "~/shared/databases/database_realtime_protocol.js";
 import type {SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
-import {isTransientError} from "~/shared/error/is_transient_error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseGroupId, DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import type {
+    DatabaseGroupId,
+    DatabaseReactiveActionId,
+} from "~/shared/id/types/id_types.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 import type {WebSocketProtocolProceduresType} from "~/shared/web_socket/web_socket_protocol.js";
 
 type DatabaseConnectionManagerContext = Context<{tracer: TracerContextModule}>;

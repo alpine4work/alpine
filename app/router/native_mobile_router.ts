@@ -22,11 +22,11 @@ import {
     NativeMobileTab,
     isNativeMobileTab,
 } from "~/client/web/remix/native_mobile_bridge.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 
 /**
  * The native mobile router keeps track of inert routes so we can keep those routes

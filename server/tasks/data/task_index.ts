@@ -1,3 +1,4 @@
+import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
@@ -31,11 +32,18 @@ import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_acti
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
 import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
+import {
+    TaskActivityUpdate,
+    getTaskActivityUpdateFromTaskIndexDocs,
+} from "~/server/tasks/data/get_task_activity_update_from_task_index_docs.js";
+import {applyTaskActivityWindowUpdate} from "~/server/tasks/data/internal/apply_task_activity_window_update.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
 import {
     convertTaskQuerySortCursorToOpensearchCursor,
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
+import {processTaskActivityEntriesByTaskId} from "~/server/tasks/data/internal/process_task_activity_entries_by_task_id.js";
+import {TaskActivityEntryChange} from "~/server/tasks/data/internal/task_activity_table.js";
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
 import {
@@ -62,28 +70,28 @@ import {
     FailedPreconditionError,
     InternalError,
     NotFoundError,
-} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {areHybridLogicalTimesEqual} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {JsonScalarValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {
     AccountId,
     SiteId,
@@ -91,7 +99,7 @@ import {
     TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {
@@ -104,12 +112,14 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccountRegister} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneePositionRegister} from "~/shared/tasks/task_assignee_position.js";
+import {TaskCreator} from "~/shared/tasks/task_creator.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * The refresh interval of our task index and task collection index. Since we use
@@ -587,25 +597,38 @@ export function refreshTaskCollectionIndexForTest(
 }
 
 export const indexTaskActionTransactionBeforeUpdateTestCheckpoint = new TestCheckpoint<SpaceId>();
+export const indexTaskActionTransactionBeforeWriteTestCheckpoint = new TestCheckpoint<SpaceId>();
 export const indexTaskActionTransactionAfterUpdateTestCheckpoint = new TestCheckpoint<SpaceId>();
+export const emitTaskActivityBeforeProjectionTestCheckpoint = new TestCheckpoint<
+    TaskId | "Discrete"
+>();
+
+/** The action transaction shape the task indexing entry points take. */
+export type TaskIndexActionTransaction = {
+    spaceId: SpaceId;
+    committedTime: Date;
+    actionTransactionId: TaskActionTransactionId;
+    actions: ReadonlyArray<TaskAction>;
+    actor: TaskCreator | null;
+};
 
 /**
  * Takes a transaction of `TaskAction`s and indexes them in our OpenSearch task
- * index. This function assumes the action transaction has been committed but it
- * may not have been!
+ * index, then emits task activity from the diffs indexing computed. This function
+ * assumes the action transaction has been committed but it may not have been!
  *
  * - We sometimes call this in tests without committing to test behavior.
  * - Only `tasks_table.ts` should call this function in production and only after
  *   committing an action transaction, at which point the assumption is valid.
  */
 export function indexTaskActionTransactionAssumingItsCommitted(
-    context: TaskRealtimeSystemActionContext,
+    context: ServerSystemActionContext,
     actionTransaction: {
         spaceId: SpaceId;
         committedTime: Date;
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
-        actorId: AccountId | null;
+        actor: TaskCreator | null;
     },
     options?: {
         withoutSearchAffinityEntityInteraction?: boolean;
@@ -613,61 +636,146 @@ export function indexTaskActionTransactionAssumingItsCommitted(
     },
 ) {
     return context.tracer.withSpan("Index task action transaction", async (context, span) => {
-        span.addData({
-            tasks: {
-                actions: actionTransaction.actions.map(getTaskActionLabel).join(","),
-                actionCount: actionTransaction.actions.length,
-                actionTransactionId: actionTransaction.actionTransactionId,
-            },
+        const state = await indexTaskActionTransactionInternal(
+            context,
+            span,
+            actionTransaction,
+            options,
+        );
+        if (state === null) return;
+
+        // NOTE(ifitzsimmons, 2026-08-02): We emit task activity here because this is the
+        // only place where all before/after diffs exist (via the index doc). The
+        // `wasProcessed` (see `processTaskActionTransaction`) sweeper is the shared retry
+        // for both indexing and emission. It's outside the `DataLossError` boundary
+        // indexing runs in, because that boundary classifies failures as _search_ data
+        // loss, which pages. A failed activity write isn't data loss, the `wasProcessed`
+        // sweeper re-runs emission and the feed row just lands late.
+        await emitTaskActivityFromIndexAttempt(context, state, {
+            spaceId: actionTransaction.spaceId,
+            actor: actionTransaction.actor,
+            actionTransactionId: actionTransaction.actionTransactionId,
         });
-
-        // If we're in a unit test where OpenSearch is disabled then don't bother indexing.
-        if (process.env.NODE_ENV === "test" && context.opensearch.isDisabledForTest()) return;
-
-        try {
-            await actuallyIndexTaskActionTransactionAssumingItsCommitted(
-                context,
-                actionTransaction.spaceId,
-                actionTransaction.actorId,
-                actionTransaction.actions,
-                options,
-            );
-        } catch (error) {
-            // Escalate task indexing errors to `DataLossError` since it means we failed to
-            // index tasks but the user doesn't know.
-            //
-            // It would be very bad for the process to shutdown midway through indexing such
-            // that we don't see this error! We need some backup monitoring/retry method.
-            throw DataLossError.from(error);
-        }
     });
 }
 
-export function indexTaskActionTransactionAssumingItsCommittedForTest(
+/**
+ * Variant of `indexTaskActionTransactionAssumingItsCommitted()` that skips task
+ * activity emission, for migrations that replay historical action transactions
+ * through indexing. Replayed transactions apply to the index as noops, which would
+ * otherwise trigger the activity crash-recovery fallback and flood feeds with
+ * `Unknown`-initial entries for all of history.
+ *
+ * Skipping activity is also what lets this variant accept the narrower realtime
+ * context migrations run with: the activity engine writes realtime events
+ * (`RynamoTableSchema`) which need the full server context, indexing itself
+ * doesn't.
+ */
+export function indexTaskActionTransactionWithoutActivityAssumingItsCommitted(
+    context: TaskRealtimeSystemActionContext,
+    actionTransaction: TaskIndexActionTransaction,
+    options?: {
+        withoutSearchAffinityEntityInteraction?: boolean;
+        maxRetryAttemptCount?: number;
+    },
+) {
+    return context.tracer.withSpan("Index task action transaction", async (context, span) => {
+        await indexTaskActionTransactionInternal(context, span, actionTransaction, options);
+    });
+}
+
+/**
+ * The shared indexing body of both entry points: span data, the test bail-out, and
+ * the `DataLossError` escalation. Returns the final attempt's state so the
+ * activity entry point can emit from its diffs, or null when there's nothing to
+ * emit from (OpenSearch disabled in tests, account name transactions).
+ */
+async function indexTaskActionTransactionInternal(
+    context: TaskRealtimeSystemActionContext,
+    span: TracerSpan,
+    actionTransaction: TaskIndexActionTransaction,
+    options?: {
+        withoutSearchAffinityEntityInteraction?: boolean;
+        maxRetryAttemptCount?: number;
+    },
+): Promise<TaskActionTransactionIndexState | null> {
+    span.addData({
+        tasks: {
+            actions: actionTransaction.actions.map(getTaskActionLabel).join(","),
+            actionCount: actionTransaction.actions.length,
+            actionTransactionId: actionTransaction.actionTransactionId,
+        },
+    });
+
+    // If we're in a unit test where OpenSearch is disabled then don't bother indexing.
+    if (process.env.NODE_ENV === "test" && context.opensearch.isDisabledForTest()) return null;
+
+    try {
+        return await actuallyIndexTaskActionTransactionAssumingItsCommitted(
+            context,
+            actionTransaction.spaceId,
+            actionTransaction.actor?.accountId ?? null,
+            actionTransaction.actions,
+            options,
+        );
+    } catch (error) {
+        // Escalate task indexing errors to `DataLossError` since it means we failed to
+        // index tasks but the user doesn't know.
+        //
+        // It would be very bad for the process to shutdown midway through indexing such
+        // that we don't see this error! We need some backup monitoring/retry method.
+        throw DataLossError.from(error);
+    }
+}
+
+export async function indexTaskActionTransactionAssumingItsCommittedForTest(
     context: TaskRealtimeSystemActionContext,
     spaceId: SpaceId,
     actorId: AccountId | null,
     actions: ReadonlyArray<TaskAction>,
-    options?: {onRetry?: () => void},
+    options?: {
+        onRetry?: () => void;
+        /** Caps indexing attempts, for tests exercising retry exhaustion. */
+        maxRetryAttemptCount?: number;
+        /**
+         * Emit task activity from the attempt like production does. Omitting it simulates
+         * an attempt that wrote the index docs but crashed before emission.
+         */
+        activityActionTransaction?: {
+            context: ServerSystemActionContext;
+            actionTransactionId: TaskActionTransactionId;
+        };
+    },
 ) {
     assert(import.meta.jest);
 
-    return actuallyIndexTaskActionTransactionAssumingItsCommitted(
+    const state = await actuallyIndexTaskActionTransactionAssumingItsCommitted(
         context,
         spaceId,
         actorId,
         actions,
-        options,
+        {onRetry: options?.onRetry, maxRetryAttemptCount: options?.maxRetryAttemptCount},
     );
+
+    if (options?.activityActionTransaction && state !== null) {
+        await emitTaskActivityFromIndexAttempt(options.activityActionTransaction.context, state, {
+            spaceId,
+            actor: actorId ? {accountId: actorId, from: null} : null,
+            actionTransactionId: options.activityActionTransaction.actionTransactionId,
+        });
+    }
 }
 
-function actuallyIndexTaskActionTransactionAssumingItsCommitted(
+async function actuallyIndexTaskActionTransactionAssumingItsCommitted(
     context: TaskRealtimeSystemActionContext,
     spaceId: SpaceId,
     actorId: AccountId | null,
     actions: ReadonlyArray<TaskAction>,
-    options?: {maxRetryAttemptCount?: number; onRetry?: () => void},
-) {
+    options?: {
+        maxRetryAttemptCount?: number;
+        onRetry?: () => void;
+    },
+): Promise<TaskActionTransactionIndexState | null> {
     const updateAccountNameAction = actions.find(
         (action): action is TaskUpdateAccountNameAction => action.type === "UpdateAccountName",
     );
@@ -678,16 +786,18 @@ function actuallyIndexTaskActionTransactionAssumingItsCommitted(
             );
         }
 
-        return indexTaskUpdateAccountNameActionAssumingItsCommitted(
+        await indexTaskUpdateAccountNameActionAssumingItsCommitted(
             context,
             spaceId,
             updateAccountNameAction,
         );
+        // Account name updates never produce activity.
+        return null;
     }
 
     // We don't have a `context.tracer.withSpan()` call here because the one call-site
     // for this function adds a span.
-    return TaskActionTransactionIndexState.index(context, spaceId, actorId, actions, options);
+    return await TaskActionTransactionIndexState.index(context, spaceId, actorId, actions, options);
 }
 
 /**
@@ -721,6 +831,16 @@ class TaskActionTransactionIndexState {
             incrementDiscreteApproximateActionCount: number;
         }
     >();
+
+    // The emit-ready activity payloads this attempt's doc applications produced, in
+    // action order. Suppressed and non-activity-bearing actions record nothing (see
+    // `getTaskActivityUpdateFromTaskIndexDocs()` for the policy). A fresh state per
+    // attempt means payloads never leak across retries; only the winning attempt's
+    // state reaches emission.
+    private readonly _activityUpdates: Array<{
+        taskId: TaskId;
+        update: TaskActivityUpdate;
+    }> = [];
     private readonly _retrievedTaskIndexDocById = new Map<
         TaskId,
         Promise<OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc> | null>
@@ -765,7 +885,7 @@ class TaskActionTransactionIndexState {
             maxRetryAttemptCount?: number;
             onRetry?: () => void;
         } = {},
-    ) {
+    ): Promise<TaskActionTransactionIndexState> {
         const referencedAccountIds = new Set<AccountId>();
         // NOTE(ifitzsimmons, 2026-03-12): we don't currently use these referenced site ids
         // anywhere. If we want to support task sorting by site, we'll need to collect them
@@ -788,7 +908,13 @@ class TaskActionTransactionIndexState {
 
         let hasAlreadyAttempted = false;
 
-        return await retryWithExponentialBackoff(run, {maxAttemptCount: maxRetryAttemptCount});
+        // The state of the attempt that won the doc write, captured for activity emission
+        // after this loop (see `emitTaskActivityFromIndexAttempt()`).
+        let firstCompletedState: TaskActionTransactionIndexState | null = null;
+
+        await retryWithExponentialBackoff(run, {maxAttemptCount: maxRetryAttemptCount});
+        assert(firstCompletedState !== null, "A completed index run always records its state");
+        return firstCompletedState;
 
         async function run(_retry: (error?: unknown) => never) {
             const isInitialAttempt = !hasAlreadyAttempted;
@@ -811,7 +937,7 @@ class TaskActionTransactionIndexState {
             );
 
             for (const action of actions) {
-                await actuallyIndexTaskAction(state, action, isInitialAttempt);
+                await applyTaskActionAndCaptureActivity(state, action, isInitialAttempt);
             }
 
             const currentTime = new Date();
@@ -1228,9 +1354,24 @@ class TaskActionTransactionIndexState {
 
             const commands = await runAllPromises(commandPromises);
 
+            await indexTaskActionTransactionBeforeWriteTestCheckpoint.waitForTest(spaceId);
+
             await state._context.opensearch.bulk(commands, {
                 retryPartialVersionConflictError: retry,
             });
+
+            // Capture this attempt's state for activity emission after the retry loop.
+            //
+            // We record here, immediately after the write, rather than at the end of the
+            // attempt. `bulk()` retries the whole attempt on a version conflict, so reaching
+            // this line means our write won and `state`'s diffs were taken against the docs as
+            // they looked before that write.
+            //
+            // We keep the _first_ such state. The account name check below retries an attempt
+            // whose write already landed, and that retry re-reads the docs we just wrote — so
+            // a later attempt diffs the new doc against itself and captures the wrong `from`
+            // state (usually no change at all).
+            if (firstCompletedState === null) firstCompletedState = state;
 
             for (const {job, delaySeconds} of jobs) {
                 // The search indexing jobs read from the task OpenSearch index. So sending the job
@@ -1382,6 +1523,18 @@ class TaskActionTransactionIndexState {
     }
 
     /**
+     * Records one emit-ready activity payload captured while applying an action to its
+     * doc in this attempt, for emission after the winning doc write.
+     */
+    public recordActivityUpdate(taskId: TaskId, update: TaskActivityUpdate): void {
+        this._activityUpdates.push({taskId, update});
+    }
+
+    public getActivityUpdates(): ReadonlyArray<{taskId: TaskId; update: TaskActivityUpdate}> {
+        return this._activityUpdates;
+    }
+
+    /**
      * Updates the `TaskIndexDoc` for the specified `TaskId`.
      *
      * Uses optimistic concurrency control. If the task does not exist then we create
@@ -1487,7 +1640,113 @@ class TaskActionTransactionIndexState {
     }
 }
 
-async function actuallyIndexTaskAction(
+/**
+ * This is deliberately best effort rather than a canonical task history. A crash
+ * between the OpenSearch write and activity projection degrades discrete entries
+ * to unknown-before activity instead of requiring a transactional outbox.
+ */
+async function emitTaskActivityFromIndexAttempt(
+    context: ServerSystemActionContext,
+    state: TaskActionTransactionIndexState,
+    {
+        spaceId,
+        actor,
+        actionTransactionId,
+    }: {
+        spaceId: SpaceId;
+        actor: TaskCreator | null;
+        actionTransactionId: TaskActionTransactionId;
+    },
+) {
+    const titleWindowUpdateByTaskId = new Map<
+        TaskId,
+        {
+            activityTime: Date;
+            fromVersion: number;
+            toVersion: number;
+            beforeTitleText: string;
+            afterTitleText: string;
+        }
+    >();
+    const changesByTaskId = new Map<TaskId, Array<TaskActivityEntryChange>>();
+
+    for (const {taskId, update} of state.getActivityUpdates()) {
+        if (update.type === "TitleWindow") {
+            // NOTE(ifitzsimmons, 2026-08-02): It would be incredibly inefficient to try to
+            // update the title window with every key stroke from a transaction – we need 1
+            // read and two transactional writes for each update, and realistically, that read
+            // would be strongly consistent for every update after the first one. Instead we
+            // merge a task's title updates into a single window update spanning the whole
+            // transaction: the first update's start state with the last update's end state.
+            // Keeping both endpoints instead of only the last update preserves the state the
+            // window started from — what `wasReverted` and the rendered before text compare
+            // against — and leaves the window's version range gap free.
+            const mergedUpdate = titleWindowUpdateByTaskId.get(taskId);
+
+            // This shouldn't happen, since we only increment the title version for winning
+            // updates, and we don't record activity for losing updates. However, we'll remain
+            // a little defensive here and bail early just in case.
+            if (mergedUpdate && mergedUpdate.toVersion > update.version) continue;
+
+            titleWindowUpdateByTaskId.set(taskId, {
+                // NOTE(ifitzsimmons, 2026-07-30): Using the time is technically incorrect, since
+                // we should be using the hybrid logical time. There are 2 reasons we don't
+                //
+                // 1. We serialize the task note windows into bytes, and that serialization depends
+                //    on being able to represent the window start time as the difference between
+                //    the time the chunk was created and the window start time. If we wanted to use
+                //    hybrid logical time, there'd be no way to take advantage of that.
+                // 2. Task _note_ updates are not sent with the hybrid logical time, and we want to
+                //    keep the data models consistent.
+                //
+                // In practice, we don't really lose anything by using the time, since we're not
+                // using it for anything critical.
+                activityTime: new Date(update.actionTime[0]),
+                fromVersion: mergedUpdate?.fromVersion ?? update.version - 1,
+                toVersion: update.version,
+                beforeTitleText: mergedUpdate?.beforeTitleText ?? update.beforeTitleText,
+                afterTitleText: update.afterTitleText,
+            });
+            continue;
+        }
+
+        getOrSetDefaultMapValue(changesByTaskId, taskId, () => []).push(update);
+    }
+
+    await runAllPromises([
+        (async () => {
+            await emitTaskActivityBeforeProjectionTestCheckpoint.waitForTest("Discrete");
+            await processTaskActivityEntriesByTaskId(
+                context,
+                spaceId,
+                actor,
+                actionTransactionId,
+                changesByTaskId,
+            );
+        })(),
+        ...Array.from(titleWindowUpdateByTaskId, async ([taskId, titleWindowUpdate]) => {
+            await emitTaskActivityBeforeProjectionTestCheckpoint.waitForTest(taskId);
+
+            await applyTaskActivityWindowUpdate(context, {
+                spaceId,
+                taskId,
+                update: {
+                    actor,
+                    activityTime: titleWindowUpdate.activityTime,
+                    fromVersion: titleWindowUpdate.fromVersion,
+                    toVersion: titleWindowUpdate.toVersion,
+                    content: {
+                        type: "Title",
+                        beforeTitleText: titleWindowUpdate.beforeTitleText,
+                        afterTitleText: titleWindowUpdate.afterTitleText,
+                    },
+                },
+            });
+        }),
+    ]);
+}
+
+async function applyTaskActionAndCaptureActivity(
     state: TaskActionTransactionIndexState,
     action: TaskAction,
     isInitialAttempt: boolean,
@@ -1522,6 +1781,7 @@ async function actuallyIndexTaskAction(
                         ...createEmptyTaskIndexDoc(action.time, action.taskAction),
                         creator,
                         version: null,
+                        titleIndexVersion: 0,
                         lastIndexSearchEntityJob: null,
                         // `putTaskIndexDoc()` is responsible for adding our action count to this map.
                         approximateActionCountByAccountId:
@@ -1532,6 +1792,14 @@ async function actuallyIndexTaskAction(
                             getTaskActionApproximateActionCountType(action.taskAction.type),
                     },
                 );
+
+                // Creates carry their values on the action itself and are always activity-bearing
+                // (a replayed create is deduplicated by its idempotency marker), so record
+                // directly instead of diffing docs a fresh create doesn't have.
+                state.recordActivityUpdate(action.taskId, {
+                    type: "TaskCreated",
+                    actionTime: action.time,
+                });
                 return;
             }
 
@@ -1550,12 +1818,33 @@ async function actuallyIndexTaskAction(
                 );
             }
 
-            const newTask = applyTaskActionToTaskIndexDoc(
+            let newTask = applyTaskActionToTaskIndexDoc(
                 oldTask,
                 action.time,
                 action.taskAction,
                 accountId => state.getActionReferencedSortableAccount(accountId),
             );
+
+            // Capture what this action means for activity from the doc diff around its
+            // application, for emission after the winning doc write (see
+            // `getTaskActivityUpdateFromTaskIndexDocs()` for the noop policy).
+            const activity = getTaskActivityUpdateFromTaskIndexDocs(action, oldTask, newTask);
+
+            if (activity?.type === "TitleWindow") {
+                // Effective title updates advance the doc-carried `titleIndexVersion`. Title noops
+                // never produce a payload, so a title payload IS an effective change: the counter
+                // only moves on the winning write — replays, which apply as identity noops, never
+                // advance it — and the version is stamped onto the payload here where the doc is
+                // in hand.
+                const titleIndexVersion = oldTask.titleIndexVersion + 1;
+                newTask = {...newTask, titleIndexVersion};
+                state.recordActivityUpdate(action.taskId, {
+                    ...activity,
+                    version: titleIndexVersion,
+                });
+            } else if (activity !== null) {
+                state.recordActivityUpdate(action.taskId, activity);
+            }
 
             // NOTE(calebmer): Maintaining referential identity to avoid having to make an
             // update network request is an important optimization.

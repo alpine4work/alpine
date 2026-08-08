@@ -6,7 +6,7 @@ import {
     getSpaceIdForDatabaseGroupId,
 } from "~/server/spaces/get_database_group_id_for_space.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 const context = createTestContext();
 

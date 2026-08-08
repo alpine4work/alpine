@@ -13,18 +13,18 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {
     HtmlContainerGenerator,
     HtmlElementGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 // NOTE(calebmer, 2024-10-28): All of the audio visualization code in this file is
 // based off of some [old code I wrote for a podcast recording app][1].

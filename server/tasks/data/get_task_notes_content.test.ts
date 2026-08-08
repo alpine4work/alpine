@@ -7,8 +7,12 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {NotFoundError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
+import {
+    NotFoundError,
+    PermissionDeniedError,
+    UnauthenticatedError,
+} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {emptyTaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 const context = createTestContext({

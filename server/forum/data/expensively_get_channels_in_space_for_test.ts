@@ -2,10 +2,10 @@ import {intoAccessPolicyModel} from "~/server/access/into_access_policy_model.js
 import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * We don't have an index on our spaceId in our forum tables. Instead of adding an

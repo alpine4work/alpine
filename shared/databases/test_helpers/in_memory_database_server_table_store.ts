@@ -2,7 +2,7 @@ import type {
     DatabaseServerTableRegistration,
     DatabaseServerTableStore,
 } from "~/shared/databases/database_action_context.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * In-memory {@link DatabaseServerTableStore} for tests that exercise server-only

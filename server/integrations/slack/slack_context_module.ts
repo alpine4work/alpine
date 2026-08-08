@@ -6,10 +6,14 @@ import {
 import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
 import {getConnectedSlackWorkspaceBotCredentialsIfExists} from "~/server/integrations/slack/get_connected_slack_workspace_bot_credentials_if_exists.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
-import {NotFoundError, PermissionDeniedError, UnknownError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    NotFoundError,
+    PermissionDeniedError,
+    UnknownError,
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {slackBotOAuthScopes} from "~/shared/integrations/slack/slack_bot_oauth_scopes.js";
 
 /**

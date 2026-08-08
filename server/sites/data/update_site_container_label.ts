@@ -8,9 +8,9 @@ import {authorizeSiteAccessAndReturnItem} from "~/server/sites/data/internal/aut
 import {dangerouslyGetSiteEntryItem} from "~/server/sites/data/internal/dangerously_get_site_entry_item.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteContainerId, parseSiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {isSiteEntryContainer} from "~/shared/sites/site_entry_schema.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";

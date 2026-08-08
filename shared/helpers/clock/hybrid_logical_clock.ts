@@ -1,4 +1,4 @@
-import {Clock} from "~/shared/helpers/clock/clock.js";
+import {Clock} from "~/shared/helpers/clock/clock.open_source.js";
 
 /**
  * A hybrid logical time is the representation of time from our

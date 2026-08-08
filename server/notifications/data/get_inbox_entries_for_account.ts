@@ -3,7 +3,7 @@ import {authorizeInboxAccessForAccount} from "~/server/notifications/data/author
 import {InboxEntriesIndex} from "~/server/notifications/data/internal/inbox_table.js";
 import {DynamoIndexCursor} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoIndexQueryResult} from "~/shared/dynamo/rynamo_types.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 

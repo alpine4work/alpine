@@ -1,6 +1,6 @@
 import {Fragment, Mark, Node, Slice} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ExhaustiveStep} from "~/shared/prosemirror/exhaustive_step.js";
 
 /**

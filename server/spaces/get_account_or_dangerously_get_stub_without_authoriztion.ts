@@ -1,8 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {dangerouslyGetAccountStubIfExistsWithoutAuthorization} from "~/server/spaces/dangerously_get_account_stub_if_exists_without_authorization.js";
-import {createSpaceAccountNotFoundError, getAccount} from "~/server/spaces/get_account.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {createSpaceAccountNotFoundError, getAccountIfExists} from "~/server/spaces/get_account.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
@@ -19,15 +19,23 @@ export async function getAccountOrDangerouslyGetStubWithoutAuthorization(
     spaceId: SpaceId,
     accountId: AccountId,
 ): Promise<AccountModel> {
-    if ((await authorizeSpaceAccessIfPossible(context, spaceId)).ok) {
-        return await getAccount(context, spaceId, accountId);
-    }
-
-    const accountStub = await dangerouslyGetAccountStubIfExistsWithoutAuthorization(
+    const account = await getAccountIfExistsOrDangerouslyGetStubWithoutAuthorization(
         context,
         spaceId,
         accountId,
     );
-    if (!accountStub) throw createSpaceAccountNotFoundError();
-    return accountStub;
+    if (!account) throw createSpaceAccountNotFoundError();
+    return account;
+}
+
+async function getAccountIfExistsOrDangerouslyGetStubWithoutAuthorization(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+): Promise<AccountModel | null> {
+    if ((await authorizeSpaceAccessIfPossible(context, spaceId)).ok) {
+        return await getAccountIfExists(context, spaceId, accountId);
+    }
+
+    return await dangerouslyGetAccountStubIfExistsWithoutAuthorization(context, spaceId, accountId);
 }

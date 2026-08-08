@@ -15,20 +15,20 @@ import {UpdateInboxEntryResult} from "~/server/notifications/data/internal/updat
 import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
-import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {Context} from "~/shared/context/context.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {Locale, defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {
     getDecodedChronologicalIdTime,
     unsafelyConstructChronologicalId,
-} from "~/shared/id/chronological_id.js";
-import {decodeId, decodeIdInto, idByteLength} from "~/shared/id/id.js";
-import {AccountId, BotId, BotWebhookEventId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+} from "~/shared/id/chronological_id.open_source.js";
+import {decodeId, decodeIdInto, idByteLength} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, BotWebhookEventId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Creates a function that will process a notification event for all subscribers.

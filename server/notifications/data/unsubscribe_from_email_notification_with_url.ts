@@ -2,8 +2,8 @@ import {ServerActionContextModules} from "~/server/context/server_action_context
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {Context} from "~/shared/context/context.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Unsubscribe a space account from an email notification using a signed URL. Will

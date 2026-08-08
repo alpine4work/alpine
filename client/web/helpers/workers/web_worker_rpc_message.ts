@@ -1,4 +1,4 @@
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const WebWorkerRpcRequestMessageSchema = Schema.object({
     type: Schema.value("request"),

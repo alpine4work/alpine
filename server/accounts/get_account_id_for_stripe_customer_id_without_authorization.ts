@@ -2,7 +2,7 @@ import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {Context} from "~/shared/context/context.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the account ID for a given Stripe customer ID.

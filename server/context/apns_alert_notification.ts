@@ -1,4 +1,4 @@
-import {Id} from "~/shared/id/id.js";
+import {Id} from "~/shared/id/id.open_source.js";
 
 /**
  * The JSON payload of a notification. Type is derived from Apple's "[Generating a

@@ -23,12 +23,15 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/web/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 
 /**
@@ -94,12 +97,16 @@ function createNavigateFunction(
         options?: NavigateOptions & {stopPropagation?: boolean},
     ): SafeFloatingPromise<void> {
         if (context === null) return unsupportedNavigateForTest();
-        const headersWithSpaceId = spaceId
-            ? {...options?.unstable_headers, "cyberworlds-space-id": spaceId}
-            : options?.unstable_headers;
+
+        // NOTE(ifitzsimmons, 2026-07-27): `HeadersInit` accepts `Headers`, tuple arrays,
+        // and Record<string, string>s, so we standardize to a `Headers` object before
+        // adding the space header.
+        const unstableHeaders = new Headers(options?.unstable_headers);
+        if (spaceId) unstableHeaders.set("cyberworlds-space-id", spaceId);
+
         const navigateOptions = {
             ...options,
-            unstable_headers: headersWithSpaceId,
+            unstable_headers: unstableHeaders,
         };
 
         const {

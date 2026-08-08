@@ -1,5 +1,5 @@
 import {decodeBytesWithFallback} from "~/server/emails/mime/decode_bytes_with_fallback.js";
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 
 /**
  * Decodes Q-encoded payload octets (RFC 2047 §4.2).

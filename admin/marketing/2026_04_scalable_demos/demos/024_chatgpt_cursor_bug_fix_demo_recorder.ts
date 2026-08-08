@@ -12,11 +12,11 @@ import type {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {type FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
     const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());
@@ -30,11 +30,11 @@ runScalableDemoRecorder(async (context, services, recorder) => {
     const demoFixedTime = new Date("2025-10-16T11:58:00-04:00");
 
     const accountMentionUrl = (account: {id: string}) =>
-        `https://alpine.inc/mention/${account.id}?short`;
+        `https://alpine.inc/mention/${account.id}#short`;
     const documentMentionUrl = (document: TestDocument) =>
-        `https://alpine.inc/doc/${document.id}?mention`;
-    const postMentionUrl = (post: TestPost) => `https://alpine.inc/post/${post.id}?mention`;
-    const taskMentionUrl = (task: TestTask) => `https://alpine.inc/task/${task.id}?mention`;
+        `https://alpine.inc/doc/${document.id}#mention`;
+    const postMentionUrl = (post: TestPost) => `https://alpine.inc/post/${post.id}#mention`;
+    const taskMentionUrl = (task: TestTask) => `https://alpine.inc/task/${task.id}#mention`;
 
     const [engineeringChannel, planningChannel, supportChannel] = await runAllPromises([
         TestChannel.create(accounts.elleKappaTan, {

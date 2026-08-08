@@ -73,20 +73,20 @@ import {
     decodeDocumentCommentRoomKey,
     decodePossiblyDocumentCommentRoomKey,
 } from "~/shared/documents/document_model.js";
-import {OutOfRangeError} from "~/shared/error/error.js";
+import {OutOfRangeError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 
@@ -423,13 +423,7 @@ function DocumentCommentThreadListView(
     const contentSnippetByCommentThreadId = useStableValue(
         ContentSnippetByCommentThreadIdSchema,
         useMemo(
-            () =>
-                new Map(
-                    mapIterable(
-                        collectCommentThreadSnippets(content.doc),
-                        ([commentThreadId, snippet]) => [commentThreadId, snippet.node],
-                    ),
-                ),
+            () => new Map(collectCommentThreadSnippets(content.doc)),
             [collectCommentThreadSnippets, content.doc],
         ),
     );

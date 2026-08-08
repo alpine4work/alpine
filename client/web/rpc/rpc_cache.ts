@@ -1,7 +1,7 @@
 import {AppContext} from "~/client/web/context/app_context.js";
 import {createGlobalContext} from "~/client/web/helpers/global_context.js";
 import {SwrCache, SwrCacheContext} from "~/client/web/rpc/internal/swr_cache.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {SafeFloatingPromiseLike} from "~/shared/helpers/types/safe_floating_promise.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 

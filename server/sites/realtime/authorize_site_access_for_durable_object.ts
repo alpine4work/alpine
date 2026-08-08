@@ -1,6 +1,6 @@
 import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
-import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {authorizeSiteAccess} from "~/shared/rpc/sites_rpc_definitions.js";
 
 const SiteAccessCache = new ContextCache<SiteId, {spaceId: SpaceId}>({

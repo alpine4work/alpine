@@ -1,12 +1,12 @@
 import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {
     HybridLogicalTime,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskTaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskModelData} from "~/shared/tasks/model/task_model.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";

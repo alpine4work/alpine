@@ -17,11 +17,11 @@ import {
     SitesTable,
 } from "~/server/sites/data/internal/sites_table.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {doesSiteEntryMoveIntroduceCycle} from "~/shared/sites/does_site_entry_move_introduce_cycle.js";
 import {mergeNewSitePositionIntoSiteEntry} from "~/shared/sites/merge_new_site_position_into_site_entry.js";
 import {

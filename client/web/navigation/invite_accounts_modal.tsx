@@ -19,12 +19,12 @@ import {RpcCacheContext} from "~/client/web/rpc/rpc_cache.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/client/web/styles/styles.js";
 import {addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {
     expensivelyGetAllSpaceAccounts,
     inviteEmailAddressesToSpace,

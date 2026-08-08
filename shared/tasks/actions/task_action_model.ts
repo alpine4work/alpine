@@ -1,5 +1,5 @@
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {
     TaskAddCollectionAction,

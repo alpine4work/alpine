@@ -4,11 +4,11 @@ import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_aft
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 
 export type JumpToMessageRangeState<RoomKey extends string> = {
     readonly key: symbol;

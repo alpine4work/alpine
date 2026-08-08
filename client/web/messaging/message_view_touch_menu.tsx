@@ -5,7 +5,7 @@ import {useOutsideInteraction} from "~/client/web/design/helpers/use_outside_int
 import {Menu, MenuAction} from "~/client/web/design/menu.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
-import {InboxContext} from "~/client/web/inbox/inbox_context_types.js";
+import {InboxContext} from "~/client/web/inbox/context/inbox_context_types.js";
 import {MessageViewMenuStateUpdatedTime} from "~/client/web/messaging/internal/message_view_menu_state_updated_time.js";
 import {messageViewReactionContextMenuAction} from "~/client/web/messaging/internal/message_view_reaction_context_menu_action.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
@@ -18,9 +18,29 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {cutMessageContentPayloadWithReferences} from "~/shared/messaging/cut_message_content_payload.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+
+/**
+ * Checks whether the message has files or non-empty content that can receive a
+ * reaction from the touch menu.
+ */
+function hasMessageReactionTarget(
+    message: Pick<MessageModel<string> | OptimisticMessageModel, "payload" | "stream">,
+): boolean {
+    if (message.payload.type !== "Content") return false;
+    if (message.payload.files.length > 0) return true;
+    if (!isContentEmpty(message.payload.content.doc)) return true;
+
+    for (const part of message.stream?.parts ?? []) {
+        if (part.payload.type === "Content" && !isContentEmpty(part.payload.content)) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 export function MessageViewTouchMenu<
     RoomKey extends string,
@@ -62,6 +82,7 @@ export function MessageViewTouchMenu<
 }) {
     const platform = usePlatform();
     const {currentAccount, space} = useSpaceContext();
+    const canReactToMessage = hasMessageReactionTarget(message);
 
     const menuActions: Array<MenuAction> = [];
     const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
@@ -89,18 +110,23 @@ export function MessageViewTouchMenu<
                 onPress: onReplyToMessage,
             },
         ]);
-        menuActions.push(
-            messageViewReactionContextMenuAction({
-                message,
-                messageNoun,
-                onSetMessageReaction,
-                onDeleteMessageReaction,
-                onUpdateMessagesOptimistically,
-                inboxContext,
-            }),
-        );
 
-        contextMenuActions.push(menuActions);
+        if (canReactToMessage) {
+            menuActions.push(
+                messageViewReactionContextMenuAction({
+                    message,
+                    messageNoun,
+                    onSetMessageReaction,
+                    onDeleteMessageReaction,
+                    onUpdateMessagesOptimistically,
+                    inboxContext,
+                }),
+            );
+        }
+
+        if (menuActions.length > 0) {
+            contextMenuActions.push(menuActions);
+        }
     }
 
     const copyMenuActions: Array<MenuAction> = [];

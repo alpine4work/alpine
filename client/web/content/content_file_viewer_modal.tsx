@@ -21,7 +21,7 @@ import {
     createPromiseImmediateResolver,
 } from "~/shared/helpers/async/promise_immediate_resolver.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {getFileAsUploader, getFileFromAttachment} from "~/shared/rpc/files_rpc_definitions.js";
 import {nullStore} from "~/shared/store/const_store.js";
 

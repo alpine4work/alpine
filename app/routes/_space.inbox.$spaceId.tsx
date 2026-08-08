@@ -23,15 +23,15 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {loadInitialPeekDataForServer} from "~/server/remix/load_initial_peek_data_for_server.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createRynamoIndexQuerySchema} from "~/shared/dynamo/rynamo_types.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {InboxEntryStatusSchema} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModelSchema, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {convertLegacySpacePath} from "~/shared/search/convert_legacy_space_path.js";
 
 const LoaderSchema = Schema.object({

@@ -1,15 +1,18 @@
 import {WebSocketClientConnection} from "~/client/web/web_socket/web_socket_client_connection.js";
 import type {Context} from "~/shared/context/context.js";
 import type {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {isTransientError} from "~/shared/error/is_transient_error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {ValueStore} from "~/shared/store/value_store.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
+import {TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,

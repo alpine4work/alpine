@@ -19,7 +19,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 function createTestDocument(content: Array<{type: string; content?: unknown; attrs?: unknown}>) {
     return assertDocumentContent(

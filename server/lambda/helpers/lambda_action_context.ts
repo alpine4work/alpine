@@ -25,14 +25,14 @@ import {ConstantsContextModule} from "~/shared/context/constants_context_module.
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {Schema} from "~/shared/schema/schema.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type LambdaActionContextOptions = ServiceOptions<typeof lambdaActionContextOptions>;
 

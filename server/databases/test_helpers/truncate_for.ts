@@ -1,5 +1,5 @@
 import type {DatabaseServer} from "~/server/databases/database_server.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Truncate a single table to `size` bytes through {@link

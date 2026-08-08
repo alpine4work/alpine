@@ -2,7 +2,7 @@ import {Memo, useCallback, useEffect, useRef, useState} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoEvent, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Keep an item from our DynamoDB realtime framework up-to-date on the client.

@@ -3,8 +3,8 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {IntegrationsTable} from "~/server/integrations/internal/integrations_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {parallelProcessAsyncIterable} from "~/shared/helpers/iterable/parallel_process_async_iterable.js";
-import {getMaxId, getMinId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getMaxId, getMinId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Deletes the Slack integration for a space along with the associated bot and

@@ -1,5 +1,5 @@
 import _Fuse from "fuse.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {SearchStaticEntityId} from "~/shared/search/search_entity_id.js";
 
 // Node.js ESM interop (#node-esm-migration)

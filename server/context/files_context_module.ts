@@ -6,9 +6,9 @@ import {
 } from "~/shared/avatar/avatar_entity_path.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {AvatarId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AvatarId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Manages the URLs we need to load file content from Cloudflare R2.

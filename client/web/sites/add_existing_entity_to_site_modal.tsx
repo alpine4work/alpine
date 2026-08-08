@@ -21,12 +21,12 @@ import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_re
 import {useSearchState} from "~/client/web/search/use_search_state.js";
 import {useSiteMutations} from "~/client/web/sites/internal/use_site_mutations.js";
 import {spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {
     SiteItemSearchEntityId,

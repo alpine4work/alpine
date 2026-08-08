@@ -14,17 +14,17 @@ import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_t
 import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {tableSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
-import {InternalError} from "~/shared/error/error.js";
-import {captureResult} from "~/shared/helpers/control/capture_result.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {captureResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     AccountId,
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
-} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 // In-memory durable object storage, as patched by our Miniflare polyfill. The
 // polyfill's `sql`/`transactionSync` aren't in the upstream .d.ts TypeScript

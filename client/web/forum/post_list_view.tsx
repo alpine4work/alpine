@@ -127,24 +127,24 @@ import {
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
-import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
+import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.open_source.js";
 import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {
@@ -431,8 +431,9 @@ function PostListView(
     const navigate = useNavigate();
     const {space, currentAccount} = useSpaceContext();
     const siteRegistry = useSiteRegistry();
-    const {postCommentDraftByPostId, loadPostCommentDraft, setPostCommentDraft} =
-        usePostCommentDraftsForPostList(initialPostCommentDraftByPostId);
+    const {postCommentDraftByPostId, loadPostCommentDraft} = usePostCommentDraftsForPostList(
+        initialPostCommentDraftByPostId,
+    );
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const [viewContainerRef, viewSize] = useResizeObserver();
@@ -1736,7 +1737,6 @@ function PostListView(
                             onPostRealtimeEvents={onPostRealtimeEvents}
                             restoreStateRef={inputRestoreStateRefByPostId.get(item.post.id)}
                             messageDraft={postCommentDraftByPostId.get(item.post.id)}
-                            onMessageDraftChange={draft => setPostCommentDraft(item.post.id, draft)}
                         />
                     );
 
@@ -2120,7 +2120,6 @@ function PostListView(
             inputRestoreStateRefByPostId,
             postCommentDraftByPostId,
             loadPostCommentDraft,
-            setPostCommentDraft,
             onInputParentChangeByPostId,
             onInputParentClearByPostId,
             shouldBeConnectedToChannelRealtime,
@@ -2498,15 +2497,17 @@ function PostListView(
 }
 
 /**
- * Manages an in-memory map of post comment drafts, loading them from the server as
- * needed and updating them as they change.
+ * Manages an in-memory map of post comment drafts, loading them from the server
+ * before a post's comment input first mounts. Drafts here are mount-time hydration
+ * data only: client edits are persisted directly to the server by the input, and
+ * remounts (e.g. collapsing and reopening comments) restore local input state from
+ * the input's restore stash instead of this map.
  */
 function usePostCommentDraftsForPostList(
     initialPostCommentDraftByPostId: ReadonlyMap<PostId, MessageDraft>,
 ): {
     postCommentDraftByPostId: ReadonlyMap<PostId, MessageDraft>;
     loadPostCommentDraft: (postId: PostId) => Promise<void>;
-    setPostCommentDraft: (postId: PostId, draft: MessageDraft) => void;
 } {
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
@@ -2572,22 +2573,9 @@ function usePostCommentDraftsForPostList(
         [context, currentAccount, space.id],
     );
 
-    const setPostCommentDraft = useCallback((postId: PostId, draft: MessageDraft) => {
-        setPostCommentDraftByPostId(oldPostCommentDraftByPostId => {
-            if (oldPostCommentDraftByPostId.get(postId) === draft) {
-                return oldPostCommentDraftByPostId;
-            }
-
-            const newPostCommentDraftByPostId = new Map(oldPostCommentDraftByPostId);
-            newPostCommentDraftByPostId.set(postId, draft);
-            return newPostCommentDraftByPostId;
-        });
-    }, []);
-
     return {
         postCommentDraftByPostId,
         loadPostCommentDraft,
-        setPostCommentDraft,
     };
 }
 

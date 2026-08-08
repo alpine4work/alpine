@@ -3,15 +3,15 @@ import {OpenAPIV3} from "openapi-types";
 import {join as joinPath} from "path";
 import Yaml from "yaml";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
 
 const apiSpecificationPath = joinPath(
     runfilesPath,
@@ -101,6 +101,25 @@ function validate(specification: JsonValue) {
                         // Rule: Object property keys must be in camel case.
                         if (!/^[a-z][a-zA-Z0-9]*$/.test(key)) {
                             addError(quote`Object property ${key} must be \`camelCase\``);
+                        }
+                    }
+
+                    // Make sure that the properties in `required` are listed in the same order as
+                    // `properties`.
+                    if (isReadonlyArray(value.required)) {
+                        const requiredPropertyKeys = value.required;
+                        const requiredPropertyKeysSet = new Set(requiredPropertyKeys);
+                        const requiredPropertyKeysInPropertiesOrder = Object.keys(
+                            value.properties,
+                        ).filter(propertyKey => requiredPropertyKeysSet.has(propertyKey));
+
+                        if (
+                            !isDeepEqual(
+                                requiredPropertyKeys,
+                                requiredPropertyKeysInPropertiesOrder,
+                            )
+                        ) {
+                            addError(quote`\`required\` fields must match \`properties\` order`);
                         }
                     }
                 }
@@ -238,14 +257,17 @@ function validate(specification: JsonValue) {
                 if (keyValue === undefined) continue;
 
                 // Rule: Path segments should be `kebab-case` since that's standard for URLs.
-                // Unless we have a parameter, parameters should be `{camelCase}`. We also allow a
-                // single file extension suffix (e.g. `foo.yaml`).
+                // Unless we have a parameter, parameters should be `{camelCase}`. A parameter may
+                // lead a kebab-case segment (e.g. `{id}-preview`). We also allow a single file
+                // extension suffix (e.g. `foo.yaml`).
                 if (path[0] === "paths" && path.length === 1) {
                     for (const pathSegment of (key.startsWith("/") ? key.slice(1) : key).split(
                         "/",
                     )) {
                         if (
-                            !/^([a-z0-9-]+(\.[a-z0-9-]+)?|\{[a-z][a-zA-Z0-9]*\})$/.test(pathSegment)
+                            !/^([a-z0-9-]+(\.[a-z0-9-]+)?|\{[a-z][a-zA-Z0-9]*\}(-[a-z0-9]+)*)$/.test(
+                                pathSegment,
+                            )
                         ) {
                             addError(
                                 quote`Path segment ${pathSegment} in path ${key} must be \`kebab-case\` if it\u2019s not a parameter and \`{camelCase}\` if it is a parameter`,
@@ -265,12 +287,13 @@ function validate(specification: JsonValue) {
                 }
 
                 // Rule: Schema names should be `PascalCase` since it's a type name. Or
-                // `PascalCase_Specialization`.
+                // `PascalCase` followed by any number of `_Specialization` suffixes (e.g.
+                // `Content_Response_WithoutKeys`).
                 if (
                     path[0] === "components" &&
                     path[1] === "schemas" &&
                     path.length === 2 &&
-                    !/^[A-Z][a-zA-Z0-9]+(_[A-Z][a-zA-Z0-9]+)?$/.test(key)
+                    !/^[A-Z][a-zA-Z0-9]+(_[A-Z][a-zA-Z0-9]+)*$/.test(key)
                 ) {
                     errors.push(
                         quote`Schema name ${key} must be \`PascalCase\` (path: ${printPath()})`,
@@ -496,6 +519,15 @@ test("can validate invalid specification", () => {
                         type: {const: "Code"},
                     },
                 },
+                InvalidRequiredOrder: {
+                    type: "object",
+                    required: ["second", "first"],
+                    additionalProperties: false,
+                    properties: {
+                        first: {type: "string"},
+                        second: {type: "string"},
+                    },
+                },
             },
         },
     };
@@ -520,5 +552,6 @@ test("can validate invalid specification", () => {
         "`discriminator`\u2019s `mapping` `#/components/schemas/CodeBlockElement` doesn\u2019t have a required `type` property (path: `#/components/schemas/InvalidBlockElement3/discriminator/mapping/Code`)",
         "`discriminator`\u2019s `oneOf` `$ref`s must match `discriminator`\u2019s `mapping`s (path: `#/components/schemas/InvalidBlockElement3`)",
         "`oneOf` schemas must either have a `discriminator` or represent `Value | null` (path: `#/components/schemas/InvalidPrimitiveUnion`)",
+        "`required` fields must match `properties` order (path: `#/components/schemas/InvalidRequiredOrder`)",
     ]);
 });

@@ -1,5 +1,5 @@
 import {FileEntityIdObject} from "~/shared/files/file_entity_id.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Get a user friendly, English, noun for the file entity.

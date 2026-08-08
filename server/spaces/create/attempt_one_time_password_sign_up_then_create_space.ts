@@ -29,26 +29,26 @@ import {AuthSignInOrSignUpOpen} from "~/shared/auth/auth_sign_in_or_sign_up_sche
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {defaultSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
-import {DataLossError, FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {DataLossError, FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
 import {iterableLast} from "~/shared/helpers/iterable/iterable_last.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {unionSets} from "~/shared/helpers/set/union_sets.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, AvatarId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, AvatarId, SessionId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getLegacyFallbackReactionCharacterForId} from "~/shared/reactions/get_legacy_fallback_reaction_character_for_id.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Tries to sign in with the provided `oneTimePassword` and if that succeeds then

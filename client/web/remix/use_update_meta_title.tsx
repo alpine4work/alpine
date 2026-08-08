@@ -1,5 +1,5 @@
 import {Memo, ReactNode, createContext, useContext} from "react";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 /**
  * Default string we use for the title of browser tabs.

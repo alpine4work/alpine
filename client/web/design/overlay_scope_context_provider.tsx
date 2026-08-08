@@ -5,8 +5,8 @@ import {
     renderOverlayPortal,
 } from "~/client/web/design/internal/overlay_sink_context.js";
 import {RemLength} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Root overlay scope. Most have one of these at the root of the application.

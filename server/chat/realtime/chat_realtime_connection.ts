@@ -22,11 +22,16 @@ import {MessagingRealtimeEventStub} from "~/server/messaging/realtime/messaging_
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {AccountId, ChatId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ChatId,
+    SpaceId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,

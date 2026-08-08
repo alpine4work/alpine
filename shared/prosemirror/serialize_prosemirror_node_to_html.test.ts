@@ -2,7 +2,7 @@
 
 import {DOMSerializer, Node, Schema} from "prosemirror-model";
 import {marks as basicMarks, nodes as basicNodes} from "prosemirror-schema-basic";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {
     ProsemirrorHtmlSerializationInlineDecoration,

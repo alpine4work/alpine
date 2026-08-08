@@ -12,16 +12,19 @@ import {
     MessageContentWithReferences,
 } from "~/shared/content/message_content_schema.js";
 import {trimContentFragmentEndPos} from "~/shared/content/trim_content.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     LinkedList,
     forEachLinkedList,
     reverseLinkedList,
-} from "~/shared/helpers/immutable/linked_list.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/helpers/immutable/linked_list.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadModel} from "~/shared/messaging/message_model.js";
 
 export type MessageEditingState<RoomKey extends string> =

@@ -7,11 +7,11 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getAccountOrDangerouslyGetStubWithoutAuthorization} from "~/server/spaces/get_account_or_dangerously_get_stub_without_authoriztion.js";
 import {ChatModel, ChatModelDefinition} from "~/shared/chat/chat_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function createChatModelFromItem(
     context: ServerActionContext,

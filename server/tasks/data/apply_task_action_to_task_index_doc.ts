@@ -1,17 +1,17 @@
 import {TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
 import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {
     HybridLogicalTime,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskTaskAction} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
-import {TaskCreatorFrom} from "~/shared/tasks/task_creator.js";
+import {TaskActorFrom} from "~/shared/tasks/task_creator.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskLayoutRegister} from "~/shared/tasks/task_layout.js";
 import {
@@ -62,11 +62,7 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
             }
 
             const mergedCreator = mergeTaskSortableAccounts(
-                {
-                    accountId: task.creator.accountId,
-                    workingAccountName: task.creator.workingAccountName,
-                    workingAccountNameVersion: task.creator.workingAccountNameVersion,
-                },
+                task.creator,
                 getActionReferencedSortableAccount(action.creator.accountId),
             );
 
@@ -426,7 +422,7 @@ export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
     }
 }
 
-function areTaskCreatorFromsEqual(from1: TaskCreatorFrom | null, from2: TaskCreatorFrom | null) {
+function areTaskCreatorFromsEqual(from1: TaskActorFrom | null, from2: TaskActorFrom | null) {
     if (from1 === from2) return true;
     if (from1 === null || from2 === null) return false;
 

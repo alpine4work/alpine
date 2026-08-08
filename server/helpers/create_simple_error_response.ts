@@ -1,4 +1,4 @@
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 
 /**
  * Our simple HTTP `Response` for an arbitrary error is `text/plain` with the

@@ -2,8 +2,8 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_error.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {addSpaceAccountWithoutAuthorization} from "~/server/spaces/internal/add_space_account_without_authorization.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 

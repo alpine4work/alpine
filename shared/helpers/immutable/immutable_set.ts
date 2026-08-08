@@ -1,5 +1,5 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 
 // A bunch of methods have been added to `ReadonlySet` after upgrading to
 // TypeScript 5.9.2 like `union()` and `intersection()`. It would be nice to

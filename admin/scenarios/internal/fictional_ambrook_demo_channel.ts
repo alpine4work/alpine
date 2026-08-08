@@ -9,8 +9,8 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
@@ -82,7 +82,7 @@ export async function createFictionalAmbrookDemoChannel(
 📣 Brainstorm and share ideas for outreach, social content, campaigns, and growth. Everything from
 big-picture strategy to post drafts lives here.
 
-Refer to [Social Content Calendar](https://alpine.inc/tasks/{{collectionId}}?mention) for the
+Refer to [Social Content Calendar](https://alpine.inc/tasks/{{collectionId}}#mention) for the
 current plan.
             `,
             {

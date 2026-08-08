@@ -3,14 +3,14 @@ import {join as joinPath, relative} from "path";
 import {dynamoCoreVisibilityBazelPackagePaths} from "~/admin/crawl/dynamo_core_visibility.js";
 import {opensearchVisibilityBazelPackagePaths} from "~/admin/crawl/opensearch_visibility.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 // Import all the JavaScript files in `DYNAMO_CORE_VISIBILITY` and
 // `OPENSEARCH_VISIBILITY`. This will collect all constructed DynamoDB table

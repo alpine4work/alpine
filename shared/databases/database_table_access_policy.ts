@@ -1,6 +1,6 @@
 import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import type {AccountId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import type {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export const emptyDatabaseTableAccessPolicy: LocalAccessPolicy = {
     type: "Local",

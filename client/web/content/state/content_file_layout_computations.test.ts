@@ -5,12 +5,12 @@ import {
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {contentLargeFallbackFileWidthPx} from "~/shared/design/core/content_shared_styles.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const spaceId = generateId<SpaceId>();
 
@@ -277,7 +277,7 @@ test("layouts single standard image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 449.699, width: 600, widthFr: 1}]);
+    ).toEqual([{height: 449.6993987975952, width: 600, widthFr: 1}]);
 });
 
 test("layouts single large image", () => {
@@ -321,7 +321,7 @@ test("layouts cinema scope image", () => {
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 251.367, width: 600, widthFr: 1}]);
+    ).toEqual([{height: 251.3671875, width: 600, widthFr: 1}]);
 });
 
 test("layouts vertical cinema scope image", () => {
@@ -399,8 +399,16 @@ test("layouts two similar images in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 221.926, width: 296.099, widthFr: 0.500167},
-        {height: 221.926, width: 295.901, widthFr: 0.499833},
+        {
+            height: 221.9258269295022,
+            width: 296.0988974273305,
+            widthFr: 0.5001670564650853,
+        },
+        {
+            height: 221.9258269295022,
+            width: 295.9011025726696,
+            widthFr: 0.4998329435349148,
+        },
     ]);
 });
 
@@ -416,9 +424,21 @@ test("layouts three images in a row", () => {
             },
         ),
     ).toEqual([
-        {height: 170.879, width: 227.991, widthFr: 0.390395},
-        {height: 170.879, width: 128.171, widthFr: 0.219471},
-        {height: 170.879, width: 227.838, widthFr: 0.390134},
+        {
+            height: 170.87874098738897,
+            width: 227.99061965964466,
+            widthFr: 0.39039489667747374,
+        },
+        {
+            height: 170.87874098738897,
+            width: 128.1710590238367,
+            widthFr: 0.21947099147917243,
+        },
+        {
+            height: 170.87874098738897,
+            width: 227.83832131651863,
+            widthFr: 0.39013411184335384,
+        },
     ]);
 });
 
@@ -431,8 +451,16 @@ test("layouts standard and tall image in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 284.029, width: 378.958, widthFr: 0.640132},
-        {height: 284.029, width: 213.042, widthFr: 0.359868},
+        {
+            height: 284.0289136059321,
+            width: 378.9583633405351,
+            widthFr: 0.6401323705076606,
+        },
+        {
+            height: 284.0289136059321,
+            width: 213.04163665946496,
+            widthFr: 0.35986762949233947,
+        },
     ]);
 });
 
@@ -445,8 +473,16 @@ test("layouts tall and standard image in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 284.029, width: 213.042, widthFr: 0.359868},
-        {height: 284.029, width: 378.958, widthFr: 0.640132},
+        {
+            height: 284.028913605932,
+            width: 213.04163665946493,
+            widthFr: 0.3598676294923394,
+        },
+        {
+            height: 284.028913605932,
+            width: 378.958363340535,
+            widthFr: 0.6401323705076605,
+        },
     ]);
 });
 
@@ -459,8 +495,16 @@ test("layouts standard and wide image in a row", () => {
             spacingScale: "small",
         }),
     ).toEqual([
-        {height: 159.346, width: 212.604, widthFr: 0.359128},
-        {height: 159.346, width: 379.396, widthFr: 0.640872},
+        {
+            height: 159.3463792453477,
+            width: 212.60385893964838,
+            widthFr: 0.3591281401007574,
+        },
+        {
+            height: 159.3463792453477,
+            width: 379.3961410603516,
+            widthFr: 0.6408718598992426,
+        },
     ]);
 });
 
@@ -476,8 +520,16 @@ test("layouts standard and vertical cinema image in a row", () => {
             },
         ),
     ).toEqual([
-        {height: 337.471, width: 450.262, widthFr: 0.760578},
-        {height: 337.471, width: 141.738, widthFr: 0.239422},
+        {
+            height: 337.4710401170589,
+            width: 450.26216315083525,
+            widthFr: 0.7605779782953298,
+        },
+        {
+            height: 337.4710401170589,
+            width: 141.73783684916475,
+            widthFr: 0.2394220217046702,
+        },
     ]);
 });
 
@@ -514,9 +566,21 @@ test("layouts three iPhone screenshots in a row", () => {
             },
         ),
     ).toEqual([
-        {height: 421.308, width: 194.667, widthFr: 0.333333},
-        {height: 421.308, width: 194.667, widthFr: 0.333333},
-        {height: 421.308, width: 194.667, widthFr: 0.333333},
+        {
+            height: 421.30756843800316,
+            width: 194.66666666666666,
+            widthFr: 0.3333333333333333,
+        },
+        {
+            height: 421.30756843800316,
+            width: 194.66666666666666,
+            widthFr: 0.3333333333333333,
+        },
+        {
+            height: 421.30756843800316,
+            width: 194.66666666666666,
+            widthFr: 0.3333333333333333,
+        },
     ]);
 });
 
@@ -532,8 +596,8 @@ test("layouts moderate horizontal image and iPhone screenshot in a row", () => {
             },
         ),
     ).toEqual([
-        {height: 200, width: 476.19, widthFr: 0.804376},
-        {height: 200, width: 115.81, widthFr: 0.195624},
+        {height: 200, width: 476.1904761904762, widthFr: 0.8043758043758044},
+        {height: 200, width: 115.80952380952381, widthFr: 0.1956241956241956},
     ]);
 });
 
@@ -616,8 +680,8 @@ test("layouts two file entities", () => {
             },
         ),
     ).toEqual([
-        {height: 225.412, width: 296, widthFr: 0.5},
-        {height: 225.412, width: 296, widthFr: 0.5},
+        {height: 225.41176470588235, width: 296, widthFr: 0.5},
+        {height: 225.41176470588235, width: 296, widthFr: 0.5},
     ]);
 });
 
@@ -633,8 +697,8 @@ test("throws unsatisfiable constraint for two file entities in a narrow row", ()
             },
         ),
     ).toEqual([
-        {height: 76, width: 76, widthFr: 0.535211},
-        {height: 76, width: 76, widthFr: 0.535211},
+        {height: 76, width: 76, widthFr: 0.5352112676056338},
+        {height: 76, width: 76, widthFr: 0.5352112676056338},
     ]);
 });
 
@@ -650,8 +714,16 @@ test("layouts file entity and standard image", () => {
             },
         ),
     ).toEqual([
-        {height: 223.618, width: 293.644, widthFr: 0.49602},
-        {height: 223.618, width: 298.356, widthFr: 0.50398},
+        {
+            height: 223.61756563286082,
+            width: 293.6439431796857,
+            widthFr: 0.49602017429000966,
+        },
+        {
+            height: 223.61756563286082,
+            width: 298.3560568203143,
+            widthFr: 0.5039798257099903,
+        },
     ]);
 });
 
@@ -667,8 +739,16 @@ test("layouts file entity and tall image", () => {
             },
         ),
     ).toEqual([
-        {height: 225.412, width: 422.925, widthFr: 0.714401},
-        {height: 225.412, width: 169.075, widthFr: 0.285599},
+        {
+            height: 225.41176470588235,
+            width: 422.92534254499776,
+            widthFr: 0.7144009164611449,
+        },
+        {
+            height: 225.41176470588235,
+            width: 169.0746574550022,
+            widthFr: 0.2855990835388551,
+        },
     ]);
 });
 
@@ -688,9 +768,21 @@ test("layouts three file entities", () => {
             },
         ),
     ).toEqual([
-        {height: 258.824, width: 194.667, widthFr: 0.333333},
-        {height: 258.824, width: 194.667, widthFr: 0.333333},
-        {height: 258.824, width: 194.667, widthFr: 0.333333},
+        {
+            height: 258.8235294117647,
+            width: 194.66666666666669,
+            widthFr: 0.33333333333333337,
+        },
+        {
+            height: 258.8235294117647,
+            width: 194.66666666666669,
+            widthFr: 0.33333333333333337,
+        },
+        {
+            height: 258.8235294117647,
+            width: 194.66666666666669,
+            widthFr: 0.33333333333333337,
+        },
     ]);
 });
 
@@ -710,9 +802,21 @@ test("layouts two file entities and standard image", () => {
             },
         ),
     ).toEqual([
-        {height: 205.745, width: 154.745, widthFr: 0.264974},
-        {height: 205.745, width: 154.745, widthFr: 0.264974},
-        {height: 205.745, width: 274.51, widthFr: 0.470051},
+        {
+            height: 205.74485989525115,
+            width: 154.74507341212527,
+            widthFr: 0.2649744407741871,
+        },
+        {
+            height: 205.74485989525115,
+            width: 154.74507341212527,
+            widthFr: 0.2649744407741871,
+        },
+        {
+            height: 205.74485989525115,
+            width: 274.50985317574947,
+            widthFr: 0.4700511184516258,
+        },
     ]);
 });
 
@@ -732,9 +836,21 @@ test("layouts two file entities and tall image", () => {
             },
         ),
     ).toEqual([
-        {height: 258.824, width: 194.932, widthFr: 0.333788},
-        {height: 258.824, width: 194.932, widthFr: 0.333788},
-        {height: 258.824, width: 194.136, widthFr: 0.332424},
+        {
+            height: 258.8235294117647,
+            width: 194.93208601226388,
+            widthFr: 0.33378781851415046,
+        },
+        {
+            height: 258.8235294117647,
+            width: 194.93208601226388,
+            widthFr: 0.33378781851415046,
+        },
+        {
+            height: 258.8235294117647,
+            width: 194.13582797547227,
+            widthFr: 0.3324243629716991,
+        },
     ]);
 });
 
@@ -754,9 +870,21 @@ test("layouts file entity, standard image, and tall image", () => {
             },
         ),
     ).toEqual([
-        {height: 205.894, width: 154.857, widthFr: 0.265166},
-        {height: 205.894, width: 274.708, widthFr: 0.470391},
-        {height: 205.894, width: 154.435, widthFr: 0.264443},
+        {
+            height: 205.89363075529582,
+            width: 154.85696713171038,
+            widthFr: 0.26516603960909313,
+        },
+        {
+            height: 205.89363075529582,
+            width: 274.7083469168252,
+            widthFr: 0.47039100499456366,
+        },
+        {
+            height: 205.89363075529582,
+            width: 154.4346859514645,
+            widthFr: 0.2644429553963433,
+        },
     ]);
 });
 
@@ -768,7 +896,7 @@ test("layouts file entity in table with a column width that\u2019s half the bloc
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 274.588, width: 276, widthFr: 1}]);
+    ).toEqual([{height: 274.5882352941177, width: 276, widthFr: 1}]);
 });
 
 test("layouts file entity in table with a column width that\u2019s more than half the block width", () => {
@@ -799,7 +927,7 @@ test("layouts file entity in table with a column width that\u2019s more less tha
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 242.235, width: 226, widthFr: 1}]);
+    ).toEqual([{height: 242.23529411764707, width: 226, widthFr: 1}]);
 });
 
 test("layouts file entity in table with a column width that\u2019s more less than a third of the block width", () => {
@@ -810,7 +938,7 @@ test("layouts file entity in table with a column width that\u2019s more less tha
             platform: "desktop",
             spacingScale: "small",
         }),
-    ).toEqual([{height: 227.765, width: 176, widthFr: 1}]);
+    ).toEqual([{height: 227.76470588235296, width: 176, widthFr: 1}]);
 });
 
 test("floats standard image left", () => {
@@ -821,9 +949,9 @@ test("floats standard image left", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 177.052,
+        width: 177.0516042780749,
         widthFr: 1,
-        height: 132.7,
+        height: 132.70000000000002,
     });
 });
 
@@ -835,9 +963,9 @@ test("floats large image left", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 176.933,
+        width: 176.93333333333334,
         widthFr: 1,
-        height: 132.7,
+        height: 132.70000000000002,
     });
 });
 
@@ -849,7 +977,7 @@ test("floats tall image left", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 194.043,
+        width: 194.04317223939307,
         widthFr: 1,
         height: 258.7,
     });
@@ -863,7 +991,7 @@ test("floats iPhone screenshot left", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 148.643,
+        width: 148.64263392857143,
         widthFr: 1,
         height: 321.7,
     });
@@ -877,7 +1005,7 @@ test("floats cinema scope image left", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 194.667,
+        width: 194.66666666666666,
         widthFr: 1,
         height: 84,
     });
@@ -933,7 +1061,7 @@ test("floats horizontal banner image left", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 194.667,
+        width: 194.66666666666666,
         widthFr: 1,
         height: 84,
     });
@@ -961,7 +1089,7 @@ test("floats extreme horizontal image left", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 194.667,
+        width: 194.66666666666666,
         widthFr: 1,
         height: 84,
     });
@@ -975,7 +1103,7 @@ test("floats file entity", () => {
             spacingScale: "small",
         }),
     ).toEqual({
-        width: 194.667,
+        width: 194.66666666666666,
         widthFr: 1,
         height: 258.7,
     });

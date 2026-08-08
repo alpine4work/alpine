@@ -3,6 +3,7 @@ import {createTestServices} from "~/app/integration_tests/helpers/create_test_se
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 
 const {context, services} = createTestServices();
 
@@ -46,6 +47,32 @@ async function expectNoCanNotMakePrivateModal(page: Page) {
         page.getByRole("heading", {name: "Can\u2019t make this task private"}),
     ).toBeHidden();
 }
+
+test("anonymous accounts can see comments on a child task shared by its parent\u2019s URL grant", async ({
+    page,
+}) => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const creatorSession = await space.createSession({name: "Task Author"});
+    const collection = await TestTaskCollection.create(creatorSession, {name: "Collection"});
+    const parentTask = await TestTask.create(creatorSession, {
+        title: "Parent task",
+        collections: collection,
+    });
+    const childTask = await TestTask.create(creatorSession, {
+        title: "Child task",
+        parent: parentTask,
+        collections: collection,
+    });
+    await childTask.createComment(creatorSession, "Comment");
+    await parentTask.access.grantUrl(creatorSession);
+    await ProcessContextModule.waitForTestTasks();
+
+    await page.goto(`/task/${childTask.id}`);
+
+    await expectTaskCanBeOpened(page);
+    await expect(page.getByText("Comment", {exact: true})).toBeVisible();
+    await expect(page.getByText("Task Author", {exact: true})).toBeVisible();
+});
 
 test("can share and unshare a task with the share button without inherited sharing warnings", async ({
     page,

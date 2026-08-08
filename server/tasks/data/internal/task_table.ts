@@ -10,10 +10,10 @@ import {TaskStepCountByAccountId} from "~/server/tasks/data/task_step_count_by_a
 import {AccessLevel, AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {
     VtencBigUint64Set,
     decodeVtencBigUint64List,
@@ -29,18 +29,18 @@ import {
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";
 import {createTaskNotFoundError} from "~/shared/tasks/task_error_messages.js";
 import {
     TaskGridViewExpansionState,
@@ -122,7 +122,16 @@ const TaskActionTable = DynamoTableSchema.new({
                          *
                          * Nullable since action transactions before 2023-01-02 did not save the `actorId`.
                          */
-                        actorId: Schema.id<AccountId>().nullable().default(null),
+                        actor: Schema.object({
+                            // The ID of the account that created this document
+                            accountId: Schema.id<AccountId>(),
+                            // If this document was created by something else, on behalf of the account ID.
+                            from: TaskActorFromSchema.nullable(),
+                        })
+                            .wrapOriginalPropertyInObject("accountId", {from: null})
+                            .originalPropertyKey("actorId")
+                            .nullable()
+                            .default(null),
 
                         /**
                          * An optional identifier provided by the client who committed this action.
@@ -296,7 +305,7 @@ const TaskTable = DynamoTableSchema.new({
                          * collection creator may lose access if they are removed from the `accessPolicy`.
                          */
                         creatorId: Schema.id<AccountId>().nullable().default(null),
-                        creatorFrom: TaskCreatorFromSchema.nullable().default(null),
+                        creatorFrom: TaskActorFromSchema.nullable().default(null),
 
                         // We keep track of both `rawDeletedTime` and `rawUndeletedTime` for our collection
                         // in DynamoDB so we can create a full `TaskCollectionModel`. The collection is
@@ -394,7 +403,7 @@ const TaskTable = DynamoTableSchema.new({
                          * access if removed from the access policy.
                          */
                         creatorId: Schema.id<AccountId>(),
-                        creatorFrom: TaskCreatorFromSchema.nullable().default(null),
+                        creatorFrom: TaskActorFromSchema.nullable().default(null),
 
                         /**
                          * The time this task was created.
@@ -637,6 +646,15 @@ const TaskTable = DynamoTableSchema.new({
                         content: TaskNotesContentSchema,
 
                         /**
+                         * Hash of `content` (see `getTaskNotesContentHash()`), maintained on every content
+                         * write so the activity pipeline reads the BEFORE hash of an update from the item
+                         * instead of re-serializing and re-hashing the whole previous document on the hot
+                         * path. Optional: items written before this attribute existed recompute it once on
+                         * their next update.
+                         */
+                        contentHash: Schema.string.optional(),
+
+                        /**
                          * Keep track of the number of steps contributed by various `AccountId`s after
                          * `version` 0. Excluding steps contributed by `creatorId`. You can compute
                          * `creatorId`'s `stepCount` by adding all step counts in this map then subtracting
@@ -852,7 +870,7 @@ type TaskNotesStepTransactionItem = DynamoTableItemType<
 export const InternalFileTaskAuthorizer = FileAuthorizer.new(
     TaskTable,
     "Task",
-    async (context, target, expectedAccessLevel) => {
+    async (context, target, expectedAccessLevel, options) => {
         let taskId: TaskId;
         let accessLevel: AccessLevel;
 
@@ -869,7 +887,13 @@ export const InternalFileTaskAuthorizer = FileAuthorizer.new(
                 throw exhaustive(target);
         }
 
-        const result = await authorizeTaskAccessIfPossible(context, taskId, accessLevel);
+        const result = await authorizeTaskAccessIfPossible(
+            context,
+            taskId,
+            accessLevel,
+            null,
+            options,
+        );
         if (result === null) return {ok: false, error: createTaskNotFoundError(taskId)};
 
         return mapResult(result, () => {});

@@ -10,9 +10,9 @@ import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {useWebSocket} from "~/client/web/web_socket/use_web_socket.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {

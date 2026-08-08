@@ -5,8 +5,8 @@ import {
 } from "~/server/context/server_action_context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SlackBotOAuthScopes} from "~/shared/integrations/slack/slack_bot_oauth_scopes.js";
 import {SlackAccount} from "~/shared/integrations/slack/slack_space_integration_schema.js";
 

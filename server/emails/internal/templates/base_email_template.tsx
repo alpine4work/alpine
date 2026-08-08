@@ -5,7 +5,7 @@ import {EmailFont} from "~/server/emails/internal/components/email_font.js";
 import {emailSpacing} from "~/server/emails/internal/components/email_spacing_scale.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {colorsWithShade, invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export const baseEmailTemplateMaxWidth = 600;
 

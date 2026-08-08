@@ -3,14 +3,14 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {getChannelPreviewIfPossible} from "~/server/forum/data/get_channel_preview.js";
 import {getPostItemForAuthorizationIfExists} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createPostNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
@@ -29,7 +29,7 @@ export async function getPostAuthorAndChannelPreviewIfPossible(
     const postItem = await getPostItemForAuthorizationIfExists(context, postId, options);
     if (!postItem) return null;
 
-    const authorPromise = getAccount(context, postItem.spaceId, postItem.authorId, options);
+    const authorPromise = getAccount(context, postItem.spaceId, postItem.author.accountId, options);
     const channelResultPromise = getChannelPreviewIfPossible(context, postItem.channelId, options);
 
     const [, channelResult] = await runAllPromises([

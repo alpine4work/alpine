@@ -1,6 +1,6 @@
 import {Box} from "~/client/web/design/box.js";
-import {getDocumentationApiExampleId} from "~/client/web/docs/internal/generate_api_documentation_sample_value.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
+import {getDocumentationApiExampleId} from "~/shared/docs/generate_api_documentation_sample_value.js";
 
 /**
  * An inline example identifier for API prose, e.g. `<ExampleId type="SpaceId" />`.

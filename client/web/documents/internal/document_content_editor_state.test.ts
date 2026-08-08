@@ -23,8 +23,8 @@ import {
     DocumentContentStepSchema as stepSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, ContentEditorClientId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, ContentEditorClientId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const spaceId = generateId<SpaceId>();
 const currentAccountId = generateId<AccountId>();
@@ -1112,6 +1112,7 @@ test("collaborative update scenario", () => {
             accessLevel: "Manage",
             pendingCreateCommentThreads: [],
             pendingIntentionallyUpdateAccessPolicy: null,
+            pendingIntentionallyUpdateDeletedTime: null,
             rememberedSteps: [],
             ourPresenceState: {
                 version: 8,

@@ -7,9 +7,9 @@ import {
     getAccountIfExistsWithoutAuthorization,
     getAccountWithoutAvatarIfExistsWithoutAuthorization,
 } from "~/server/spaces/internal/get_account_if_exists_without_authorization.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 
 /**

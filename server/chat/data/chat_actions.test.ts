@@ -19,7 +19,7 @@ import {
     pingChatMessageStream,
     processSendShareNotificationJob,
     putChatMessageApprovalDecisions,
-    putChatMessageStreamPart,
+    putChatMessageStreamPartAndBroadcastEvent,
     sendChatMessage,
     setChatMessageReaction,
     updateChatMessageContent,
@@ -48,15 +48,15 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {generateId} from "~/shared/id/id.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {idRegExp} from "~/shared/id/id_reg_exp.js";
-import {AccountId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId, DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 const context = createTestContext({
@@ -3562,15 +3562,15 @@ test("authorizing chat access after getting chat as session actor is cached", as
             beforeMessageIndex: null,
         });
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizeChatAccess(actionContext, chatId, "Edit");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         await authorizeChatAccess(actionContext, chatId, "Edit");
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
 
         for (let i = 0; i < 5; i++) {
             await runAllPromises([
@@ -3580,7 +3580,7 @@ test("authorizing chat access after getting chat as session actor is cached", as
             ]);
         }
 
-        expect(getCount()).toEqual(3);
+        expect(getCount()).toEqual(2);
     }
 });
 
@@ -4268,7 +4268,7 @@ test("bot can\u2019t send messages in a chat if it\u2019s not a member even if i
             fileIds: [],
             createdTimeZone: defaultTimeZone,
         }),
-    ).rejects.toThrow("Actor doesn\u2019t have `Comment` access level");
+    ).rejects.toThrow("Bot can only view messages in direct chat it\u2019s not a member of");
 });
 
 test("bot can send messages in a chat if it\u2019s a member", async () => {
@@ -4493,7 +4493,7 @@ testMessagingImplementation<ChatId>(context, {
         context,
         {roomKey: chatId, messageIndex, partIndex, payload, isTimeoutErrorCompletion},
     ) {
-        return await putChatMessageStreamPart(context, {
+        return await putChatMessageStreamPartAndBroadcastEvent(context, {
             chatId,
             messageIndex,
             partIndex,

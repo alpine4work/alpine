@@ -14,8 +14,8 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {ChannelId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {ChannelId, SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export type ChannelPreviewAttributesItem = {
     readonly spaceId: SpaceId;

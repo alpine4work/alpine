@@ -6,7 +6,7 @@ import {
     subscribeToTriggeredOverlayCloseEvent,
     subscribeToTriggeredOverlayOpenEvent,
 } from "~/client/web/design/overlay_trigger_button_event_listeners.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 // EXAMPLE USAGE 1: In the code block in content editor
 //

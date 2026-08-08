@@ -7,7 +7,7 @@ import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     formatContentDateString,
     parseContentDateString,
-} from "~/shared/content/content_date_helpers.js";
+} from "~/shared/content/format_content_date_string.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
 
 /**

@@ -1,4 +1,4 @@
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {Store} from "~/shared/store/store.js";
 
 /**

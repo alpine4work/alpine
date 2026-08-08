@@ -26,7 +26,19 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
         ok: true,
         status: 200,
         statusText: "OK",
-        text: () => Promise.resolve(""),
+        text: () =>
+            Promise.resolve(
+                options?.method === "GET" && url.includes("/channels/")
+                    ? JSON.stringify({
+                          spaceId: "test-space-id",
+                          channel: {
+                              id: url.split("/").at(-1),
+                              name: "Alert Channel",
+                              description: {elements: []},
+                          },
+                      })
+                    : "{}",
+            ),
     });
 });
 
@@ -225,5 +237,20 @@ describe("send alert lambda", () => {
             },
             fetchCalls: 1,
         });
+    });
+
+    test("pins the Alpine API version for requests", async () => {
+        await callHandler(createEvent());
+
+        expect(mockFetch).toHaveBeenCalledWith(
+            "https://api.test.cyberworlds.com/posts",
+            expect.objectContaining({
+                headers: {
+                    "Alpine-Version": "2026-07-29",
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer test-api-key",
+                },
+            }),
+        );
     });
 });

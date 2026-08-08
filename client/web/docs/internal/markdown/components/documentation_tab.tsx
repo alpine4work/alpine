@@ -1,6 +1,6 @@
 import {ReactNode} from "react";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {flattenDocumentationMarkdownChildren} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
+import {flattenDocumentationMarkdownChildren} from "~/shared/docs/documentation_markdown_component.js";
 
 /** One `<Tab>`: a fourth-level heading with its body underneath in markdown. */
 export const DocumentationTab = documentationComponent({

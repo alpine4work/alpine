@@ -2,7 +2,7 @@ import {GiphyFetch} from "@giphy/js-fetch-api";
 import {IGif} from "@giphy/js-types";
 import {AppContext} from "~/client/web/context/app_context.js";
 import {preloadSwr} from "~/client/web/rpc/preload_swr.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 
 /**

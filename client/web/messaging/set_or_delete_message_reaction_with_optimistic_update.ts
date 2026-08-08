@@ -1,8 +1,8 @@
 import {Reporter} from "~/client/web/design/reporter.js";
-import {InboxContext} from "~/client/web/inbox/inbox_context_types.js";
+import {InboxContext} from "~/client/web/inbox/context/inbox_context_types.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {findMessageReactionPosIfPossible} from "~/shared/messaging/compute_set_message_reaction.js";
 import {MessageModel, fromMessagePayloadModel} from "~/shared/messaging/message_model.js";
 import {Reaction, areReactionsEqual} from "~/shared/reactions/reaction.js";

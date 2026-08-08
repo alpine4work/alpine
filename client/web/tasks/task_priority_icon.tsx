@@ -8,7 +8,7 @@ import {
     taskPriorityIconUrgentPingContainerClassName,
 } from "~/client/web/tasks/task_priority_icon_html.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 // IMPORTANT: If you update the HTML in this component you should also update

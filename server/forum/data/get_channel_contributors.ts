@@ -6,13 +6,13 @@ import {ChannelPreviewItemAuthorizationCache} from "~/server/forum/data/internal
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {DataLossError} from "~/shared/error/error.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {AccountId, ChannelId} from "~/shared/id/types/id_types.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {AccountId, ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**

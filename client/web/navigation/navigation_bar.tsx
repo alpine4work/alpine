@@ -18,9 +18,9 @@ import {
 } from "~/client/web/navigation/navigation_bar_types.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Most content in our product comes with a navigation bar. The navigation bar is a

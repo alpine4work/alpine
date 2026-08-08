@@ -1,6 +1,6 @@
 import {WorkerActionContext} from "~/server/cloudflare/context/worker_action_context.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
-import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {authorizeChatAccess} from "~/shared/rpc/chat_rpc_definitions.js";
 
 const ChatAccessCache = new ContextCache<ChatId, {spaceId: SpaceId}>({

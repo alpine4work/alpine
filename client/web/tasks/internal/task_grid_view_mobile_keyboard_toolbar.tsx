@@ -35,10 +35,10 @@ import {TaskClientQuery} from "~/client/web/tasks/core/task_client_query.js";
 import {TaskRowTitleInputRef} from "~/client/web/tasks/internal/task_row_title_input.js";
 import {TaskPriorityIcon} from "~/client/web/tasks/task_priority_icon.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 

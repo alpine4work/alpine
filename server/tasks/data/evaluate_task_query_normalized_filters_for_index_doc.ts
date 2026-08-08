@@ -5,12 +5,12 @@ import {
     getTaskIndexDocDisplayStatus,
     isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {
     TaskQueryAccountNormalizedFilter,

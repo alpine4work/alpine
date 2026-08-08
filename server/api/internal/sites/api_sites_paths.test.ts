@@ -4,15 +4,15 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {generateId} from "~/shared/id/id.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({});
 
 const server = createTestApiServer(context, apiSitesPaths);
 
-describe("/sites/{id}/mention", () => {
-    test("can read site mention", async () => {
+describe("/sites/{id}-reference", () => {
+    test("can read site reference", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -25,7 +25,7 @@ describe("/sites/{id}/mention", () => {
         });
 
         expect(
-            await server.GET(`/sites/${site.id}/mention`, {
+            await server.GET(`/sites/${site.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -33,18 +33,16 @@ describe("/sites/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Site",
-                        id: site.id,
-                    },
+                reference: {
+                    type: "Site",
+                    id: site.id,
                     title: "Test Site Name",
                 },
             },
         });
     });
 
-    test("can\u2019t read site mention without access", async () => {
+    test("can\u2019t read site reference without access", async () => {
         const space = await TestSpace.create(context);
         const session1 = await space.createSession({role: "Admin"});
         const session2 = await space.createSession();
@@ -55,7 +53,7 @@ describe("/sites/{id}/mention", () => {
         const site = await TestSite.create(session2, {access: "Private"});
 
         expect(
-            await server.GET(`/sites/${site.id}/mention`, {
+            await server.GET(`/sites/${site.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -69,7 +67,7 @@ describe("/sites/{id}/mention", () => {
         });
     });
 
-    test("can\u2019t read site mention for non-existent site", async () => {
+    test("can\u2019t read site reference for non-existent site", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
 
@@ -77,7 +75,7 @@ describe("/sites/{id}/mention", () => {
         const apiKey = await bot.createApiKey(session);
 
         expect(
-            await server.GET(`/sites/${generateId<SiteId>()}/mention`, {
+            await server.GET(`/sites/${generateId<SiteId>()}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({

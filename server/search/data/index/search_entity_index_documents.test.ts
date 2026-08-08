@@ -1,5 +1,5 @@
 import {Fragment, Slice} from "prosemirror-model";
-import {ReplaceStep} from "prosemirror-transform";
+import {DocAttrStep, ReplaceStep} from "prosemirror-transform";
 import {
     DocumentContentCacheForUpdate,
     getDocumentContentPreviewIfExists,
@@ -9,6 +9,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     getSearchEntityIndexesForTest,
+    getSearchEntityWithStrongConsistency,
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityDependentsJobTestCounter,
     processIndexSearchEntityEmbeddingChunksJob,
@@ -20,17 +21,21 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {AccessPolicyAccountGrant} from "~/shared/access/access_policy.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/documents/document_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    runAllObjectPromises,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchAffinityEntityResultModel} from "~/shared/search/search_entity_result_model.js";
@@ -117,6 +122,35 @@ async function actuallyGetIndexedSearchEntity(
     return {
         title: docForKeywordIndex?.fields.title?.[0] ?? null,
         body: docForKeywordIndex?.fields.body?.[0] ?? null,
+    };
+}
+
+async function getIndexedSearchEntityAccessPolicy(
+    context: TestContext,
+    spaceId: SpaceId,
+    entityId: Exclude<SearchDynamicEntityId, `Account:${AccountId}`>,
+) {
+    const docForKeywordIndex = await context.opensearch.getDocWithoutSourceIfExists(
+        SearchEntityKeywordIndex,
+        spaceId,
+        entityId,
+        {
+            storedFields: [
+                "accessPolicy.accountGrantAccountIds",
+                "accessPolicy.defaultGrantType",
+                "accessPolicy.urlGrantLevel",
+            ],
+        },
+    );
+
+    if (!docForKeywordIndex) return null;
+
+    return {
+        accountGrantAccountIds: new Set(
+            docForKeywordIndex.fields["accessPolicy.accountGrantAccountIds"] ?? [],
+        ),
+        defaultGrantType: docForKeywordIndex.fields["accessPolicy.defaultGrantType"]?.[0] ?? null,
+        urlGrantLevel: docForKeywordIndex.fields["accessPolicy.urlGrantLevel"]?.[0] ?? null,
     };
 }
 
@@ -1180,7 +1214,6 @@ test("document comment access policies are enforced in search", async () => {
     ]);
 
     expect(await getSearchEntityIds(session2)).toEqual([
-        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
         `DocumentComment:${document5.id}-${commentThread5.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
@@ -1204,7 +1237,6 @@ test("document comment access policies are enforced in search", async () => {
     expect(await getSearchEntityIds(session4)).toEqual([
         `DocumentComment:${document3.id}-${commentThread3.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
-        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
         `Document:${document3.id}`,
         `Document:${document4.id}`,
@@ -1215,7 +1247,6 @@ test("document comment access policies are enforced in search", async () => {
     expect(await getSearchEntityIds(session5)).toEqual([
         `DocumentComment:${document3.id}-${commentThread3.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
-        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
         `DocumentComment:${document7.id}-${commentThread7.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
         `Document:${document3.id}`,
@@ -1228,7 +1259,6 @@ test("document comment access policies are enforced in search", async () => {
     expect(await getSearchEntityIds(session6)).toEqual([
         `DocumentComment:${document2.id}-${commentThread2.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
-        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
         `DocumentComment:${document6.id}-${commentThread6.id}-0`,
         `DocumentComment:${document7.id}-${commentThread7.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
@@ -1261,9 +1291,7 @@ test("document comment access policies are enforced in search", async () => {
     ]);
 
     expect(await getSearchEntityIds(session2)).toEqual([
-        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
-        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
         `Document:${document3.id}`,
         `Document:${document4.id}`,
@@ -1285,7 +1313,6 @@ test("document comment access policies are enforced in search", async () => {
     expect(await getSearchEntityIds(session4)).toEqual([
         `DocumentComment:${document3.id}-${commentThread3.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
-        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
         `Document:${document3.id}`,
         `Document:${document4.id}`,
@@ -1296,7 +1323,6 @@ test("document comment access policies are enforced in search", async () => {
     expect(await getSearchEntityIds(session5)).toEqual([
         `DocumentComment:${document3.id}-${commentThread3.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
-        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
         `DocumentComment:${document7.id}-${commentThread7.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
         `Document:${document3.id}`,
@@ -1309,7 +1335,6 @@ test("document comment access policies are enforced in search", async () => {
     expect(await getSearchEntityIds(session6)).toEqual([
         `DocumentComment:${document2.id}-${commentThread2.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
-        `DocumentComment:${document5.id}-${commentThread5.id}-0`,
         `DocumentComment:${document6.id}-${commentThread6.id}-0`,
         `DocumentComment:${document7.id}-${commentThread7.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
@@ -1342,7 +1367,6 @@ test("document comment access policies are enforced in search", async () => {
     ]);
 
     expect(await getSearchEntityIds(session2)).toEqual([
-        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
         `Document:${document3.id}`,
@@ -1415,7 +1439,6 @@ test("document comment access policies are enforced in search", async () => {
     ]);
 
     expect(await getSearchEntityIds(session2)).toEqual([
-        `DocumentComment:${document3.id}-${commentThread3.id}-0`,
         `DocumentComment:${document4.id}-${commentThread4.id}-0`,
         `DocumentComment:${document8.id}-${commentThread8.id}-0`,
         `Document:${document3.id}`,
@@ -1464,6 +1487,169 @@ test("document comment access policies are enforced in search", async () => {
         `Document:${document7.id}`,
         `Document:${document8.id}`,
     ]);
+});
+
+test("deleting a document indexes document comments as deleted", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {body: "deleted comment document body"});
+    const commentThread = await document.createCommentThread(
+        session,
+        {from: 3, to: 6},
+        "deleted document comment searchable text",
+    );
+    const commentEntityId: SearchEntityId = `DocumentComment:${document.id}-${commentThread.id}-0`;
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await actuallyGetIndexedSearchEntity(context, space.id, commentEntityId)).toEqual({
+        title: null,
+        body: "deleted document comment searchable text",
+    });
+
+    await document.delete(session);
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(await actuallyGetIndexedSearchEntity(context, space.id, commentEntityId)).toEqual({
+        title: null,
+        body: null,
+    });
+    expect(await getIndexedSearchEntityAccessPolicy(context, space.id, commentEntityId)).toEqual({
+        accountGrantAccountIds: new Set(),
+        defaultGrantType: null,
+        urlGrantLevel: null,
+    });
+
+    import.meta.jest.clearAllTimers();
+});
+
+test("document comment search access policies exclude document view grants", async () => {
+    const space = await TestSpace.create(context);
+    const [
+        creatorSession,
+        viewerSession,
+        commenterSession,
+        editorSession,
+        managerSession,
+        otherSession,
+    ] = await space.createSessions(6);
+
+    const getCommentAccountGrantById = () =>
+        new Map<AccountId, AccessPolicyAccountGrant>([
+            [creatorSession.account.id, {level: "Manage", generation: 0}],
+            [commenterSession.account.id, {level: "Comment"}],
+            [editorSession.account.id, {level: "Edit"}],
+            [managerSession.account.id, {level: "Manage", generation: 1}],
+        ]);
+
+    const defaultGrantDocument = await TestDocument.create(creatorSession, {
+        body: "default grant document body",
+    });
+    await defaultGrantDocument.access.set(creatorSession, {
+        type: "Local",
+        accountGrantById: getCommentAccountGrantById(),
+        defaultGrant: {level: "View"},
+        urlGrant: null,
+    });
+    const defaultGrantCommentThread = await defaultGrantDocument.createCommentThread(
+        creatorSession,
+        {from: 3, to: 6},
+        "documentdefaultonlyalpha",
+    );
+    const defaultGrantCommentEntityId: SearchEntityId = `DocumentComment:${defaultGrantDocument.id}-${defaultGrantCommentThread.id}-0`;
+
+    const accountGrantDocument = await TestDocument.create(creatorSession, {
+        body: "account grant document body",
+    });
+    await accountGrantDocument.access.set(creatorSession, {
+        type: "Local",
+        accountGrantById: new Map<AccountId, AccessPolicyAccountGrant>([
+            ...getCommentAccountGrantById(),
+            [viewerSession.account.id, {level: "View"}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    });
+    const accountGrantCommentThread = await accountGrantDocument.createCommentThread(
+        creatorSession,
+        {from: 3, to: 6},
+        "documentaccountonlybeta",
+    );
+    const accountGrantCommentEntityId: SearchEntityId = `DocumentComment:${accountGrantDocument.id}-${accountGrantCommentThread.id}-0`;
+
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    const getCommentSearchEntityIds = async (
+        session: TestSpaceSession,
+        queryText: string,
+    ): Promise<ReadonlyArray<SearchEntityId>> => {
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+        const results = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText,
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+        return results
+            .map(result => result.id)
+            .filter(resultId => resultId.startsWith("DocumentComment:"))
+            .sort();
+    };
+
+    const getCommentVisibilityBySession = async (queryText: string) =>
+        await runAllObjectPromises({
+            creator: getCommentSearchEntityIds(creatorSession, queryText),
+            viewer: getCommentSearchEntityIds(viewerSession, queryText),
+            commenter: getCommentSearchEntityIds(commenterSession, queryText),
+            editor: getCommentSearchEntityIds(editorSession, queryText),
+            manager: getCommentSearchEntityIds(managerSession, queryText),
+            other: getCommentSearchEntityIds(otherSession, queryText),
+        });
+
+    expect(await getCommentVisibilityBySession("documentdefaultonlyalpha")).toEqual({
+        creator: [defaultGrantCommentEntityId],
+        viewer: [],
+        commenter: [defaultGrantCommentEntityId],
+        editor: [defaultGrantCommentEntityId],
+        manager: [defaultGrantCommentEntityId],
+        other: [],
+    });
+    expect(await getCommentVisibilityBySession("documentaccountonlybeta")).toEqual({
+        creator: [accountGrantCommentEntityId],
+        viewer: [],
+        commenter: [accountGrantCommentEntityId],
+        editor: [accountGrantCommentEntityId],
+        manager: [accountGrantCommentEntityId],
+        other: [],
+    });
+
+    const expectedCommentAccessPolicy = {
+        accountGrantAccountIds: new Set([
+            creatorSession.account.id,
+            commenterSession.account.id,
+            editorSession.account.id,
+            managerSession.account.id,
+        ]),
+        defaultGrantType: null,
+        urlGrantLevel: null,
+    };
+
+    expect(
+        await getIndexedSearchEntityAccessPolicy(context, space.id, defaultGrantCommentEntityId),
+    ).toEqual(expectedCommentAccessPolicy);
+    expect(
+        await getIndexedSearchEntityAccessPolicy(context, space.id, accountGrantCommentEntityId),
+    ).toEqual(expectedCommentAccessPolicy);
+
+    import.meta.jest.clearAllTimers();
 });
 
 test("newly created documents will be visible in search even before indexing", async () => {
@@ -1910,4 +2096,206 @@ test("can\u2019t search documents with table HTML tags in text", async () => {
             ],
         },
     ]);
+});
+
+test("indexing a deleted document clears title and body", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {
+        title: "Hollywoo Stars and Celebrities",
+        body: "What Do They Know?",
+    });
+
+    // Wait for creation tasks, then advance to trigger the initial index job.
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(1);
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: "Hollywoo Stars and Celebrities",
+        body: "What Do They Know?",
+    });
+
+    // Soft-delete the document.
+    const deletedTime = new Date();
+    await document.update(session, [new DocAttrStep("deletedTime", deletedTime)], {
+        intentionallyUpdateDeletedTime: {deletedTime},
+    });
+
+    // Deletion triggers a new throttled index job. Run the timer so it executes.
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(2);
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: null,
+        body: null,
+    });
+
+    cache.evictAllDocumentsForTest();
+    import.meta.jest.clearAllTimers();
+});
+
+test("deleted document fallback search entity uses document version", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {
+        title: "Hollywoo Stars and Celebrities",
+        body: "What Do They Know?",
+    });
+    await document.delete(session);
+    const documentVersion = await document.getVersion();
+
+    expect(
+        await getSearchEntityWithStrongConsistency(
+            session.action(),
+            space.id,
+            `Document:${document.id}`,
+        ),
+    ).toMatchObject({
+        type: "Document",
+        title: null,
+        document: {
+            id: document.id,
+            version: documentVersion,
+        },
+    });
+});
+
+test("active document fallback rejects a URL-granted document from another space", async () => {
+    const documentSpace = await TestSpace.create(context);
+    const requestedSpace = await TestSpace.create(context);
+    const documentSession = await documentSpace.createSession();
+    const requestedSpaceSession = await requestedSpace.createSession();
+
+    const document = await TestDocument.create(documentSession);
+    await document.access.grantUrl(documentSession, "View");
+
+    await expect(
+        getSearchEntityWithStrongConsistency(
+            requestedSpaceSession.action(),
+            requestedSpace.id,
+            `Document:${document.id}`,
+        ),
+    ).rejects.toThrow("Search entity is in the wrong space");
+});
+
+test("deleted document fallback rejects a URL-granted document from another space", async () => {
+    const documentSpace = await TestSpace.create(context);
+    const requestedSpace = await TestSpace.create(context);
+    const documentSession = await documentSpace.createSession();
+    const requestedSpaceSession = await requestedSpace.createSession();
+
+    const document = await TestDocument.create(documentSession);
+    await document.access.grantUrl(documentSession, "View");
+    await document.delete(documentSession);
+
+    await expect(
+        getSearchEntityWithStrongConsistency(
+            requestedSpaceSession.action(),
+            requestedSpace.id,
+            `Document:${document.id}`,
+        ),
+    ).rejects.toThrow("Search entity is private");
+});
+
+test("deleting a document with a pending edit indexing job indexes as deleted", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {
+        title: "Hollywoo Stars and Celebrities",
+        body: "What Do They Know?",
+    });
+
+    // Wait for creation tasks, then advance to trigger the initial index job.
+    await ProcessContextModule.waitForTestTasks();
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(1);
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: "Hollywoo Stars and Celebrities",
+        body: "What Do They Know?",
+    });
+
+    // Edit the document, which schedules a delayed indexing job.
+    await document.type(session, " Do They Know Things?");
+    await ProcessContextModule.waitForTestTasks();
+
+    // The edit job hasn't run yet.
+    expect(indexSearchEntityJobCount).toEqual(1);
+
+    // Soft-delete the document before the edit job runs.
+    const deletedTime = new Date();
+    await document.update(session, [new DocAttrStep("deletedTime", deletedTime)], {
+        intentionallyUpdateDeletedTime: {deletedTime},
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    // Deletion schedules another throttled index job.
+    import.meta.jest.advanceTimersByTime(1);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(1);
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: "Hollywoo Stars and Celebrities",
+        body: "What Do They Know?",
+    });
+
+    // Advance past the original edit job delay. Both delayed jobs re-index the
+    // already-deleted state, so the result is deleted.
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(3);
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: null,
+        body: null,
+    });
+
+    cache.evictAllDocumentsForTest();
+    import.meta.jest.clearAllTimers();
+});
+
+test("deleting a document with a pending indexing job still indexes as deleted", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {
+        title: "Hollywoo Stars and Celebrities",
+        body: "What Do They Know?",
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    // Document not yet indexed.
+    expect(indexSearchEntityJobCount).toEqual(0);
+
+    // Soft-delete the document before the initial indexing job runs.
+    const deletedTime = new Date();
+    await document.update(session, [new DocAttrStep("deletedTime", deletedTime)], {
+        intentionallyUpdateDeletedTime: {deletedTime},
+    });
+
+    await ProcessContextModule.waitForTestTasks();
+
+    // The initial creation job is still pending. When it runs it will pick up the
+    // deleted state.
+    import.meta.jest.advanceTimersByTime(10 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    // The document should be indexed as deleted (no title/body).
+    expect(indexSearchEntityJobCount).toEqual(1);
+    expect(await getIndexedSearchEntity(document)).toEqual({
+        title: null,
+        body: null,
+    });
+
+    cache.evictAllDocumentsForTest();
+    import.meta.jest.clearAllTimers();
 });

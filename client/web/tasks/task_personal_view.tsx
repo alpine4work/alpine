@@ -83,7 +83,7 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {
     RemLength,
     addRemLengths,
@@ -92,14 +92,14 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {OutOfRangeError} from "~/shared/error/error.js";
+import {OutOfRangeError} from "~/shared/error/error.open_source.js";
 import {concatReadonlyArrays} from "~/shared/helpers/array/concat_readonly_arrays.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 import {TaskActionModel} from "~/shared/tasks/actions/task_action_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";

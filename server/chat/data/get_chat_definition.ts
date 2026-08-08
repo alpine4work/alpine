@@ -4,10 +4,10 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export type GetChatDefinitionResult = {
     spaceId: SpaceId;

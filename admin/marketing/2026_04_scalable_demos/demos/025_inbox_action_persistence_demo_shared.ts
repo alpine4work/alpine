@@ -1,6 +1,6 @@
 import {scalableDemoFps} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_fps.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
 const inboxActionPersistenceDemoInboxSideBarWidthRem = parseRemLength("96");

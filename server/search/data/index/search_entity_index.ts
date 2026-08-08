@@ -89,12 +89,6 @@ import {
     searchEntityEmbeddingChunkIndexVectorStoredFields,
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {
-    type SearchEntityIdForKeywordIndex,
-    SearchEntityKeywordIndex,
-    fromSearchEntityIdForKeywordIndex,
-    intoSearchEntityIdForKeywordIndex,
-} from "~/server/search/data/index/internal/search_entity_keyword_index.js";
-import {
     SearchEntityMedia,
     SearchEntityMediaSchema,
 } from "~/server/search/data/index/internal/search_entity_media.js";
@@ -112,6 +106,7 @@ import {
     internalGetUnorderedSearchAffinityEntitiesWithStrongReadConsistency,
     scheduleIndexSearchEntityEmbeddingChunksJob,
     searchEntityEmbeddingChunkIndexRefreshIntervalMs,
+    searchEntityKeywordIndexRefreshIntervalMs,
     searchEntityKeywordIndexWaitForRefreshDelayMs,
     withIndexSearchEntityEmbeddingChunksJobLock,
 } from "~/server/search/data/table/search_entity_actions.js";
@@ -150,49 +145,56 @@ import {ContextBatcher} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
 import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {ChannelModel, ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     createPostSearchEntityTitleWithAlreadySnippedContent,
     getPostSearchEntityTitleContentSnippet,
 } from "~/shared/forum/create_post_search_entity_title.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
 import {enumerateIterable} from "~/shared/helpers/iterable/enumerate_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {escapeRegExp} from "~/shared/helpers/string/escape_reg_exp.open_source.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {assertId, isId} from "~/shared/id/id.js";
-import {AccountId, ChannelId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {assertId, isId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    ChannelId,
+    ChatId,
+    SpaceId,
+    TaskCollectionId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {isDeepEqualWithSchema} from "~/shared/schema/helpers/is_deep_equal_with_schema.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
@@ -234,10 +236,49 @@ import {getTaskCollectionSearchEntityBase} from "~/shared/tasks/get_task_collect
 import {getTaskSearchEntityBase} from "~/shared/tasks/get_task_search_entity_base.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {emptyTaskTitleModel} from "~/shared/tasks/title/task_title.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
-export type {SearchEntityIdForKeywordIndex} from "~/server/search/data/index/internal/search_entity_keyword_index.js";
+/**
+ * Special `SearchEntityId` used by the OpenSearch keyword index.
+ *
+ * The only change we make is `Account:` entity IDs need to append the `SpaceId`.
+ * Since IDs in OpenSearch need to be globally unique (two spaces may live on the
+ * same shard). An `AccountId` may be a member of multiple spaces and we need to
+ * index a separate `AccountId` search entity for each space we're in. That means
+ * we need an OpenSearch ID for accounts that includes the `SpaceId` so its unique
+ * for each account/space pair. We add the `SpaceId` to the end with a `~`. The
+ * convention in `SearchEntityId` normally is to separate parts with a dash so we
+ * use a `~` to show the `SpaceId` isn't a part of the base `SearchEntityId`.
+ */
+export type SearchEntityIdForKeywordIndex =
+    | Exclude<SearchDynamicEntityId, `Account:${AccountId}`>
+    | `Account:${AccountId}~${SpaceId}`;
+
+// Double check that `Account:${AccountId}` isn't allowed. We must add the
+// `SpaceId`.
+assertNotAssignableTypes<`Account:${AccountId}`, SearchEntityIdForKeywordIndex>();
+
+function intoSearchEntityIdForKeywordIndex(
+    spaceId: SpaceId,
+    entityId: SearchDynamicEntityId,
+): SearchEntityIdForKeywordIndex {
+    if (entityId.startsWith("Account:")) {
+        return `${entityId as `Account:${AccountId}`}~${spaceId}`;
+    } else {
+        return entityId as Exclude<SearchDynamicEntityId, `Account:${AccountId}`>;
+    }
+}
+
+function fromSearchEntityIdForKeywordIndex(
+    entityId: SearchEntityIdForKeywordIndex,
+): SearchDynamicEntityId {
+    if (entityId.startsWith("Account:")) {
+        return entityId.split("~")[0]! as `Account:${AccountId}`;
+    } else {
+        return entityId as Exclude<SearchDynamicEntityId, `Account:${AccountId}`>;
+    }
+}
 
 /**
  * Our "search entity index" is actually two OpenSearch indexes.
@@ -277,6 +318,60 @@ export type {SearchEntityIdForKeywordIndex} from "~/server/search/data/index/int
  *     https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
  * [3]: https://www.elastic.co/blog/index-sorting-elasticsearch-6-0
  */
+// IMPORTANT: Don't export this. All access to the index should be exposed through
+// functions in this file. Like how we organize DynamoDB tables. By putting all the
+// logic around this index in one file it allows developers to carefully control
+// how data is written to this index. Instead of updates sprawling out around the
+// codebase.
+const SearchEntityKeywordIndex = new OpensearchIndex<
+    SpaceId,
+    SearchEntityIdForKeywordIndex,
+    OpensearchIndexTypeType<typeof SearchEntityKeywordIndexDocType>,
+    OpensearchIndexTypeFlattenedKeysType<typeof SearchEntityKeywordIndexDocType>,
+    OpensearchIndexTypeStoredFieldsType<typeof SearchEntityKeywordIndexDocType>
+>(SearchEntityKeywordIndexDocType, {
+    name: "search_entity_keywords",
+    numberOfShards: 4,
+    numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
+    refreshInterval: `${assertInteger(searchEntityKeywordIndexRefreshIntervalMs / 1000)}s`,
+
+    // Basically every query to this index will filter to a specific `SpaceId`. We may
+    // have specialized queries (e.g. account name auto-complete) that filter to a
+    // specific entity `type` as well.
+    sort: [{field: "spaceId"}, {field: "type"}],
+
+    // Disabling the source field is dangerous! It saves disk space but disables a lot
+    // of useful features. From the [ElasticSearch docs][1]:
+    //
+    // 1. The `update`, `update_by_query`, and `reindex` APIs.
+    // 2. On the fly highlighting.
+    // 3. The ability to reindex from one ElasticSearch index to another, either to
+    //    change mappings or analysis, or to upgrade an index to a new major version.
+    // 4. The ability to debug queries or aggregations by viewing the original document
+    //    used at index time.
+    // 5. Potentially in the future, the ability to repair index corruption
+    //    automatically.
+    //
+    // For 3 and 5 we can reindex by scanning our source tables for search entities.
+    // This is probably safer than reindexing based on what's in OpenSearch.
+    //
+    // For 1 all we need is some stored fields (like `version`) to perform updates in
+    // application code.
+    //
+    // For 4 we don't have a great alternative. We'll need to find other means of
+    // debugging.
+    //
+    // For 2 we believe highlighting should still work if the field we're highlighting
+    // is a stored field. Highlighting is the main feature we must keep.
+    //
+    // Given how big the search index will be, we believe the space savings of not
+    // storing the `_source` field will be important for us.
+    //
+    // [1]:
+    //     https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-source-field.html#disable-source-field
+    disableSourceField: true,
+});
+
 // IMPORTANT: Don't export this. All access to the index should be exposed through
 // functions in this file. Like how we organize DynamoDB tables. By putting all the
 // logic around this index in one file it allows developers to carefully control
@@ -2382,8 +2477,6 @@ function spotCheckSearchEntityAccess(
             mentionEntityId = null;
             break;
         case "DatabaseTable":
-            // Database tables are materialized from the Dynamo access policy directly and
-            // aren't mention entities, so there isn't an existing fallback spot-check path.
             mentionEntityId = null;
             break;
         case "Document":
@@ -2582,9 +2675,7 @@ async function prepareSearchEntityDataForResult(
             return {
                 type: "DatabaseTable",
                 title,
-                table: {
-                    id: idObject.tableId,
-                },
+                table: {id: idObject.tableId},
             };
         }
         case "Chat": {
@@ -2797,6 +2888,42 @@ function prepareChatSearchEntityTitleForResult(
     return prepareSearchDirectChatEntityTitleForResult(actorType, media);
 }
 
+export async function getSearchDirectChatEntityTitleAndMedia(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    chatId: ChatId,
+    accountIds: ReadonlySet<AccountId>,
+) {
+    const sortedAccountIds = sortSearchDirectChatEntityAccountIds(chatId, accountIds);
+
+    const media = await prepareAccountOrAccountPileMediaForResult(
+        context,
+        spaceId,
+        {
+            type: "AccountPile",
+            previewAccountIds: sortedAccountIds.slice(
+                0,
+                // Add 1 to make sure we can filter out the actor account and still have enough
+                // accounts to render a nice looking pile.
+                searchChatEntityResultTitlePreviewAccountCount + 1,
+            ),
+            accountCount: accountIds.size,
+        },
+        {consistency: "StrongWithinCache"},
+    );
+
+    let title: string;
+
+    if (media.type !== "AccountPile") {
+        assert(media.type === "Account");
+        title = media.account.initialData.name;
+    } else {
+        title = prepareSearchDirectChatEntityTitleForResult(context.actor.type, media);
+    }
+
+    return {title, media, sortedAccountIds};
+}
+
 type SearchEntityModelBaseResult =
     | (SearchEntityModelDataWithAccount & {
           isPrivate: false;
@@ -2923,20 +3050,24 @@ async function fallbackGetSearchEntityBaseIfPossible(
             const documentResult = await getDocumentPreviewIfPossible(
                 context,
                 entityIdObject.documentId,
-                {consistency: "StrongWithinCache"},
+                {
+                    consistency: "StrongWithinCache",
+                    // Ok since we return none of a deleted document's content. We only return a
+                    // deleted stub for the document.
+                    dangerouslyAllowDeleted: true,
+                },
             );
             if (!documentResult) return null;
             if (!documentResult.ok) return {isPrivate: true};
-            const document = documentResult.value;
 
             return {
                 isPrivate: false,
                 type: "Document",
-                spaceId: document.spaceId,
-                title: document.getTitle(),
+                spaceId: documentResult.value.spaceId,
+                title: !documentResult.value.isDeleted ? documentResult.value.getTitle() : null,
                 document: {
                     id: entityIdObject.documentId,
-                    version: document.version,
+                    version: documentResult.value.version,
                 },
             };
         }
@@ -3003,36 +3134,12 @@ async function fallbackGetSearchEntityBaseIfPossible(
                     // This matches the behavior of `getChatSearchEntity()`.
                     if (chat.definition.accountIds.size <= 2) return null;
 
-                    const media = await prepareAccountOrAccountPileMediaForResult(
+                    const {title, media} = await getSearchDirectChatEntityTitleAndMedia(
                         context,
-                        spaceId,
-                        {
-                            type: "AccountPile",
-                            previewAccountIds: sortSearchDirectChatEntityAccountIds(
-                                entityIdObject.chatId,
-                                chat.definition.accountIds,
-                            ).slice(
-                                0,
-                                // Add 1 to make sure we can filter out the actor account and still have enough
-                                // accounts to render a nice looking pile.
-                                searchChatEntityResultTitlePreviewAccountCount + 1,
-                            ),
-                            accountCount: chat.definition.accountIds.size,
-                        },
-                        {consistency: "StrongWithinCache"},
+                        chat.spaceId,
+                        entityIdObject.chatId,
+                        chat.definition.accountIds,
                     );
-
-                    let title: string;
-
-                    if (media.type !== "AccountPile") {
-                        assert(media.type === "Account");
-                        title = media.account.initialData.name;
-                    } else {
-                        title = prepareSearchDirectChatEntityTitleForResult(
-                            context.actor.type,
-                            media,
-                        );
-                    }
 
                     return {
                         isPrivate: false,
@@ -3054,7 +3161,12 @@ async function fallbackGetSearchEntityBaseIfPossible(
             const taskResult = await context.tasks.getTaskWithoutDependenciesIfPossible(
                 spaceId,
                 entityIdObject.taskId,
-                {consistency: "StrongWithinCache"},
+                {
+                    consistency: "StrongWithinCache",
+                    // Ok since we return none of a deleted task's content. We only return a deleted
+                    // stub for the task.
+                    dangerouslyAllowDeleted: true,
+                },
             );
             if (!taskResult) return null;
             if (!taskResult.ok) return {isPrivate: true};
@@ -3064,19 +3176,24 @@ async function fallbackGetSearchEntityBaseIfPossible(
             return {
                 isPrivate: false,
                 type: "Task",
+                spaceId: task.getSpaceId(),
                 title: taskSearchEntityBase.title,
                 task: {
                     id: entityIdObject.taskId,
                     ...taskSearchEntityBase,
                 },
-                spaceId: task.getSpaceId(),
             };
         }
         case "TaskCollection": {
             const collectionResult = await context.tasks.getCollectionIfPossible(
                 spaceId,
                 entityIdObject.collectionId,
-                {consistency: "StrongWithinCache"},
+                {
+                    consistency: "StrongWithinCache",
+                    // Ok since we return none of a deleted task collection's content. We only return a
+                    // deleted stub for the task.
+                    dangerouslyAllowDeleted: true,
+                },
             );
             if (!collectionResult) return null;
             if (!collectionResult.ok) return {isPrivate: true};
@@ -3086,13 +3203,13 @@ async function fallbackGetSearchEntityBaseIfPossible(
             return {
                 isPrivate: false,
                 type: "TaskCollection",
+                spaceId: collection.getSpaceId(),
                 title: taskCollectionSearchEntityBase.title,
                 collection: {
                     id: entityIdObject.collectionId,
                     titleVersion: taskCollectionSearchEntityBase.titleVersion,
                     color: taskCollectionSearchEntityBase.color,
                 },
-                spaceId: collection.getSpaceId(),
             };
         }
         case "Post": {

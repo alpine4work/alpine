@@ -12,14 +12,14 @@ import {
 import {getPostContentFileIds} from "~/server/forum/data/internal/get_post_content_file_ids.js";
 import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {RynamoEvent, RynamoPutItemEvent} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {getPostSearchEntityTitleContentSnippet} from "~/shared/forum/create_post_search_entity_title.js";
 import {isPostContent} from "~/shared/forum/post_content_schema.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Update the contents of a post if you are the post's author.
@@ -50,7 +50,7 @@ export function updatePostContent(
 
         await authorizeChannelAccess(context, oldPostItem.channelId, "Edit");
 
-        if (oldPostItem.authorId !== context.actor.getAccountId())
+        if (oldPostItem.author.accountId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update posts you authored");
 
         if (contentVersion !== (oldPostItem.contentUpdate?.mappings.length ?? 0))

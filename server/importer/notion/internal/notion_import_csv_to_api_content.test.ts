@@ -1,6 +1,6 @@
 /* eslint-disable cyberworlds/string-quotes -- Tests need straight quotes for CSV content */
 import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/notion_import_csv_to_api_content.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 describe("notionImportCsvToApiContent", () => {
     test("converts simple CSV to table", () => {
@@ -158,7 +158,9 @@ Task 2,Pending`;
                     elements: [
                         {
                             type: "Paragraph",
-                            elements: [{type: "Mention", target: {type: "Document", id: "doc1"}}],
+                            elements: [
+                                {type: "Mention", reference: {type: "Document", id: "doc1"}},
+                            ],
                         },
                     ],
                 },
@@ -171,7 +173,9 @@ Task 2,Pending`;
                     elements: [
                         {
                             type: "Paragraph",
-                            elements: [{type: "Mention", target: {type: "Document", id: "doc2"}}],
+                            elements: [
+                                {type: "Mention", reference: {type: "Document", id: "doc2"}},
+                            ],
                         },
                     ],
                 },
@@ -205,7 +209,9 @@ Task 1,Done`;
                     elements: [
                         {
                             type: "Paragraph",
-                            elements: [{type: "Mention", target: {type: "Document", id: "doc1"}}],
+                            elements: [
+                                {type: "Mention", reference: {type: "Document", id: "doc1"}},
+                            ],
                         },
                     ],
                 },

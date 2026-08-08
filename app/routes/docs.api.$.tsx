@@ -1,65 +1,100 @@
 import {json, redirect} from "@remix-run/node";
 import {useLoaderData} from "@remix-run/react";
 import {
+    documentationRouteHeaders,
+    getDocumentationResponseHeaders,
+} from "~/app/docs/documentation_response_headers.server.js";
+import {
     loadGeneratedDocumentationApiMdxPage,
     loadGeneratedDocumentationApiOperationRouteData,
 } from "~/app/docs/load_generated_docs.server.js";
-import {buildDocumentationApiCodeSamples} from "~/client/web/docs/build_api_documentation_code_samples.js";
-import {createDocumentationApiPageUrl} from "~/client/web/docs/create_documentation_api_page_url.js";
+import {createDocumentationMetaFunction} from "~/app/docs/opengraph/create_documentation_meta.js";
 import {DocumentationApiEndpointPage} from "~/client/web/docs/documentation_api_endpoint_page.js";
-import {
-    DocumentationApiOperation,
-    createDocumentationApiOperationUrl,
-} from "~/client/web/docs/documentation_api_model.js";
 import {DocumentationApiReferenceView} from "~/client/web/docs/documentation_api_reference_view.js";
-import {DocumentationMdxPage} from "~/client/web/docs/documentation_mdx_page.js";
+import {
+    DocumentationApiPageData,
+    DocumentationMdxPage,
+} from "~/client/web/docs/documentation_mdx_page.js";
 import {
     DocumentationOnThisPage,
     DocumentationOnThisPageItem,
 } from "~/client/web/docs/documentation_on_this_page.js";
-import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {notFoundResponse} from "~/server/remix/not_found_response.js";
+import {buildDocumentationApiCodeSamples} from "~/shared/docs/build_api_documentation_code_samples.js";
+import {createDocumentationApiPageUrl} from "~/shared/docs/create_documentation_api_page_url.js";
+import {
+    DocumentationApiOperation,
+    createDocumentationApiOperationUrl,
+} from "~/shared/docs/documentation_api_model.js";
 
-export function meta() {
-    return [
-        {title: `Alpine API Reference${metaTitlePostfix}`},
-        // TODO(#public-api): Remove this robots restriction when the public API is ready.
-        {name: "robots", content: "noindex,nofollow"},
-    ];
-}
+type DocumentationApiRouteMetaData =
+    | {type: "operation"; operation: DocumentationApiOperation}
+    | {type: "page"; page: DocumentationApiPageData};
 
+export const meta = createDocumentationMetaFunction<DocumentationApiRouteMetaData>(data => {
+    if (data.type === "operation") {
+        return {
+            type: "APIReference",
+            title: data.operation.title,
+            ...(data.operation.description === null
+                ? {}
+                : {description: data.operation.description}),
+            pageUrl: createDocumentationApiOperationUrl(data.operation.slug),
+        };
+    }
+    return {
+        type: "APIReference",
+        title: data.page.title,
+        ...(data.page.description === null ? {} : {description: data.page.description}),
+        pageUrl: data.page.url,
+    };
+});
+
+/** Resolve an API splat URL to generated operation or authored page data. */
 export async function loader({params}: LoaderArgs) {
     // The more specific `docs.api.schemas.$name` route wins for schema pages. This
     // splat serves both authored API pages and generated operation pages.
     const slug = params["*"] ?? "";
     const operationRouteData = await loadGeneratedDocumentationApiOperationRouteData(slug);
     if (operationRouteData !== null) {
-        return json({
-            type: "operation" as const,
-            ...operationRouteData,
-            samples: buildDocumentationApiCodeSamples(
-                operationRouteData.model,
-                operationRouteData.operation,
-            ),
-        });
+        return json(
+            {
+                type: "operation" as const,
+                ...operationRouteData,
+                samples: buildDocumentationApiCodeSamples(
+                    operationRouteData.model,
+                    operationRouteData.operation,
+                ),
+            },
+            {headers: getDocumentationResponseHeaders()},
+        );
     }
     const canonicalOperationSlug = slug.replaceAll(/[{}]/g, "");
     if (canonicalOperationSlug !== slug) {
         const canonicalOperationRouteData =
             await loadGeneratedDocumentationApiOperationRouteData(canonicalOperationSlug);
         if (canonicalOperationRouteData !== null) {
-            return redirect(createDocumentationApiOperationUrl(canonicalOperationSlug));
+            return redirect(createDocumentationApiOperationUrl(canonicalOperationSlug), {
+                headers: getDocumentationResponseHeaders(),
+            });
         }
     }
 
     const pageRouteData = await loadGeneratedDocumentationApiMdxPage(
         createDocumentationApiPageUrl(slug),
     );
-    if (pageRouteData !== null) return json({type: "page" as const, ...pageRouteData});
+    if (pageRouteData !== null) {
+        return json(
+            {type: "page" as const, ...pageRouteData},
+            {headers: getDocumentationResponseHeaders()},
+        );
+    }
 
     throw notFoundResponse();
 }
+
+export const headers = documentationRouteHeaders;
 
 function documentationApiEndpointToc({
     operation,

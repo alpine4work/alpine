@@ -1,10 +1,10 @@
 import {registerClassName} from "@vanilla-extract/css/adapter";
 import {endFileScope, getFileScope, setFileScope} from "@vanilla-extract/css/fileScope";
 import * as constantClassNames from "~/shared/design/core/constant_class_names.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
 
 // Register all of our shared content class names with `@vanilla-extract/css` so
 // that we can use them in CSS selectors without needing to add a `.`. For example,

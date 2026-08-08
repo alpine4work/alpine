@@ -60,18 +60,18 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {isId} from "~/shared/id/id.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskRealtimeEvent, TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
@@ -82,8 +82,8 @@ import {
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
 
 type TaskRealtimeServiceRoute =
@@ -404,17 +404,37 @@ export async function run({
                 }
 
                 const consistencySearchParam = url.searchParams.get("consistency");
+                const dangerouslyAllowDeletedSearchParam =
+                    url.searchParams.get("dangerouslyAllowDeleted");
 
                 let consistency: DynamoCacheReadConsistency = "Eventual";
 
                 if (consistencySearchParam !== null) {
                     switch (consistencySearchParam) {
+                        case "Eventual":
                         case "Strong":
                         case "StrongWithinCache":
                             consistency = consistencySearchParam;
                             break;
                         default:
                             throw new InvalidArgumentError("Invalid `consistency` search param");
+                    }
+                }
+
+                let dangerouslyAllowDeleted = false;
+
+                if (dangerouslyAllowDeletedSearchParam !== null) {
+                    switch (dangerouslyAllowDeletedSearchParam) {
+                        case "true":
+                            dangerouslyAllowDeleted = true;
+                            break;
+                        case "false":
+                            dangerouslyAllowDeleted = true;
+                            break;
+                        default:
+                            throw new InvalidArgumentError(
+                                "Invalid `dangerouslyAllowDeleted` search param",
+                            );
                     }
                 }
 
@@ -429,6 +449,7 @@ export async function run({
                             spaceId,
                             taskId: route.taskId,
                             consistency,
+                            dangerouslyAllowDeleted,
                         });
                     },
                 );
@@ -449,17 +470,37 @@ export async function run({
                 }
 
                 const consistencySearchParam = url.searchParams.get("consistency");
+                const dangerouslyAllowDeletedSearchParam =
+                    url.searchParams.get("dangerouslyAllowDeleted");
 
                 let consistency: DynamoCacheReadConsistency = "Eventual";
 
                 if (consistencySearchParam !== null) {
                     switch (consistencySearchParam) {
+                        case "Eventual":
                         case "Strong":
                         case "StrongWithinCache":
                             consistency = consistencySearchParam;
                             break;
                         default:
                             throw new InvalidArgumentError("Invalid `consistency` search param");
+                    }
+                }
+
+                let dangerouslyAllowDeleted = false;
+
+                if (dangerouslyAllowDeletedSearchParam !== null) {
+                    switch (dangerouslyAllowDeletedSearchParam) {
+                        case "true":
+                            dangerouslyAllowDeleted = true;
+                            break;
+                        case "false":
+                            dangerouslyAllowDeleted = true;
+                            break;
+                        default:
+                            throw new InvalidArgumentError(
+                                "Invalid `dangerouslyAllowDeleted` search param",
+                            );
                     }
                 }
 
@@ -472,6 +513,7 @@ export async function run({
                             spaceId,
                             collectionId: route.collectionId,
                             consistency,
+                            dangerouslyAllowDeleted,
                         });
                     },
                 );

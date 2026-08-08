@@ -8,8 +8,8 @@ import type {
     DatabaseActionOutput,
 } from "~/shared/databases/database_actions.js";
 import type {LoaderDatabaseActionResult} from "~/shared/databases/database_protocol_schemas.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import type {Result} from "~/shared/helpers/control/result.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import type {Result} from "~/shared/helpers/control/result.open_source.js";
 
 /**
  * Subscribes to a reactive (watched) action on the current database connection.

@@ -6,10 +6,10 @@ import {processStripeWebhook} from "~/server/billing/process_stripe_webhook.js";
 import {stripeLifetimeAccessPriceId} from "~/server/billing/stripe_price_ids.js";
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Context module for billing operations using Stripe.

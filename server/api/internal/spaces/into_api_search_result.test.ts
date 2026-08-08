@@ -1,7 +1,8 @@
 import {intoApiSearchResult} from "~/server/api/internal/spaces/into_api_search_result.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
+    BotId,
     ChannelId,
     ChatId,
     DocumentCommentThreadId,
@@ -9,7 +10,7 @@ import {
     PostId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -43,13 +44,54 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
+                title: "Test User",
+                bodySnippet: null,
+                matches: [],
                 type: "Account",
                 id: accountId,
-                title: "Test User",
-                bodyMatch: null,
+                shortName: "Test",
+            });
+        });
+
+        test("converts bot AccountModel to API Account result", () => {
+            const accountModel = new AccountModel({
+                id: accountId,
+                botId: generateId<BotId>(),
+                name: "Test Bot",
+                version: 1,
+                avatar: null,
+                nameVersion: 1,
+                reactionCharacter: null,
+                space: {
+                    version: 1,
+                    addedTime: new Date(),
+                    state: {type: "Active", activatedTime: new Date()},
+                    role: "Member",
+                },
+            });
+
+            const result = intoApiSearchResult(
+                new SearchEntityResultModel({
+                    model: accountModel,
+                    score: 1.0,
+                    bodyTextSnippet: [],
+                    parsedFilter: null,
+                }),
+                "",
+            );
+
+            expect(result).toEqual({
+                title: "Test Bot",
+                bodySnippet: null,
+                matches: [],
+                type: "Account",
+                id: accountId,
+                shortName: "Test",
+                bot: {id: accountModel.botId},
             });
         });
     });
@@ -73,17 +115,19 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Document",
                 id: documentId,
                 title: "Test Document",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
             });
         });
 
-        test("converts bodyTextSnippet with highlighted text", () => {
+        test("merges body matches separated by Unicode whitespace", () => {
             const documentId = generateId<DocumentId>();
             const model = new SearchEntityModel({
                 type: "Document",
@@ -99,23 +143,23 @@ describe("intoApiSearchResult", () => {
                     model,
                     score: 1.0,
                     bodyTextSnippet: [
-                        {text: "This is ", isHighlighted: false},
+                        {text: "This ", isHighlighted: false},
+                        {text: "is", isHighlighted: true},
+                        {text: "\u2003", isHighlighted: false},
                         {text: "highlighted", isHighlighted: true},
                         {text: " text", isHighlighted: false},
                     ],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Document",
                 id: documentId,
                 title: "Test Document",
-                bodyMatch: [
-                    {text: "This is "},
-                    {text: "highlighted", isMatch: true},
-                    {text: " text"},
-                ],
+                bodySnippet: "This is\u2003highlighted text",
+                matches: [{type: "BodySnippet", index: 5, length: 14}],
             });
         });
 
@@ -137,13 +181,52 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [{text: "Plain text", isHighlighted: false}],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Document",
                 id: documentId,
                 title: "Test Document",
-                bodyMatch: [{text: "Plain text"}],
+                bodySnippet: "Plain text",
+                matches: [],
+            });
+        });
+    });
+
+    describe("title match handling", () => {
+        test("approximately highlights title words matched by the query", () => {
+            const chatId = generateId<ChatId>();
+            const model = new SearchEntityModel({
+                type: "Chat",
+                title: "Direct chat setup",
+                chat: {
+                    id: chatId,
+                    version: 0,
+                    media: {
+                        type: "AccountPile",
+                        previewAccounts: [],
+                        accountCount: 0,
+                    },
+                },
+            });
+
+            const result = intoApiSearchResult(
+                new SearchEntityResultModel({
+                    model,
+                    score: 1.0,
+                    bodyTextSnippet: [],
+                    parsedFilter: null,
+                }),
+                "Direct chat setup",
+            );
+
+            expect(result).toEqual({
+                type: "Chat",
+                id: chatId,
+                title: "Direct chat setup",
+                bodySnippet: null,
+                matches: [{type: "Title", index: 0, length: 17}],
             });
         });
     });
@@ -167,13 +250,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Channel",
                 id: channelId,
                 title: "General Channel",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
             });
         });
 
@@ -195,13 +280,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Channel",
                 id: channelId,
                 title: "Unknown channel",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
             });
         });
     });
@@ -230,13 +317,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Chat",
                 id: chatId,
                 title: "Team Discussion",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
             });
         });
 
@@ -263,13 +352,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Chat",
                 id: chatId,
                 title: "Unknown chat",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
             });
         });
     });
@@ -301,6 +392,7 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [{text: "Hello world", isHighlighted: true}],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
@@ -308,7 +400,8 @@ describe("intoApiSearchResult", () => {
                 id: chatId,
                 index: messageIndex,
                 title: null,
-                bodyMatch: [{text: "Hello world", isMatch: true}],
+                bodySnippet: "Hello world",
+                matches: [{type: "BodySnippet", index: 0, length: 11}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Message Author",
@@ -336,13 +429,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [{text: "Document content", isHighlighted: false}],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Document",
                 id: documentId,
                 title: "Project Proposal",
-                bodyMatch: [{text: "Document content"}],
+                bodySnippet: "Document content",
+                matches: [],
             });
         });
 
@@ -364,13 +459,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Document",
                 id: documentId,
                 title: "Unknown document",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
             });
         });
     });
@@ -404,6 +501,7 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [{text: "Great point!", isHighlighted: true}],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
@@ -412,7 +510,8 @@ describe("intoApiSearchResult", () => {
                 threadId: commentThreadId,
                 index: commentIndex,
                 title: null,
-                bodyMatch: [{text: "Great point!", isMatch: true}],
+                bodySnippet: "Great point!",
+                matches: [{type: "BodySnippet", index: 0, length: 12}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Comment Author",
@@ -448,13 +547,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [{text: "Post content", isHighlighted: false}],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Post",
                 id: postId,
-                title: "Announcement",
-                bodyMatch: [{text: "Post content"}],
+                title: "Post Announcement",
+                bodySnippet: "Post content",
+                matches: [],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Post Author",
@@ -488,13 +589,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Post",
                 id: postId,
                 title: "Unknown post",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Post Author",
@@ -530,6 +633,7 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [{text: "Nice post!", isHighlighted: true}],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
@@ -537,7 +641,8 @@ describe("intoApiSearchResult", () => {
                 id: postId,
                 index: commentIndex,
                 title: null,
-                bodyMatch: [{text: "Nice post!", isMatch: true}],
+                bodySnippet: "Nice post!",
+                matches: [{type: "BodySnippet", index: 0, length: 10}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Comment Author",
@@ -569,13 +674,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [{text: "Task description", isHighlighted: false}],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Task",
                 id: taskId,
                 title: "Fix the bug",
-                bodyMatch: [{text: "Task description"}],
+                bodySnippet: "Task description",
+                matches: [],
                 status: {type: "Open", isActive: false},
             });
         });
@@ -602,13 +709,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Task",
                 id: taskId,
                 title: "Implement feature",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
                 status: {type: "Open", isActive: true},
             });
         });
@@ -635,13 +744,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Task",
                 id: taskId,
                 title: "Completed task",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
                 status: {type: "Closed"},
             });
         });
@@ -668,13 +779,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "Task",
                 id: taskId,
                 title: "Unknown task",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
                 status: {type: "Open", isActive: true},
             });
         });
@@ -703,13 +816,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "TaskCollection",
                 id: collectionId,
                 title: "Sprint 1 Tasks",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
             });
         });
 
@@ -735,13 +850,15 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
                 type: "TaskCollection",
                 id: collectionId,
                 title: "Unknown task collection",
-                bodyMatch: null,
+                bodySnippet: null,
+                matches: [],
             });
         });
     });
@@ -773,6 +890,7 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [{text: "Working on it", isHighlighted: true}],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toEqual({
@@ -780,7 +898,8 @@ describe("intoApiSearchResult", () => {
                 id: taskId,
                 index: commentIndex,
                 title: null,
-                bodyMatch: [{text: "Working on it", isMatch: true}],
+                bodySnippet: "Working on it",
+                matches: [{type: "BodySnippet", index: 0, length: 13}],
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Task Commenter",
@@ -804,6 +923,7 @@ describe("intoApiSearchResult", () => {
                     bodyTextSnippet: [],
                     parsedFilter: null,
                 }),
+                "",
             );
 
             expect(result).toBeNull();

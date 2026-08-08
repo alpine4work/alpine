@@ -1,6 +1,6 @@
 import {slugifySqlName} from "~/shared/databases/internal/slugify_sql_name.js";
 import type {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Resolve a unique SQLite table name for a human-readable `name` by probing the

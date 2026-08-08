@@ -1,6 +1,6 @@
 import {layoutReactionParty} from "~/client/web/reactions/internal/layout_reaction_party.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {
     Reaction,
     ReactionCharacter,

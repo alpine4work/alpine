@@ -4,8 +4,8 @@ import {dirname, join as joinPath} from "path";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {runProcessWithInheritedStdio} from "~/server/helpers/node/run_process_with_inherited_stdio.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const env = parseDotenv();

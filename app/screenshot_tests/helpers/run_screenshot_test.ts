@@ -23,15 +23,15 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 import {encodeOrderKey} from "~/shared/helpers/sort/encode_order_key.js";
-import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {OrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 const debug = createDebug(import.meta.url);
 

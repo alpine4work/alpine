@@ -1,8 +1,8 @@
-import {UnimplementedError} from "~/shared/error/error.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {assertId, generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";

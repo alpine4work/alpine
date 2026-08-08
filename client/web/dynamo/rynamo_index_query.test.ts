@@ -4,7 +4,7 @@ import {
     DynamoIndexPartitionKey,
     DynamoItemKey,
 } from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {generateServerSynchronizationCheckpointForTest} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 function testItemKey(string: string): DynamoItemKey {

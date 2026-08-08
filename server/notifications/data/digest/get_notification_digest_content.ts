@@ -1,14 +1,15 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {InboxEntriesIndex} from "~/server/notifications/data/internal/inbox_table.js";
+import {printInboxEntryDisplayContentLatestMessageAsText} from "~/server/notifications/data/print_inbox_entry_display_content_latest_message_as_text.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {AvatarVariant} from "~/shared/avatar/avatar_entity_path.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getInboxEntryDisplayContent} from "~/shared/notifications/get_inbox_entry_display_content.js";
 import {getEncodedInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 import {
@@ -70,20 +71,13 @@ export async function getNotificationDigestContent(
                 }
             });
 
-            const showLatestMessage =
-                entryDisplay.latestMessage &&
-                entryDisplay.latestMessage.contentTextSnippet.length > 0;
             return {
                 url: new URL(
                     `/inbox/${entry.model.spaceId}?selected=${selectedSearchParam}`,
                     context.constants.edgeServiceUrl,
                 ),
                 title,
-                preview: showLatestMessage
-                    ? `${getAccountShortNameWithoutFullNameTooltip(
-                          entryDisplay.latestMessage.author.initialData,
-                      )}: ${entryDisplay.latestMessage.contentTextSnippet}`
-                    : null,
+                preview: printInboxEntryDisplayContentLatestMessageAsText(entryDisplay) ?? null,
                 brandIconType: entryDisplay.brandIconType,
                 time: entryDisplay.time,
                 loudNotificationCount: entry.model.loudNotificationCount,

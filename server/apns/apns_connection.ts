@@ -12,16 +12,16 @@ import {
     InternalError,
     UnavailableError,
     UnknownError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {convertIdIntoUuid} from "~/shared/id/convert_id_into_uuid.js";
-import {generateId} from "~/shared/id/id.js";
-import {ApnsConnectionId} from "~/shared/id/types/id_types.js";
-import {getHeadersTracerData} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ApnsConnectionId} from "~/shared/id/types/id_types.open_source.js";
+import {getHeadersTracerData} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 const apnsHostname =
     process.env.NODE_ENV === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";

@@ -7,7 +7,7 @@ import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {parseTestMessageContent} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
@@ -198,11 +198,11 @@ Here\u2019s how the feedback clusters and what to do with it:
 
 Followup tasks:
 
-- [Define the billing domain model & API](https://alpine.inc/task/{{task1Id}}?mention)
+- [Define the billing domain model & API](https://alpine.inc/task/{{task1Id}}#mention)
 
-- [Document billing migration risks](https://alpine.inc/task/{{task2Id}}?mention)
+- [Document billing migration risks](https://alpine.inc/task/{{task2Id}}#mention)
 
-- [Add a business impact & analytics section](https://alpine.inc/task/{{task3Id}}?mention)
+- [Add a business impact & analytics section](https://alpine.inc/task/{{task3Id}}#mention)
                     `,
                     {
                         spaceId: space.id,

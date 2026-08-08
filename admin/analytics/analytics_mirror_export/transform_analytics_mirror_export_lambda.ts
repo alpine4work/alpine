@@ -25,12 +25,12 @@ import {
     stripeCustomersDimensionS3Prefix,
 } from "~/admin/analytics/analytics_mirror_export/dimension_table_schemas.js";
 import {withLambdaTimeout} from "~/server/lambda/helpers/with_lambda_timeout.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {assertId} from "~/shared/id/id.js";
-import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const s3Client = new S3Client({});
 

@@ -36,10 +36,10 @@ import {
     getFileAudioContentTypes,
     getFileImageContentTypes,
     getFileVideoContentTypes,
-} from "~/shared/files/file_content_type.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export type ContentEditorInsertMenuAction = {
     readonly label: string;

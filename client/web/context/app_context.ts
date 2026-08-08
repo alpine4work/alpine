@@ -3,7 +3,7 @@ import {ReactContextModule} from "~/client/web/context/react_context_module.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 
 /**

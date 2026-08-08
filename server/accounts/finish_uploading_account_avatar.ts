@@ -3,8 +3,8 @@ import {createAccountModelWithoutSpaceFromItem} from "~/server/accounts/internal
 import {getAccountItem} from "~/server/accounts/internal/get_account_item.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {AccountId, AvatarId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {AccountId, AvatarId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function finishUploadingAccountAvatar(
     context: ServerSessionActionContext,

@@ -2,7 +2,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "tasks",
-    test_deps = ["//shared/tasks/test_helpers", "//shared/test_helpers"],
+    test_deps = [
+        "//:node_modules/fast-check",
+        "//shared/tasks/test_helpers",
+        "//shared/test_helpers",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//:node_modules/@internationalized/date",
@@ -18,6 +22,7 @@ ts_project(
         "//shared/content",
         "//shared/crdt",
         "//shared/design",
+        "//shared/dynamo",
         "//shared/error",
         "//shared/files",
         "//shared/helpers",
@@ -25,6 +30,7 @@ ts_project(
         "//shared/messaging",
         "//shared/prosemirror",
         "//shared/schema",
+        "//shared/spaces",
         "//shared/search",
         "//shared/tasks/title",
         "//shared/web_socket",

@@ -5,12 +5,12 @@ import {Box} from "~/client/web/design/box.js";
 import {Modal} from "~/client/web/design/modal.js";
 import {DocumentationSectionLabel} from "~/client/web/docs/internal/documentation_section_label.js";
 import {DocumentationUnstyledButton} from "~/client/web/docs/internal/documentation_unstyled_button.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     DocumentationSearchIndex,
     DocumentationSearchResult,
     searchDocumentationEntries,
-} from "~/client/web/docs/search_documentation_entries.js";
-import {sprinkles} from "~/client/web/styles/styles.js";
+} from "~/shared/docs/search_documentation_entries.js";
 
 /**
  * The docs search: a header button that opens a keyboard-driven quick switcher

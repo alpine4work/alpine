@@ -3,8 +3,8 @@ import {useCallback} from "react";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useSiteContext} from "~/client/web/sites/context/site_context.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 
 export function useSiteMenuActions({editSiteNameAction}: {editSiteNameAction?: MenuAction}) {
     const siteContext = useSiteContext();

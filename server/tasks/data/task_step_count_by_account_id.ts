@@ -1,7 +1,7 @@
-import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export type TaskStepCountByAccountId = InstanceType<typeof TaskStepCountByAccountId>;
 

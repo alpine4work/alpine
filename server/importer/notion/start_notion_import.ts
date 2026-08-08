@@ -5,9 +5,9 @@ import {
     NotionImporterTable,
 } from "~/server/importer/notion/internal/notion_importer_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Transitions a Notion import from "Validated" to "ProcessQueued" and starts the

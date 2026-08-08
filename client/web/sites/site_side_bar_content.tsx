@@ -40,7 +40,7 @@ import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_in
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
-import {usePeekStackContext} from "~/client/web/peek/peek_stack_context.js";
+import {usePeekStackContextIfExists} from "~/client/web/peek/peek_stack_context.js";
 import {usePeekContext} from "~/client/web/remix/peek_context.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
@@ -76,12 +76,12 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {getSearchDynamicEntityPath} from "~/shared/search/path/get_search_entity_path.js";
@@ -910,7 +910,9 @@ function SiteNavigationEntryItem({
     const canManage = useCanManageSite();
     const site = useSite();
     const entityData = useSearchEntityModel(item.entity);
-    const peekStackContext = usePeekStackContext();
+    // Search modal peeks sit outside `<PeekStackContextProvider>`, so this may be null
+    // when the site tree is opened from a search breadcrumb chip.
+    const peekStackContext = usePeekStackContextIfExists();
     assert(entityData.type !== "Static");
 
     const getNextOrderKeyAbove = useCallback(
@@ -952,6 +954,32 @@ function SiteNavigationEntryItem({
     const contextMenuActions = useMemo(() => {
         if (!canManage) return [];
 
+        const linkMenuActions: Array<MenuAction> = [
+            {
+                label: "Copy link",
+                icon: <LinkIcon size={16} />,
+                pressErrorTitle: "Couldn\u2019t copy link",
+                onPress: async () => {
+                    const url = new URL(
+                        getSearchDynamicEntityPath(spaceId, entityData, "wide"),
+                        window.location.href,
+                    );
+                    await writeTextToClipboard(url.toString());
+                },
+            },
+        ];
+
+        if (peekStackContext) {
+            linkMenuActions.push({
+                label: "Open in peek",
+                pressErrorTitle: "Couldn\u2019t open in peek",
+                onPress: async () => {
+                    const path = getSearchDynamicEntityPath(spaceId, entityData, "wide");
+                    await peekStackContext.push(path);
+                },
+            });
+        }
+
         return [
             [
                 {
@@ -969,28 +997,7 @@ function SiteNavigationEntryItem({
                     actions: insertBelowMenuActions,
                 },
             ] satisfies ReadonlyArray<MenuAction>,
-            [
-                {
-                    label: "Copy link",
-                    icon: <LinkIcon size={16} />,
-                    pressErrorTitle: "Couldn\u2019t copy link",
-                    onPress: async () => {
-                        const url = new URL(
-                            getSearchDynamicEntityPath(spaceId, entityData, "wide"),
-                            window.location.href,
-                        );
-                        await writeTextToClipboard(url.toString());
-                    },
-                },
-                {
-                    label: "Open in peek",
-                    pressErrorTitle: "Couldn\u2019t open in peek",
-                    onPress: async () => {
-                        const path = getSearchDynamicEntityPath(spaceId, entityData, "wide");
-                        await peekStackContext.push(path);
-                    },
-                },
-            ] satisfies ReadonlyArray<MenuAction>,
+            linkMenuActions,
             [
                 {
                     label: `Remove ${getSearchEntityNoun(entityData.type)} from site`,

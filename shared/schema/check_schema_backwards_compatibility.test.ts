@@ -1,10 +1,10 @@
 import {BlockInference} from "~/shared/helpers/types/block_inference.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     SchemaBackwardsIncompatibleError,
     checkSchemaBackwardsCompatibility,
-} from "~/shared/schema/check_schema_backwards_compatibility.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+} from "~/shared/schema/check_schema_backwards_compatibility.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
 
 function testCase<LastValue, NextValue>({
     isBackwardsCompatible,

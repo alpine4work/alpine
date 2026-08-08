@@ -48,19 +48,19 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnauthenticatedError,
-} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageModel, MessageRoomKeyType} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadContentUpdate,
@@ -2854,7 +2854,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can\u2019t get messages from start when before cursor is greater than after cursor", async () => {
+        test("gets no messages from start when before cursor is greater than after cursor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -2913,14 +2913,18 @@ export function testMessagingImplementation<RoomKey extends string>(
                 fileIds: [],
             });
 
-            await expect(
-                getMessagesFromStart(context.action(session1), {
+            expect(
+                await getMessagesFromStart(context.action(session1), {
                     roomKey: room.key,
                     limit: 100,
                     afterMessageIndex: 10,
                     beforeMessageIndex: 5,
                 }),
-            ).rejects.toThrow(InternalError);
+            ).toEqual({
+                messageCount: 8,
+                messages: [],
+                otherReferencedMessages: [],
+            });
         });
 
         test("can get empty messages", async () => {
@@ -4699,7 +4703,7 @@ export function testMessagingImplementation<RoomKey extends string>(
             });
         });
 
-        test("can\u2019t get messages from end when before cursor is greater than after cursor", async () => {
+        test("gets no messages from end when before cursor is greater than after cursor", async () => {
             const room = await createRoom(context.action(session1), space.id);
 
             await createMessage(context.action(session1), {
@@ -4758,14 +4762,18 @@ export function testMessagingImplementation<RoomKey extends string>(
                 fileIds: [],
             });
 
-            await expect(
-                getMessagesFromEnd(context.action(session1), {
+            expect(
+                await getMessagesFromEnd(context.action(session1), {
                     roomKey: room.key,
                     limit: 100,
                     afterMessageIndex: 10,
                     beforeMessageIndex: 5,
                 }),
-            ).rejects.toThrow(InternalError);
+            ).toEqual({
+                messageCount: 8,
+                messages: [],
+                otherReferencedMessages: [],
+            });
         });
 
         test("can get empty messages from end", async () => {
@@ -16650,7 +16658,7 @@ export function testMessagingImplementation<RoomKey extends string>(
                 );
             });
 
-            test("can\u2019t add a reaction to the last stream message part if stream isn\u2019t complete", async () => {
+            test("can add a reaction to a frozen part in an incomplete stream message", async () => {
                 const space = await TestSpace.create(context);
                 const session1 = await space.createSession({role: "Admin"});
                 const botAccount = await TestBot.createAndInstantiate(session1);
@@ -16714,20 +16722,107 @@ export function testMessagingImplementation<RoomKey extends string>(
                     new Map(),
                 );
 
-                await expect(
-                    setMessageReaction(session1.action().clone(createTestPushContextModules()), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                        contentVersion: 0,
-                        pos: 39,
-                        reaction: "GenericLike",
-                    }),
-                ).rejects.toThrow(
-                    "Can\u2019t set reaction with position outside the message\u2019s bounds",
-                );
+                await setMessageReaction(session1.action().clone(createTestPushContextModules()), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 26,
+                    reaction: "GenericLike",
+                });
 
                 expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
-                    new Map(),
+                    new Map([[26, [[session1.account.id, "GenericLike"]]]]),
+                );
+            });
+
+            test("can add a reaction to the mutable part of an incomplete stream message", async () => {
+                const space = await TestSpace.create(context);
+                const session1 = await space.createSession({role: "Admin"});
+                const botAccount = await TestBot.createAndInstantiate(session1);
+
+                const room = await actuallyCreateRoom(context.action(session1), space.id, [
+                    {accountId: session1.account.id},
+                    {accountId: botAccount.id},
+                ]);
+
+                const message = await createMessage(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    parent: null,
+                    content: createSimpleMessageContent(),
+                    fileIds: [],
+                    isStream: true,
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 0,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 1")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 1,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 2")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 2,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 3")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                await setMessageReaction(session1.action().clone(createTestPushContextModules()), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    contentVersion: 0,
+                    pos: 27,
+                    reaction: "GenericLike",
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[39, [[session1.account.id, "GenericLike"]]]]),
+                );
+
+                await putMessageStreamPart(botAccount.action(getRoomBotScope(room.key)), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                    partIndex: 3,
+                    payload: {
+                        type: "Content",
+                        content: assertMessageContent(
+                            schema.node("doc", {}, [
+                                schema.node("paragraph", {}, [schema.text("Paragraph 4")]),
+                            ]),
+                        ),
+                    },
+                });
+
+                expect(await getMessageReactionsByPos(session1, room, message.index)).toEqual(
+                    new Map([[39, [[session1.account.id, "GenericLike"]]]]),
                 );
             });
 

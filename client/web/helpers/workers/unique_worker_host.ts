@@ -1,8 +1,8 @@
 import {readUniqueWorkerMessage} from "~/client/web/helpers/workers/unique_worker_message.js";
 import {WebWorkerRpc, WebWorkerRpcHandlers} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {WebWorkerRpcMethodDefinitions} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SchemaType} from "~/shared/schema/schema.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Handlers for tab → worker calls. Unlike plain {@link WebWorkerRpc} handlers,

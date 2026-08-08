@@ -1,10 +1,10 @@
 import prettyBytes from "pretty-bytes";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {
     FileContentType,
     canonicalizeFileContentTypeIfExists,
-} from "~/shared/files/file_content_type.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 export function getContentLengthAndCanonicalContentType(request: Request): {
     contentType: FileContentType;

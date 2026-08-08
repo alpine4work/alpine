@@ -1686,7 +1686,7 @@ var require_color = __commonJS({
     },
 });
 
-// shared/error/error_code.js
+// shared/error/error_code.open_source.js
 var ErrorCode = (function (ErrorCode2) {
     ErrorCode2[(ErrorCode2["Cancelled"] = 1)] = "Cancelled";
     ErrorCode2[(ErrorCode2["Unknown"] = 2)] = "Unknown";
@@ -1747,7 +1747,7 @@ function getErrorCodeName(code) {
     }
 }
 
-// shared/error/error.js
+// shared/error/error.open_source.js
 var ErrorBase = class _ErrorBase extends Error {
     code;
     displayMessage;
@@ -1792,7 +1792,7 @@ var InternalError = class extends ErrorBase {
     }
 };
 
-// shared/helpers/control/assert.js
+// shared/helpers/control/assert.open_source.js
 function assert(condition, message) {
     if (!condition) {
         const error = new InternalError(
@@ -2783,7 +2783,7 @@ function cubehelix2(hue2) {
 var cubehelix_default = cubehelix2(hue);
 var cubehelixLong = cubehelix2(nogamma);
 
-// shared/helpers/array/create_array_with_length.js
+// shared/helpers/array/create_array_with_length.open_source.js
 function createArrayWithLength(length, createItem) {
     const array = [];
     for (let index = 0; index < length; index++) {
@@ -3191,7 +3191,7 @@ var GlVertexArray = class {
     }
 };
 
-// shared/helpers/control/assert_exists.js
+// shared/helpers/control/assert_exists.open_source.js
 function assertExists(value, message) {
     if (value === null || value === void 0) {
         const error = new InternalError(
@@ -3369,7 +3369,7 @@ var GlTexture2d = class {
     }
 };
 
-// shared/helpers/object/has_own_property.js
+// shared/helpers/object/has_own_property.open_source.js
 function hasOwnProperty(object, key) {
     return Object.prototype.hasOwnProperty.call(object, key);
 }
@@ -3688,7 +3688,7 @@ function isEqual(leftDate, rightDate) {
     return +toDate(leftDate) === +toDate(rightDate);
 }
 
-// shared/helpers/object/is_plain_object.js
+// shared/helpers/object/is_plain_object.open_source.js
 function isPlainObject(value) {
     if (typeof value !== "object" || value === null) return false;
     if (Object.getPrototypeOf(value) === null) {
@@ -3701,7 +3701,7 @@ function isPlainObject(value) {
     return Object.getPrototypeOf(value) === prototype;
 }
 
-// shared/helpers/control/is_deep_equal.js
+// shared/helpers/control/is_deep_equal.open_source.js
 function isDeepEqual(value1, value2) {
     return isDeepEqualForUnknownValues(value1, value2);
 }
@@ -3769,7 +3769,7 @@ function areSetsDeeplyEqual(set1, set2) {
     return clonedSet1.size === 0;
 }
 
-// shared/helpers/control/capture_result.js
+// shared/helpers/control/capture_result.open_source.js
 function captureResult(action) {
     try {
         const value = action();
@@ -3792,7 +3792,7 @@ function unwrapResult(result) {
     }
 }
 
-// shared/helpers/control/lazy.js
+// shared/helpers/control/lazy.open_source.js
 var Lazy = class {
     _result;
     _get;
@@ -3813,14 +3813,14 @@ var Lazy = class {
     }
 };
 
-// shared/helpers/number/clamp.js
+// shared/helpers/number/clamp.open_source.js
 function clamp(min, number, max) {
     if (number < min) return min;
     if (number > max) return max;
     return number;
 }
 
-// shared/helpers/number/lerp.js
+// shared/helpers/number/lerp.open_source.js
 function lerp(a, b, n) {
     return (b - a) * n + a;
 }
@@ -4261,14 +4261,14 @@ function interpolateColors(a, b, n) {
     return (0, import_color10.default)(hcl_default(a, b)(n));
 }
 
-// shared/helpers/control/assert_equal_types.js
+// shared/helpers/control/assert_equal_types.open_source.js
 function assertEqualTypes(...MISMATCH) {}
 
 // shared/design/core/theme_colors.js
 var themeColors = ["red", "orange", "yellow", "green", "cyan", "blue", "indigo", "purple", "pink"];
 assertEqualTypes();
 
-// shared/helpers/number/stable_random.js
+// shared/helpers/number/stable_random.open_source.js
 function cyrb53(baseString, keyString, seed = 0) {
     let h1 = 3735928559 ^ seed,
         h2 = 1103547991 ^ seed;

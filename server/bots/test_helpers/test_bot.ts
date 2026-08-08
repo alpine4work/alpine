@@ -14,8 +14,8 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {ApiKey} from "~/shared/id/api_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotId} from "~/shared/id/types/id_types.open_source.js";
 
 let testBotCount = 1;
 

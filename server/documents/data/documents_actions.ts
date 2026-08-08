@@ -4,6 +4,7 @@ import {Step} from "prosemirror-transform";
 import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createAccessPolicyPermissionDeniedError} from "~/server/access/create_access_policy_permission_denied_error.js";
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {evaluateDeletedAccess} from "~/server/access/evaluate_deleted_access.js";
 import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
@@ -38,6 +39,7 @@ import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_en
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
+import {dangerouslyGetFileAttachmentTargetTransactionEntryWithoutTargetAuthorizationAsBot} from "~/server/files/data/dangerously_get_file_attachment_target_transaction_entry_without_target_authorization_as_bot.js";
 import {
     attachFileFromAttachment,
     getFileFromAttachment,
@@ -83,7 +85,7 @@ import {AccessLevel, AccessPolicy, EffectiveAccessPolicy} from "~/shared/access/
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     ContentDuplicationVariableValues,
     applyContentDuplicationVariableValues,
@@ -119,6 +121,7 @@ import {
     createDocumentCommentNotFoundError,
     createDocumentCommentThreadNotFoundError,
     createDocumentNotFoundError,
+    documentDeletedErrorDisplayMessage,
     documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel,
 } from "~/shared/documents/document_error_messages.js";
 import {
@@ -140,46 +143,46 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {Id, assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {Id, assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -188,7 +191,7 @@ import {
     FileId,
     SiteId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
@@ -248,6 +251,7 @@ export function getDocumentsTableForTest() {
 }
 
 type DocumentAttributesItem = DynamoTableItemType<typeof DocumentsTable, "Document", "Attributes">;
+type DocumentAttributesItemDeleted = NonNullable<DocumentAttributesItem["deleted"]>;
 
 type DocumentStepTransactionAfterSnapshotItem = DynamoTableItemType<
     typeof DocumentsTable,
@@ -522,6 +526,7 @@ export async function createDocument(
             lastIndexSearchEntityJob: newIndexSearchEntityJob,
             stepCountByAccountId: new DocumentStepCountByAccountId(new Map()),
             hasAddedFeedCandidateEntry,
+            deleted: null,
         }),
         DocumentsTable.transactionCreateOrReplaceItem({
             partitionType: "Document",
@@ -756,7 +761,7 @@ export async function duplicateDocument(
 export async function getDocumentPreviewIfPossible(
     context: ServerActionContext,
     id: DocumentId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<Result<DocumentPreviewModel, ErrorBase> | null> {
     const item = await getDocumentItemForAuthorizationIfExists(context, id, options);
     if (!item) return null;
@@ -773,6 +778,7 @@ export async function getDocumentPreviewIfPossible(
             version: item.version,
             titleWithoutFallback: item.titleWithoutFallback,
             accessPolicy: item.accessPolicy,
+            isDeleted: !!item.deleted,
         }),
     };
 }
@@ -792,7 +798,7 @@ export async function getDocumentPreviewIfPossible(
 export async function getDocumentPreviewIfExists(
     context: ServerActionContext,
     id: DocumentId,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<DocumentPreviewModel | null> {
     const result = await getDocumentPreviewIfPossible(context, id, options);
     if (!result) return null;
@@ -824,7 +830,7 @@ export async function authorizeDocumentAccess(
     context: ServerActionContext,
     documentId: DocumentId,
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<{spaceId: SpaceId; creatorId: AccountId | null; accessPolicy: AccessPolicy}> {
     const documentItem = await getDocumentItemForAuthorization(context, documentId, options);
 
@@ -846,7 +852,7 @@ export async function authorizeDocumentAccessIfPossible(
     context: ServerActionContext,
     documentId: DocumentId,
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<
     Result<{spaceId: SpaceId; creatorId: AccountId | null; accessPolicy: AccessPolicy}, ErrorBase>
 > {
@@ -872,9 +878,14 @@ export async function authorizeDocumentAccessIfPossible(
 
 async function authorizeDocumentItemAccess(
     context: ServerActionContext,
-    documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
+    documentItem: {
+        spaceId: SpaceId;
+        accessPolicy: AccessPolicy;
+        documentId: DocumentId;
+        deleted: DocumentAttributesItemDeleted | null;
+    },
     expectedAccessLevel: AccessLevel,
-    options?: {consistency?: DynamoCacheReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
 ): Promise<void> {
     unwrapResult(
         await authorizeDocumentItemAccessIfPossible(
@@ -888,7 +899,67 @@ async function authorizeDocumentItemAccess(
 
 async function authorizeDocumentItemAccessIfPossible(
     context: ServerActionContext,
-    documentItem: {spaceId: SpaceId; accessPolicy: AccessPolicy},
+    documentItem: {
+        spaceId: SpaceId;
+        accessPolicy: AccessPolicy;
+        documentId: DocumentId;
+        deleted: DocumentAttributesItemDeleted | null;
+    },
+    expectedAccessLevel: AccessLevel,
+    {
+        consistency,
+        dangerouslyAllowDeleted = false,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted?: boolean;
+    } = {},
+): Promise<Result<void, ErrorBase>> {
+    if (documentItem.deleted) {
+        // If the actor couldn't view the document then use a "permission denied" error to
+        // avoid leaking that the document was deleted.
+        const result = await authorizeDocumentItemAccessAllowingDeletedIfPossible(
+            context,
+            documentItem,
+            "View",
+            {consistency},
+        );
+        if (!result.ok) return result;
+
+        const hasDeletedAccess = await evaluateDeletedAccess(context, {
+            spaceId: documentItem.spaceId,
+            expectedAccessLevel,
+            dangerouslyAllowDeleted,
+        });
+
+        if (!hasDeletedAccess) {
+            return {
+                ok: false,
+                // NOTE(calebmer):Using `ErrorCode.NotFound` is important here. Consumers of this
+                // error will render not found errors as "Deleted" and `ErrorCode.PermissionDenied`
+                // as "Private".
+                error: new NotFoundError("Document was deleted", {
+                    aggregateDedupeKey: documentItem.documentId,
+                    displayMessage: documentDeletedErrorDisplayMessage,
+                }),
+            };
+        }
+    }
+
+    return await authorizeDocumentItemAccessAllowingDeletedIfPossible(
+        context,
+        documentItem,
+        expectedAccessLevel,
+        {consistency},
+    );
+}
+
+async function authorizeDocumentItemAccessAllowingDeletedIfPossible(
+    context: ServerActionContext,
+    documentItem: {
+        spaceId: SpaceId;
+        accessPolicy: AccessPolicy;
+        documentId: DocumentId;
+    },
     expectedAccessLevel: AccessLevel,
     options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<Result<void, ErrorBase>> {
@@ -995,11 +1066,39 @@ export const getInternalDocumentTestCounter = new TestCounter();
 async function getInternalDocumentIfExists(
     context: ServerActionContext,
     documentId: DocumentId,
+    options?: {
+        // If true then you can read the document content with the "View" access level but
+        // comments will be stripped from the document's content. Similar to
+        // `getDocumentWithOptionalComments()`.
+        withOptionalComments?: boolean;
+
+        // Allow reading a document's comment marks even if the actor only has the "View"
+        // access level but only if the actor is coming from
+        // `DocumentCollaborationService`.
+        forCollaborationServiceInitialization?: boolean;
+
+        // Allow reading the document content with strong consistency.
+        consistency?: DynamoCacheReadConsistency;
+    },
+): Promise<InternalDocument | null> {
+    const result = await getInternalDocumentIfPossible(context, documentId, options);
+    if (result === null) return null;
+    return unwrapResult(result);
+}
+
+async function getInternalDocumentIfPossible(
+    context: ServerActionContext,
+    documentId: DocumentId,
     {
+        dangerouslyAllowDeleted = false,
         withOptionalComments = false,
         forCollaborationServiceInitialization = false,
         consistency = "Eventual",
     }: {
+        // If true then deleted document content can be read after authorizing "View"
+        // access. This returns the persisted content as-is.
+        dangerouslyAllowDeleted?: boolean;
+
         // If true then you can read the document content with the "View" access level but
         // comments will be stripped from the document's content. Similar to
         // `getDocumentWithOptionalComments()`.
@@ -1013,7 +1112,7 @@ async function getInternalDocumentIfExists(
         // Allow reading the document content with strong consistency.
         consistency?: DynamoCacheReadConsistency;
     } = {},
-): Promise<InternalDocument | null> {
+): Promise<Result<InternalDocument, ErrorBase> | null> {
     getInternalDocumentTestCounter.incrementForTest(documentId);
 
     let attributes: DocumentAttributesItem | null = null;
@@ -1050,7 +1149,21 @@ async function getInternalDocumentIfExists(
                 DocumentItemAuthorizationCache.set(context, consistency, documentId, item);
 
                 // Must have view access level to read the document.
-                await authorizeDocumentItemAccess(context, item, "View", {consistency});
+                const viewAuthorizationResult = await authorizeDocumentItemAccessIfPossible(
+                    context,
+                    item,
+                    "View",
+                    {consistency, dangerouslyAllowDeleted},
+                );
+
+                if (!viewAuthorizationResult.ok) {
+                    return viewAuthorizationResult;
+                }
+
+                if (attributes.deleted && dangerouslyAllowDeleted) {
+                    isCommentAccessAuthorized = true;
+                    break;
+                }
 
                 const commentAuthorizationResult = await authorizeDocumentItemAccessIfPossible(
                     context,
@@ -1071,7 +1184,7 @@ async function getInternalDocumentIfExists(
                         // in document content.
                         isCommentAccessAuthorized = true;
                     } else if (!withOptionalComments) {
-                        throw commentAuthorizationResult.error;
+                        return commentAuthorizationResult;
                     }
                 } else {
                     isCommentAccessAuthorized = true;
@@ -1151,15 +1264,18 @@ async function getInternalDocumentIfExists(
     }
 
     return {
-        attributes,
-        stepTransactionsAfterSnapshot,
-        snapshot,
-        version,
-        // If you're not allowed to read comments then strip comment marks from the
-        // document.
-        content: !isCommentAccessAuthorized
-            ? assertDocumentContent(stripDocumentContentCommentMarks(content))
-            : content,
+        ok: true,
+        value: {
+            attributes,
+            stepTransactionsAfterSnapshot,
+            snapshot,
+            version,
+            // If you're not allowed to read comments then strip comment marks from the
+            // document.
+            content: !isCommentAccessAuthorized
+                ? assertDocumentContent(stripDocumentContentCommentMarks(content))
+                : content,
+        },
     };
 }
 
@@ -1593,13 +1709,14 @@ async function getDocumentWithOptionalCommentsAndCommentThreadsIfExists(
 export async function getDocumentTitleIfExists(
     context: ServerActionContext,
     documentId: DocumentId,
-    options?: {consistency?: DynamoCacheReadConsistency},
-): Promise<{title: string; accessPolicy: AccessPolicy} | null> {
+    options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
+): Promise<{title: string; accessPolicy: AccessPolicy; isDeleted: boolean} | null> {
     const documentPreview = await getDocumentPreviewIfExists(context, documentId, options);
     if (!documentPreview) return null;
     return {
         title: documentPreview.getTitle(),
         accessPolicy: documentPreview.accessPolicy,
+        isDeleted: documentPreview.isDeleted,
     };
 }
 
@@ -1610,22 +1727,38 @@ export async function getDocumentTitleIfExists(
 export async function getDocumentContent(
     context: ServerActionContext,
     documentId: DocumentId,
-    {consistency}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+    {
+        consistency,
+        dangerouslyAllowDeleted = false,
+    }: {
+        consistency?: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted?: boolean;
+    } = emptyObject,
 ): Promise<{
     spaceId: SpaceId;
     createdTime: Date;
+    deleted: DocumentAttributesItemDeleted | null;
     version: number;
     content: DocumentContent;
     creator: {id: AccountId | null; from: DocumentCreatorFrom | null};
     stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
     updateContentPreview: (context: ServerActionContext) => Promise<void>;
 }> {
-    const internalDocument = await getInternalDocumentIfExists(context, documentId, {consistency});
-    if (!internalDocument) throw createDocumentNotFoundError(documentId);
+    const internalDocumentResult = await getInternalDocumentIfPossible(context, documentId, {
+        consistency,
+        dangerouslyAllowDeleted,
+    });
+
+    if (!internalDocumentResult) {
+        throw createDocumentNotFoundError(documentId);
+    }
+
+    const internalDocument = unwrapResult(internalDocumentResult);
 
     return {
         spaceId: internalDocument.attributes.spaceId,
         createdTime: internalDocument.attributes.createdTime,
+        deleted: internalDocument.attributes.deleted,
         version: internalDocument.version,
         content: internalDocument.content,
         creator: {
@@ -1647,6 +1780,7 @@ export async function getDocumentContent(
                 documentId,
                 version: internalDocument.version,
                 content: internalDocument.content,
+                dangerouslyAllowDeleted,
             }),
     };
 }
@@ -1670,16 +1804,18 @@ async function updateDocumentContentPreviewAfterGetDocumentContent(
         documentId,
         version,
         content,
+        dangerouslyAllowDeleted,
     }: {
         documentId: DocumentId;
         version: number;
         content: DocumentContent;
+        dangerouslyAllowDeleted: boolean;
     },
 ) {
     // Double check the new context has document access. We don't authorize that
     // `version` or `content` match what's in the document because we know `version`
     // and `content` come from `getDocumentContent()`.
-    await authorizeDocumentAccess(context, documentId, "View");
+    await authorizeDocumentAccess(context, documentId, "View", {dangerouslyAllowDeleted});
 
     const contentSnippet = getDocumentContentPreviewSnippet(content);
 
@@ -2050,29 +2186,19 @@ export async function getDocumentCommentThreadContent(
         getDocumentCommentThreadItem(context, {documentId, commentThreadId, consistency}),
     ]);
 
-    const firstCommentAuthorId = iterableFirst(
-        commentThreadItem.commentsSummary.commentCountByAuthorId.keys(),
+    const firstCommentAuthorId = assertExists(
+        iterableFirst(commentThreadItem.commentsSummary.commentCountByAuthorId.keys()),
     );
-
-    const fallbackContentSnippet = commentThreadItem.fallbackContentSnippet
-        ? {
-              version: commentThreadItem.fallbackContentSnippet.version,
-              node: assertDocumentWithOptionalTitleContent(
-                  stripDocumentContentCommentMarks(commentThreadItem.fallbackContentSnippet.node, {
-                      exceptCommentThreadIds: new Set([commentThreadItem.commentThreadId]),
-                  }),
-              ),
-          }
-        : null;
 
     return {
         spaceId,
         id: commentThreadId,
         createdTime: commentThreadItem.createdTime,
+        createdTimeZone: commentThreadItem.createdTimeZone,
         isResolved: commentThreadItem.resolutionState.type === "Resolved",
         commentCount: getDocumentCommentCount(commentThreadItem.commentsSummary),
         firstCommentAuthorId,
-        fallbackContentSnippet,
+        fallbackContentSnippet: commentThreadItem.fallbackContentSnippet,
     };
 }
 
@@ -2289,6 +2415,7 @@ export class DocumentContentCacheForUpdate {
         id: DocumentId,
         {clientVersion}: {clientVersion: number},
     ): Promise<{
+        readonly documentId: DocumentId;
         readonly createdTime: Date;
         readonly spaceId: SpaceId;
         readonly creator: {
@@ -2298,6 +2425,7 @@ export class DocumentContentCacheForUpdate {
         readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
         readonly stepCountByAccountId: DocumentStepCountByAccountId;
         readonly hasAddedFeedCandidateEntry: boolean;
+        readonly deleted: DocumentAttributesItemDeleted | null;
         readonly version: number;
         readonly content: DocumentContent;
         readonly accessPolicy: AccessPolicy;
@@ -2325,6 +2453,7 @@ export class DocumentContentCacheForUpdate {
             newLastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
             newStepCountByAccountId: DocumentStepCountByAccountId;
             newHasAddedFeedCandidateEntry: boolean;
+            newDeleted: DocumentAttributesItemDeleted | null;
             clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
@@ -2345,6 +2474,7 @@ export class DocumentContentCacheForUpdate {
                     stepCountByAccountId: internalDocument.attributes.stepCountByAccountId,
                     hasAddedFeedCandidateEntry:
                         internalDocument.attributes.hasAddedFeedCandidateEntry,
+                    deleted: internalDocument.attributes.deleted,
                     version: internalDocument.version,
                     content: internalDocument.content,
                     accessPolicy: internalDocument.content.attrs.accessPolicy,
@@ -2469,6 +2599,7 @@ export class DocumentContentCacheForUpdate {
                             lastIndexSearchEntityJob: attributes.lastIndexSearchEntityJob,
                             stepCountByAccountId: attributes.stepCountByAccountId,
                             hasAddedFeedCandidateEntry: attributes.hasAddedFeedCandidateEntry,
+                            deleted: attributes.deleted,
                             version: attributes.version,
                             content,
                             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -2481,12 +2612,14 @@ export class DocumentContentCacheForUpdate {
             }
 
             return {
+                documentId: id,
                 createdTime: entry.createdTime,
                 spaceId: entry.spaceId,
                 creator: entry.creator,
                 lastIndexSearchEntityJob: entry.lastIndexSearchEntityJob,
                 stepCountByAccountId: entry.stepCountByAccountId,
                 hasAddedFeedCandidateEntry: entry.hasAddedFeedCandidateEntry,
+                deleted: entry.deleted,
                 version: entry.version,
                 content: entry.content,
                 accessPolicy: entry.content.attrs.accessPolicy,
@@ -2502,6 +2635,7 @@ export class DocumentContentCacheForUpdate {
                     newLastIndexSearchEntityJob,
                     newStepCountByAccountId,
                     newHasAddedFeedCandidateEntry,
+                    newDeleted,
                     clientId,
                 }) => {
                     const updatedEntry = entry;
@@ -2525,6 +2659,7 @@ export class DocumentContentCacheForUpdate {
                             lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                             stepCountByAccountId: newStepCountByAccountId,
                             hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
+                            deleted: newDeleted,
                             version: entry.version + newSteps.length,
                             content: newContent,
                             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -2550,6 +2685,7 @@ type DocumentContentCacheForUpdateEntry = {
     readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
     readonly stepCountByAccountId: DocumentStepCountByAccountId;
     readonly hasAddedFeedCandidateEntry: boolean;
+    readonly deleted: DocumentAttributesItemDeleted | null;
     readonly version: number;
     readonly content: DocumentContent;
 
@@ -2830,6 +2966,7 @@ export async function updateDocumentContent(
         clientId,
         clientRequestToken,
         intentionallyUpdateAccessPolicy,
+        intentionallyUpdateDeletedTime,
         createCommentThreads = [],
         resolveCommentThreadIds = [],
         unresolveCommentThreadIds = [],
@@ -2844,11 +2981,15 @@ export async function updateDocumentContent(
             accessPolicy: CreateOrUpdateAccessPolicy;
             notification: ShareNotification | null;
         };
+        intentionallyUpdateDeletedTime?: {
+            deletedTime: Date;
+        };
         createCommentThreads?: ReadonlyArray<{
             commentThreadId: DocumentCommentThreadId;
             initialCommentContent: MessageContent;
             initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone: TimeZone;
+            attachInitialCommentFilesAsBot?: boolean;
 
             /**
              * Optionally allow the caller to specify the time at which we report the thread
@@ -3027,7 +3168,35 @@ export async function updateDocumentContent(
         // here.
         await authorizeDocumentItemAccess(context, internalDocument, expectedAccessLevel);
 
-        const [{newContent, steps, invertedSteps, conflictingSteps}] = await runAllPromises([
+        const initialCommentFileIdsToAttachAsBot = new Set<FileId>();
+        const existingInitialCommentFileValidationPromises: Array<Promise<unknown>> = [];
+
+        for (const createCommentThread of createCommentThreads) {
+            for (const fileId of createCommentThread.initialCommentFileIds) {
+                if (!isId<FileId>(fileId)) continue;
+
+                if (createCommentThread.attachInitialCommentFilesAsBot) {
+                    initialCommentFileIdsToAttachAsBot.add(fileId);
+                } else {
+                    existingInitialCommentFileValidationPromises.push(
+                        getFileFromAttachment(
+                            context,
+                            fileId,
+                            FileDocumentAuthorizer.bind({
+                                type: "DocumentComments",
+                                documentId,
+                            }),
+                        ),
+                    );
+                }
+            }
+        }
+
+        const [
+            {newContent, steps, invertedSteps, conflictingSteps},
+            ,
+            initialCommentFileAttachmentTransactionEntries,
+        ] = await runAllPromises([
             getCollaborativelyUpdateContentResult(context, {
                 currentVersion: internalDocument.version,
                 currentContent: internalDocument.content,
@@ -3071,19 +3240,16 @@ export async function updateDocumentContent(
                     }
                 },
             }),
+            runAllPromises(existingInitialCommentFileValidationPromises),
             runAllPromises(
-                flatMapIterable(createCommentThreads, createCommentThread =>
-                    mapIterable(createCommentThread.initialCommentFileIds, fileId =>
-                        isId<FileId>(fileId)
-                            ? getFileFromAttachment(
-                                  context,
-                                  fileId,
-                                  FileDocumentAuthorizer.bind({
-                                      type: "DocumentComments",
-                                      documentId: documentId,
-                                  }),
-                              )
-                            : null,
+                Array.from(initialCommentFileIdsToAttachAsBot, fileId =>
+                    dangerouslyGetFileAttachmentTargetTransactionEntryWithoutTargetAuthorizationAsBot(
+                        context,
+                        fileId,
+                        FileDocumentAuthorizer.bind({
+                            type: "DocumentComments",
+                            documentId,
+                        }),
                     ),
                 ),
             ),
@@ -3095,6 +3261,28 @@ export async function updateDocumentContent(
         const newAccessPolicy: AccessPolicy = newContent.attrs.accessPolicy;
 
         const hasAccessPolicyChanged = !isDeepEqual(oldAccessPolicy, newAccessPolicy);
+
+        const oldDeletedTime: Date | null = internalDocument.content.attrs.deletedTime;
+        const newDeletedTime: Date | null = newContent.attrs.deletedTime;
+        const hasDeletedTimeChanged = oldDeletedTime?.getTime() !== newDeletedTime?.getTime();
+
+        // We don't allow the deleted time to be updated unless
+        // `intentionallyUpdateDeletedTime` is defined. This is a protection which prevents
+        // the deleted time from being updated accidentally by ProseMirror.
+        if (!intentionallyUpdateDeletedTime && hasDeletedTimeChanged) {
+            throw new PermissionDeniedError(
+                "Can\u2019t update the document\u2019s deleted time unless `intentionallyUpdateDeletedTime` is provided",
+            );
+        }
+
+        if (
+            intentionallyUpdateDeletedTime &&
+            intentionallyUpdateDeletedTime.deletedTime.getTime() !== newDeletedTime?.getTime()
+        ) {
+            throw new PermissionDeniedError(
+                "The document\u2019s new deleted time doesn\u2019t match `intentionallyUpdateDeletedTime`",
+            );
+        }
 
         // We don't allow the access policy to be updated unless
         // `intentionallyUpdateAccessPolicy` is defined. This is a protection which
@@ -3127,8 +3315,14 @@ export async function updateDocumentContent(
             );
         }
 
-        // Must have the `Manage` permission level to update the access policy.
-        if (hasAccessPolicyChanged || intentionallyUpdateAccessPolicy) {
+        // Must have the `Manage` permission level to update the access policy or delete a
+        // document.
+        if (
+            hasAccessPolicyChanged ||
+            intentionallyUpdateAccessPolicy ||
+            hasDeletedTimeChanged ||
+            intentionallyUpdateDeletedTime
+        ) {
             await authorizeDocumentItemAccess(context, internalDocument, "Manage");
         }
 
@@ -3173,6 +3367,21 @@ export async function updateDocumentContent(
         const oldHasAddedFeedCandidateEntry = internalDocument.hasAddedFeedCandidateEntry;
         const newHasAddedFeedCandidateEntry =
             oldHasAddedFeedCandidateEntry || !!newEffectiveAccessPolicy.defaultGrant;
+
+        const newDeleted: DocumentAttributesItemDeleted | null = hasDeletedTimeChanged
+            ? newDeletedTime
+                ? {
+                      time: newDeletedTime,
+                      deletor: {
+                          id: context.actor.getPossiblyBotAccountId(),
+                          from:
+                              context.actor.type === "Bot"
+                                  ? {type: "Bot", accountId: context.actor.getBotAccountId()}
+                                  : null,
+                      },
+                  }
+                : null
+            : internalDocument.deleted;
 
         const commentThreadItemPromiseById = new Map<
             DocumentCommentThreadId,
@@ -3268,7 +3477,7 @@ export async function updateDocumentContent(
                                     // should also drop the `accessPolicy` attr on `doc`.
                                     node: assertDocumentWithOptionalTitleContent(
                                         DocumentWithOptionalTitleContentProsemirrorSchema.nodeFromJSON(
-                                            contentSnippet.node.toJSON(),
+                                            contentSnippet.toJSON(),
                                         ),
                                     ),
                                 },
@@ -3319,6 +3528,7 @@ export async function updateDocumentContent(
         });
 
         const transaction: Array<DynamoTransactionEntry | RynamoTransactionEntry> = [];
+        transaction.push(...initialCommentFileAttachmentTransactionEntries);
 
         let newLastIndexSearchEntityJob = internalDocument.lastIndexSearchEntityJob;
         let newStepCountByAccountId = internalDocument.stepCountByAccountId;
@@ -3338,7 +3548,8 @@ export async function updateDocumentContent(
                 updatedTraits.push("Title");
             }
 
-            if (oldAccessPolicy !== newAccessPolicy) {
+            // Deletion is an authorization change — the document becomes inaccessible.
+            if (oldAccessPolicy !== newAccessPolicy || hasDeletedTimeChanged) {
                 updatedTraits.push("Authorization");
             }
 
@@ -3412,6 +3623,7 @@ export async function updateDocumentContent(
                         lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                         stepCountByAccountId: newStepCountByAccountId,
                         hasAddedFeedCandidateEntry: newHasAddedFeedCandidateEntry,
+                        deleted: newDeleted,
                     },
                     {
                         condition: {
@@ -3577,6 +3789,7 @@ export async function updateDocumentContent(
                     documentId: documentId,
                     commentThreadId: createCommentThread.commentThreadId,
                     createdTime,
+                    createdTimeZone: createCommentThread.createdTimeZone,
                     fallbackContentSnippet: null,
                     commentsSummary: {
                         nextCommentIndex: 1,
@@ -3809,6 +4022,7 @@ export async function updateDocumentContent(
                     newLastIndexSearchEntityJob,
                     newStepCountByAccountId,
                     newHasAddedFeedCandidateEntry,
+                    newDeleted,
                     clientId,
                 });
             }
@@ -5004,7 +5218,7 @@ export async function createDocumentComment(
                     commentThreadId,
                     consistency,
                 }),
-                (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+                (async (): Promise<ApiBotWebhookCreatedMessageEventParent | null> => {
                     if (!parent) return null;
 
                     switch (parent.type) {
@@ -5259,7 +5473,14 @@ export async function createDocumentComment(
  * Currently, you completely replace a part when you update it. We may allow more
  * granular part updates in the future.
  */
-export function putDocumentCommentStreamPart(
+// NOTE(ifitzsimmons, 2026-07-16): This function adds/updates a part of the message
+// stream and broadcasts an event to all connected clients. Stream parts can/should
+// only be added in two scenarios:
+//
+// 1. A bot is sending a message via our API.
+// 2. We've detected that a message stream has timed out and we're completing the
+//    stream with an error message.
+export function putDocumentCommentStreamPartAndBroadcastEvent(
     context: ServerActionContext,
     {
         documentId,
@@ -6020,13 +6241,8 @@ export async function getDocumentCommentPayload(
         commentIndex: number;
         consistency?: DynamoCacheReadConsistency;
     },
-): Promise<
-    MessageItem & {
-        spaceId: SpaceId;
-        documentAccessPolicy: AccessPolicy;
-    }
-> {
-    const {spaceId, commentItem, documentAccessPolicy} = await getDocumentCommentItem(context, {
+): Promise<MessageItem & {spaceId: SpaceId}> {
+    const {spaceId, commentItem} = await getDocumentCommentItem(context, {
         documentId,
         commentThreadId,
         commentIndex,
@@ -6035,7 +6251,6 @@ export async function getDocumentCommentPayload(
 
     return {
         spaceId,
-        documentAccessPolicy,
         ...commentItem,
     };
 }
@@ -6114,7 +6329,7 @@ export async function putDocumentCommentMessageApprovalDecisions(
     completedTime: Date | null;
 }> {
     return await putMessageApprovalDecisions(context, {
-        room: {type: "DocumentCommentThread", id: documentId, threadId: commentThreadId},
+        room: {type: "DocumentThread", id: commentThreadId, document: {id: documentId}},
         messageIndex: commentIndex,
         payload,
         consistency,
@@ -6249,7 +6464,7 @@ async function getDocumentCommentItem(
         consistency?: DynamoCacheReadConsistency;
     },
 ) {
-    const [{spaceId, accessPolicy}, commentThreadItem, commentItem] = await runAllPromises([
+    const [{spaceId}, commentThreadItem, commentItem] = await runAllPromises([
         authorizeDocumentAccess(context, documentId, "Comment", {consistency}),
 
         // Throws an error if the comment thread item doesn't exist.
@@ -6277,7 +6492,6 @@ async function getDocumentCommentItem(
     return {
         spaceId,
         commentItem,
-        documentAccessPolicy: accessPolicy,
     };
 }
 
@@ -7014,8 +7228,10 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
-    const queryStartCommentIndex =
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+    const queryStartCommentIndex = Math.max(
+        0,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const queryEndCommentIndex = Math.min(
         queryStartCommentIndex + limit - 1,
@@ -7158,8 +7374,10 @@ export async function getDocumentCommentPayloadsFromStart(
     commentCount: number;
     comments: Array<MessageItem>;
 }> {
-    const queryStartCommentIndex =
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0;
+    const queryStartCommentIndex = Math.max(
+        0,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const queryEndCommentIndex = Math.min(
         queryStartCommentIndex + limit - 1,
@@ -7299,19 +7517,15 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
 }> {
     if (limit === 0) return {comments: [], otherReferencedComments: []};
 
-    const queryStartCommentIndex = Math.max(
-        typeof beforeCommentIndex === "number"
-            ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - limit,
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    const queryEndCommentIndex = Math.min(
+        getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndCommentIndex =
-        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartCommentIndex = Math.max(
+        queryEndCommentIndex - limit + 1,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
@@ -7453,19 +7667,15 @@ export async function getDocumentCommentPayloadsFromEnd(
         consistency,
     });
 
-    const queryStartCommentIndex = Math.max(
-        typeof beforeCommentIndex === "number"
-            ? beforeCommentIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - limit,
-        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    const queryEndCommentIndex = Math.min(
+        getDocumentCommentCount((await commentThreadItemPromise)?.commentsSummary) - 1,
+        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndCommentIndex =
-        typeof beforeCommentIndex === "number" ? beforeCommentIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartCommentIndex = Math.max(
+        queryEndCommentIndex - limit + 1,
+        typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+    );
 
     const [{spaceId}, commentThreadItem, comments] = await runAllPromises([
         authorizeDocumentAccess(context, documentId, "Comment", {consistency}),

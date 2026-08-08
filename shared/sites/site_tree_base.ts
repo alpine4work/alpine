@@ -1,7 +1,7 @@
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {compareByObjectKey} from "~/shared/helpers/sort/compare_by_object_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {computeFirstEntityId} from "~/shared/sites/compute_first_entity_id.js";
 import {SiteContainerId, isSiteContainerId} from "~/shared/sites/site_entry_id.js";

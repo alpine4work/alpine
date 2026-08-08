@@ -1,4 +1,4 @@
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * The Alpine company-wide space in production.

@@ -1,4 +1,4 @@
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {Reaction, ReactionMap} from "~/shared/reactions/reaction.js";
 
 /**

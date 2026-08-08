@@ -17,10 +17,10 @@ import {IconButton} from "~/client/web/design/icon_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
-import type {DatabaseFieldId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
+import type {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import type {DatabaseFieldId} from "~/shared/id/types/id_types.open_source.js";
 
 type FieldWithPosition = {
     readonly id: DatabaseFieldId;

@@ -13,9 +13,9 @@ import {
     runTableMigrations,
     tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;

@@ -5,9 +5,9 @@ import {
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {SlackContextModuleBase} from "~/server/context/slack_context_module_base.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /** No-op implementation for tests. Makes no network calls. */
 export class NoopSlackContextModule extends SlackContextModuleBase {

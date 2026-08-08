@@ -16,7 +16,7 @@ import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/client/web/styles/styles.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders

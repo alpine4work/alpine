@@ -9,9 +9,9 @@ import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.
 import {DocumentCollaborationPresenceState} from "~/shared/documents/document_collaboration_protocol.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.open_source.js";
 
 export function useDocumentContentEditorPhantomSelections({
     editorState,

@@ -22,24 +22,29 @@ import {NavigateFunction} from "~/client/web/remix/use_navigate.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
-import {ErrorBase, InternalError, NotFoundError, UnimplementedError} from "~/shared/error/error.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
+import {
+    ErrorBase,
+    InternalError,
+    NotFoundError,
+    UnimplementedError,
+} from "~/shared/error/error.open_source.js";
+import {ErrorCode} from "~/shared/error/error_code.open_source.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {fileEntityMaxRecursionDepth} from "~/shared/files/file_entity_max_recursion_depth.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {renderProsemirrorDomOutputSpec} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
@@ -172,10 +177,7 @@ export function renderContentFileEntityPreview(
                     : isPermissionDeniedError
                       ? `Private ${entityNoun}`
                       : `Couldn\u2019t preview ${entityNoun}`,
-                displayMessage:
-                    error instanceof ErrorBase
-                        ? (error.displayMessage ?? defaultErrorDisplayMessage)
-                        : defaultErrorDisplayMessage,
+                displayMessage: getErrorDisplayMessage(error),
                 platform,
                 spacingScale,
             }),

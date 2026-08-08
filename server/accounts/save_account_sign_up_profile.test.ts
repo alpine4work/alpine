@@ -11,9 +11,9 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const context = createTestContext({
     spacesInjection,

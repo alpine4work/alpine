@@ -1,6 +1,6 @@
 import {Color} from "~/shared/design/core/colors.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 
 /**
  * Theme color names like `red`, `blue`, and `green`.

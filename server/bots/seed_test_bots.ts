@@ -2,8 +2,8 @@ import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {runUpdateKnownBotSettingsMigration} from "~/server/bots/run_update_known_bot_settings_migration.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertApiKey} from "~/shared/id/api_key.js";
 
 export async function seedTestBots(

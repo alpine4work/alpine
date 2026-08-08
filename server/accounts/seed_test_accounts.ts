@@ -1,8 +1,8 @@
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 
 export async function seedTestAccounts(context: DynamoContext) {

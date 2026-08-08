@@ -27,18 +27,18 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {RynamoEvent, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {siteLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {SiteLoaderData, SiteLoaderDataSchema} from "~/shared/remix/site_loader_data.js";
 import {backfillSite, getSite} from "~/shared/rpc/sites_rpc_definitions.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId, SiteSideBarSectionContainerId} from "~/shared/sites/site_entry_id.js";
@@ -348,7 +348,7 @@ export type SiteSideBarState = {
     readonly clearInitialScrollTarget: () => void;
 };
 
-type SiteDataContextValue = {
+export type SiteDataContextValue = {
     readonly siteId: SiteId;
     readonly tree: SiteTreeForClient;
     readonly activeState: SiteActiveState;

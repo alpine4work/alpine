@@ -10,11 +10,11 @@ import {
     testMessagingRealtimeImplementationSearchInjection,
 } from "~/server/messaging/realtime/test_helpers/test_messaging_realtime_implementation.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {
     deleteChatMessage,
     sendChatMessage,

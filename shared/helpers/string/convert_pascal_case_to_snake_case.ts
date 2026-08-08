@@ -1,4 +1,4 @@
-import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.js";
+import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.open_source.js";
 
 /**
  * Convert a PascalCase string into snake_case.

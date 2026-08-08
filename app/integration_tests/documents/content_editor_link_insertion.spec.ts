@@ -11,11 +11,11 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {createSimpleDocumentContent} from "~/shared/documents/document_content_schema.js";
 import {createSimplePostContent, emptyPostContent} from "~/shared/forum/post_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.open_source.js";
 
 const {context, services} = createTestServices();
 

@@ -19,7 +19,7 @@ import {
     FileDocumentEntityModel,
     FileDocumentEntityModelSchema,
 } from "~/shared/documents/file_document_entity_model_schema.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
@@ -27,10 +27,10 @@ import {
     FilePostEntityModel,
     FilePostEntityModelSchema,
 } from "~/shared/forum/file_post_entity_model_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {undefinedStore} from "~/shared/store/const_store.js";
 
 type FileContentViewEntityPreviewFileEntity =

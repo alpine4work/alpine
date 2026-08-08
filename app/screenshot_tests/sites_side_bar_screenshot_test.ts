@@ -14,17 +14,17 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {
     OrderKey,
     assertOrderKey,
     generateOrderKeyBetween,
-} from "~/shared/helpers/sort/order_key.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId, PostId} from "~/shared/id/types/id_types.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
@@ -36,9 +36,7 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     const showcase = await createShowcaseSite({accounts, runner});
 
-    await ProcessContextModule.waitForTestTasks();
-    await runner.services.waitForSqsProcessJobs();
-    await clearAccountInbox(accounts.cassCade);
+    await clearAccountInbox(accounts.cassCade, runner);
     await ProcessContextModule.waitForTestTasks();
     await runner.services.waitForSqsProcessJobs();
 
@@ -178,6 +176,7 @@ async function createShowcaseSite({
     });
 
     const okrsTask = await TestTask.create(accounts.cassCade, {
+        time: [new Date("2025-10-15T15:13:00-04:00").getTime(), 0],
         title: "Lock Q4 plan with Rose",
         assignee: accounts.cassCade,
         priority: "High",
@@ -1853,12 +1852,7 @@ async function runViewerAccessScenario(
         urlGrant: null,
     });
 
-    // This is the first time the suite signs in as Holly, so her inbox still holds
-    // every notification the earlier scenarios generated — clear it so the nav-rail
-    // badge doesn't flake these screenshots (same reasoning as the cassCade clear in
-    // `run`).
-    await runner.drainBackgroundWork();
-    await clearAccountInbox(accounts.hollyEvergreen);
+    await clearAccountInbox(accounts.hollyEvergreen, runner);
     await runner.drainBackgroundWork();
 
     await runner.goto(accounts.hollyEvergreen, `/site/${site.id}`);

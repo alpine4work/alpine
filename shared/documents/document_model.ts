@@ -6,14 +6,18 @@ import {
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_from.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
 import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
@@ -133,11 +137,11 @@ export class DocumentModel
     )
     implements DocumentPreviewInterface
 {
-    public getTitle() {
+    public getTitle(): string {
         return getDocumentContentTitle(this.content.doc);
     }
 
-    public getTitleWithoutFallback() {
+    public getTitleWithoutFallback(): string {
         return getDocumentContentTitleWithoutFallback(this.content.doc);
     }
 }
@@ -198,15 +202,16 @@ export class DocumentPreviewModel
             version: Schema.integer,
             titleWithoutFallback: Schema.string,
             accessPolicy: AccessPolicySchema,
+            isDeleted: Schema.boolean,
         }),
     )
     implements DocumentPreviewInterface
 {
-    public getTitle() {
+    public getTitle(): string {
         return addFallbackToDocumentTitle(this.titleWithoutFallback);
     }
 
-    public getTitleWithoutFallback() {
+    public getTitleWithoutFallback(): string {
         return this.titleWithoutFallback;
     }
 }

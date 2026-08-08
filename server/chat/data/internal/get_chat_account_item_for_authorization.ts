@@ -3,8 +3,8 @@ import {ChatItemAuthorizationCache} from "~/server/chat/data/internal/get_chat_i
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {AccountId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 export const ChatAccountItemAuthorizationCache = new DynamoContextCache<
     `${ChatId}:${AccountId}`,

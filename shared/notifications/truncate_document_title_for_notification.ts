@@ -1,4 +1,4 @@
-import {splitGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
+import {splitGraphemes} from "~/shared/helpers/string/iterate_graphemes.open_source.js";
 
 /**
  * Function that'll truncate document titles for notification messages. Since

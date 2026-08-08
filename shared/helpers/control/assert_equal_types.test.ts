@@ -1,4 +1,4 @@
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
 
 test("works with primitive types", () => {
     // @ts-expect-error

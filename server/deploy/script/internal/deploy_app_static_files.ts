@@ -8,13 +8,14 @@ import {CloudflareR2ContextModule} from "~/server/cloudflare/r2/cloudflare_r2_co
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {Context} from "~/shared/context/context.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 const appStaticBucketName = "cyberworlds-app-static";
 
@@ -76,6 +77,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
     }
 
     const uploadFileByPath = new Map<string, AppStaticBucketManifestFile>();
+    const uploadFileSourcePathByPath = new Map<string, string>();
 
     const traverse = async (relativePath: string, path: string) => {
         const childPathNames = await fs.readdir(path);
@@ -92,6 +94,11 @@ export async function uploadAppStaticFilesBeforeDeploy(
                     // deploy and used by `dev sourcemap`.
                     if (childRelativePath.endsWith(".map")) return;
 
+                    assert(
+                        !uploadFileSourcePathByPath.has(childRelativePath),
+                        `Duplicate app static path: ${childRelativePath}`,
+                    );
+                    uploadFileSourcePathByPath.set(childRelativePath, childPath);
                     uploadFileByPath.set(childRelativePath, {
                         path: childRelativePath,
                         contentMd5: await getFileMd5Hash(childPath),
@@ -102,8 +109,15 @@ export async function uploadAppStaticFilesBeforeDeploy(
         );
     };
 
-    const rootPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
-    await traverse("", rootPath);
+    await runAllPromises(
+        [
+            "cyberworlds/app/build/client",
+            "cyberworlds/app/docs/codegen/opengraph/generated_api",
+            "cyberworlds/app/docs/codegen/opengraph/generated_blog",
+            "cyberworlds/app/docs/codegen/opengraph/generated_guides",
+            "cyberworlds/app/docs/codegen/opengraph/generated_schemas",
+        ].map(rootPath => traverse("", joinPath(runfilesPath, rootPath))),
+    );
 
     const newFileByPath = new Map(oldFileByPath);
 
@@ -158,7 +172,7 @@ export async function uploadAppStaticFilesBeforeDeploy(
                 }
             }
 
-            const newFilePath = joinPath(rootPath, newFile.path);
+            const newFilePath = assertExists(uploadFileSourcePathByPath.get(newFile.path));
 
             const mutex = mutexes[mutexCount % mutexes.length]!;
             mutexCount++;

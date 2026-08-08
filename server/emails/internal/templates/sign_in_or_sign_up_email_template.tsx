@@ -4,7 +4,7 @@ import {EmailFooterText} from "~/server/emails/internal/components/email_footer_
 import {emailSpacing} from "~/server/emails/internal/components/email_spacing_scale.js";
 import {EmailText} from "~/server/emails/internal/components/email_text.js";
 import {BaseEmailTemplate} from "~/server/emails/internal/templates/base_email_template.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export function SignInOrSignUpEmailTemplate({
     resourceServiceUrl,

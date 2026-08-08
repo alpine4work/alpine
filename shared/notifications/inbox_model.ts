@@ -1,8 +1,8 @@
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -12,12 +12,12 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export class InboxModel extends Model(
@@ -279,6 +279,7 @@ export class InboxDocumentCommentThreadEntryModel
                 "isPrivate",
                 Schema.object({
                     isPrivate: Schema.value(true),
+                    isDeleted: Schema.boolean.default(false),
                     documentId: Schema.id<DocumentId>(),
                 }),
                 Schema.object({
@@ -327,6 +328,7 @@ export class InboxDocumentNewCommentThreadsEntryModel
                 "isPrivate",
                 Schema.object({
                     isPrivate: Schema.value(true),
+                    isDeleted: Schema.boolean.default(false),
                     documentId: Schema.id<DocumentId>(),
                 }),
                 Schema.object({
@@ -375,6 +377,7 @@ export class InboxTaskEntryModel
                 "isPrivate",
                 Schema.object({
                     isPrivate: Schema.value(true),
+                    isDeleted: Schema.boolean.default(false),
                     taskId: Schema.id<TaskId>(),
                 }),
                 Schema.object({

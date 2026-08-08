@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {EmailAddress, validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 
 export type FromEmailAddress = {

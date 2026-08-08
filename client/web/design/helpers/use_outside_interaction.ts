@@ -2,7 +2,7 @@ import {RefCallback, useCallback, useEffect, useRef} from "react";
 import {isElementOwnedBy} from "~/client/web/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {modalStyles} from "~/client/web/styles/styles.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
 
 let outsideInteractionEventEmitter: EventEmitter<Event> | null = null;
 

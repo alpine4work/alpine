@@ -5,11 +5,11 @@ import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const TaskCollectionSetEntries = createCrdtMap(Schema.id<TaskCollectionId>(), OrderKeySchema);
 type TaskCollectionSetEntries = CrdtMap<TaskCollectionId, OrderKey>;

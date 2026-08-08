@@ -5,7 +5,7 @@
  */
 
 import {type AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Controls which SQL operations are permitted in normal execution paths:

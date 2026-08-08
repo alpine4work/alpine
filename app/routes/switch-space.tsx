@@ -1,5 +1,7 @@
 import {redirect} from "@remix-run/router";
 import {Plus} from "phosphor-react";
+import {useState} from "react";
+import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {MobileSettingsRow} from "~/client/web/design/mobile_settings_row.js";
 import {LoudNotificationBadge} from "~/client/web/inbox/loud_notification_badge.js";
@@ -9,6 +11,7 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/web/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
+import {SpaceInviteDecisionModal} from "~/client/web/spaces/layout/space_invite_decision_modal.js";
 import {SpaceAvatar} from "~/client/web/spaces/space_avatar.js";
 import {spaceAvatarBorderRadius} from "~/client/web/styles/space_settings_shared_styles.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -16,9 +19,11 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {neverPromise} from "~/shared/helpers/async/never_promise.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
-import {getOurAccountSpaces} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {getOurAccountSpaces, loadSpaceInviteContent} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
+import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 const LoaderSchema = Schema.object({
@@ -26,6 +31,7 @@ const LoaderSchema = Schema.object({
         Schema.object({
             space: SpaceModel.schema(),
             inbox: createRynamoItemSchema(InboxModel.schema()).nullable(),
+            isInvitePending: Schema.boolean.default(false),
         }),
     ),
 });
@@ -49,8 +55,20 @@ export async function loader({context: unauthenticatedContext}: LoaderArgs) {
 export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: SpaceModel}) {
     const platform = usePlatform();
     const rootNavigate = useRootNavigate();
+    const context = useAppContext();
 
     const {otherSpaces} = useLoaderDataWithSchema(LoaderSchema);
+
+    const [spaceInviteContent, setSpaceInviteContent] = useState<{
+        space: SpaceModel;
+        allAccounts: ReadonlyArray<AccountModel>;
+        currentAccount: AccountModel;
+    } | null>(null);
+
+    const [rejectedInviteSpaceIds, setRejectedInviteSpaceIds] =
+        useState<ReadonlySet<string>>(emptySet);
+
+    const visibleSpaces = otherSpaces.filter(({space}) => !rejectedInviteSpaceIds.has(space.id));
 
     const maxWidth = platform !== "mobile" ? "96" : undefined;
 
@@ -63,7 +81,7 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
             withoutDisappearingTitle
         >
             <Box width="full" maxWidth={maxWidth} paddingX={screenPaddingX} marginX="center">
-                {otherSpaces.map(({space: otherSpace, inbox}, i) => (
+                {visibleSpaces.map(({space: otherSpace, inbox, isInvitePending}, i) => (
                     <MobileSettingsRow
                         key={otherSpace.id}
                         withBorderTop={i === 0}
@@ -90,8 +108,21 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
                                 {otherSpace.name}
                             </Box>
                         }
-                        pressErrorTitle="Couldn&#x2019;t switch to space"
+                        pressErrorTitle={
+                            isInvitePending
+                                ? "Couldn\u2019t open invite"
+                                : "Couldn\u2019t switch to space"
+                        }
                         onPress={async () => {
+                            if (isInvitePending) {
+                                setSpaceInviteContent(
+                                    await loadSpaceInviteContent(context, {
+                                        spaceId: otherSpace.id,
+                                    }),
+                                );
+                                return;
+                            }
+
                             if (otherSpace.id === selectedSpace?.id) return;
 
                             if (NativeMobileBridge) {
@@ -144,6 +175,20 @@ export default function SwitchSpaceRoute({selectedSpace}: {selectedSpace?: Space
                     }}
                 />
             </Box>
+            {spaceInviteContent && (
+                <SpaceInviteDecisionModal
+                    allAccounts={spaceInviteContent.allAccounts}
+                    currentAccount={spaceInviteContent.currentAccount}
+                    space={spaceInviteContent.space}
+                    onClose={() => setSpaceInviteContent(null)}
+                    onRejected={() => {
+                        setRejectedInviteSpaceIds(
+                            new Set([...rejectedInviteSpaceIds, spaceInviteContent.space.id]),
+                        );
+                        setSpaceInviteContent(null);
+                    }}
+                />
+            )}
         </SpaceRouteScrollView>
     );
 }

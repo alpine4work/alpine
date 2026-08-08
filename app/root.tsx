@@ -65,29 +65,39 @@ import {getFontsCriticalCss} from "~/client/web/styles/core/fonts_critical_css.j
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {colors} from "~/shared/design/core/colors.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {generateId} from "~/shared/id/id.js";
-import {getRealmId} from "~/shared/id/realm_id.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {getRealmId} from "~/shared/id/realm_id.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
 import {ClientInfo, ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
-import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
+import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.open_source.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
-export function meta() {
-    return [{title: "Alpine"}];
+/**
+ * Build root metadata while allowing public content to own its robots policy.
+ */
+export function meta({location}: {location: {pathname: string}}) {
+    const isDocumentationRoute = /^(?:\/blog|\/docs)(?:\/|$)/.test(location.pathname);
+    return [
+        {title: "Alpine"},
+        // Docs and blog routes own their temporary `noindex` directive. Keeping it out of
+        // the root means removing TODO(#public-api) there will actually make those routes
+        // indexable without exposing private product routes.
+        ...(isDocumentationRoute ? [] : [{name: "robots", content: "noindex"}]),
+    ];
 }
 
 // The loader returns constants. We don't need to reload on page change.
@@ -139,15 +149,6 @@ const constantRootHead = (
             // [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
             // [2]: https://webkit.org/blog/7929/designing-websites-for-iphone-x/
             content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-        />
-        <meta
-            // Ask Google to not index any of our routes.
-            // https://developers.google.com/search/docs/crawling-indexing/block-indexing
-            //
-            // TODO(calebmer): This should be decided on a route-by-route basis instead of
-            // global configuration that can't be configured.
-            name="robots"
-            content="noindex"
         />
         <meta
             // Don't automatically detect format of various text bits on iOS. If we want format

@@ -1,12 +1,16 @@
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {findMessageReactionPosIfPossible} from "~/shared/messaging/compute_set_message_reaction.js";
+import {getMessageReactionsByCanonicalPos} from "~/shared/messaging/get_message_reactions_by_canonical_pos.js";
 import {MessagePayload, MessageStream} from "~/shared/messaging/message_schema.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {SchemaLazyTransformBase} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 
+/**
+ * Resolves the reaction set addressed by a message reaction URL search param.
+ */
 export function getMessageReactionsForSearchParam(
     url: URL,
     message: {
@@ -47,5 +51,12 @@ export function getMessageReactionsForSearchParam(
         findMessageReactionPosIfPossible({message, contentVersion, pos}),
     );
 
-    return payload.reactionsByPos.get(actualPos) ?? emptyReactionSet;
+    return (
+        getMessageReactionsByCanonicalPos({
+            message: {
+                payload,
+                stream: message.stream,
+            },
+        }).get(actualPos) ?? emptyReactionSet
+    );
 }

@@ -1,10 +1,14 @@
-import {InternalError} from "~/shared/error/error.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {isId} from "~/shared/id/id.js";
-import {SiteSideBarId, SiteSideBarSectionId, SiteTopBarId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {
+    SiteSideBarId,
+    SiteSideBarSectionId,
+    SiteTopBarId,
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
     SiteItemSearchEntityId,
     isSiteItemSearchEntityId,
@@ -99,8 +103,8 @@ export function isSiteContainerId(id: string): id is SiteContainerId {
     return idTest(idRest);
 }
 
-export const SiteTopBarContainerIdSchema = Schema.string as Schema<SiteTopBarContainerId>;
-export const SiteContainerIdSchema = Schema.string as Schema<SiteContainerId>;
+export const SiteTopBarContainerIdSchema = Schema.stringAs<SiteTopBarContainerId>();
+export const SiteContainerIdSchema = Schema.stringAs<SiteContainerId>();
 
 export function isSiteTopBarContainerId(id: string): id is SiteTopBarContainerId {
     const [idType = "", idRest = ""] = id.split(":", 2);

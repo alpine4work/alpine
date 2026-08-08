@@ -7,13 +7,11 @@ import {
     HoneycombTriggerPayload,
 } from "~/admin/lambda/send_alert/internal/honeycomb_alert_source_types.js";
 import {sendAlertAvailableTaskCollections} from "~/admin/lambda/send_alert/internal/send_alert_available_task_collections.js";
-import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
-import {
-    ApiContent,
-    ApiCreateTaskRequestBody,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import type {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import type {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
 const mockEnv = {
     ALPINE_API_KEY: "test-api-key",
@@ -45,6 +43,11 @@ type HoneycombChannelFixtureOverrides = Partial<HoneycombChannelPayload> & {
 type HoneycombTaskFixtureOverrides = Partial<HoneycombTaskPayload> &
     Pick<HoneycombTaskPayload, "collection" | "type">;
 
+type ApiCreateTaskRequestBody =
+    ApiSpecification.paths["/tasks"]["post"]["requestBody"]["content"]["application/json"];
+type ApiCreatePostRequestBody =
+    ApiSpecification.paths["/posts"]["post"]["requestBody"]["content"]["application/json"];
+
 const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options?: any) => {
     const method = options?.method ?? "GET";
 
@@ -52,11 +55,13 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
         mockHoneycombApiCalls.push(url);
     }
 
-    mockFetchCalls.push({
-        url,
-        method,
-        body: options?.body ? JSON.parse(options.body) : null,
-    });
+    if (!(method === "GET" && url.includes("/channels/"))) {
+        mockFetchCalls.push({
+            url,
+            method,
+            body: options?.body ? JSON.parse(options.body) : null,
+        });
+    }
 
     const responseIndex = mockFetchResponses.findIndex(
         response => response.url === url && response.method === method,
@@ -64,12 +69,28 @@ const mockFetch = import.meta.jest.fn().mockImplementation((url: string, options
     const responseEntry =
         responseIndex === -1 ? undefined : mockFetchResponses.splice(responseIndex, 1)[0]!;
 
+    const defaultResponseBody =
+        responseEntry === undefined && method === "GET" && url.includes("/channels/")
+            ? {
+                  spaceId: "test-space-id",
+                  channel: {
+                      id: url.split("/").at(-1),
+                      name: "Alert Channel",
+                      description: {elements: []},
+                  },
+              }
+            : {};
+
     return Promise.resolve({
         ok: responseEntry?.ok ?? true,
         status: responseEntry?.status ?? 200,
         statusText: responseEntry?.statusText ?? "OK",
         text: () =>
-            Promise.resolve(responseEntry === undefined ? "" : JSON.stringify(responseEntry.body)),
+            Promise.resolve(
+                responseEntry === undefined
+                    ? JSON.stringify(defaultResponseBody)
+                    : JSON.stringify(responseEntry.body),
+            ),
     });
 });
 
@@ -89,21 +110,21 @@ function restoreAlertSourceTestEnvironment(): void {
 }
 
 function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
-    const body = fetchCall.body as {channelId: string; content: ApiContent};
-    const markdown = printApiContentToMarkdown(body.content);
+    const body = fetchCall.body as ApiCreatePostRequestBody;
+    const markdown = printApiContentToMarkdown(body.post.content);
     return `URL: ${fetchCall.url}
-Channel: ${body.channelId}
+Channel: ${body.post.channel.id}
 
 ${markdown}`;
 }
 
 function formatCreateTaskCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
     const body = fetchCall.body as ApiCreateTaskRequestBody;
-    assert(body.task.content, "Expected create task request body to include task content");
-    const markdown = printApiContentToMarkdown(body.task.content);
+    assert(body.task.notes, "Expected create task request body to include task notes");
+    const markdown = printApiContentToMarkdown(body.task.notes.content);
     return `URL: ${fetchCall.url}
 Title: ${body.task.title}
-Priority: ${body.task.priority}
+Priority: ${body.task.priority?.type ?? ""}
 
 ${markdown}`;
 }
@@ -606,7 +627,7 @@ describe("HoneycombAlertSource", () => {
                 id: "task-1",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "High",
+                priority: {type: "High"},
                 content: {elements: []},
             },
         });
@@ -616,7 +637,7 @@ describe("HoneycombAlertSource", () => {
                 id: "task-1",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "High",
+                priority: {type: "High"},
                 content: {elements: []},
             },
         });
@@ -660,9 +681,12 @@ describe("HoneycombAlertSource", () => {
                 nextCursor: null,
                 tasks: [
                     {
-                        id: "existing-task",
-                        status: {type: "Open", isActive: false},
-                        title: "Root cause title",
+                        cursor: "task-cursor",
+                        task: {
+                            id: "existing-task",
+                            status: {type: "Open", isActive: false},
+                            title: "Root cause title",
+                        },
                     },
                 ],
             },
@@ -728,10 +752,13 @@ describe("HoneycombAlertSource", () => {
                 nextCursor: null,
                 tasks: [
                     {
-                        id: "existing-task",
-                        status: {type: "Open", isActive: false},
-                        title: "Root cause title",
-                        priority: "Low",
+                        cursor: "task-cursor",
+                        task: {
+                            id: "existing-task",
+                            status: {type: "Open", isActive: false},
+                            title: "Root cause title",
+                            priority: {type: "Low"},
+                        },
                     },
                 ],
             },
@@ -766,7 +793,7 @@ describe("HoneycombAlertSource", () => {
                 id: "existing-task",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "Medium",
+                priority: {type: "Medium"},
                 content: {elements: []},
             },
         });
@@ -789,7 +816,7 @@ describe("HoneycombAlertSource", () => {
             call => call.method === "PATCH" && getFetchCallPath(call) === "/tasks/existing-task",
         );
         expect(priorityCall?.body).toEqual({
-            patches: [{type: "SetPriority", priority: "Medium"}],
+            patches: [{type: "SetPriority", priority: {type: "Medium"}}],
         });
     });
 
@@ -809,10 +836,13 @@ describe("HoneycombAlertSource", () => {
                 nextCursor: null,
                 tasks: [
                     {
-                        id: "existing-task",
-                        status: {type: "Open", isActive: false},
-                        title: "Root cause title",
-                        priority: "Low",
+                        cursor: "task-cursor",
+                        task: {
+                            id: "existing-task",
+                            status: {type: "Open", isActive: false},
+                            title: "Root cause title",
+                            priority: {type: "Low"},
+                        },
                     },
                 ],
             },
@@ -843,7 +873,7 @@ describe("HoneycombAlertSource", () => {
                 id: "existing-task",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "High",
+                priority: {type: "High"},
                 content: {elements: []},
             },
         });
@@ -867,7 +897,7 @@ describe("HoneycombAlertSource", () => {
             call => call.method === "PATCH" && getFetchCallPath(call) === "/tasks/existing-task",
         );
         expect(priorityCall?.body).toEqual({
-            patches: [{type: "SetPriority", priority: "High"}],
+            patches: [{type: "SetPriority", priority: {type: "High"}}],
         });
     });
 
@@ -887,10 +917,13 @@ describe("HoneycombAlertSource", () => {
                 nextCursor: null,
                 tasks: [
                     {
-                        id: "existing-task",
-                        status: {type: "Open", isActive: false},
-                        title: "Root cause title",
-                        priority: "Medium",
+                        cursor: "task-cursor",
+                        task: {
+                            id: "existing-task",
+                            status: {type: "Open", isActive: false},
+                            title: "Root cause title",
+                            priority: {type: "Medium"},
+                        },
                     },
                 ],
             },
@@ -924,7 +957,7 @@ describe("HoneycombAlertSource", () => {
                 id: "existing-task",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "High",
+                priority: {type: "High"},
                 content: {elements: []},
             },
         });
@@ -965,10 +998,13 @@ describe("HoneycombAlertSource", () => {
                 nextCursor: null,
                 tasks: [
                     {
-                        id: "existing-task",
-                        status: {type: "Open", isActive: false},
-                        title: "Root cause title",
-                        priority: "Low",
+                        cursor: "task-cursor",
+                        task: {
+                            id: "existing-task",
+                            status: {type: "Open", isActive: false},
+                            title: "Root cause title",
+                            priority: {type: "Low"},
+                        },
                     },
                 ],
             },
@@ -1002,7 +1038,7 @@ describe("HoneycombAlertSource", () => {
                 id: "existing-task",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "High",
+                priority: {type: "High"},
                 content: {elements: []},
             },
         });
@@ -1044,10 +1080,13 @@ describe("HoneycombAlertSource", () => {
                 nextCursor: null,
                 tasks: [
                     {
-                        id: "existing-task",
-                        status: {type: "Open", isActive: false},
-                        title: "Root cause title",
-                        priority: "Low",
+                        cursor: "task-cursor",
+                        task: {
+                            id: "existing-task",
+                            status: {type: "Open", isActive: false},
+                            title: "Root cause title",
+                            priority: {type: "Low"},
+                        },
                     },
                 ],
             },
@@ -1081,7 +1120,7 @@ describe("HoneycombAlertSource", () => {
                 id: "existing-task",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "Medium",
+                priority: {type: "Medium"},
                 content: {elements: []},
             },
         });
@@ -1189,7 +1228,7 @@ describe("HoneycombAlertSource", () => {
                 id: "task-1",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "Medium",
+                priority: {type: "Medium"},
                 content: {elements: []},
             },
         });
@@ -1199,7 +1238,7 @@ describe("HoneycombAlertSource", () => {
                 id: "task-1",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "Medium",
+                priority: {type: "Medium"},
                 content: {elements: []},
             },
         });
@@ -1253,7 +1292,7 @@ describe("HoneycombAlertSource", () => {
                 id: "task-1",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "High",
+                priority: {type: "High"},
                 content: {elements: []},
             },
         });
@@ -1263,7 +1302,7 @@ describe("HoneycombAlertSource", () => {
                 id: "task-1",
                 status: {type: "Open", isActive: false},
                 title: "Root cause title",
-                priority: "High",
+                priority: {type: "High"},
                 content: {elements: []},
             },
         });

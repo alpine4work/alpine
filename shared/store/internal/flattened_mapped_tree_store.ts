@@ -1,8 +1,8 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {InternalError} from "~/shared/error/error.js";
-import {captureResult} from "~/shared/helpers/control/capture_result.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {captureResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {thenResult} from "~/shared/helpers/control/then_result.js";
 import {symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
 import {Store} from "~/shared/store/internal/store.js";

@@ -1,7 +1,7 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getRegisteredAppleDevicesForAccountWithoutAuthorization} from "~/server/notifications/data/internal/push/get_registered_apple_devices_without_authorization.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {AppleDeviceTarget} from "~/shared/notifications/push_notification_target.js";
 
 /**

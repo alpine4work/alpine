@@ -3,7 +3,7 @@ import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the email address added most recently to an account.

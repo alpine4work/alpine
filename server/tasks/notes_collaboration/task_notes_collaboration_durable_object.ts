@@ -14,22 +14,17 @@ import {
 } from "~/server/tasks/notes_collaboration/task_notes_collaboration_connection.js";
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {
-    AccessLevel,
-    allAccessLevels,
-    hasAccessLevel,
-    isAccessLevel,
-} from "~/shared/access/access_policy.js";
-import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {AccessLevel, allAccessLevels, isAccessLevel} from "~/shared/access/access_policy.js";
+import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequestSchema,
     MessagingRealtimeBroadcastNewMessageRequestSchema,
@@ -37,8 +32,9 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {authorizeTaskAccess, getTaskNotesContent} from "~/shared/rpc/tasks_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
+    TaskNotesCollaborationBroadcastTaskActivityRequestBodySchema,
     TaskNotesCollaborationProtocol,
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
     TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,
@@ -54,6 +50,7 @@ type TaskNotesCollaborationDurableObjectRoute =
     | {type: "BroadcastNewMessage"}
     | {type: "BroadcastPutMessageStreamPart"}
     | {type: "BroadcastCompleteMessageStream"}
+    | {type: "BroadcastTaskActivity"}
     | {type: "UpdateContentWithDiff"}
     | {type: "NotFound"};
 
@@ -142,20 +139,7 @@ class TaskNotesCollaborationDurableObject {
                 await runAllPromises(
                     allAccessLevels.map(async accessLevel => {
                         const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
-
-                        if (hasAccessLevel(accessLevel, "Comment")) {
-                            await webSocketServer.sendEventToAllAndWait(context, event);
-                        } else if (webSocketServer.hasConnections()) {
-                            const eventWithoutComments =
-                                stripTaskNotesCollaborationEventComments(event);
-
-                            if (eventWithoutComments !== null) {
-                                await webSocketServer.sendEventToAllAndWait(
-                                    context,
-                                    eventWithoutComments,
-                                );
-                            }
-                        }
+                        await webSocketServer.sendEventToAllAndWait(context, event);
                     }),
                 );
             },
@@ -199,25 +183,7 @@ class TaskNotesCollaborationDurableObject {
 
                                 if (!otherWebSocketServer.hasConnections()) continue;
 
-                                // If this WebSocket server has comment access but the other doesn't then strip any
-                                // comments from the event before sending it to peer WebSockets of different access
-                                // levels.
-                                if (
-                                    hasAccessLevel(accessLevel, "Comment") &&
-                                    !hasAccessLevel(otherAccessLevel, "Comment")
-                                ) {
-                                    const eventWithoutComments =
-                                        stripTaskNotesCollaborationEventComments(event);
-
-                                    if (eventWithoutComments !== null) {
-                                        otherWebSocketServer.sendEventToAll(
-                                            context,
-                                            eventWithoutComments,
-                                        );
-                                    }
-                                } else {
-                                    otherWebSocketServer.sendEventToAll(context, event);
-                                }
+                                otherWebSocketServer.sendEventToAll(context, event);
                             }
                         },
                         iterateOtherConnections: () =>
@@ -256,6 +222,10 @@ class TaskNotesCollaborationDurableObject {
 
         if (url.pathname === "/broadcast-complete-message-stream") {
             return [url.pathname, {type: "BroadcastCompleteMessageStream"}];
+        }
+
+        if (url.pathname === "/broadcast-task-activity") {
+            return [url.pathname, {type: "BroadcastTaskActivity"}];
         }
 
         if (url.pathname === "/update-content-with-diff") {
@@ -302,8 +272,6 @@ class TaskNotesCollaborationDurableObject {
 
                 TaskNotesCollaborationConnection.broadcastNewMessage(context, requestBody, () => {
                     return flatMapIterable(allAccessLevels, accessLevel => {
-                        if (!hasAccessLevel(accessLevel, "Comment")) return emptyArray;
-
                         const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
                         return webSocketServer.iterateAllConnections();
                     });
@@ -329,8 +297,6 @@ class TaskNotesCollaborationDurableObject {
                     requestBody,
                     () => {
                         return flatMapIterable(allAccessLevels, accessLevel => {
-                            if (!hasAccessLevel(accessLevel, "Comment")) return emptyArray;
-
                             const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
                             return webSocketServer.iterateAllConnections();
                         });
@@ -357,13 +323,36 @@ class TaskNotesCollaborationDurableObject {
                     requestBody,
                     () => {
                         return flatMapIterable(allAccessLevels, accessLevel => {
-                            if (!hasAccessLevel(accessLevel, "Comment")) return emptyArray;
-
                             const webSocketServer = this._webSocketServerByAccessLevel[accessLevel];
                             return webSocketServer.iterateAllConnections();
                         });
                     },
                 );
+
+                return new Response(null, {status: 200});
+            }
+            case "BroadcastTaskActivity": {
+                if (request.method !== "POST") {
+                    return new Response("405 Method Not Allowed", {
+                        status: 405,
+                        headers: {"content-type": "text/plain"},
+                    });
+                }
+
+                const requestBody =
+                    TaskNotesCollaborationBroadcastTaskActivityRequestBodySchema.deserialize(
+                        await request.json(),
+                    );
+
+                // Everyone connected here can view the task, and activity carries nothing narrower
+                // than view access (access policy changes deliberately produce no activity), so
+                // every connection gets the same event.
+                for (const accessLevel of allAccessLevels) {
+                    this._webSocketServerByAccessLevel[accessLevel].sendEventToAll(context, {
+                        type: "TaskActivity",
+                        events: requestBody.events,
+                    });
+                }
 
                 return new Response(null, {status: 200});
             }
@@ -472,37 +461,6 @@ class TaskNotesCollaborationDurableObject {
             this._webSocketServerByAccessLevel[accessLevel].closeAllWithError(context, error);
         }
         this._destroyCallback();
-    }
-}
-
-function stripTaskNotesCollaborationEventComments(
-    event: TaskNotesCollaborationEventStub,
-): TaskNotesCollaborationEventStub | null {
-    // Code style: Manually recreate the event objects so that we can be absolutely
-    // sure comment data isn't slipping into `eventWithoutComments`. Especially when we
-    // add new fields in the future, we want TypeScript to error and the developer to
-    // consider whether comment information needs to be stripped.
-    switch (event.type) {
-        case "UpdateNotesContentWithoutPersistence": {
-            return {
-                type: "UpdateNotesContentWithoutPersistence",
-                newVersion: event.newVersion,
-                steps: event.steps,
-                stepsContentReferenceIds: event.stepsContentReferenceIds,
-                clientId: event.clientId,
-            };
-        }
-        case "PersistedContent": {
-            return {
-                type: "PersistedContent",
-                newVersion: event.newVersion,
-            };
-        }
-        case "Comments": {
-            return null;
-        }
-        default:
-            throw exhaustive(event);
     }
 }
 

@@ -40,8 +40,8 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 export const createWidgetExampleHeight = "20";

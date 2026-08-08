@@ -3,15 +3,22 @@ import {BotApiKeysIndex, BotsTable} from "~/server/bots/internal/bots_table.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
-export async function deleteBot(
+/**
+ * Permanently delete a bot and all its associated data (API keys, avatar, settings
+ * schema) if it exists.
+ */
+export async function deleteBotIfExists(
     context: ServerActionContext,
     {botId}: {botId: BotId},
 ): Promise<void> {
     await authorizeInternalAccess(context);
 
     // Collect all API key items for this bot so we can delete them in the transaction.
+    // Note however that this reads from a GSI which is eventually consistent, so it is
+    // possible that we'd miss an API key if it was created within the eventual
+    // consistency window.
     const apiKeyTransactionEntries: Array<DynamoTransactionEntry> = [];
     for await (const item of BotApiKeysIndex.query(context, {
         partitionKey: {botId},
@@ -26,29 +33,22 @@ export async function deleteBot(
         );
     }
 
-    // Fetch the optional per-bot items so we only include them in the transaction if
-    // they exist.
-    const [avatarItem, settingsSchemaItem] = await Promise.all([
-        BotsTable.getItemIfExists(context, {
-            partitionType: "Bot",
-            sortRangeType: "Avatar",
-            botId,
-        }),
-        BotsTable.getItemIfExists(context, {
-            partitionType: "Bot",
-            sortRangeType: "SettingsSchema",
-            botId,
-        }),
-    ]);
-
     await DynamoTableSchema.executeTransaction(context, [
-        BotsTable.transactionDeleteItemWithKey({
+        BotsTable.transactionDeleteItemIfExists({
             partitionType: "Bot",
             sortRangeType: "Attributes",
             botId,
         }),
-        ...(avatarItem ? [BotsTable.transactionDeleteItem(avatarItem)] : []),
-        ...(settingsSchemaItem ? [BotsTable.transactionDeleteItem(settingsSchemaItem)] : []),
+        BotsTable.transactionDeleteItemIfExists({
+            partitionType: "Bot",
+            sortRangeType: "Avatar",
+            botId,
+        }),
+        BotsTable.transactionDeleteItemIfExists({
+            partitionType: "Bot",
+            sortRangeType: "SettingsSchema",
+            botId,
+        }),
         ...apiKeyTransactionEntries,
     ]);
 }

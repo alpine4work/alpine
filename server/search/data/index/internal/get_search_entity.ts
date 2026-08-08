@@ -3,7 +3,7 @@ import {Node} from "prosemirror-model";
 import {unwrapAccessPolicyModelForServer} from "~/server/access/unwrap_access_policy_model_for_server.js";
 import {
     getChatMessagePayload,
-    putChatMessageStreamPart,
+    putChatMessageStreamPartAndBroadcastEvent,
 } from "~/server/chat/data/chat_messaging.js";
 import {
     getChatDefinition,
@@ -12,20 +12,16 @@ import {
 import {hasChatMessages} from "~/server/chat/data/get_chat_message_count.js";
 import {getChatSearchEntityContributorIds} from "~/server/chat/data/get_chat_search_entity_contributor_ids.js";
 import {getRoomChatPreviewAccountIds} from "~/server/chat/data/get_room_chat_preview_account_ids.js";
-import {
-    ServerActionContext,
-    ServerSystemActionContext,
-} from "~/server/context/server_action_context.js";
+import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {
     getDatabaseTableMetadataForSearchIndex,
     syncDatabaseTableMetadataToDurableObject,
 } from "~/server/databases/data/database_table_metadata.js";
 import {
-    DocumentStepCountByAccountId,
     getDocumentCommentPayload,
     getDocumentContent,
     getDocumentTitleIfExists,
-    putDocumentCommentStreamPart,
+    putDocumentCommentStreamPartAndBroadcastEvent,
 } from "~/server/documents/data/documents_actions.js";
 import {getFileIfExistsAsSystem} from "~/server/files/data/files_actions.js";
 import {getChannelNameAndDescriptionContentIfExists} from "~/server/forum/data/get_channel_name_and_description_content.js";
@@ -37,7 +33,7 @@ import {
 import {maxChannelContributionCount} from "~/server/forum/data/max_channel_contribution_count.js";
 import {
     getPostCommentPayload,
-    putPostCommentStreamPart,
+    putPostCommentStreamPartAndBroadcastEvent,
 } from "~/server/forum/data/post_messaging.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {messageStreamTimeoutMs} from "~/server/messaging/helpers/message_stream_timeout_ms.js";
@@ -53,10 +49,7 @@ import {
     prepareSearchDirectChatEntityTitleForResult,
     searchChatEntityResultTitlePreviewAccountCount,
 } from "~/server/search/data/index/internal/prepare_search_chat_entity_title_for_result.js";
-import {
-    SearchEntityIndexAccessPolicy,
-    SearchEntityIndexDefaultGrantType,
-} from "~/server/search/data/index/internal/search_entity_index_doc.js";
+import {SearchEntityIndexAccessPolicy} from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {SearchEntityTitleVersion} from "~/server/search/data/index/internal/search_entity_title_version_schema.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
@@ -72,15 +65,15 @@ import {
 import {TaskApproximateActionCountByAccountId} from "~/server/tasks/data/task_index_doc.js";
 import {
     getTaskCommentPayload,
-    putTaskCommentStreamPart,
+    putTaskCommentStreamPartAndBroadcastEvent,
 } from "~/server/tasks/data/task_messaging.js";
 import {TaskStepCountByAccountId} from "~/server/tasks/data/task_step_count_by_account_id.js";
 import {AccessLevel, AccessPolicy, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -90,12 +83,11 @@ import {
     emptyMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {RenderContentMentionToTextSearchEntity} from "~/shared/content/render_content_mention_to_text.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
-import {DocumentCreatorFrom} from "~/shared/documents/document_creator_from.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {InternalError, NotFoundError} from "~/shared/error/error.js";
-import {FileContentType} from "~/shared/files/file_content_type.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {
     createPostSearchEntityTitle,
@@ -103,34 +95,34 @@ import {
     getPostSearchEntityTitleContentSnippet,
 } from "~/shared/forum/create_post_search_entity_title.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
 import {addToIterable} from "~/shared/helpers/iterable/add_to_iterable.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -144,7 +136,7 @@ import {
     SpaceId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagePayload,
     MessageStream,
@@ -428,33 +420,34 @@ class SearchEntityReadState {
         return file.contentType;
     }
 
-    public getDocumentContent(documentId: DocumentId): Promise<{
-        createdTime: Date;
-        version: number;
-        content: DocumentContent;
-        creator: {
-            id: AccountId | null;
-            from: DocumentCreatorFrom | null;
-        };
-        stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
-        updateContentPreview: (context: ServerActionContext) => Promise<void>;
-    }> {
+    public getDocumentContent(documentId: DocumentId) {
         this._recordDependencyId(`Document:${documentId}`);
 
         return getDocumentContent(this._context, documentId, {
             consistency: "StrongWithinCache",
+            // Ok since we index none of a deleted document's content. We only index a deleted
+            // stub for the document. If we try to index a document (or anything that
+            // references the document) after deletion we need to index that stub and not
+            // throw.
+            dangerouslyAllowDeleted: true,
         });
     }
 
     public async getDocumentTitleIfExists(documentId: DocumentId): Promise<{
         title: string;
         accessPolicy: AccessPolicyModel;
+        isDeleted: boolean;
     } | null> {
         this._recordDependencyId(`Document:${documentId}:Authorization`);
         this._recordDependencyId(`Document:${documentId}:Title`);
 
         const documentTitle = await getDocumentTitleIfExists(this._context, documentId, {
             consistency: "StrongWithinCache",
+            // Ok since we index none of a deleted document's content. We only index a deleted
+            // stub for the document. If we try to index a document (or anything that
+            // references the document) after deletion we need to index that stub and not
+            // throw.
+            dangerouslyAllowDeleted: true,
         });
 
         if (!documentTitle) return null;
@@ -462,6 +455,32 @@ class SearchEntityReadState {
         return {
             title: documentTitle.title,
             accessPolicy: await this.getAccessPolicy(documentTitle.accessPolicy),
+            isDeleted: documentTitle.isDeleted,
+        };
+    }
+
+    // Same as `getDocumentTitleIfExists()` but we don't return the `title` so we don't
+    // need to take a dependency on the `Document:${documentId}:Title`.
+    public async getDocumentAccessPolicyIfExists(documentId: DocumentId): Promise<{
+        accessPolicy: AccessPolicyModel;
+        isDeleted: boolean;
+    } | null> {
+        this._recordDependencyId(`Document:${documentId}:Authorization`);
+
+        const documentTitle = await getDocumentTitleIfExists(this._context, documentId, {
+            consistency: "StrongWithinCache",
+            // Ok since we index none of a deleted document's content. We only index a deleted
+            // stub for the document. If we try to index a document (or anything that
+            // references the document) after deletion we need to index that stub and not
+            // throw.
+            dangerouslyAllowDeleted: true,
+        });
+
+        if (!documentTitle) return null;
+
+        return {
+            accessPolicy: await this.getAccessPolicy(documentTitle.accessPolicy),
+            isDeleted: documentTitle.isDeleted,
         };
     }
 
@@ -474,7 +493,6 @@ class SearchEntityReadState {
         authorId: AccountId;
         payload: MessagePayload;
         stream: (MessageStream & {readonly lastPingTime: Date | null}) | null;
-        documentAccessPolicy: AccessPolicyModel;
     }> {
         this._recordDependencyId(`Document:${documentId}:Authorization`);
         this._recordDependencyId(
@@ -491,7 +509,6 @@ class SearchEntityReadState {
         return {
             ...comment,
             payload: mergeMessageItemStreamIntoPayload(comment),
-            documentAccessPolicy: await this.getAccessPolicy(comment.documentAccessPolicy),
         };
     }
 
@@ -1091,23 +1108,38 @@ function getSiteTagsFromAccessPolicy(accessPolicy: AccessPolicyModel): ReadonlyA
 
 function getSearchEntityIndexAccessPolicy(
     accessPolicy: AccessPolicyModel,
+    expectedAccessLevel: AccessLevel = "View",
 ): SearchEntityIndexAccessPolicy {
     const resolvedAccessPolicy = unwrapAccessPolicyModelForServer(accessPolicy);
-    const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
-        resolvedAccessPolicy.defaultGrant !== null ? "Space" : null;
-    let accountGrantAccountIds = new Set(resolvedAccessPolicy.accountGrantById.keys());
+
+    const hasDefaultGrant =
+        resolvedAccessPolicy.defaultGrant !== null &&
+        hasAccessLevel(resolvedAccessPolicy.defaultGrant.level, expectedAccessLevel);
+
+    const hasUrlGrant =
+        resolvedAccessPolicy.urlGrant !== null &&
+        hasAccessLevel(resolvedAccessPolicy.urlGrant.level, expectedAccessLevel);
+
+    let accountGrantAccountIds = new Set(
+        filterMapIterable(resolvedAccessPolicy.accountGrantById, ([accountId, accountGrant]) => {
+            if (hasAccessLevel(accountGrant.level, expectedAccessLevel)) return accountId;
+        }),
+    );
 
     // If we have a space default grant then the individual account grants don't matter
     // for the search entity. Lets exclude them to save space in the index.
-    if (defaultGrantType !== null) {
-        cast<"Space">(defaultGrantType);
+    if (hasDefaultGrant) {
         accountGrantAccountIds = new Set();
     }
 
     return {
         accountGrantAccountIds,
-        defaultGrantType,
-        urlGrantLevel: resolvedAccessPolicy.urlGrant?.level ?? null,
+        // TODO: The better design is simply `hasDefaultGrant` I think. You can either view
+        // the entity in the search index or not.
+        defaultGrantType: hasDefaultGrant ? "Space" : null,
+        // TODO: The better design is simply `hasUrlGrant` I think. You can either view the
+        // entity in the search index or not.
+        urlGrantLevel: hasUrlGrant ? "View" : null,
     };
 }
 
@@ -1303,6 +1335,7 @@ async function getSearchMentionEntityIfExists(
         case "Document": {
             const document = await state.getDocumentTitleIfExists(entityIdObject.documentId);
             if (!document) return null;
+            if (document.isDeleted) return {accessPolicy: document.accessPolicy, title: null};
             return {accessPolicy: document.accessPolicy, title: document.title};
         }
         case "Channel": {
@@ -1486,6 +1519,48 @@ async function actuallyGetSearchEntity(
     }
 }
 
+async function getDatabaseTableSearchEntity(
+    state: SearchEntityReadState,
+    tableId: DatabaseTableId,
+): Promise<SearchEntity> {
+    const spaceId = state.getSpaceId();
+    const table = await getDatabaseTableMetadataForSearchIndex(state.context, tableId);
+    assert(table.spaceId === spaceId);
+    const id: SearchDynamicEntityId = `DatabaseTable:${tableId}`;
+
+    if (table.isDeleted || table.name === null) return {...searchDeletedMessageEntity, id};
+
+    const {name, accessPolicy} = table;
+    const accessPolicyModel = await state.getAccessPolicy(accessPolicy);
+    state.registerAdditionalWrite(context =>
+        syncDatabaseTableMetadataToDurableObject(context, {
+            databaseGroupId: table.databaseGroupId,
+            tableId,
+            name,
+            accessPolicy,
+        }),
+    );
+
+    return {
+        id,
+        accessPolicy: getSearchEntityIndexAccessPolicy(accessPolicyModel),
+        createdTime: null,
+        title: name,
+        titleVersion: null,
+        body: null,
+        tags: emptyArray,
+        media: null,
+        embeddingChunks: emptyArray,
+        creatorId: null,
+        contributorIds: emptyMap,
+        dueDate: null,
+        assigneeId: null,
+        priority: null,
+        openness: null,
+        activeness: null,
+    };
+}
+
 async function getAccountSearchEntity(
     state: SearchEntityReadState,
     accountId: AccountId,
@@ -1513,50 +1588,6 @@ async function getAccountSearchEntity(
 
         // Doesn't make sense that an account would create itself. So mark an account has
         // having no creator.
-        creatorId: null,
-        contributorIds: emptyMap,
-        dueDate: null,
-        assigneeId: null,
-        priority: null,
-        openness: null,
-        activeness: null,
-    };
-}
-
-async function getDatabaseTableSearchEntity(
-    state: SearchEntityReadState,
-    tableId: DatabaseTableId,
-): Promise<SearchEntity> {
-    const spaceId = state.getSpaceId();
-    const table = await getDatabaseTableMetadataForSearchIndex(state.context, tableId);
-    assert(table.spaceId === spaceId);
-    const id: SearchDynamicEntityId = `DatabaseTable:${tableId}`;
-
-    if (table.isDeleted || table.name === null) {
-        return {...searchDeletedMessageEntity, id};
-    }
-
-    const {name, accessPolicy} = table;
-    const accessPolicyModel = await state.getAccessPolicy(accessPolicy);
-    state.registerAdditionalWrite(context =>
-        syncDatabaseTableMetadataToDurableObject(context, {
-            databaseGroupId: table.databaseGroupId,
-            tableId,
-            name,
-            accessPolicy,
-        }),
-    );
-
-    return {
-        id,
-        accessPolicy: getSearchEntityIndexAccessPolicy(accessPolicyModel),
-        createdTime: null,
-        title: name,
-        titleVersion: null,
-        body: null,
-        tags: emptyArray,
-        media: null,
-        embeddingChunks: emptyArray,
         creatorId: null,
         contributorIds: emptyMap,
         dueDate: null,
@@ -1612,6 +1643,7 @@ async function getDocumentSearchEntity(
 
     const {
         createdTime,
+        deleted,
         version,
         content,
         creator,
@@ -1627,6 +1659,29 @@ async function getDocumentSearchEntity(
 
     const documentAccessPolicy = await state.getAccessPolicy(content.attrs.accessPolicy);
     const accessPolicy = getSearchEntityIndexAccessPolicy(documentAccessPolicy);
+
+    // Index no content for deleted documents. Preserve the access policy so users who
+    // had access see "Deleted document" instead of "Private document".
+    if (deleted) {
+        return {
+            id: entityId,
+            accessPolicy,
+            createdTime: null,
+            title: null,
+            titleVersion: {type: "Integer", version},
+            body: null,
+            tags: emptyArray,
+            media: null,
+            embeddingChunks: emptyArray,
+            creatorId: null,
+            contributorIds: emptyMap,
+            dueDate: null,
+            assigneeId: null,
+            priority: null,
+            openness: null,
+            activeness: null,
+        };
+    }
 
     const contentReferences = await getSearchContentReferences(
         state,
@@ -1755,13 +1810,25 @@ async function getDocumentCommentSearchEntity(
 ): Promise<SearchEntity> {
     const id: SearchEntityId = `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`;
 
+    const [document, commentResult] = await runAllPromises([
+        state.getDocumentAccessPolicyIfExists(documentId),
+        captureResultPromise(
+            state.getDocumentCommentPayload(documentId, commentThreadId, commentIndex),
+        ),
+    ]);
+
+    assert(document);
+
+    if (document.isDeleted) {
+        return {...searchDeletedMessageEntity, id};
+    }
+
     const {
         createdTime,
         authorId,
         payload: commentPayload,
         stream: commentStream,
-        documentAccessPolicy,
-    } = await state.getDocumentCommentPayload(documentId, commentThreadId, commentIndex);
+    } = unwrapResult(commentResult);
 
     // If we're running an `IndexSearchEntity` job then we also want to check if the
     // message has timed out alongside updating the OpenSearch index.
@@ -1770,7 +1837,7 @@ async function getDocumentCommentSearchEntity(
             createMessageStreamTimeoutAdditionalWrite(
                 {documentId, commentThreadId, commentIndex},
                 commentStream,
-                putDocumentCommentStreamPart,
+                putDocumentCommentStreamPartAndBroadcastEvent,
             ),
         );
     }
@@ -1779,7 +1846,7 @@ async function getDocumentCommentSearchEntity(
         return {...searchDeletedMessageEntity, id};
     }
 
-    const accessPolicy = getSearchEntityIndexAccessPolicy(documentAccessPolicy);
+    const accessPolicy = getSearchEntityIndexAccessPolicy(document.accessPolicy, "Comment");
 
     const contentReferences = await getSearchContentReferences(
         state,
@@ -1973,7 +2040,20 @@ async function getPostSearchEntity(
             getFileIfExists: contentReferences.getFileIfExists,
         }),
         titleVersion: {type: "Integers", versions: [post.version, post.channel.version]},
-        body: `in ${post.channel.name}: ${getFullText()}`,
+        // TODO: We should probably index:
+        //
+        // ```
+        // body: getFullText(),
+        // tags: [post.channel.name],
+        // ```
+        //
+        // ...instead. And then on the client, always render a prefix like "Rachel in
+        // Product: ...". Right now there's a bug where if the body match is not in the
+        // start of a post you'll see a search result on the client that looks like "Rachel
+        // but we do need to do ..." (where "but we do need to do" is the body match and
+        // "Rachel " was added because we assumed the body would start with " in Product:"
+        // but the body doesn't start with " in Product:" if the match is near the end).
+        body: `in ${post.channel.name}:\n\n${getFullText()}`,
         tags: emptyArray,
         media: {type: "Account", accountId: post.authorId},
         embeddingChunks: getEmbeddingChunks(),
@@ -2008,7 +2088,7 @@ async function getPostCommentSearchEntity(
             createMessageStreamTimeoutAdditionalWrite(
                 {postId, commentIndex},
                 commentStream,
-                putPostCommentStreamPart,
+                putPostCommentStreamPartAndBroadcastEvent,
             ),
         );
     }
@@ -2329,7 +2409,7 @@ async function getChatMessageSearchEntity(
             createMessageStreamTimeoutAdditionalWrite(
                 {chatId, messageIndex},
                 messageStream,
-                putChatMessageStreamPart,
+                putChatMessageStreamPartAndBroadcastEvent,
             ),
         );
     }
@@ -2421,7 +2501,7 @@ async function getTaskSearchEntityAccessPolicy(
         expectedAccessLevel: AccessLevel;
     },
 ): Promise<SearchEntityIndexAccessPolicy> {
-    let defaultGrantType: SearchEntityIndexDefaultGrantType | null = null;
+    let hasDefaultGrant = false;
     const accountGrantAccountIds = new Set<AccountId>();
 
     const promiseWaiter = new PromiseWaiter();
@@ -2436,11 +2516,7 @@ async function getTaskSearchEntityAccessPolicy(
                 accessPolicy.defaultGrant !== null &&
                 hasAccessLevel(accessPolicy.defaultGrant.level, expectedAccessLevel)
             ) {
-                if (defaultGrantType === null) {
-                    defaultGrantType = "Space";
-                } else {
-                    assert(defaultGrantType === "Space");
-                }
+                hasDefaultGrant = true;
             }
 
             for (const [accountId, grant] of accessPolicy.accountGrantById) {
@@ -2487,7 +2563,7 @@ async function getTaskSearchEntityAccessPolicy(
     // As we iterate through to track a task's dependencies, we'll make async calls to
     // fetch the access policy of a task or collection if it belongs to a site and then
     //
-    // 1. derive the `defaultGrantType`
+    // 1. derive `hasDefaultGrant`
     // 2. add the accounts with access to the task or collection to the
     //    `accountGrantAccountIds` set.
     //
@@ -2497,14 +2573,15 @@ async function getTaskSearchEntityAccessPolicy(
 
     // If we have a space default grant then the individual account grants don't matter
     // for the search entity. Lets exclude them to save space in the index.
-    if (defaultGrantType !== null) {
-        cast<"Space">(defaultGrantType);
+    if (hasDefaultGrant) {
         accountGrantAccountIds.clear();
     }
 
     return {
         accountGrantAccountIds,
-        defaultGrantType,
+        // TODO: The better design is simply `hasDefaultGrant` I think. You can either view
+        // the entity in the search index or not.
+        defaultGrantType: hasDefaultGrant ? "Space" : null,
         urlGrantLevel: null,
     };
 }
@@ -2882,7 +2959,7 @@ async function getTaskCommentSearchEntity(
             createMessageStreamTimeoutAdditionalWrite(
                 {taskId, commentIndex},
                 commentStream,
-                putTaskCommentStreamPart,
+                putTaskCommentStreamPartAndBroadcastEvent,
             ),
         );
     }

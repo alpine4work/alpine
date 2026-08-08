@@ -2,7 +2,7 @@ import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {installVfs} from "~/shared/databases/install_vfs.js";
 import {sql} from "~/shared/databases/sql.js";
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 const sqlite3Promise = sqlite3InitModule();
 

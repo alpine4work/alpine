@@ -5,7 +5,7 @@ import fs from "fs/promises";
 import {join as joinPath, relative as relativePath, sep} from "path";
 import * as prettier from "prettier";
 import * as htmlPrettierPlugin from "prettier/plugins/html";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {html} from "~/shared/helpers/string/html.js";
 
 type ScreenshotTestPreviewColorScheme = "light" | "dark";

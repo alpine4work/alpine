@@ -1,8 +1,8 @@
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {AccessPolicyRegister} from "~/shared/access/access_policy.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskCreateAction,
     TaskDueDateRegister,

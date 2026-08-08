@@ -4,10 +4,10 @@ import {
     OpensearchSortClauseItem,
 } from "~/server/opensearch/opensearch_sort_clause.js";
 import {TaskIndexDocType} from "~/server/tasks/data/task_index_doc.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {JsonScalarValue} from "~/shared/helpers/types/json_value.js";
-import {isId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {JsonScalarValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {

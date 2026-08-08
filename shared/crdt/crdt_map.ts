@@ -3,10 +3,10 @@ import {
     HybridLogicalClock,
     HybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export type CrdtMapClass<Key extends string | number, Value extends {}> = {
     readonly ValueRegister: CrdtRegisterClass<Value | null>;

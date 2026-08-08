@@ -10,7 +10,7 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {ParsableRemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     AccountAvatarDesign,

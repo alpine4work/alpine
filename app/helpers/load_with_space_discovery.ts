@@ -1,8 +1,8 @@
 import {DiscoveryContextModule} from "~/server/context/discovery_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function loadWithSpaceDiscovery<Data1, Data2>(
     context: Context<{discovery: DiscoveryContextModule}>,

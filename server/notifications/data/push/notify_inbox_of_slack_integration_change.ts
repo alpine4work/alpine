@@ -1,8 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {disableNotificationsToSlack} from "~/server/notifications/data/push/disable_notifications_to_slack.js";
 import {enableNotificationsToSlack} from "~/server/notifications/data/push/enable_notifications_to_slack.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function notifyInboxOfSlackIntegrationChange(
     context: ServerActionContext,

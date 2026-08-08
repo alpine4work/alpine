@@ -43,12 +43,15 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {noop} from "~/shared/helpers/control/noop.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
+import {
+    type OrderKey,
+    generateOrderKeyBetween,
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import type {DatabaseRowId} from "~/shared/id/types/id_types.open_source.js";
 
 function DatabaseRelationGridViewCellContent({
     ref,

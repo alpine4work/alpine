@@ -1,19 +1,26 @@
 import type {Context} from "~/shared/context/context.js";
 import type {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {FailedPreconditionError, InternalError, UnavailableError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {
+    FailedPreconditionError,
+    InternalError,
+    UnavailableError,
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateId} from "~/shared/id/id.js";
-import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
-import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
 import {webSocketExpirationTimeoutMs} from "~/shared/web_socket/web_socket_expiration_timeout_ms.js";
 import {
     WebSocketProtocolBase,
@@ -46,8 +53,7 @@ type WebsocketClientConnectionState =
 type WebSocketClientConnectionContext = Context<{tracer: TracerContextModule}>;
 
 function resolveWebSocketUrl(url: string) {
-    // If this is an absolute URL, add our current domain's origin. This will only work
-    // in browser-like environments.
+    // If this is an absolute URL, add our current domain's origin.
     if (url.startsWith("/")) {
         const globalWithLocation = globalThis as {location?: {href: string}};
         assert(globalWithLocation.location, "Expected global location for relative WebSocket URL");

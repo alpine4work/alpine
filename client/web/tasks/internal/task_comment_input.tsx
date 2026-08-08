@@ -2,6 +2,7 @@ import {Memo, Ref, useMemo} from "react";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
+import {DisabledMessageInput} from "~/client/web/messaging/disabled_message_input.js";
 import {MessageEditing} from "~/client/web/messaging/message_editing.js";
 import {MessageInput} from "~/client/web/messaging/message_input.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
@@ -9,13 +10,15 @@ import {JumpToMessageRangeOptions} from "~/client/web/messaging/use_jump_to_mess
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
 import {TaskDetailNotesContentEditorWebSocketClientProcedures} from "~/client/web/tasks/task_detail_notes_content_editor_web_socket_client.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 import {TaskCommentModel} from "~/shared/tasks/model/task_comment_model.js";
 
 export function TaskCommentInput({
     isGhostTask,
+    isDisabled,
+    taskNoun,
     taskId,
     inputRef,
     procedures,
@@ -31,6 +34,14 @@ export function TaskCommentInput({
     messageDraft,
 }: {
     isGhostTask: boolean;
+    /**
+     * Whether the account may write comments. Members with only "View" access read the
+     * conversation (the activity timeline interleaves with it) but get an inert
+     * composer instead of an editor.
+     */
+    isDisabled: boolean;
+    /** What to call the thing being commented on (a project is a task layout). */
+    taskNoun: "task" | "project";
     taskId: TaskId;
     inputRef: Ref<MessageInputRef>;
     procedures: TaskDetailNotesContentEditorWebSocketClientProcedures;
@@ -55,6 +66,14 @@ export function TaskCommentInput({
         () => (!isGhostTask ? ({type: "TaskComment" as const, taskId} as const) : undefined),
         [isGhostTask, taskId],
     );
+
+    // Keeps the input's slot in the virtualized layout (its height is part of the
+    // comment section's measurements) while removing every way to write.
+    if (isDisabled) {
+        // Matches `<PostCommentInput>`'s phrasing. "You don't have permission" is stronger
+        // than we need — the reader usually can't act on it anyway.
+        return <DisabledMessageInput>Can&#x2019;t comment on this {taskNoun}</DisabledMessageInput>;
+    }
 
     return (
         <MessageInput

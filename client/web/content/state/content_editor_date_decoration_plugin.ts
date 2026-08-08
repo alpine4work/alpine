@@ -2,19 +2,19 @@ import {Node} from "prosemirror-model";
 import {EditorState, Plugin, PluginKey} from "prosemirror-state";
 import {Decoration, DecorationSet} from "prosemirror-view";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {
-    ContentEditorDateFormat,
-    ContentEditorDateMatch,
-    detectContentEditorDates,
-} from "~/shared/content/content_editor_date_format.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+    CalendarDateParserFormat,
+    CalendarDateParserMatch,
+    parseCalendarDates,
+} from "~/shared/helpers/date/parse_calendar_dates.open_source.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 
 export type ContentEditorDateDecorationMatch = {
     readonly from: number;
     readonly to: number;
     readonly date: string;
-    readonly format: ContentEditorDateFormat;
+    readonly format: CalendarDateParserFormat;
     readonly originalText: string;
 };
 
@@ -54,7 +54,7 @@ export function getContentEditorDateMatchAtPos(
 type TextblockDateMatch = {
     readonly textStart: number;
     readonly textEnd: number;
-    readonly match: ContentEditorDateMatch;
+    readonly match: CalendarDateParserMatch;
     readonly offsets: ReadonlyArray<{
         nodeStart: number;
         textStart: number;
@@ -95,7 +95,7 @@ function scanTextblockNode(node: Node): ReadonlyArray<TextblockDateMatch> | null
 
     if (textContent.length === 0) return null;
 
-    const textMatches = detectContentEditorDates(textContent, new Date().getFullYear());
+    const textMatches = parseCalendarDates(textContent, new Date().getFullYear());
     if (textMatches.length === 0) return null;
 
     const results: Array<TextblockDateMatch> = [];
@@ -243,7 +243,7 @@ export function contentEditorDateDecorationPlugin(): Plugin {
                 matches.push({
                     from: contentStart + from,
                     to: contentStart + to,
-                    date: tbMatch.match.date,
+                    date: tbMatch.match.date.toString(),
                     format: tbMatch.match.format,
                     originalText: tbMatch.match.originalText,
                 });

@@ -42,23 +42,29 @@ import {
     createSimpleMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
-import {runAllObjectPromises, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {
+    runAllObjectPromises,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {deserializeDateString, isDateString} from "~/shared/helpers/date/date_string.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    deserializeDateString,
+    isDateString,
+} from "~/shared/helpers/date/date_string.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {isId} from "~/shared/id/id.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -68,7 +74,7 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayloadClericalSchema,
     MessagePayload,
@@ -86,7 +92,7 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {MyAccountBroadcastInboxRealtimeEventsSchema} from "~/shared/notifications/my_account_protocol.js";
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 type InboxTableTypes = RynamoTableSchemaGetTypes<typeof InboxTable>;
 
@@ -1108,7 +1114,12 @@ export const InboxTable = RynamoTableSchema.new({
                             otherCommentAuthor,
                             contentTextSnippetResult,
                         ] = await runAllPromises([
-                            getDocumentPreviewIfPossible(context, item.documentId),
+                            getDocumentPreviewIfPossible(context, item.documentId, {
+                                // Ok since if the document is deleted, we reveal nothing about its content. All we
+                                // do is say "Document is deleted". We need to not throw if the document is deleted
+                                // so we don't crash the loading of the entire inbox.
+                                dangerouslyAllowDeleted: true,
+                            }),
                             getAccount(context, item.spaceId, item.firstCommentAuthorId),
                             getAccount(context, item.spaceId, item.latestComment.authorId),
                             item.otherCommentAuthorId
@@ -1133,36 +1144,40 @@ export const InboxTable = RynamoTableSchema.new({
                             ),
                         ]);
 
-                        // The document referenced by our inbox entry must exist. Even after deleting
-                        // documents we leave a stub.
-                        assert(documentResult);
+                        const documentPreview = documentResult?.ok ? documentResult.value : null;
 
                         return new InboxDocumentCommentThreadEntryModel({
                             spaceId: item.spaceId,
                             accountId: item.accountId,
                             loudNotificationCount: item.loudNotificationCount,
                             isArchived: item.isArchived,
-                            document: documentResult.ok
-                                ? {isPrivate: false, document: documentResult.value}
-                                : {isPrivate: true, documentId: item.documentId},
+                            document:
+                                documentPreview && !documentPreview.isDeleted
+                                    ? {isPrivate: false, document: documentPreview}
+                                    : {
+                                          isPrivate: true,
+                                          isDeleted: !!documentPreview?.isDeleted,
+                                          documentId: item.documentId,
+                                      },
                             commentThreadId: item.commentThreadId,
                             firstCommentAuthor,
                             latestComment: {
                                 author: latestCommentAuthor,
                                 createdTime: item.latestComment.createdTime,
                                 index: item.latestComment.index,
-                                contentTextSnippet: documentResult.ok
-                                    ? // If the actor lost access to the document then don't show them the latest comment
-                                      // snippet. They may have already seen this content in a push notification so it's
-                                      // not necessarily a permissions violation to show it again but a user removing
-                                      // another user's access from a document would probably expect the content to be
-                                      // hidden.
-                                      //
-                                      // We continue returning the author, created time, and whether the last comment was
-                                      // a mention because the user has already theoretically seen these things (via push
-                                      // notification) and otherwise the notification loses all structure.
-                                      unwrapResult(contentTextSnippetResult)
-                                    : "",
+                                contentTextSnippet:
+                                    documentPreview && !documentPreview.isDeleted
+                                        ? // If the actor lost access to the document then don't show them the latest comment
+                                          // snippet. They may have already seen this content in a push notification so it's
+                                          // not necessarily a permissions violation to show it again but a user removing
+                                          // another user's access from a document would probably expect the content to be
+                                          // hidden.
+                                          //
+                                          // We continue returning the author, created time, and whether the last comment was
+                                          // a mention because the user has already theoretically seen these things (via push
+                                          // notification) and otherwise the notification loses all structure.
+                                          unwrapResult(contentTextSnippetResult)
+                                        : "",
                                 isStickyMention: item.latestComment.isStickyMention,
                             },
                             otherCommentAuthor,
@@ -1198,7 +1213,12 @@ export const InboxTable = RynamoTableSchema.new({
                             otherCommentThreadAuthor,
                             contentTextSnippetResult,
                         ] = await runAllPromises([
-                            getDocumentPreviewIfPossible(context, item.documentId),
+                            getDocumentPreviewIfPossible(context, item.documentId, {
+                                // Ok since if the document is deleted, we reveal nothing about its content. All we
+                                // do is say "Document is deleted". We need to not throw if the document is deleted
+                                // so we don't crash the loading of the entire inbox.
+                                dangerouslyAllowDeleted: true,
+                            }),
                             getAccount(context, item.spaceId, firstCommentThread.authorId),
                             otherCommentThreadAuthorId
                                 ? getAccount(context, item.spaceId, otherCommentThreadAuthorId)
@@ -1222,18 +1242,21 @@ export const InboxTable = RynamoTableSchema.new({
                             ),
                         ]);
 
-                        // The document referenced by our inbox entry must exist. Even after deleting
-                        // documents we leave a stub.
-                        assert(documentResult);
+                        const documentPreview = documentResult?.ok ? documentResult.value : null;
 
                         return new InboxDocumentNewCommentThreadsEntryModel({
                             spaceId: item.spaceId,
                             accountId: item.accountId,
                             loudNotificationCount: item.loudNotificationCount,
                             isArchived: item.isArchived,
-                            document: documentResult.ok
-                                ? {isPrivate: false, document: documentResult.value}
-                                : {isPrivate: true, documentId: item.documentId},
+                            document:
+                                documentPreview && !documentPreview.isDeleted
+                                    ? {isPrivate: false, document: documentPreview}
+                                    : {
+                                          isPrivate: true,
+                                          isDeleted: !!documentPreview?.isDeleted,
+                                          documentId: item.documentId,
+                                      },
                             bucketGeneration: item.bucketGeneration,
                             commentThreadAuthorCount: commentThreadAuthorIds.size,
                             commentThreadIds: new Set(
@@ -1248,7 +1271,9 @@ export const InboxTable = RynamoTableSchema.new({
                                 author: firstCommentThreadAuthor,
                                 createdTime: firstCommentThread.createdTime,
                                 contentTextSnippet:
-                                    documentResult.ok && contentTextSnippetResult
+                                    documentPreview &&
+                                    !documentPreview.isDeleted &&
+                                    contentTextSnippetResult
                                         ? // If the actor lost access to the document then don't show them the latest comment
                                           // snippet. They may have already seen this content in a push notification so it's
                                           // not necessarily a permissions violation to show it again but a user removing
@@ -1278,7 +1303,12 @@ export const InboxTable = RynamoTableSchema.new({
                             otherCommentAuthor,
                             contentTextSnippetResult,
                         ] = await runAllPromises([
-                            getTaskOwnerIfPossible(context, item.taskId),
+                            getTaskOwnerIfPossible(context, item.taskId, {
+                                // Ok since if the task is deleted, we reveal nothing about its content. All we do
+                                // is say "Task is deleted". We need to not throw if the task is deleted so we
+                                // don't crash the loading of the entire inbox.
+                                dangerouslyAllowDeleted: true,
+                            }),
                             getAccount(context, item.spaceId, item.latestComment.authorId),
                             item.otherCommentAuthorId
                                 ? getAccount(context, item.spaceId, item.otherCommentAuthorId)
@@ -1304,31 +1334,37 @@ export const InboxTable = RynamoTableSchema.new({
                         return new InboxTaskEntryModel({
                             spaceId: item.spaceId,
                             accountId: item.accountId,
-                            task: !taskOwnerResult.ok
-                                ? {isPrivate: true, taskId: item.taskId}
-                                : {
-                                      isPrivate: false,
-                                      taskId: item.taskId,
-                                      taskOwner: taskOwnerResult.value,
-                                  },
+                            task:
+                                !taskOwnerResult.ok || taskOwnerResult.value.isDeleted
+                                    ? {
+                                          isPrivate: true,
+                                          isDeleted: taskOwnerResult.value?.isDeleted ?? false,
+                                          taskId: item.taskId,
+                                      }
+                                    : {
+                                          isPrivate: false,
+                                          taskId: item.taskId,
+                                          taskOwner: taskOwnerResult.value.owner,
+                                      },
                             loudNotificationCount: item.loudNotificationCount,
                             isArchived: item.isArchived,
                             latestComment: {
                                 author: latestCommentAuthor,
                                 createdTime: item.latestComment.createdTime,
                                 index: item.latestComment.index,
-                                contentTextSnippet: taskOwnerResult.ok
-                                    ? // If the actor lost access to the task then don't show them the latest comment
-                                      // snippet. They may have already seen this content in a push notification so it's
-                                      // not necessarily a permissions violation to show it again but a user removing
-                                      // another user's access from a task would probably expect the content to be
-                                      // hidden.
-                                      //
-                                      // We continue returning the author, created time, and whether the last comment was
-                                      // a mention because the user has already theoretically seen these things (via push
-                                      // notification) and otherwise the notification loses all structure.
-                                      unwrapResult(contentTextSnippetResult)
-                                    : "",
+                                contentTextSnippet:
+                                    taskOwnerResult.ok && !taskOwnerResult.value.isDeleted
+                                        ? // If the actor lost access to the task then don't show them the latest comment
+                                          // snippet. They may have already seen this content in a push notification so it's
+                                          // not necessarily a permissions violation to show it again but a user removing
+                                          // another user's access from a task would probably expect the content to be
+                                          // hidden.
+                                          //
+                                          // We continue returning the author, created time, and whether the last comment was
+                                          // a mention because the user has already theoretically seen these things (via push
+                                          // notification) and otherwise the notification loses all structure.
+                                          unwrapResult(contentTextSnippetResult)
+                                        : "",
                                 isStickyMention: item.latestComment.isStickyMention,
                             },
                             otherCommentAuthor,

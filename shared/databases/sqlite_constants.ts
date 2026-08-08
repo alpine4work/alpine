@@ -1,5 +1,5 @@
-import {getMinId} from "~/shared/id/id.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {getMinId} from "~/shared/id/id.open_source.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Page size used by all Alpine SQLite databases. Set via `PRAGMA page_size` when a

@@ -32,15 +32,15 @@ import {
     SearchEntityTitleVersion,
     SearchEntityTitleVersionSchema,
 } from "~/server/search/data/index/internal/search_entity_title_version_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
     IntegerMappingStringType,
     createEnumIntegerMapping,
 } from "~/shared/helpers/string/create_enum_integer_mapping.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 // NOTE(calebmer, 2025-01-14): The fact that this is a constant string `"Space"`

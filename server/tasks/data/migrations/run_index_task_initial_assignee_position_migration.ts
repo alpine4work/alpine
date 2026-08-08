@@ -3,10 +3,10 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {TaskTable} from "~/server/tasks/data/internal/task_table.js";
 import {runIndexTaskInitialAssigneePositionMigrationForTask} from "~/server/tasks/data/task_index.js";
 import {Context} from "~/shared/context/context.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * We added `assigneePosition` on 2025-03-10. This migration makes sure

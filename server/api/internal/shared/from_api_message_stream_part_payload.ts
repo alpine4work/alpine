@@ -1,18 +1,18 @@
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {printApiMentionTarget} from "~/shared/api/specification/parse_api_path.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {printApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiLabelContent,
     ApiMessageExperimentalApproval,
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageStreamPartPayload,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     MessageExperimentalApproval,
     MessageExperimentalApprovalDecisionOption,
@@ -36,7 +36,7 @@ export function fromApiMessageStreamPartPayload(
                         type: "ToolCall",
                         call: {
                             type: "Read",
-                            targetPath: printApiMentionTarget(payload.call.target),
+                            targetPath: printApiMentionReference(payload.call.reference),
                         },
                     };
                 }
@@ -54,7 +54,7 @@ export function fromApiMessageStreamPartPayload(
                         type: "ToolCall",
                         call: {
                             type: "Create",
-                            target: payload.call.target,
+                            target: payload.call.reference,
                         },
                     };
                 }

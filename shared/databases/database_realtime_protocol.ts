@@ -9,8 +9,8 @@ import {
 } from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
-import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,

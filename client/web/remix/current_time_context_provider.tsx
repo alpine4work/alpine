@@ -7,7 +7,7 @@ import {
     CurrentTimeRoundedToHour,
     CurrentTimeRoundedToNearestTenMinutes,
 } from "~/client/web/remix/internal/current_time_context.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 import {roundDateToHour} from "~/shared/helpers/date/round_date_to_hour.js";
 
 export function CurrentTimeContextProvider({

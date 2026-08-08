@@ -1,8 +1,8 @@
 import fs from "fs/promises";
 import {join as joinPath} from "path";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 
 /**
  * Creates a tokenizer automatically from the `@xenova/transformers` library.

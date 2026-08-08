@@ -2,10 +2,10 @@ import {Step} from "prosemirror-transform";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {TaskNotesStepTransactionItem, TaskTable} from "~/server/tasks/data/internal/task_table.js";
-import {DataLossError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {ContentEditorClientId, TaskId} from "~/shared/id/types/id_types.js";
+import {ContentEditorClientId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Reads the task notes steps applied between `startVersion` (inclusive) and

@@ -1,10 +1,10 @@
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId, SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     SearchChannelEntityModelDataSchema,
     SearchChatEntityModelDataSchema,
@@ -40,7 +40,7 @@ export const SitePreviewModelDataSchema = Schema.object({
     createdTime: Schema.date,
     accessPolicy: LocalAccessPolicySchema,
     version: Schema.integer,
-    rootContainerId: Schema.string as Schema<SiteRootContainerId>,
+    rootContainerId: Schema.stringAs<SiteRootContainerId>(),
     creatorId: Schema.id<AccountId>(),
 });
 export type SitePreviewModelData = SchemaType<typeof SitePreviewModelDataSchema>;
@@ -104,7 +104,7 @@ export class SiteTopBarModel extends Model(
     SiteEntryTopBarSchema.merge(
         Schema.object({
             version: Schema.integer,
-            id: Schema.string as Schema<SiteTopBarContainerId>,
+            id: Schema.stringAs<SiteTopBarContainerId>(),
         }),
     ),
 ) {}
@@ -113,7 +113,7 @@ export class SiteSideBarModel extends Model(
     SiteEntrySideBarSchema.merge(
         Schema.object({
             version: Schema.integer,
-            id: Schema.string as Schema<SiteSideBarContainerId>,
+            id: Schema.stringAs<SiteSideBarContainerId>(),
         }),
     ),
 ) {}
@@ -122,7 +122,7 @@ export class SiteSideBarSectionModel extends Model(
     SiteEntrySideBarSectionSchema.merge(
         Schema.object({
             version: Schema.integer,
-            id: Schema.string as Schema<SiteSideBarSectionContainerId>,
+            id: Schema.stringAs<SiteSideBarSectionContainerId>(),
         }),
     ),
 ) {}

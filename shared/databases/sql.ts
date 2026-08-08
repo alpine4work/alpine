@@ -1,7 +1,7 @@
 import type {BindableValue} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 import {
     JsonStringifiableUint8Array,
     ObjectPropertySchema,
@@ -10,7 +10,7 @@ import {
     Schema,
     type SchemaSerializedObjectValue,
     type SchemaSerializedValue,
-} from "~/shared/schema/schema.js";
+} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Minimal structural surface of Cloudflare's `SqlStorage` — a durable object's

@@ -10,17 +10,17 @@ import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExitWithAnyCode} from "~/server/helpers/node/wait_for_process_exit.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 async function main(): Promise<{exitCode: number}> {
     let testlogsPath = atob(process.argv[2] ?? "");

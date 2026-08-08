@@ -15,17 +15,17 @@ import {LoaderContext} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
 import {ApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
-import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
     ChatGptConversationItem,
     ChatGptConversationStateResponseSchema,
 } from "~/shared/debug/chat_gpt/chat_gpt_conversation_item.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export async function loadChatGptConversationItems(
     unauthenticatedContext: LoaderContext,

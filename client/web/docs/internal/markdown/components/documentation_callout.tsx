@@ -1,9 +1,9 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {flattenDocumentationMarkdownChildren} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
 import {ColorSchemeVar} from "~/client/web/styles/styles.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {flattenDocumentationMarkdownChildren} from "~/shared/docs/documentation_markdown_component.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 type DocumentationCalloutType = "info" | "tip" | "warning";
 

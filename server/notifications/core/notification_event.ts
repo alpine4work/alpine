@@ -1,8 +1,8 @@
 import {
-    ApiBotWebhookNewMessageEventMessageParent,
-    ApiBotWebhookNewMessageEventParent,
-    ApiBotWebhookNewMessageEventPostParent,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+    ApiBotWebhookCreatedMessageEventMessageParent,
+    ApiBotWebhookCreatedMessageEventParent,
+    ApiBotWebhookCreatedMessageEventPostParent,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {
@@ -15,13 +15,13 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SearchMentionEntityIdSchema} from "~/shared/search/search_entity_id.js";
 
-const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookNewMessageEventMessageParent> =
+const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookCreatedMessageEventMessageParent> =
     Schema.object({
         type: Schema.value("Message"),
         index: Schema.integer,
@@ -30,7 +30,7 @@ const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookNewMe
         }),
     });
 
-const ApiBotWebhookNewMessageEventPostParentSchema: Schema<ApiBotWebhookNewMessageEventPostParent> =
+const ApiBotWebhookNewMessageEventPostParentSchema: Schema<ApiBotWebhookCreatedMessageEventPostParent> =
     Schema.object({
         type: Schema.value("Post"),
         author: Schema.object({
@@ -38,7 +38,7 @@ const ApiBotWebhookNewMessageEventPostParentSchema: Schema<ApiBotWebhookNewMessa
         }),
     });
 
-export const ApiBotWebhookNewMessageEventParentSchema: Schema<ApiBotWebhookNewMessageEventParent> =
+export const ApiBotWebhookCreatedMessageEventParentSchema: Schema<ApiBotWebhookCreatedMessageEventParent> =
     Schema.union({
         Message: ApiBotWebhookNewMessageEventMessageParentSchema,
         Post: ApiBotWebhookNewMessageEventPostParentSchema,
@@ -58,7 +58,7 @@ const NotificationCreateChatMessageEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
-    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
+    parent: ApiBotWebhookCreatedMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
     clerical: MessageContentPayloadClericalSchema.optional(),
@@ -79,7 +79,7 @@ const NotificationCreatePostCommentEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
-    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
+    parent: ApiBotWebhookCreatedMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
@@ -115,7 +115,7 @@ const NotificationCreateDocumentCommentEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
-    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
+    parent: ApiBotWebhookCreatedMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });
@@ -134,7 +134,7 @@ const NotificationCreateTaskCommentEventSchema = Schema.object({
     createdTimeZone: TimeZoneSchema,
     authorId: Schema.id<AccountId>(),
     mentionedAccountIds: Schema.set(Schema.id<AccountId>()),
-    parent: ApiBotWebhookNewMessageEventParentSchema.nullable().default(null),
+    parent: ApiBotWebhookCreatedMessageEventParentSchema.nullable().default(null),
     isContentSnippetComplete: Schema.boolean.default(false),
     contentSnippet: MessageContentSchema,
 });

@@ -12,7 +12,7 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskRealtimeGetTaskWithoutDependenciesOutput} from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
 
 export async function getTaskWithoutDependenciesForRealtime(
@@ -23,6 +23,7 @@ export async function getTaskWithoutDependenciesForRealtime(
         spaceId,
         taskId,
         consistency,
+        dangerouslyAllowDeleted,
     }: {
         server: TaskRealtimeServer;
         dangerouslyEscalateToSystemContext: <Value>(
@@ -38,6 +39,7 @@ export async function getTaskWithoutDependenciesForRealtime(
         spaceId: SpaceId;
         taskId: TaskId;
         consistency: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted: boolean;
     },
 ): Promise<TaskRealtimeGetTaskWithoutDependenciesOutput> {
     // If a strong read consistency was requested then expect strong consistency in
@@ -52,7 +54,7 @@ export async function getTaskWithoutDependenciesForRealtime(
         spaceId,
         taskId,
         "View",
-        {consistency},
+        {consistency, dangerouslyAllowDeleted},
     );
     if (!result?.ok) return {ok: true, taskResult: result};
 

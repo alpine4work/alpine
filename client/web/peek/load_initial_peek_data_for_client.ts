@@ -1,10 +1,10 @@
 import {AgnosticRouteMatch, Path, matchRoutes} from "@remix-run/router";
 import {DataRouteObject} from "react-router";
 import {processLoaderResult} from "~/client/web/remix/process_loader_result.js";
-import {CancelledError, NotFoundError} from "~/shared/error/error.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {CancelledError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * We have a server version of this too: `loadInitialPeekDataForServer()`.

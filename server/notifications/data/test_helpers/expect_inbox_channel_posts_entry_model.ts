@@ -2,7 +2,7 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxChannelPostsEntryModel} from "~/shared/notifications/inbox_model.js";
 
 export function expectInboxChannelPostsEntryModel({

@@ -3,7 +3,7 @@ import {
     getFromEmailAddressAddrSpec,
     getFromEmailAddressNameAddr,
 } from "~/server/emails/from_email_address.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 
 const rawFromAddress: FromEmailAddress = {

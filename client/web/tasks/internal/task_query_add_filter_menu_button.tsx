@@ -8,8 +8,8 @@ import {
 } from "~/client/web/design/overlay_trigger_button.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {Spacing} from "~/shared/design/core/spacing.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 

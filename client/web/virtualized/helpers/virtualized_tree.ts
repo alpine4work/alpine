@@ -4,10 +4,10 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {Key} from "react";
-import {InternalError, OutOfRangeError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
+import {InternalError, OutOfRangeError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.open_source.js";
 
 /**
  * See documentation of `VirtualizedTree`.
@@ -159,7 +159,6 @@ export abstract class VirtualizedTreeBase<NodeOrderKey, Node, Item> {
         if (node === null) return 0;
 
         const valueItemCount = this._getNodeItemCount(node.value);
-
         // Don't spend memory caching nodes with no subtrees.
         if (node.left === null && node.right === null) return valueItemCount;
 
@@ -414,49 +413,6 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
     }
 
     /**
-     * Insert some nodes after a specific node in the tree. Node keys must be unique
-     * and shouldn't match the keys of nodes already in the tree.
-     */
-    public insertNodesAfter(
-        afterNodeKey: NodeKey,
-        nodes: ReadonlyArray<Node>,
-    ): VirtualizedTree<NodeKey, Node, Item> {
-        const afterOrderKey = this._orderKeyByNodeKey.get(afterNodeKey);
-        assert(afterOrderKey, "Node with key does not exist in the tree");
-
-        const successorIterator = this._nodeByOrderKey.gt(afterOrderKey);
-        const successorOrderKey = successorIterator.valid
-            ? assertExists(successorIterator.key)
-            : null;
-
-        const orderKeys = generateOrderKeysBetween(afterOrderKey, successorOrderKey, nodes.length);
-
-        let nodeByOrderKey = this._nodeByOrderKey;
-        let orderKeyByNodeKey = this._orderKeyByNodeKey;
-
-        for (let i = 0; i < nodes.length; i++) {
-            const node = assertExists(nodes[i]);
-            const nodeKey = this._getNodeKey(node);
-            const orderKey = assertExists(orderKeys[i]);
-
-            nodeByOrderKey = nodeByOrderKey.insert(orderKey, node);
-
-            const oldOrderKey = orderKeyByNodeKey.get(nodeKey);
-            assert(!oldOrderKey, "Node with key already exists in the tree");
-            orderKeyByNodeKey = orderKeyByNodeKey.insert(nodeKey, orderKey);
-        }
-
-        return new VirtualizedTree({
-            getNodeKey: this._getNodeKey,
-            getNodeItemCount: this._getNodeItemCount,
-            getNodeItem: this._getNodeItem,
-            nodeByOrderKey,
-            orderKeyByNodeKey,
-            itemCountSubtreeCache: this._itemCountSubtreeCache,
-        });
-    }
-
-    /**
      * Insert some nodes at the end of the tree. Node keys must be unique and shouldn't
      * match the keys of nodes already in the tree.
      */
@@ -493,15 +449,32 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
     }
 
     /**
-     * Remove a node by its key. If the node does not exist this method does nothing
-     * and returns the same tree.
+     * Insert some nodes after a specific node in the tree. Node keys must be unique
+     * and shouldn't match the keys of nodes already in the tree.
      */
-    public removeNode(nodeKey: NodeKey): VirtualizedTree<NodeKey, Node, Item> {
-        const orderKey = this._orderKeyByNodeKey.get(nodeKey);
-        if (!orderKey) return this;
+    public insertNodesAfter(
+        afterNodeKey: NodeKey,
+        nodes: ReadonlyArray<Node>,
+    ): VirtualizedTree<NodeKey, Node, Item> {
+        const afterOrderKey = this._orderKeyByNodeKey.get(afterNodeKey);
+        assert(afterOrderKey, "Node with key does not exist in the tree");
 
-        const nodeByOrderKey = this._nodeByOrderKey.remove(orderKey);
-        const orderKeyByNodeKey = this._orderKeyByNodeKey.remove(nodeKey);
+        const successorIterator = this._nodeByOrderKey.gt(afterOrderKey);
+        const successorOrderKey = successorIterator.valid
+            ? assertExists(successorIterator.key)
+            : null;
+        const orderKeys = generateOrderKeysBetween(afterOrderKey, successorOrderKey, nodes.length);
+
+        let nodeByOrderKey = this._nodeByOrderKey;
+        let orderKeyByNodeKey = this._orderKeyByNodeKey;
+        for (let i = 0; i < nodes.length; i++) {
+            const node = assertExists(nodes[i]);
+            const nodeKey = this._getNodeKey(node);
+            const orderKey = assertExists(orderKeys[i]);
+            nodeByOrderKey = nodeByOrderKey.insert(orderKey, node);
+            assert(!orderKeyByNodeKey.get(nodeKey), "Node with key already exists in the tree");
+            orderKeyByNodeKey = orderKeyByNodeKey.insert(nodeKey, orderKey);
+        }
 
         return new VirtualizedTree({
             getNodeKey: this._getNodeKey,
@@ -509,6 +482,21 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
             getNodeItem: this._getNodeItem,
             nodeByOrderKey,
             orderKeyByNodeKey,
+            itemCountSubtreeCache: this._itemCountSubtreeCache,
+        });
+    }
+
+    /** Remove a node by its key. */
+    public removeNode(nodeKey: NodeKey): VirtualizedTree<NodeKey, Node, Item> {
+        const orderKey = this._orderKeyByNodeKey.get(nodeKey);
+        if (!orderKey) return this;
+
+        return new VirtualizedTree({
+            getNodeKey: this._getNodeKey,
+            getNodeItemCount: this._getNodeItemCount,
+            getNodeItem: this._getNodeItem,
+            nodeByOrderKey: this._nodeByOrderKey.remove(orderKey),
+            orderKeyByNodeKey: this._orderKeyByNodeKey.remove(nodeKey),
             itemCountSubtreeCache: this._itemCountSubtreeCache,
         });
     }

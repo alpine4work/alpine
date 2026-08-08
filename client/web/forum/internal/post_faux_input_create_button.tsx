@@ -16,7 +16,7 @@ import {
     pressOpacityOverlayClassName,
 } from "~/client/web/styles/styles.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 
 export function PostFauxInputCreateButton({channel}: {channel: ChannelModel}) {
     const routeLayout = useRouteLayout();

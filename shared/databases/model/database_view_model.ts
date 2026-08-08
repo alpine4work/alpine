@@ -9,8 +9,8 @@ import {DatabaseTableScopedBaseModel} from "~/shared/databases/model/database_ta
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {sql} from "~/shared/databases/sql.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 
 export class DatabaseViewModel extends DatabaseTableScopedBaseModel {
     constructor(

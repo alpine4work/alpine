@@ -1,13 +1,13 @@
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TaskActionTable} from "~/server/tasks/data/internal/task_table.js";
-import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
+import {indexTaskActionTransactionWithoutActivityAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
 import {TaskRealtimeProcessContext} from "~/server/tasks/data/task_realtime_context.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Reindex every task action in our task actions table to rebuild our task
@@ -45,7 +45,7 @@ export async function runIndexEveryTaskActionStep1Of2(
 
         promiseWaiter.waitUntil(
             mutexes[i++ % mutexes.length]!.withLock(() =>
-                indexTaskActionTransactionAssumingItsCommitted(
+                indexTaskActionTransactionWithoutActivityAssumingItsCommitted(
                     context.clone({
                         cache: CacheContextModule.new(),
                         batch: BatchContextModule.new(),

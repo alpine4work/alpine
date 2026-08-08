@@ -1,19 +1,19 @@
-import {getAggregateErrorPriority} from "~/shared/error/aggregate_error.js";
-import {ErrorBase, getErrorCode} from "~/shared/error/error.js";
-import {ErrorCode, getErrorCodes, isErrorCode} from "~/shared/error/error_code.js";
+import {getAggregateErrorPriority} from "~/shared/error/aggregate_error.open_source.js";
+import {ErrorBase, getErrorCode} from "~/shared/error/error.open_source.js";
+import {ErrorCode, getErrorCodes, isErrorCode} from "~/shared/error/error_code.open_source.js";
 import {
     getErrorOriginalTracerSpan,
     setErrorOriginalTracerSpan,
-} from "~/shared/error/error_original_tracer_span.js";
-import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
+} from "~/shared/error/error_original_tracer_span.open_source.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.open_source.js";
 import {
     ErrorDisplayMessage,
     ErrorDisplayMessageLinkSegment,
     ErrorDisplayMessageSegment,
-} from "~/shared/error/types/error_display_message_type.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
-import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
+} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.open_source.js";
+import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export const ErrorCodeSchema = Schema.enum(getErrorCodes());
 

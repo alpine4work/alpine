@@ -6,10 +6,10 @@ import {
 } from "~/server/opensearch/opensearch_index_type.js";
 import {SearchEntityKeywordIndexDocType} from "~/server/search/data/index/internal/search_entity_index_doc.js";
 import {searchEntityKeywordIndexRefreshIntervalMs} from "~/server/search/data/table/search_entity_actions.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 /**

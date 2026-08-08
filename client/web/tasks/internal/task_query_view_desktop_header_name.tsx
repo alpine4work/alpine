@@ -10,7 +10,7 @@ import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {colorSchemeVars, sprinkles} from "~/client/web/styles/styles.js";
 import {defaultTaskQueryViewName} from "~/client/web/styles/tasks_shared_styles.js";
 import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export type TaskQueryViewDesktopHeaderNameRef = {
     editName(): void;

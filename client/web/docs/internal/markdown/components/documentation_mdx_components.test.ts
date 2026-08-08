@@ -1,8 +1,8 @@
+import {createDocumentationMdxMarkdownComponents} from "~/client/web/docs/documentation_mdx_components.js";
+import type {DocumentationMdxMarkdownComponentName} from "~/client/web/docs/documentation_mdx_components.js";
 // Straight quotes below are markdown syntax in expected-output assertions.
 /* eslint-disable cyberworlds/string-quotes */
-import {DocumentationApiModel} from "~/client/web/docs/documentation_api_model.js";
-import {createDocumentationMdxMarkdownComponents} from "~/client/web/docs/internal/markdown/components/documentation_mdx_components.js";
-import type {DocumentationMdxMarkdownComponentName} from "~/client/web/docs/internal/markdown/components/documentation_mdx_components.js";
+import {DocumentationApiModel} from "~/shared/docs/documentation_api_model.js";
 
 const documentationApiModel: DocumentationApiModel = {
     title: "Alpine API",

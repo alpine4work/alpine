@@ -4,8 +4,8 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {getAvatarContentType} from "~/shared/avatar/get_avatar_content_type.js";
 import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
-import {BotId} from "~/shared/id/types/id_types.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export async function uploadDemoSpaceBotAvatar(
     tokenAgent: TokenAgent,

@@ -1,7 +1,7 @@
 import * as Y from "yjs";
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
 import {
     TaskTitle,
@@ -13,6 +13,7 @@ import {
     addFallbackToTaskTitle,
     applyTaskTitleUpdate,
     createTaskTitleFromText,
+    createTaskTitleRetypeUpdateForTest,
     emptyTaskTitle,
     emptyTaskTitleModel,
     generateTaskTitleClientIdFromRealmId,
@@ -22,6 +23,7 @@ import {
     getTaskTitleText,
     isTaskTitle,
     mergeTaskTitleUpdates,
+    randomlyGenerateTaskTitleClientId,
     taskTitleMaxLength,
 } from "~/shared/tasks/title/task_title.js";
 
@@ -3456,4 +3458,13 @@ test("shuffling task title client IDs rarely conflicts and always produces u32s"
         hasAtMostOneConflict: true,
         invalidClientIds: [],
     });
+});
+
+test("a retype update edits an existing title in place", () => {
+    const clientId = randomlyGenerateTaskTitleClientId();
+    const title = createTaskTitleFromText(clientId, "hello");
+
+    const renameUpdate = createTaskTitleRetypeUpdateForTest(title, clientId, "Hello");
+
+    expect(getTaskTitleText(applyTaskTitleUpdate(title, renameUpdate))).toEqual("Hello");
 });

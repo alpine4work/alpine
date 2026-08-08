@@ -2,8 +2,8 @@ import * as inquirer from "@inquirer/prompts";
 import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const demoNameRegExp = /^[a-z][a-z0-9_]*$/;
 

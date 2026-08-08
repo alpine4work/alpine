@@ -8,10 +8,10 @@ import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_au
 import {getTaskNotificationSubscribers} from "~/server/tasks/data/get_task_notification_subscribers.js";
 import {getTaskOwnerIfPossible} from "~/server/tasks/data/get_task_owner_if_possible.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Process a `NotificationCreateTaskCommentEvent` which occurs when a user comments
@@ -151,13 +151,13 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
         );
     },
     getBotWebhookEvent: (event, {accountId}) => ({
-        type: "NewMessage",
+        type: "CreatedMessage",
         room: {
             type: "Task",
             id: event.taskId,
         },
         index: event.commentIndex,
-        authorId: event.authorId,
+        author: {id: event.authorId},
         createdTimeZone: event.createdTimeZone,
         wasMentioned: event.mentionedAccountIds.has(accountId) || undefined,
         parent: event.parent ?? undefined,
@@ -173,7 +173,7 @@ export const processNotificationCreateTaskCommentEvent = createNotificationEvent
             ),
         ]);
 
-        const taskOwner = unwrapResult(taskOwnerResult);
+        const taskOwner = unwrapResult(taskOwnerResult).owner;
 
         let subtitle = "";
 

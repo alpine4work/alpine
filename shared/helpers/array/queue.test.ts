@@ -1,4 +1,4 @@
-import {Queue} from "~/shared/helpers/array/queue.js";
+import {Queue} from "~/shared/helpers/array/queue.open_source.js";
 
 test("can dequeue elements in FIFO order", () => {
     const queue = new Queue<number>();

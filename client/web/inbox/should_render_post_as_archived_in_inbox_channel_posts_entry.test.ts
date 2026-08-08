@@ -1,9 +1,9 @@
 import {shouldRenderPostAsArchivedInInboxChannelPostsEntry} from "~/client/web/inbox/should_render_post_as_archived_in_inbox_channel_posts_entry.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateId} from "~/shared/id/id.js";
-import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     InboxChannelPostsEntryModel,
     InboxPostCommentsEntryModel,

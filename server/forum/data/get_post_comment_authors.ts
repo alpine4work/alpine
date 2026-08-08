@@ -2,10 +2,10 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**

@@ -1,11 +1,20 @@
-import {generateId} from "~/shared/id/id.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    PostId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     SearchChatEntityMediaModel,
     SearchEntityModel,
+    SearchEntityModelData,
+    isDeletedSearchEntity,
     mergeAccountOrAccountPileMedia,
 } from "~/shared/search/search_entity_model.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
+import {TaskTitleSnapshot} from "~/shared/tasks/title/task_title.js";
 
 test("if title versions are equal than the second title\u2019s data wins", () => {
     const postId = generateId<PostId>();
@@ -139,3 +148,84 @@ test("merging chat search entities merges their `AccountPile` media", () => {
         accountCount: 3,
     });
 });
+
+const deletedSearchEntityCases: Array<{
+    name: string;
+    entityData: SearchEntityModelData;
+    expected: boolean;
+}> = (() => {
+    const createTaskTitleSnapshot = () => new Uint8Array() as TaskTitleSnapshot;
+    const version = [0, 0] as const;
+
+    return [
+        {
+            name: "deleted document",
+            expected: true,
+            entityData: {
+                type: "Document",
+                title: null,
+                document: {id: generateId<DocumentId>(), version: 1},
+            },
+        },
+        {
+            name: "deleted task",
+            expected: true,
+            entityData: {
+                type: "Task",
+                title: null,
+                task: {
+                    id: generateId<TaskId>(),
+                    titleSnapshot: createTaskTitleSnapshot(),
+                    displayStatus: {value: "OpenInactive", version},
+                },
+            },
+        },
+        {
+            name: "deleted task collection",
+            expected: true,
+            entityData: {
+                type: "TaskCollection",
+                title: null,
+                collection: {
+                    id: generateId<TaskCollectionId>(),
+                    titleVersion: version,
+                    color: {value: null, version},
+                },
+            },
+        },
+        {
+            name: "document comment",
+            expected: false,
+            entityData: {
+                type: "DocumentComment",
+                title: null,
+                comment: {
+                    documentId: generateId<DocumentId>(),
+                    commentThreadId: generateId<DocumentCommentThreadId>(),
+                    index: 0,
+                    author: createTestAccountModel(),
+                },
+            },
+        },
+        {
+            name: "task with title",
+            expected: false,
+            entityData: {
+                type: "Task",
+                title: "Task",
+                task: {
+                    id: generateId<TaskId>(),
+                    titleSnapshot: createTaskTitleSnapshot(),
+                    displayStatus: {value: "OpenInactive", version},
+                },
+            },
+        },
+    ];
+})();
+
+test.each(deletedSearchEntityCases)(
+    "deleted search entities are documents, tasks, and task collections with null title: $name",
+    ({entityData, expected}) => {
+        expect(isDeletedSearchEntity(entityData)).toBe(expected);
+    },
+);

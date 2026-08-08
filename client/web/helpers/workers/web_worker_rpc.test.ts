@@ -1,7 +1,7 @@
 import {WebWorkerRpc} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const testMethods = defineWebWorkerRpcMethods({
     add: {

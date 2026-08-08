@@ -1,3 +1,4 @@
+import {parseDate} from "@internationalized/date";
 import classNames from "classnames";
 import {ListBullets, ListChecks, ListNumbers} from "phosphor-react";
 import {closeHistory, history, redo, redoDepth, undo, undoDepth} from "prosemirror-history";
@@ -47,6 +48,7 @@ import {
 } from "react";
 import {flushSync} from "react-dom";
 import {useContentBlockWidth} from "~/client/web/content/content_block_width.js";
+import {contentEditorHeadingSelector} from "~/client/web/content/content_editor_heading_selector.js";
 import {
     ContentFileEntityRenderers,
     ContentFileEntityRenderersContext,
@@ -65,6 +67,7 @@ import {createContentEditorFileNodeViewConstructor} from "~/client/web/content/i
 import {createContentEditorFileRowLikeNodeViewConstructor} from "~/client/web/content/internal/content_editor_file_row_like_node_view.js";
 import {ContentEditorFileToolbarController} from "~/client/web/content/internal/content_editor_file_toolbar.js";
 import {ContentEditorFloater} from "~/client/web/content/internal/content_editor_floater.js";
+import {createContentEditorHeadingNodeView} from "~/client/web/content/internal/content_editor_heading_node_view.js";
 import {
     findInsertedNodeAfterReplaceRangeWith,
     insertContentCheckListItem,
@@ -111,6 +114,11 @@ import {
     ContentEditorDateDecorationMatch,
     getContentEditorDateMatchAtPos,
 } from "~/client/web/content/state/content_editor_date_decoration_plugin.js";
+import {
+    expandContentEditorHeadingSectionsAtPos,
+    getCollapsedContentEditorHeadingPositions,
+    toggleContentEditorHeadingCollapsed,
+} from "~/client/web/content/state/content_editor_heading_collapse_plugin.js";
 import {openContentEditorCommentInputFloaterMetaKey} from "~/client/web/content/state/content_editor_meta_keys.js";
 import {ContentSpellCheckSuggestion} from "~/client/web/content/state/content_editor_spell_checker_configuration.js";
 import {getContentEditorSpellCheckerLints} from "~/client/web/content/state/content_editor_spell_checker_plugin.js";
@@ -157,6 +165,8 @@ import {isVirtualKeyboardEvent} from "~/client/web/helpers/events/is_virtual_key
 import {flushSyncIfNotRendering} from "~/client/web/helpers/flush_sync_if_not_rendering.js";
 import {GlobalKeyDownEvent} from "~/client/web/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
+import {CaretDownUpIcon} from "~/client/web/icons/caret_down_up_icon.js";
+import {CaretUpDownIcon} from "~/client/web/icons/caret_up_down_icon.js";
 
 import {getClientInfo, useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
@@ -177,10 +187,9 @@ import {
     contentStyles,
     selectionColorSchemeVars,
 } from "~/client/web/styles/styles.js";
-import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
+import {getClientTracerSynchronizedSystemClock} from "~/client/web/tracer/client_tracer_synchronized_system_clock.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {formatDateInOriginalFormat} from "~/shared/content/content_editor_date_format.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     getContentReferencedIdsForSlice,
@@ -199,48 +208,53 @@ import {
     linkClassName,
 } from "~/shared/design/core/constant_class_names.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {isFileImageContentType} from "~/shared/files/file_content_type.js";
+import {isFileImageContentType} from "~/shared/files/file_content_type.open_source.js";
 import {FileEntityId, isFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {printCalendarDateInOriginalFormat} from "~/shared/helpers/date/parse_calendar_dates.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
-import {iterableSome} from "~/shared/helpers/iterable/iterable_some.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {iterableSome} from "~/shared/helpers/iterable/iterable_some.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
-import {Id, generateId, isId} from "~/shared/id/id.js";
-import {AccountId, DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.open_source.js";
+import {Id, generateId, isId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    DocumentCommentThreadId,
+    FileId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {getContentReferencesWithoutFiles} from "~/shared/rpc/content_rpc_definitions.js";
@@ -343,6 +357,17 @@ export type ContentEditorRef<Content extends ContentWithReferences> = {
      * [1]: https://prosemirror.net/docs/ref/#view.EditorView.nodeDOM
      */
     nodeDom(pos: number): globalThis.Node | null;
+
+    /**
+     * Expand every collapsed heading section hiding `element`, e.g. to reveal a
+     * comment mark inside a collapsed section before measuring or scrolling to it.
+     * Does nothing when the element isn't hidden inside a collapsed section.
+     *
+     * Expanding synchronously redraws the previously hidden blocks, which replaces
+     * their DOM nodes — re-query any element you got from the editor DOM before this
+     * call.
+     */
+    expandHeadingSectionsAtElement(element: Element): void;
 
     /**
      * Execute the ProseMirror undo command.
@@ -510,6 +535,23 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
      * component that does this.
      */
     withoutMobileKeyboardToolbar?: boolean;
+
+    /**
+     * Let the user collapse the section under a top-level heading (see
+     * `contentEditorHeadingCollapsePlugin()`). Adds a "Collapse/Expand heading" action
+     * when right clicking a heading and shows the expand chevron next to collapsed
+     * headings. The document editor sets this when the margin next to the content
+     * column is wide enough to fit the chevron.
+     */
+    withCollapsibleHeadings?: boolean;
+
+    /**
+     * Extra context menu actions for right clicking the heading at `headingPos`. The
+     * document editor uses this for its copy heading link action. The editor renders
+     * these below its undo/redo actions and above its insert actions, next to its own
+     * collapse/expand heading action (see `withCollapsibleHeadings`).
+     */
+    getHeadingContextMenuActions?: (headingPos: number) => ReadonlyArray<MenuAction> | null;
 
     /**
      * Disable dual modality editing on devices that don't have a primary input that
@@ -874,6 +916,11 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
                     "Getting DOM for position in content editor on initial render is not implemented",
                 );
             },
+            expandHeadingSectionsAtElement: () => {
+                throw new UnimplementedError(
+                    "Expanding heading sections in content editor on initial render is not implemented",
+                );
+            },
             undo: unimplementedDispatchCommand,
             redo: unimplementedDispatchCommand,
             insertUnorderedListItem: unimplementedDispatchCommand,
@@ -958,6 +1005,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         style,
         containerClassName: customContainerClassName,
         accessLevel = "Manage",
+        withCollapsibleHeadings,
         withoutMobileKeyboardToolbar,
         withoutMobileDualModality,
         mentionFloaterSectionOrder = "PeopleSuggestedInsert",
@@ -1185,6 +1233,10 @@ function ContentEditor<Content extends ContentWithReferences>(
                 const view = assertExists(viewRef.current);
                 return view.nodeDOM(pos);
             },
+            expandHeadingSectionsAtElement: element => {
+                const view = assertExists(viewRef.current);
+                expandContentEditorHeadingSectionsAtPos(view, view.posAtDOM(element, 0));
+            },
             undo: () => {
                 const view = assertExists(viewRef.current);
                 undo(view.state, view.dispatch, view);
@@ -1399,6 +1451,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         // IMPORTANT: If you have a custom view in `nodeViews` here you should also have a
         // matching custom renderer in `nodeRenderers` in `renderContentToHtml()`.
         viewProps.nodeViews = {
+            heading: createContentEditorHeadingNodeView,
             orderedListItem: createContentEditorOrderedListItemNodeView,
             checkListItem: createContentEditorCheckListItemNodeViewConstructor({
                 getAccessLevel: () => propsRef.current.accessLevel ?? "Manage",
@@ -1770,7 +1823,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         // let's use our synchronized clock to generate the `FileId`.
         const generateFileIdWithSynchronizedClock = () => {
             const clock =
-                getSynchronizedSystemClock().getStateWithoutListening().value ??
+                getClientTracerSynchronizedSystemClock().getStateWithoutListening().value ??
                 unsynchronizedSystemClock;
 
             return generateChronologicalIdWithTime<FileId>(Math.round(clock.now()));
@@ -5047,9 +5100,17 @@ function ContentEditor<Content extends ContentWithReferences>(
             const view = assertExists(viewRef.current);
             const {state} = view;
 
+            // The doc position the user right clicked. `contextmenu` events synthesized
+            // without coordinates (e.g. dispatched by tests) have non-finite
+            // `clientX`/`clientY` which make ProseMirror's `posAtCoords()` throw.
+            const eventPosResult =
+                Number.isFinite(event.clientX) && Number.isFinite(event.clientY)
+                    ? view.posAtCoords({left: event.clientX, top: event.clientY})
+                    : null;
+
             const lints = getContentEditorSpellCheckerLints(state);
             if (lints.length > 0) {
-                const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
+                const posResult = eventPosResult;
 
                 // If the user right clicked into a lint then we want to show suggestions for that
                 // lint.
@@ -5240,7 +5301,53 @@ function ContentEditor<Content extends ContentWithReferences>(
                 ],
             ];
 
-            const posResult = view.posAtCoords({left: event.clientX, top: event.clientY});
+            // Heading actions, below undo/redo and above insert: extra actions from the
+            // component rendering this editor (e.g. the document editor's copy heading link
+            // action) plus our own collapse/expand action.
+            const contextMenuTarget = event.target;
+            if (contextMenuTarget instanceof Element) {
+                const headingElement = contextMenuTarget.closest(contentEditorHeadingSelector);
+                if (headingElement && view.dom.contains(headingElement)) {
+                    // Only top-level headings have heading sections, so find the right-clicked heading
+                    // by comparing against every top-level heading node's DOM.
+                    let headingPos: number | null = null;
+                    state.doc.forEach((node, offset) => {
+                        if (headingPos === null && view.nodeDOM(offset) === headingElement) {
+                            headingPos = offset;
+                        }
+                    });
+
+                    if (headingPos !== null) {
+                        const headingActions: Array<MenuAction> = [
+                            ...(propsRef.current.getHeadingContextMenuActions?.(headingPos) ??
+                                emptyArray),
+                        ];
+
+                        // Offer "Expand heading" for a collapsed section even when
+                        // `withCollapsibleHeadings` is off, so a section collapsed before the expand
+                        // chevron's margin shrank away can always be expanded from the menu.
+                        const isCollapsed =
+                            getCollapsedContentEditorHeadingPositions(state).has(headingPos);
+                        if (propsRef.current.withCollapsibleHeadings || isCollapsed) {
+                            const toggledHeadingPos = headingPos;
+                            headingActions.push({
+                                label: isCollapsed ? "Expand heading" : "Collapse heading",
+                                icon: isCollapsed ? <CaretUpDownIcon /> : <CaretDownUpIcon />,
+                                iconPlacement: "end",
+                                onPress: () => {
+                                    toggleContentEditorHeadingCollapsed(view, toggledHeadingPos);
+                                },
+                            });
+                        }
+
+                        if (headingActions.length > 0) {
+                            menuActions.push(headingActions);
+                        }
+                    }
+                }
+            }
+
+            const posResult = eventPosResult;
             let currentListItemNode: Node | null = null;
 
             if (posResult) {
@@ -5355,12 +5462,19 @@ function ContentEditor<Content extends ContentWithReferences>(
      *                           Date picker handlers                             *
     \* ========================================================================== */
 
-    function handleDatePickerChange(newDateString: string) {
+    function handleDatePickerChange(
+        // TODO(calebmer): Can we make `newDateString` a `CalendarDate` instead? So we
+        // aren't passing around a loosely typed string.
+        newDateString: string,
+    ) {
         if (!datePickerState) return;
         const view = viewRef.current;
         if (!view) return;
 
-        const newText = formatDateInOriginalFormat(newDateString, datePickerState.match.format);
+        const newText = printCalendarDateInOriginalFormat(
+            parseDate(newDateString),
+            datePickerState.match.format,
+        );
         const {from, to} = datePickerState.match;
 
         // Re-focus the editor first so ProseMirror can accept the selection change. Focus
@@ -5422,6 +5536,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     ? contentEditorStyles.canNotPrimaryInputHoverContainerClassName
                     : undefined,
                 !hasEditAccessLevel ? contentEditorStyles.hasNoEditAccessClassName : undefined,
+                withCollapsibleHeadings ? contentStyles.headingSectionControlsClassName : undefined,
                 customContainerClassName,
             )}
             onFocus={onFocus}

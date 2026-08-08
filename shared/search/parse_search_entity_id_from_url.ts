@@ -1,4 +1,4 @@
-import {isId} from "~/shared/id/id.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -8,7 +8,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {convertLegacySpacePath} from "~/shared/search/convert_legacy_space_path.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 

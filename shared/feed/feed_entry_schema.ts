@@ -1,5 +1,5 @@
 import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_from.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -8,9 +8,9 @@ import {
     PostId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {TaskCreatorFromSchema} from "~/shared/tasks/task_creator.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";
 
 export type FeedEntryEvent = SchemaType<typeof FeedEntryEventSchema>;
 
@@ -86,7 +86,7 @@ export const FeedEntrySchema = Schema.union({
         sharerId: Schema.id<AccountId>(),
         creator: Schema.object({
             id: Schema.id<AccountId>().nullable(),
-            from: TaskCreatorFromSchema.nullable().default(null),
+            from: TaskActorFromSchema.nullable().default(null),
         })
             .wrapOriginalPropertyInObject("id", {from: null})
             .originalPropertyKey("creatorId"),
@@ -105,7 +105,7 @@ export const FeedEntrySchema = Schema.union({
         sharerId: Schema.id<AccountId>(),
         creator: Schema.object({
             id: Schema.id<AccountId>().nullable(),
-            from: TaskCreatorFromSchema.nullable().default(null),
+            from: TaskActorFromSchema.nullable().default(null),
         })
             .wrapOriginalPropertyInObject("id", {from: null})
             .originalPropertyKey("creatorId"),

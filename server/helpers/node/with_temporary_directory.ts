@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import {join as joinPath, sep} from "path";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Create a temporary directory within `parentDirectoryPath`. Once `action`

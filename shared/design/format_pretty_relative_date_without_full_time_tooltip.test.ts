@@ -1,5 +1,5 @@
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
-import {assertTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assertTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 test("formats date differences correctly", () => {
     const utcTimeZone = assertTimeZone("UTC");

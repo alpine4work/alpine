@@ -61,11 +61,11 @@ import {
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 export type DocumentPresentationControllerRef = {
     present(): Promise<void>;

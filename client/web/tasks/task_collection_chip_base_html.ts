@@ -10,7 +10,7 @@ import {
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
 
 export const taskCollectionChipBaseClassNameBase = sprinkles({
     fontSize: "75",

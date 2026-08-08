@@ -8,11 +8,11 @@ import {
     DocumentWithoutTitleContentProsemirrorSchema as schema,
     DocumentContentProsemirrorSchema as schema2,
 } from "~/shared/documents/document_content_schema.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
 // NOTE(calebmer): These tests were written with the constant 237. Instead of
 // updating the tests to work with the new constant I'm hardcoding the old one for

@@ -1,5 +1,5 @@
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     ChannelId,
     ChatId,
@@ -7,8 +7,8 @@ import {
     PostId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 /**
  * Parses a path from our app and returns `TracerEventData` with information in the

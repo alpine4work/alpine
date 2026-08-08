@@ -8,15 +8,15 @@ import {
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import {pageDiffSchema} from "~/shared/databases/page_diff.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 import {BitsetSchema} from "~/shared/schema/bitset_schema.js";
 import {
     type ObjectSchema,
     type ObjectSchemaConfigType,
     Schema,
     type SchemaType,
-} from "~/shared/schema/schema.js";
+} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Shared schemas for the database realtime protocol and its client/server sync

@@ -31,10 +31,10 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {useCurrentDate} from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {RemLength, addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 
 const dateInputCalendarDaySize = "8";
 const dateInputCalendarDaySizeRem = parseRemLength(dateInputCalendarDaySize);

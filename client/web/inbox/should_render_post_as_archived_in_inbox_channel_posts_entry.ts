@@ -1,4 +1,4 @@
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 import {
     InboxChannelPostsEntryModel,
     InboxPostCommentsEntryModel,

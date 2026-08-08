@@ -5,12 +5,12 @@ import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
 import {BotWebhookSchema} from "~/shared/bots/bot_schema.js";
 import {BotSettingsSchemaSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentSchema} from "~/shared/content/simple_content_schema.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {ApiKey} from "~/shared/id/api_key.js";
-import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export const BotsTable = DynamoTableSchema.new({
     name: "Bots",

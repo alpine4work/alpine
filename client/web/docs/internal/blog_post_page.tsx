@@ -1,24 +1,33 @@
 import {Link} from "@remix-run/react";
 import {ArrowLeft, ArrowRight, EnvelopeSimple} from "phosphor-react";
 import {Box} from "~/client/web/design/box.js";
-import {BlogAuthorById} from "~/client/web/docs/internal/blog_author.js";
-import {BlogPostMeta} from "~/client/web/docs/internal/blog_home_page.js";
+import {documentationMdxComponents} from "~/client/web/docs/documentation_mdx_components.js";
+import {DocumentationResponsiveImage} from "~/client/web/docs/documentation_responsive_image.js";
+import {createBlogPostingStructuredData} from "~/client/web/docs/internal/create_blog_posting_structured_data.js";
+import {DocumentationHeader} from "~/client/web/docs/internal/documentation_header.js";
+import {formatBlogPublishDate} from "~/client/web/docs/internal/format_blog_publish_date.js";
+import {getDocumentationMdxContent} from "~/client/web/docs/internal/get_documentation_mdx_content.js";
+import {BlueskyLogo} from "~/client/web/icons/socials/bluesky_logo.js";
+import {LinkedInLogo} from "~/client/web/icons/socials/linkedin_logo.js";
+import {XLogo} from "~/client/web/icons/socials/x_logo.js";
+import {BlogAuthorById} from "~/shared/docs/blog_author.js";
 import {
     BlogPostAdjacentArticle,
     BlogPostPageData,
     createBlogPostUrl,
-} from "~/client/web/docs/internal/blog_post.js";
-import {DocumentationHeader} from "~/client/web/docs/internal/documentation_header.js";
-import {formatBlogPublishDate} from "~/client/web/docs/internal/format_blog_publish_date.js";
-import {getDocumentationMdxContent} from "~/client/web/docs/internal/get_documentation_mdx_content.js";
-import {documentationMdxComponents} from "~/client/web/docs/internal/markdown/components/documentation_mdx_components.js";
-import {DocumentationSearchIndex} from "~/client/web/docs/search_documentation_entries.js";
-import {BlueskyLogo} from "~/client/web/icons/socials/bluesky_logo.js";
-import {LinkedInLogo} from "~/client/web/icons/socials/linkedin_logo.js";
-import {XLogo} from "~/client/web/icons/socials/x_logo.js";
+} from "~/shared/docs/blog_post.js";
+import {DocumentationSearchIndex} from "~/shared/docs/search_documentation_entries.js";
 
 const blogPostCss = `
-.blogPostProse img { max-width: 100%; border-radius: 8px; border: 1px solid var(--grey-5); }
+.blogPostProse img {
+    border: 1px solid var(--grey-5);
+    border-radius: 8px;
+    display: block;
+    height: auto;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: calc(100% - 24px);
+}
 .blogAdjacentArticles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .blogAdjacentArticleLink {
     border: 1px solid var(--grey-5);
@@ -66,6 +75,9 @@ export function BlogPostPage({
     const Content = getDocumentationMdxContent(post.mdxCode);
     const author = authors[post.authorId];
     const markdownUrl = `${createBlogPostUrl(post.slug)}.md`;
+    const structuredData = createBlogPostingStructuredData({post, author});
+    // Escape opening tags so authored text cannot terminate the JSON-LD script.
+    const structuredDataJson = JSON.stringify(structuredData).replaceAll("<", "\\u003c");
 
     return (
         <Box
@@ -75,6 +87,10 @@ export function BlogPostPage({
             style={{minHeight: "100svh"}}
         >
             <style dangerouslySetInnerHTML={{__html: blogPostCss}} />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{__html: structuredDataJson}}
+            />
 
             {/* Point AI agents and tools at the markdown version of this page. The
                 `<link rel="alternate">` is the machine-standard signal (React hoists it
@@ -86,17 +102,16 @@ export function BlogPostPage({
             </Box>
 
             <DocumentationHeader surface="blog" searchIndex={searchIndex} />
-            <Box as="main" paddingX="6" paddingTop="10" paddingBottom="24">
+            <Box as="main" paddingX="6" paddingTop="10" paddingBottom="24" userSelect="text">
                 <Box marginX="center" style={{maxWidth: 820}}>
                     <Box as="article">
                         <Box as="header" marginBottom="8">
-                            <BlogPostMeta post={post} authors={authors} />
                             <Box
                                 as="h1"
                                 fontSize="700"
                                 fontStyle="extra-bold"
                                 color="grey-90"
-                                marginTop="4"
+                                marginTop="0"
                                 marginBottom="4"
                                 style={{lineHeight: 1.08}}
                             >
@@ -105,17 +120,31 @@ export function BlogPostPage({
                             <Box fontSize="200" color="grey-60" style={{lineHeight: 1.65}}>
                                 {post.summary}
                             </Box>
-                            <Box display="flex" alignItems="center" gap="3" marginTop="6">
-                                <img
-                                    src={author.avatarUrl}
-                                    alt=""
-                                    style={{borderRadius: "999px", height: 36, width: 36}}
-                                />
-                                <Box>
-                                    <Box fontSize="100" fontStyle="semi-bold" color="grey-80">
-                                        {author.name}
+                            <Box display="flex" alignItems="center" gap="4" marginTop="6">
+                                <Box display="flex" alignItems="center" gap="3">
+                                    <DocumentationResponsiveImage
+                                        image={author.avatarImage}
+                                        alt=""
+                                        sizes="36px"
+                                        style={{borderRadius: "999px", height: 36, width: 36}}
+                                    />
+                                    <Box>
+                                        <Box fontSize="100" fontStyle="semi-bold" color="grey-80">
+                                            {author.name}
+                                        </Box>
+                                        <BlogAuthorLinks author={author} />
                                     </Box>
-                                    <BlogAuthorLinks author={author} />
+                                </Box>
+                                <Box
+                                    aria-hidden
+                                    backgroundColor="grey-10"
+                                    flexShrink="0"
+                                    style={{height: 28, width: 1}}
+                                />
+                                <Box color="grey-50" fontSize="75">
+                                    <time dateTime={post.publishDate}>
+                                        {formatBlogPublishDate(post.publishDate)}
+                                    </time>
                                 </Box>
                             </Box>
                         </Box>

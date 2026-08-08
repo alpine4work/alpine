@@ -5,10 +5,10 @@ import {ServerActionContextModules} from "~/server/context/server_action_context
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {Context} from "~/shared/context/context.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 

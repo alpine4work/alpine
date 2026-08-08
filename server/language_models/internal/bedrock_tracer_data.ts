@@ -3,7 +3,7 @@ import {
     SupportedBedrockAwsRegion,
     supportedBedrockAwsRegions,
 } from "~/server/language_models/supported_bedrock_region.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 export const bedrockSupportedAwsRegions = supportedBedrockAwsRegions;
 export type BedrockSupportedAwsRegion = SupportedBedrockAwsRegion;

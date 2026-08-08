@@ -1,10 +1,10 @@
 // Very important that this is a type import! This module needs to be executed
 // before `native_mobile_bridge.js` to work.
 import type {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
 
 // Only importable from unit tests.
 assert(import.meta.jest);

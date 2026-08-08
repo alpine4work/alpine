@@ -1,5 +1,5 @@
 import {EditorState, TextSelection, Transaction} from "prosemirror-state";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Creates an empty paragraph at a given position and moves the cursor to it.

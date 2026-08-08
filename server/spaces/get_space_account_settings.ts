@@ -1,7 +1,7 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     SpaceAccountSettings,
     SpaceAccountSettingsSchema,

@@ -29,6 +29,7 @@ ts_project(
         "//shared/accounts",
         "//shared/context",
         "//shared/design",
+        "//shared/dynamo",
         "//shared/error",
         "//shared/error:error_core",
         "//shared/helpers",

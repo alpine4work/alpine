@@ -9,8 +9,8 @@ import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {messageViewMarginY} from "~/client/web/styles/messaging_shared_styles.js";
 import {addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 // When our view is full of messages this will be the top margin of the view.
 //

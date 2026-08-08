@@ -1,9 +1,9 @@
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {NonTransactionalEmailType} from "~/server/emails/email_type.js";
-import {DataLossError} from "~/shared/error/error.js";
+import {DataLossError} from "~/shared/error/error.open_source.js";
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * No-ops all email rendering and sending. Only to be used outside of production

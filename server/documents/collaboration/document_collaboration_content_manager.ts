@@ -33,19 +33,23 @@ import {
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
-} from "~/shared/error/error.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+    PermissionDeniedError,
+} from "~/shared/error/error.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
-import {assertId, generateId} from "~/shared/id/id.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -54,7 +58,7 @@ import {
     FileId,
     SpaceId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorStep,
@@ -127,13 +131,20 @@ export class DocumentCollaborationContentManager {
             readonly createCommentThreads: Array<{
                 readonly commentThreadId: DocumentCommentThreadId;
                 readonly initialCommentContent: MessageContent;
+                readonly initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
                 readonly createdTime: Date;
                 readonly createdTimeZone: TimeZone;
+                readonly attachInitialCommentFilesAsBot?: boolean;
             }>;
             readonly intentionallyUpdateAccessPolicyRef: {
                 current: {
                     readonly accessPolicy: LocalAccessPolicy;
                     readonly notification: ShareNotification | null;
+                } | null;
+            };
+            readonly intentionallyUpdateDeletedTimeRef: {
+                current: {
+                    readonly deletedTime: Date;
                 } | null;
             };
         } | null;
@@ -296,20 +307,26 @@ export class DocumentCollaborationContentManager {
         update: {
             version: number;
             steps: ReadonlyArray<Step>;
+            documentContent?: DocumentContent;
             clientId: ContentEditorClientId;
             createCommentThreads: ReadonlyArray<{
                 commentThreadId: DocumentCommentThreadId;
                 createdTimeZone: TimeZone;
                 initialCommentContent: MessageContent;
                 initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
+                attachInitialCommentFilesAsBot?: boolean;
             }>;
             intentionallyUpdateAccessPolicy: {
                 accessPolicy: LocalAccessPolicy;
                 notification: ShareNotification | null;
             } | null;
+            intentionallyUpdateDeletedTime: {
+                deletedTime: Date;
+            } | null;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             updateOurPresenceState: {state: DocumentCollaborationPresenceState | null};
+
             /**
              * An optional promise that must resolve before we mutate any durable object state.
              * If it rejects we throw before applying the update so the caller can run
@@ -321,6 +338,8 @@ export class DocumentCollaborationContentManager {
     ): Promise<{
         newVersion: number;
         newContent: DocumentContent;
+        steps: ReadonlyArray<Step>;
+        commentThreadCreatedTime: Date;
         persistencePromise: Promise<void>;
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
@@ -379,6 +398,26 @@ export class DocumentCollaborationContentManager {
                 });
 
             assert(isDocumentContent(newContent));
+
+            const oldDeletedTime: Date | null = stateRef.current.content.attrs.deletedTime;
+            const newDeletedTime: Date | null = newContent.attrs.deletedTime;
+            const hasDeletedTimeChanged = oldDeletedTime?.getTime() !== newDeletedTime?.getTime();
+
+            if (!update.intentionallyUpdateDeletedTime && hasDeletedTimeChanged) {
+                throw new PermissionDeniedError(
+                    "Can\u2019t update the document\u2019s deleted time unless `intentionallyUpdateDeletedTime` is provided",
+                );
+            }
+
+            if (
+                update.intentionallyUpdateDeletedTime &&
+                update.intentionallyUpdateDeletedTime.deletedTime.getTime() !==
+                    newDeletedTime?.getTime()
+            ) {
+                throw new PermissionDeniedError(
+                    "The document\u2019s new deleted time doesn\u2019t match `intentionallyUpdateDeletedTime`",
+                );
+            }
 
             // Validate the presence state selection based on the document as the client sees
             // it, then map the selection to the correct position.
@@ -473,6 +512,10 @@ export class DocumentCollaborationContentManager {
                     update.intentionallyUpdateAccessPolicy ??
                     this._persistenceState.next.intentionallyUpdateAccessPolicyRef.current;
 
+                this._persistenceState.next.intentionallyUpdateDeletedTimeRef.current =
+                    update.intentionallyUpdateDeletedTime ??
+                    this._persistenceState.next.intentionallyUpdateDeletedTimeRef.current;
+
                 // We should have already thrown an error if `update.resolveCommentThreadIds` or
                 // `update.unresolveCommentThreadIds` are non-empty. Not allowed to batch updates
                 // that resolve comment threads.
@@ -488,6 +531,9 @@ export class DocumentCollaborationContentManager {
                 );
                 const nextIntentionallyUpdateAccessPolicyRef = {
                     current: update.intentionallyUpdateAccessPolicy,
+                };
+                const nextIntentionallyUpdateDeletedTimeRef = {
+                    current: update.intentionallyUpdateDeletedTime,
                 };
                 const nextResolveCommentThreadIds = update.resolveCommentThreadIds ?? [];
                 const nextUnresolveCommentThreadIds = update.unresolveCommentThreadIds ?? [];
@@ -516,6 +562,8 @@ export class DocumentCollaborationContentManager {
 
                                 const intentionallyUpdateAccessPolicy =
                                     nextIntentionallyUpdateAccessPolicyRef.current ?? undefined;
+                                const intentionallyUpdateDeletedTime =
+                                    nextIntentionallyUpdateDeletedTimeRef.current ?? undefined;
 
                                 const {newVersion, updatedCommentThreads} =
                                     await updateDocumentContent(context, {
@@ -525,6 +573,7 @@ export class DocumentCollaborationContentManager {
                                         clientId: update.clientId,
                                         createCommentThreads: nextCreateCommentThreads,
                                         intentionallyUpdateAccessPolicy,
+                                        intentionallyUpdateDeletedTime,
                                         resolveCommentThreadIds: nextResolveCommentThreadIds,
                                         unresolveCommentThreadIds: nextUnresolveCommentThreadIds,
                                     }).catch(error => {
@@ -626,6 +675,7 @@ export class DocumentCollaborationContentManager {
                         steps: nextSteps,
                         createCommentThreads: nextCreateCommentThreads,
                         intentionallyUpdateAccessPolicyRef: nextIntentionallyUpdateAccessPolicyRef,
+                        intentionallyUpdateDeletedTimeRef: nextIntentionallyUpdateDeletedTimeRef,
                     },
                     // NOTE(calebmer): We're careful to spawn the promise which updates content from
                     // this `update()` method so the `AppService` network calls count against the
@@ -644,15 +694,25 @@ export class DocumentCollaborationContentManager {
                 newContent,
                 persistencePromise: this._persistenceState.promise,
                 presenceState,
+                commentThreadCreatedTime,
             };
         });
 
-        const {oldVersion, steps, newContent, persistencePromise, presenceState} = result;
+        const {
+            oldVersion,
+            steps,
+            newContent,
+            persistencePromise,
+            presenceState,
+            commentThreadCreatedTime,
+        } = result;
 
         if (steps.length === 0) {
             return {
                 newVersion: oldVersion,
                 newContent,
+                steps,
+                commentThreadCreatedTime,
                 persistencePromise,
                 presenceState,
                 hasSentPresenceState: false,
@@ -756,6 +816,7 @@ export class DocumentCollaborationContentManager {
                     clientId: generateId(),
                     createCommentThreads: [],
                     intentionallyUpdateAccessPolicy: null,
+                    intentionallyUpdateDeletedTime: null,
                     updateOurPresenceState: {state: null},
                 });
             })();
@@ -787,6 +848,8 @@ export class DocumentCollaborationContentManager {
         return {
             newVersion,
             newContent,
+            steps,
+            commentThreadCreatedTime,
             persistencePromise,
             presenceState,
             hasSentPresenceState: true,
@@ -830,7 +893,7 @@ export class DocumentCollaborationContentManager {
      *   redundant with the existing pair, and extending `PersistedContent` to carry
      *   steps/clientId/presence would force every existing `PersistedContent` handler
      *   to grow. If the naming becomes confusing we can address in a follow-up change.
-     * - No batching – same-client follow-up updates cannot be merged into this
+     * - No batching – same-client follow-up updates cannot be merged into this
      *   persistence request because the caller is awaiting a confirmed persist.
      */
     public async updateAndWaitForPersistence(
@@ -845,10 +908,14 @@ export class DocumentCollaborationContentManager {
                 createdTimeZone: TimeZone;
                 initialCommentContent: MessageContent;
                 initialCommentFileIds: ReadonlyArray<FileId | FileEntityId>;
+                attachInitialCommentFilesAsBot?: boolean;
             }>;
             intentionallyUpdateAccessPolicy: {
                 accessPolicy: CreateOrUpdateAccessPolicy;
                 notification: ShareNotification | null;
+            } | null;
+            intentionallyUpdateDeletedTime: {
+                deletedTime: Date;
             } | null;
             resolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
             unresolveCommentThreadIds?: ReadonlyArray<DocumentCommentThreadId>;
@@ -858,146 +925,185 @@ export class DocumentCollaborationContentManager {
         presenceState: DocumentCollaborationPresenceState | null;
         hasSentPresenceState: boolean;
         newVersion: number;
+        newContent: DocumentContent;
+        steps: ReadonlyArray<Step>;
+        commentThreadCreatedTime: Date | null;
         getRynamoEventsForSite: () => Promise<
             ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>
         >;
     }> {
-        const {oldVersion, newVersion, steps, presenceState, eventsForSite, updatedCommentThreads} =
-            await this._state.withLock(async stateRef => {
-                await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
-                    this.id,
+        const updateAndWaitForPersistenceResult = await this._state.withLock(async stateRef => {
+            await documentCollaborationContentManagerBeforeUpdateTestCheckpoint.waitForTest(
+                this.id,
+            );
+
+            // A null `update.version` means "apply on top of whatever the latest version is" —
+            // used by callers like the move-into/out-of-site path that don't have a specific
+            // client version to rebase against.
+            const clientVersion = update.version ?? stateRef.current.version;
+
+            if (
+                update.updateOurPresenceState.state &&
+                update.updateOurPresenceState.state.version !== clientVersion
+            ) {
+                throw new InvalidArgumentError(
+                    "Document version in new presence state should match the document version we are updating",
                 );
+            }
 
-                // A null `update.version` means "apply on top of whatever the latest version is" —
-                // used by callers like the move-into/out-of-site path that don't have a specific
-                // client version to rebase against.
-                const clientVersion = update.version ?? stateRef.current.version;
-
-                if (
-                    update.updateOurPresenceState.state &&
-                    update.updateOurPresenceState.state.version !== clientVersion
-                ) {
-                    throw new InvalidArgumentError(
-                        "Document version in new presence state should match the document version we are updating",
+            for (const createCommentThread of update.createCommentThreads) {
+                if (this._optimisticCommentThreadById.has(createCommentThread.commentThreadId))
+                    throw new FailedPreconditionError(
+                        "Document comment thread ID has already been used",
                     );
-                }
+            }
 
-                for (const createCommentThread of update.createCommentThreads) {
-                    if (this._optimisticCommentThreadById.has(createCommentThread.commentThreadId))
-                        throw new FailedPreconditionError(
-                            "Document comment thread ID has already been used",
-                        );
-                }
+            // Wait for any in-flight optimistic persistence batch so DynamoDB's version
+            // catches up to `stateRef.current.version` before we call
+            // `updateDocumentContent()` with `version: oldVersion`.
+            await this._persistenceState?.promise;
 
-                // Wait for any in-flight optimistic persistence batch so DynamoDB's version
-                // catches up to `stateRef.current.version` before we call
-                // `updateDocumentContent()` with `version: oldVersion`.
-                await this._persistenceState?.promise;
+            await documentCollaborationContentManagerAfterPersistenceWaitTestCheckpoint.waitForTest(
+                this.id,
+            );
 
-                await documentCollaborationContentManagerAfterPersistenceWaitTestCheckpoint.waitForTest(
-                    this.id,
-                );
+            const oldVersion = stateRef.current.version;
 
-                const oldVersion = stateRef.current.version;
-
-                const {newContent, steps, invertedSteps, clientContent, mapping} =
-                    await getCollaborativelyUpdateContentResult(context, {
-                        currentVersion: stateRef.current.version,
-                        currentContent: stateRef.current.content,
-                        clientVersion,
-                        clientSteps: update.steps,
-                        getSteps: (startVersion, endVersion) =>
-                            this.stepCache.getSteps(context, startVersion, endVersion),
-                    });
-
-                assert(isDocumentContent(newContent));
-
-                const clientPresenceStateSelection =
-                    update.updateOurPresenceState.state?.selection.getAndMaybeDeserialize(
-                        clientContent,
-                    );
-                const newPresenceStateSelection = clientPresenceStateSelection?.map(
-                    newContent,
-                    mapping,
-                );
-                const newVersion = oldVersion + steps.length;
-                const presenceState: DocumentCollaborationPresenceState | null =
-                    newPresenceStateSelection
-                        ? {
-                              version: newVersion,
-                              selection: ContentSelectionWrapper.new(newPresenceStateSelection),
-                          }
-                        : null;
-
-                await documentCollaborationContentManagerBeforePersist1TestCheckpoint.waitForTest(
-                    this.id,
-                );
-
-                const intentionallyUpdateAccessPolicy =
-                    update.intentionallyUpdateAccessPolicy ?? undefined;
-                const commentThreadCreatedTime = new Date();
-
-                // Persist before mutating any in-memory state. If this throws we release the lock
-                // with state untouched and propagate the error to the caller — no `DataLossError`
-                // / process kill needed because nothing was applied optimistically.
-                const {
-                    newVersion: persistedVersion,
-                    updatedCommentThreads,
-                    eventsForSite,
-                } = await updateDocumentContent(context, {
-                    documentId: this.id,
-                    version: oldVersion,
-                    steps,
-                    clientId: update.clientId,
-                    createCommentThreads: Array.from(
-                        update.createCommentThreads,
-                        createCommentThread => ({
-                            ...createCommentThread,
-                            createdTime: commentThreadCreatedTime,
-                        }),
-                    ),
-                    intentionallyUpdateAccessPolicy,
-                    resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
-                    unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
+            const {newContent, steps, invertedSteps, clientContent, mapping} =
+                await getCollaborativelyUpdateContentResult(context, {
+                    currentVersion: stateRef.current.version,
+                    currentContent: stateRef.current.content,
+                    clientVersion,
+                    clientSteps: update.steps,
+                    getSteps: (startVersion, endVersion) =>
+                        this.stepCache.getSteps(context, startVersion, endVersion),
                 });
 
-                if (persistedVersion !== newVersion) {
-                    throw new DataLossError(
-                        "Some process updated document content other than the document\u2019s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
-                    );
-                }
+            assert(isDocumentContent(newContent));
 
-                for (let i = 0; i < steps.length; i++) {
-                    const step = steps[i]!;
-                    const invertedStep = invertedSteps[i];
-                    assert(invertedStep);
-                    this.stepCache.dangerouslyAddStepToEnd({
-                        step,
-                        invertedStep,
-                        clientId: update.clientId,
-                    });
-                }
+            const oldDeletedTime: Date | null = stateRef.current.content.attrs.deletedTime;
+            const newDeletedTime: Date | null = newContent.attrs.deletedTime;
+            const hasDeletedTimeChanged = oldDeletedTime?.getTime() !== newDeletedTime?.getTime();
 
-                stateRef.current = {
-                    version: newVersion,
-                    content: newContent,
-                };
+            if (!update.intentionallyUpdateDeletedTime && hasDeletedTimeChanged) {
+                throw new PermissionDeniedError(
+                    "Can\u2019t update the document\u2019s deleted time unless `intentionallyUpdateDeletedTime` is provided",
+                );
+            }
 
-                this._persistedVersion = newVersion;
+            if (
+                update.intentionallyUpdateDeletedTime &&
+                update.intentionallyUpdateDeletedTime.deletedTime.getTime() !==
+                    newDeletedTime?.getTime()
+            ) {
+                throw new PermissionDeniedError(
+                    "The document\u2019s new deleted time doesn\u2019t match `intentionallyUpdateDeletedTime`",
+                );
+            }
 
-                if (intentionallyUpdateAccessPolicy) {
-                    this._resetAllAuthorizationTimers(context);
-                }
+            const clientPresenceStateSelection =
+                update.updateOurPresenceState.state?.selection.getAndMaybeDeserialize(
+                    clientContent,
+                );
+            const newPresenceStateSelection = clientPresenceStateSelection?.map(
+                newContent,
+                mapping,
+            );
+            const newVersion = oldVersion + steps.length;
+            const presenceState: DocumentCollaborationPresenceState | null =
+                newPresenceStateSelection
+                    ? {
+                          version: newVersion,
+                          selection: ContentSelectionWrapper.new(newPresenceStateSelection),
+                      }
+                    : null;
 
-                return {
-                    oldVersion,
-                    newVersion,
-                    steps,
-                    presenceState,
-                    eventsForSite,
-                    updatedCommentThreads,
-                };
+            await documentCollaborationContentManagerBeforePersist1TestCheckpoint.waitForTest(
+                this.id,
+            );
+
+            const intentionallyUpdateAccessPolicy =
+                update.intentionallyUpdateAccessPolicy ?? undefined;
+            const intentionallyUpdateDeletedTime =
+                update.intentionallyUpdateDeletedTime ?? undefined;
+            const commentThreadCreatedTime = new Date();
+
+            // Persist before mutating any in-memory state. If this throws we release the lock
+            // with state untouched and propagate the error to the caller — no `DataLossError`
+            // / process kill needed because nothing was applied optimistically.
+            const {
+                newVersion: persistedVersion,
+                updatedCommentThreads,
+                eventsForSite,
+            } = await updateDocumentContent(context, {
+                documentId: this.id,
+                version: oldVersion,
+                steps,
+                clientId: update.clientId,
+                createCommentThreads: Array.from(
+                    update.createCommentThreads,
+                    createCommentThread => ({
+                        ...createCommentThread,
+                        createdTime: commentThreadCreatedTime,
+                    }),
+                ),
+                intentionallyUpdateAccessPolicy,
+                intentionallyUpdateDeletedTime,
+                resolveCommentThreadIds: update.resolveCommentThreadIds ?? [],
+                unresolveCommentThreadIds: update.unresolveCommentThreadIds ?? [],
             });
+
+            if (persistedVersion !== newVersion) {
+                throw new DataLossError(
+                    "Some process updated document content other than the document\u2019s durable object. This may cause downstream issues as a core assumption about the document collaboration implementation has been violated",
+                );
+            }
+
+            for (let i = 0; i < steps.length; i++) {
+                const step = assertExists(steps[i]);
+                const invertedStep = invertedSteps[i];
+                assert(invertedStep);
+                this.stepCache.dangerouslyAddStepToEnd({
+                    step,
+                    invertedStep,
+                    clientId: update.clientId,
+                });
+            }
+
+            stateRef.current = {
+                version: newVersion,
+                content: newContent,
+            };
+
+            this._persistedVersion = newVersion;
+
+            if (intentionallyUpdateAccessPolicy) {
+                this._resetAllAuthorizationTimers(context);
+            }
+
+            return {
+                oldVersion,
+                newVersion,
+                newContent,
+                steps,
+                presenceState,
+                eventsForSite,
+                updatedCommentThreads,
+                commentThreadCreatedTime:
+                    update.createCommentThreads.length > 0 ? commentThreadCreatedTime : null,
+            };
+        });
+
+        const {
+            oldVersion,
+            newVersion,
+            newContent,
+            steps,
+            presenceState,
+            eventsForSite,
+            updatedCommentThreads,
+            commentThreadCreatedTime,
+        } = updateAndWaitForPersistenceResult;
 
         const getRynamoEventsForSite = async (): Promise<
             ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>
@@ -1008,6 +1114,9 @@ export class DocumentCollaborationContentManager {
                 presenceState,
                 hasSentPresenceState: false,
                 newVersion: oldVersion,
+                newContent,
+                steps,
+                commentThreadCreatedTime,
                 getRynamoEventsForSite,
             };
         }
@@ -1109,6 +1218,7 @@ export class DocumentCollaborationContentManager {
                     clientId: generateId(),
                     createCommentThreads: [],
                     intentionallyUpdateAccessPolicy: null,
+                    intentionallyUpdateDeletedTime: null,
                     updateOurPresenceState: {state: null},
                 });
             })();
@@ -1148,6 +1258,9 @@ export class DocumentCollaborationContentManager {
             presenceState,
             hasSentPresenceState: true,
             newVersion,
+            newContent,
+            steps,
+            commentThreadCreatedTime,
             getRynamoEventsForSite,
         };
     }

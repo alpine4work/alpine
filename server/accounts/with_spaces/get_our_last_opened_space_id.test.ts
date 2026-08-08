@@ -3,7 +3,7 @@ import {getOurLastOpenedSpaceId} from "~/server/accounts/with_spaces/get_our_las
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {asyncNoop} from "~/shared/helpers/control/async_noop.js";
+import {asyncNoop} from "~/shared/helpers/control/async_noop.open_source.js";
 
 const context = createTestContext({
     notificationsInjection: {

@@ -5,10 +5,10 @@ import {
     allowedPostSortRangeTypesForGetPostRealtimeEvent,
 } from "~/server/forum/data/internal/forum_realtime_table.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {RynamoPostEvent} from "~/shared/forum/post_realtime_protocol.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Converts realtime event stubs into full realtime event objects.

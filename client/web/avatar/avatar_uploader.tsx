@@ -10,9 +10,9 @@ import {buttonStyles, spinAnimationClassName} from "~/client/web/styles/styles.j
 import {maxAvatarUploadContentLength} from "~/shared/avatar/avatar_constants.js";
 import {BorderRadius} from "~/shared/design/core/border_radius.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 // TODO(calebmer): Avatars look bad in settings! If the avatar size is greater than
 // 8 we should try using the larger image available in Cloudflare R2 instead. Maybe

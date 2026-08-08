@@ -3,8 +3,8 @@ import {
     TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
 } from "~/client/web/tasks/core/task_client_store.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 

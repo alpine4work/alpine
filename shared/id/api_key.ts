@@ -1,6 +1,6 @@
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {assertId, decodeId, encodeId, idLength, isId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {assertId, decodeId, encodeId, idLength, isId} from "~/shared/id/id.open_source.js";
 
 export type ApiKey = string & {readonly _ApiKey: never};
 

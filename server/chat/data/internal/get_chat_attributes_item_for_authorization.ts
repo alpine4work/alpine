@@ -4,8 +4,8 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoContextCache} from "~/server/dynamo/core/dynamo_context_cache.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {ChatId, SiteId} from "~/shared/id/types/id_types.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {ChatId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 
 export const ChatAttributesItemAuthorizationCache = new DynamoContextCache<
     ChatId,

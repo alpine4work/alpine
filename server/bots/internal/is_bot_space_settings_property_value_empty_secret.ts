@@ -1,4 +1,4 @@
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Is the provided secret settings value considered empty? We let non-admins in a

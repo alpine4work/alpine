@@ -20,18 +20,21 @@ import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constant
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId, isId} from "~/shared/id/id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {
+    type OrderKey,
+    generateOrderKeyBetween,
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
 import type {
     AccountId,
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
     DatabaseViewId,
-} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;

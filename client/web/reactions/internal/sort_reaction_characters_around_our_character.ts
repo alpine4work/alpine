@@ -1,5 +1,5 @@
 import {orderedReactionCharacters} from "~/client/web/reactions/ordered_reaction_characters_and_emotions.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 
 export function sortReactionCharactersAroundOurCharacter(

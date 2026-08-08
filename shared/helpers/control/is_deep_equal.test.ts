@@ -1,8 +1,8 @@
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {
     StringifiableValueForDeepEqualCheck,
     stringifyForDeepEqualCheck,
-} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
+} from "~/shared/helpers/control/stringify_for_deep_equal_check.open_source.js";
 
 function testDeepEqual(
     value1: StringifiableValueForDeepEqualCheck,

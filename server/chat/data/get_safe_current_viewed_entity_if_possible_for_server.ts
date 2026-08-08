@@ -1,7 +1,7 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 /**

@@ -1,8 +1,8 @@
 import {AwsCredentialIdentity, Provider} from "@smithy/types";
 import {AwsClient} from "aws4fetch";
-import {InternalError} from "~/shared/error/error.js";
-import {serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**
  * Requests sent to AWS [need to be signed][1] by AWS credentials. This is usually

@@ -6,9 +6,9 @@ import {
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskRealtimeActionContext} from "~/server/tasks/data/task_realtime_context.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {SiteId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {SiteId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function authorizeTaskCollectionAccessIfPossible(
     context: TaskRealtimeActionContext,
@@ -19,7 +19,11 @@ export async function authorizeTaskCollectionAccessIfPossible(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null = null,
-    options?: {consistency?: DynamoCacheReadConsistency; onSiteId?: (siteId: SiteId) => void},
+    options?: {
+        consistency?: DynamoCacheReadConsistency;
+        dangerouslyAllowDeleted?: boolean;
+        onSiteId?: (siteId: SiteId) => void;
+    },
 ): Promise<Result<{spaceId: SpaceId}, ErrorBase> | null> {
     const collectionItem = await getTaskCollectionItemForAuthorizationIfExists(
         context,

@@ -30,14 +30,14 @@ import {
 } from "~/server/tasks/realtime/task_realtime_task_subscription.js";
 import {TaskRealtimeUpdateEventBuilderBase} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {ErrorBase, FailedPreconditionError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {ErrorBase, FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {mapResult} from "~/shared/helpers/control/map_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {
     AccountId,
     SiteId,
@@ -45,12 +45,13 @@ import {
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskRealtimeQueryLoadedState} from "~/shared/tasks/task_realtime_protocol.js";
 
 // Run the query store eviction procedure every minute. When an item in the query
@@ -371,6 +372,30 @@ export class TaskRealtimeServer {
         return await store.loadQuery(context, options);
     }
 
+    public async expensivelyLoadQueryAfterCursor(
+        context: TaskRealtimeSystemActionContext,
+        options: {
+            spaceId: SpaceId;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+            afterCursor: TaskQuerySortCursor | null;
+        },
+    ): Promise<{
+        loadedState: TaskRealtimeQueryLoadedState;
+        tasks: Array<TaskIndexDoc>;
+    }> {
+        // Must be a system actor because we do no filtering to check whether you are
+        // allowed to see the queried tasks. Permissions filtering is done at a different
+        // level.
+        context.actor.authorizeSystem();
+
+        await authorizeSpaceAccess(context, options.spaceId);
+
+        const store = this._storeBySpaceId.getOrSetDefault(options.spaceId);
+        return await store.expensivelyLoadQueryAfterCursor(context, options);
+    }
+
     public async subscribeToQuery(
         context: TaskRealtimeSystemActionContext,
         options: {
@@ -613,7 +638,7 @@ export class TaskRealtimeServer {
         spaceId: SpaceId,
         taskId: TaskId,
         expectedAccessLevel: AccessLevel,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
     ): Promise<Result<void, ErrorBase> | null> {
         const result = await authorizeTaskAccessIfPossible(
             context,
@@ -684,7 +709,7 @@ export class TaskRealtimeServer {
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
         expectedAccessLevel: AccessLevel,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {consistency?: DynamoCacheReadConsistency; dangerouslyAllowDeleted?: boolean},
     ): Promise<Result<void, ErrorBase> | null> {
         const result = await authorizeTaskCollectionAccessIfPossible(
             context,

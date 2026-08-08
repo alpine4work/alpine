@@ -6,7 +6,7 @@ import {
     LocalAccessPolicy,
     ResolvedAccessPolicy,
 } from "~/shared/access/access_policy.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Converts a raw access policy into an effective access policy. If the policy is

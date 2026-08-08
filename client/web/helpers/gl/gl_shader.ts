@@ -1,7 +1,7 @@
 import {Gl} from "~/client/web/helpers/gl/gl.js";
 import {GlShaderType, glEnum} from "~/client/web/helpers/gl/gl_types.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export class GlShader {
     readonly shader: WebGLShader;

@@ -1,5 +1,5 @@
 import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
-import {AvatarId} from "~/shared/id/types/id_types.js";
+import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
 
 export const defaultAvatarContent = new Uint8Array([1, 2, 3]);
 

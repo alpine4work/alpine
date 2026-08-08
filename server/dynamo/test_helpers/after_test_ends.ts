@@ -1,8 +1,8 @@
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 let callbacks: Array<() => MaybePromise<void>> = [];
 let capturingCallbacks: Array<() => MaybePromise<void>> | null = null;

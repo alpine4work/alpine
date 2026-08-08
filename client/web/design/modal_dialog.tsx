@@ -10,12 +10,12 @@ import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {RemLength, parseRemLength} from "~/shared/design/core/spacing.js";
-import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.js";
-import {ErrorBase, InternalError, UnimplementedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {lerp} from "~/shared/helpers/number/lerp.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {lerp} from "~/shared/helpers/number/lerp.open_source.js";
 
 /**
  * Present information to the user, blocking their experience, and ask them to make
@@ -227,9 +227,7 @@ function ModalDialogNativeMobile({
             // opening a native dialog, report the error here before opening the dialog.
             (description.reportingContext ?? context).react.reportRenderedError(description.error);
 
-            for (const displayMessageSegment of (description.error instanceof ErrorBase
-                ? description.error.displayMessage
-                : null) ?? defaultErrorDisplayMessage) {
+            for (const displayMessageSegment of getErrorDisplayMessage(description.error)) {
                 switch (displayMessageSegment.type) {
                     case "Text":
                     case "SensitiveText":

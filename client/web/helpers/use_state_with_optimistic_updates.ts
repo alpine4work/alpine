@@ -1,6 +1,6 @@
 import {Memo, useCallback, useEffect, useReducer} from "react";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 
 /**
  * React state which may be updated optimistically while waiting on some data to

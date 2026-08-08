@@ -10,11 +10,11 @@ import {getAppleReviewerAccountPasswordForTest} from "~/server/accounts/internal
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/regenerate_one_time_password_sign_in.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
-import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {EmailAddress, validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const appleReviewerAccountPassword = getAppleReviewerAccountPasswordForTest();
 

@@ -2,9 +2,9 @@ import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
 import {getChatItemWithSubscriptionsForAuthorization} from "~/server/chat/data/internal/get_chat_item_with_subscriptions_for_authorization.js";
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export type ChatDefinitionForNotificationEvent =
     | {

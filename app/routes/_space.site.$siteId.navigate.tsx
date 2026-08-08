@@ -32,12 +32,12 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {addRemLengths} from "~/shared/design/core/spacing.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {throwError} from "~/shared/helpers/control/throw_error.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {isSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 
 const LoaderSchema = Schema.object({});

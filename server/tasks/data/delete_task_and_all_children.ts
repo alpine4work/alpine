@@ -18,21 +18,21 @@ import {
     TaskTable,
 } from "~/server/tasks/data/internal/task_table.js";
 import type {TaskEssentialAttributesItem} from "~/server/tasks/data/internal/task_table.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     SpaceId,
     TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 /**
@@ -238,7 +238,6 @@ export function deleteTaskAndAllChildren(
                     ({newTaskItem}): TaskAction => ({
                         type: "UpdateTask",
                         time: actionTime,
-                        actor,
                         taskId: newTaskItem.taskId,
                         taskAction: {type: "Delete"},
                     }),
@@ -263,7 +262,6 @@ export function deleteTaskAndAllChildren(
                             // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above the
                             // action time.
                             time: [actionTime[0], actionTime[1] + 1],
-                            actor,
                             taskId: newTaskItem.taskId,
                             taskAction: {
                                 type: "UpdateChildrenCounts",
@@ -279,7 +277,6 @@ export function deleteTaskAndAllChildren(
                               // Match `commitTaskActionTransaction()`. Each extra action has +1 tick above the
                               // action time.
                               time: [actionTime[0], actionTime[1] + 1],
-                              actor,
                               taskId: parentTaskItem.taskId,
                               taskAction: {
                                   type: "UpdateChildrenCounts",
@@ -296,7 +293,7 @@ export function deleteTaskAndAllChildren(
                     : []),
             ],
             wasProcessed: false,
-            actorId: context.actor.getAccountId(),
+            actor,
             clientId: options?.clientId ?? null,
         };
 

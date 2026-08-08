@@ -1,6 +1,6 @@
 import {ResolvedAccessPolicyWithGenerations} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function unwrapAccessPolicyModelForServer(
     accessPolicy: AccessPolicyModel,

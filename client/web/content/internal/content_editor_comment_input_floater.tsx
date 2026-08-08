@@ -86,16 +86,16 @@ import {
     getFileAudioContentTypes,
     getFileImageContentTypes,
     getFileVideoContentTypes,
-} from "~/shared/files/file_content_type.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
 import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 
 export function ContentEditorCommentInputFloater({

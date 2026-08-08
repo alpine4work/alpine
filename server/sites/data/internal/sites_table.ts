@@ -2,10 +2,10 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {RynamoTableItemType, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {
     AccountId,
     SiteId,
@@ -13,10 +13,10 @@ import {
     SiteSideBarSectionId,
     SiteTopBarId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
 import {
     SiteItemSearchEntityId,
     SiteItemSearchEntityIdSchema,
@@ -101,7 +101,7 @@ export const SitesTable = RynamoTableSchema.new({
                          * The site's root container — always either a TopBar or a SideBar. Created
                          * atomically with the site itself in `createSite` so this is never null.
                          */
-                        rootContainerId: Schema.string as Schema<SiteRootContainerId>,
+                        rootContainerId: Schema.stringAs<SiteRootContainerId>(),
                     }),
                 },
 

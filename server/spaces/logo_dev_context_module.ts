@@ -1,11 +1,11 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.js";
-import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.open_source.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 /**
  * Client for interacting with [Logo.dev][1] which we use for figuring out the name

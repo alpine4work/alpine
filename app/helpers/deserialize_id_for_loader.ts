@@ -5,13 +5,13 @@ import {
     createDocumentCommentThreadNotFoundError,
     createDocumentNotFoundError,
 } from "~/shared/documents/document_error_messages.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {
     createChannelNotFoundError,
     createPostNotFoundError,
 } from "~/shared/forum/forum_error_messages.js";
-import {isId} from "~/shared/id/id.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     BotId,
@@ -23,7 +23,7 @@ import {
     SiteId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {createSiteNotFoundError} from "~/shared/sites/site_error_messages.js";
 import {createSpaceNotFoundError} from "~/shared/spaces/space_error_messages.js";
 import {createTaskNotFoundError} from "~/shared/tasks/task_error_messages.js";

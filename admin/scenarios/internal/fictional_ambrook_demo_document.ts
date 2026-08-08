@@ -7,9 +7,9 @@ import {uploadScenarioFile} from "~/admin/scenarios/internal/upload_scenario_fil
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 
 const debug = createDebug(import.meta.url);
@@ -107,7 +107,7 @@ Goals:
 
         body: Mustache.render(
             markdown`
-In our [Q1 Product Roadmap](https://alpine.inc/doc/{{otherDocumentId}}?mention) we focused on small
+In our [Q1 Product Roadmap](https://alpine.inc/doc/{{otherDocumentId}}#mention) we focused on small
 and medium sized businesses (SMBs). That _directly contributed_ to our 16% revenue growth last
 quarter. We\u2019re going to add a couple features for larger businesses this quarter.
 

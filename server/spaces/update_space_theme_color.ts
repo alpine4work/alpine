@@ -4,7 +4,7 @@ import {createSpaceModelFromItem} from "~/server/spaces/internal/create_space_mo
 import {getSpaceItem} from "~/server/spaces/internal/get_space_item.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {SelectableSpaceThemeColor} from "~/shared/design/core/theme_colors.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 export async function updateSpaceThemeColor(

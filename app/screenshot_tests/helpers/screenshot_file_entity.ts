@@ -4,14 +4,14 @@ import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {
     assertOrderKey,
     generateOrderKeysBetween,
     initialOrderKey,
     isOrderKey,
-} from "~/shared/helpers/sort/order_key.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
 import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.js";
 import {assertSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 

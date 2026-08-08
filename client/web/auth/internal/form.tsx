@@ -12,8 +12,8 @@ import {Button} from "~/client/web/design/button.js";
 import {ErrorDisplayMessageRenderer} from "~/client/web/design/error_display_message_renderer.js";
 import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 export const formErrorFontSize = "75";
 export const formErrorMarginTop = "4";

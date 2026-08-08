@@ -16,21 +16,24 @@ import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {UnknownError} from "~/shared/error/error.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskActivityModel} from "~/shared/tasks/task_activity.js";
+import {TaskNotesCollaborationBroadcastTaskActivityRequestBodySchema} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
     TaskRealtimeGetCollectionOutputSchema,
@@ -40,7 +43,7 @@ import {
     TaskRealtimeLoadQueriesOutput,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/shared/tasks/task_realtime_service_procedure_schemas.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 /**
  * Helps perform work related to tasks that needs to interact with other systems.
@@ -172,6 +175,47 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 
     /**
+     * Tells the task's `TaskNotesCollaborationService` durable object that an activity
+     * item changed, so sockets currently viewing the task apply the event live.
+     * Loading is separate: the detail view queries via `getTaskActivityEntries`; this
+     * is the push half, the same pattern task comments and doc updates use.
+     *
+     * The durable object is the task detail view's existing 1:1 realtime connection,
+     * so being connected to it IS the activity subscription — there's no per-task
+     * bookkeeping and no opt-in flag. It also scales horizontally, unlike
+     * `TaskRealtimeService`, which would otherwise do this work on every notes update.
+     *
+     * Best-effort by design: `broadcastToDurableObject()` drops the request when no
+     * durable object is live, which is exactly right here — nobody is watching the
+     * task, and the entries are already committed for the next reader to query.
+     */
+    public override broadcastTaskActivityEvents(
+        this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
+        {
+            taskId,
+            events,
+        }: {
+            taskId: TaskId;
+            // The full client model union — entry AND window chunk events flow through here
+            // (see `TaskActivityTable.broadcastEvents`).
+            events: ReadonlyArray<RynamoEvent<TaskActivityModel>>;
+        },
+    ): Promise<void> {
+        return this._context.tracer.withSpan("Broadcast task activity", async context => {
+            await context.edge.broadcastToDurableObject(
+                `/api/durable-objects/task-notes/${taskId}/broadcast-task-activity`,
+                {
+                    serviceName: "TaskNotesCollaborationService",
+                    route: "/api/durable-objects/task-notes/:taskId/broadcast-task-activity",
+                    body: TaskNotesCollaborationBroadcastTaskActivityRequestBodySchema.serialize({
+                        events,
+                    }),
+                },
+            );
+        });
+    }
+
+    /**
      * Execute some queries.
      *
      * We execute our queries in a running `TaskRealtimeService` instance for the
@@ -239,7 +283,13 @@ export class TaskContextModule extends TaskContextModuleBase {
         this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
-        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+        {
+            consistency = "Eventual",
+            dangerouslyAllowDeleted = false,
+        }: {
+            consistency?: DynamoCacheReadConsistency;
+            dangerouslyAllowDeleted?: boolean;
+        } = emptyObject,
     ): Promise<Result<TaskModel> | null> {
         const tokenAgent =
             typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
@@ -261,10 +311,20 @@ export class TaskContextModule extends TaskContextModuleBase {
             ),
         ]);
 
+        const searchParams = new URLSearchParams();
+
+        if (dangerouslyAllowDeleted) {
+            searchParams.set("dangerouslyAllowDeleted", "true");
+        }
+
+        if (consistency !== "Eventual") {
+            searchParams.set("consistency", consistency);
+        }
+
         const {taskResult} = await fetchWithTracer(
             this._context.tracer.getTracer(),
             `http://${host}/${spaceId}/getTaskWithoutDependencies/${taskId}${
-                consistency !== "Eventual" ? `?consistency=${consistency}` : ""
+                searchParams.size > 0 ? `?${searchParams.toString()}` : ""
             }`,
             {
                 serviceName: "TaskRealtimeService",
@@ -291,7 +351,13 @@ export class TaskContextModule extends TaskContextModuleBase {
         this: TaskContextModule & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = emptyObject,
+        {
+            consistency = "Eventual",
+            dangerouslyAllowDeleted = false,
+        }: {
+            consistency?: DynamoCacheReadConsistency;
+            dangerouslyAllowDeleted?: boolean;
+        } = emptyObject,
     ): Promise<Result<TaskCollectionModel> | null> {
         const tokenAgent =
             typeof this._tokenAgent === "function" ? this._tokenAgent() : this._tokenAgent;
@@ -313,10 +379,20 @@ export class TaskContextModule extends TaskContextModuleBase {
             ),
         ]);
 
+        const searchParams = new URLSearchParams();
+
+        if (dangerouslyAllowDeleted) {
+            searchParams.set("dangerouslyAllowDeleted", "true");
+        }
+
+        if (consistency !== "Eventual") {
+            searchParams.set("consistency", consistency);
+        }
+
         const {collectionResult} = await fetchWithTracer(
             this._context.tracer.getTracer(),
             `http://${host}/${spaceId}/getCollection/${collectionId}${
-                consistency !== "Eventual" ? `?consistency=${consistency}` : ""
+                searchParams.size > 0 ? `?${searchParams.toString()}` : ""
             }`,
             {
                 serviceName: "TaskRealtimeService",

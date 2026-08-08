@@ -9,8 +9,8 @@ import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActionContext} from "~/server/tasks/data/task_realtime_context.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function authorizeTaskAccess(
     context: TaskRealtimeActionContext,

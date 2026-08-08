@@ -5,6 +5,8 @@ import {AuthenticationView} from "~/client/web/auth/authentication_view.js";
 import {GoogleAdsConversionTrackingScript} from "~/client/web/auth/google_ads_conversion_tracking_script.js";
 import {colorSchemeVars} from "~/client/web/styles/styles.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export function meta({params}: {params: Params}) {
     return [{title: params.variant === "sign-up" ? "Sign up for Alpine" : "Sign in to Alpine"}];
@@ -30,10 +32,16 @@ export function shouldRevalidate() {
 export async function loader({request, context}: LoaderArgs) {
     const url = new URL(request.url);
     const toSearchParam = url.searchParams.get("to");
+    const inviteSearchParam = url.searchParams.get("invite");
 
     // Can not access this page while signed in.
     if (await context.actor.isAuthenticatedSession()) {
         if (toSearchParam?.startsWith("/")) return redirect(toSearchParam);
+
+        if (inviteSearchParam && isId<SpaceId>(inviteSearchParam)) {
+            return redirect(`/invite/${inviteSearchParam}`);
+        }
+
         return await redirectToAuthenticatedHome(context);
     }
 

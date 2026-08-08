@@ -1,6 +1,6 @@
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

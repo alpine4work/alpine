@@ -47,14 +47,14 @@ ROOT_LINT_AND_FORMAT_EXTENSIONS = [
 
 ROOT_LINT_AND_FORMAT_FOLDERS = [
     ".vscode",
-    ".github",
+    ".open_source.github",
 ]
 
 ts_lint_and_format_test(
     name = "root",
     srcs = glob(
-        ["*.{}".format(extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS] +
-        ["{}/**/*.{}".format(folder, extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS for folder in ROOT_LINT_AND_FORMAT_FOLDERS],
+        ["*.open_source.{}".format(extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS] +
+        ["{}/*.open_source*.open_source/*.open_source.{}".format(folder, extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS for folder in ROOT_LINT_AND_FORMAT_FOLDERS],
         allow_empty = True,
     ),
 )
@@ -153,6 +153,8 @@ copy_to_bin(
         # Exclude local env files since they'll break remote caching given local env
         # files are different on different machines.
         exclude = [".env*.local"],
+        # Environment files are optional in clean open-source worktrees.
+        allow_empty = True,
     ),
     visibility = ["//visibility:public"],
 )

@@ -1,6 +1,6 @@
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ChannelId,
     ChatId,
@@ -9,7 +9,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SearchFavoriteEntityResultModel} from "~/shared/search/search_entity_result_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -55,20 +55,6 @@ describe("SearchFavoriteEntityResultModel schema roundtrip", () => {
         expect(result.model.getSearchEntityId()).toBe(`Document:${documentId}`);
     });
 
-    test("DatabaseTable", () => {
-        const tableId = generateChronologicalId<DatabaseTableId>();
-        const result = roundtrip(
-            SearchAffinityEntityModel.new({
-                type: "DatabaseTable",
-                title: "database",
-                table: {
-                    id: tableId,
-                },
-            }),
-        );
-        expect(result.model.getSearchEntityId()).toBe(`DatabaseTable:${tableId}`);
-    });
-
     test("Channel", () => {
         const channelId = generateId<ChannelId>();
         const result = roundtrip(
@@ -82,6 +68,18 @@ describe("SearchFavoriteEntityResultModel schema roundtrip", () => {
             }),
         );
         expect(result.model.getSearchEntityId()).toBe(`Channel:${channelId}`);
+    });
+
+    test("DatabaseTable", () => {
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const result = roundtrip(
+            SearchAffinityEntityModel.new({
+                type: "DatabaseTable",
+                title: "database",
+                table: {id: tableId},
+            }),
+        );
+        expect(result.model.getSearchEntityId()).toBe(`DatabaseTable:${tableId}`);
     });
 
     test("Chat (Direct media)", () => {

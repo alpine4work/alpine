@@ -7,9 +7,9 @@ import {MessageList, MessageListItem} from "~/client/web/messaging/message_list.
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {messageViewMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
 import {VirtualizedScrollViewRef} from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 
 export function useScrollToNewMessages<Message extends MessageModel>({

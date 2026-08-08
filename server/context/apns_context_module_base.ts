@@ -4,7 +4,7 @@ import {
 } from "~/server/context/apns_alert_notification.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 
 export abstract class ApnsContextModuleBase extends ContextModuleBase<ServerActionContextModules> {

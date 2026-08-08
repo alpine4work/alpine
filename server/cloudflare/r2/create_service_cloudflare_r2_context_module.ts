@@ -12,7 +12,7 @@ import {
     filesBindingName,
     filesBucketName,
 } from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export const serviceCloudflareR2Options = {
     cloudflareR2LocalDataPath: {type: "string"},

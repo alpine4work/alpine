@@ -3,8 +3,8 @@ import {useHover} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
 import {DocumentationLink} from "~/client/web/docs/internal/documentation_link.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {flattenDocumentationMarkdownChildren} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
-import {toDocumentationMarkdownLinkUrl} from "~/client/web/docs/internal/to_documentation_markdown_link_url.js";
+import {flattenDocumentationMarkdownChildren} from "~/shared/docs/documentation_markdown_component.js";
+import {toDocumentationMarkdownLinkUrl} from "~/shared/docs/to_documentation_markdown_link_url.js";
 
 /**
  * One card in a `<CardGrid>`. Hover lifts the border from hairline to strong. In

@@ -2,8 +2,8 @@ import {parse, serialize} from "cookie";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 
 /**

@@ -1,9 +1,9 @@
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {AccessPolicy, ResolvedAccessPolicyWithGenerations} from "~/shared/access/access_policy.js";
 import {AccessPolicyModel} from "~/shared/access/model/access_policy_model.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {ConstStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";

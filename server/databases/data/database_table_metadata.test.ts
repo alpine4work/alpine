@@ -11,9 +11,13 @@ import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DatabaseGroupId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import type {
+    DatabaseGroupId,
+    DatabaseTableId,
+    DatabaseViewId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 const createdViewId = generateChronologicalId<DatabaseViewId>();
 const createdTableId = generateChronologicalId<DatabaseTableId>();

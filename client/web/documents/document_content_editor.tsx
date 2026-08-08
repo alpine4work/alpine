@@ -31,8 +31,10 @@ import {
 } from "~/client/web/content/content_block_width.js";
 import {ContentDuplicationInstructionalModal} from "~/client/web/content/content_duplication_instructional_modal.js";
 import {ContentEditor, ContentEditorRef} from "~/client/web/content/content_editor.js";
+import {contentEditorHeadingSelector} from "~/client/web/content/content_editor_heading_selector.js";
 import {getContentEditorScrollAnchorPosition} from "~/client/web/content/get_content_editor_scroll_anchor_position.js";
 import {MessageInputRef} from "~/client/web/content/messaging/message_input_base.js";
+import {getCollapsedContentEditorHeadingPositions} from "~/client/web/content/state/content_editor_heading_collapse_plugin.js";
 import {createContentCommentThreadMetaKey} from "~/client/web/content/state/content_editor_state.js";
 import {getOptimisticContentEditorTableLayoutStore} from "~/client/web/content/state/table/content_editor_table_plugin.js";
 import {resolveContentTableColumnWidthPx} from "~/client/web/content/state/table/helpers/resolve_content_table_column_width_px.js";
@@ -109,6 +111,7 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
+import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSearchFavoriteEntityMenuAction} from "~/client/web/search/core/use_search_favorite_affinity_entity_menu_action.js";
 import {SiteBreadcrumbChip} from "~/client/web/sites/breadcrumb/site_breadcrumb_chip.js";
 import {useSiteNavigationBarTitleBreadcrumb} from "~/client/web/sites/breadcrumb/use_site_navigation_bar_title_breadcrumb.js";
@@ -143,18 +146,22 @@ import {
     encodeContentDuplicationVariableSchemaForUrl,
     extractContentDuplicationVariableSchema,
 } from "~/shared/content/content_duplication_variable_schema.js";
+import {
+    ContentHeadingSection,
+    getContentHeadingSections,
+} from "~/shared/content/get_content_heading_sections.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {paragraphClassName} from "~/shared/design/core/constant_class_names.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -163,6 +170,7 @@ import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
+import {documentDeletedErrorDisplayMessage} from "~/shared/documents/document_error_messages.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -171,25 +179,33 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
 import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {assertId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId, FileId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    FileId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftWithFiles,
     emptyMessageDraftWithFiles,
@@ -199,7 +215,8 @@ import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemir
 import {createDocument, duplicateDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {getMessageDraft} from "~/shared/rpc/message_drafts_rpc_definitions.js";
 import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -216,6 +233,22 @@ export type DocumentContentEditorInitialScroll =
     | {
           readonly type: "CommentThread";
           readonly commentThreadId: DocumentCommentThreadId;
+      }
+    | {
+          // Scroll to the heading whose derived slug matches the URL hash (`#introduction`).
+          // Slugs are derived from heading text (see `getContentHeadingSections()`) so the
+          // slug in a URL may no longer exist in the doc; we stay at the top of the doc in
+          // that case.
+          //
+          // TODO(heading-ids): Slugs trade persistence for implementation speed: renaming a
+          // heading breaks links that were copied to it. The durable design is to add stable
+          // IDs to heading nodes in the content schema so a link can identify its heading
+          // forever, keeping slugs as a fallback so existing URLs don't break. Build heading
+          // IDs when someone asks for rename-proof links or persisted collapse state —
+          // `contentEditorHeadingCollapsePlugin()` documents the same tradeoff for collapsed
+          // sections.
+          readonly type: "Heading";
+          readonly headingSlug: string;
       };
 
 type DocumentContentEditorSidebarState =
@@ -309,6 +342,7 @@ export function DocumentContentEditor({
     const navigate = useNavigate();
     const isMounted = useIsMounted();
     const siteContext = useSiteContextIfExists();
+    const searchEntityRegistry = useSearchEntityRegistry();
 
     const editorRef = useRef<ContentEditorRef<DocumentContentWithReferences>>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -359,8 +393,17 @@ export function DocumentContentEditor({
         subscribeToSpellCheckIgnoredLintEvents,
         subscribeToPongs,
         unpersistedResolutionStateByCommentThreadId,
+        isGhostDocument,
         ensureCreateDocument,
+        waitForPersistedVersion,
+        disconnectMutex,
     } = useDocumentContentEditorWebSocket({documentId, initialDocument}, {onCreate});
+
+    if (content.doc.attrs.deletedTime) {
+        throw new PermissionDeniedError("Current account lost access to document (deleted)", {
+            displayMessage: documentDeletedErrorDisplayMessage,
+        });
+    }
 
     const phantomSelections = useDocumentContentEditorPhantomSelections({
         editorState,
@@ -1027,11 +1070,15 @@ export function DocumentContentEditor({
     ] = useState<{onDiscard: () => void} | null>(null);
 
     const {
+        getEditorState,
+        getIsGhostDocument,
         onSidebarClose,
         onSidebarMobileFullScreenExpand,
         onSidebarMobileFullScreenContract,
         onCopyLink,
     } = useEvents({
+        getEditorState: () => editorState,
+        getIsGhostDocument: () => isGhostDocument,
         onSidebarClose: () => {
             const run = () => {
                 setSidebarState(sidebarState => {
@@ -1137,12 +1184,22 @@ export function DocumentContentEditor({
      *                        Comment decoration collection                       *
     \* ========================================================================== */
 
+    // Heading sections are computed up here, before the comment decorations, since
+    // comment marks hidden inside a collapsed section anchor their decoration to the
+    // collapsed heading. See the "Heading sections" section below for everything else.
+    const headingSections = useMemo(() => getContentHeadingSections(content.doc), [content.doc]);
+
+    const collapsedHeadingPositions = getCollapsedContentEditorHeadingPositions(
+        editorState._getInternalState(),
+    );
+
     const [decorationByMarkTop, setDecorationByMarkTop] = useState<
         ReadonlyMap<
             number,
             {
                 readonly markHeight: number;
                 readonly commentThreadIds: ReadonlySet<DocumentCommentThreadId>;
+                readonly visibleCommentThreadIds: ReadonlySet<DocumentCommentThreadId>;
             }
         >
     >(emptyMap);
@@ -1171,6 +1228,9 @@ export function DocumentContentEditor({
                     editorContainerElement,
                     editorContainerRect: editorContainerElement.getBoundingClientRect(),
                     editor,
+                    collapsedSections: headingSections.filter(section =>
+                        collapsedHeadingPositions.has(section.headingPos),
+                    ),
                     seenCommentThreadIds: new Set(),
                     decorationByMarkTop: new Map(),
                     tableCacheByPos: new Map(),
@@ -1196,8 +1256,10 @@ export function DocumentContentEditor({
         return store.subscribe(update);
     }, [
         editorContainerRef,
+        collapsedHeadingPositions,
         content.doc,
         editorRef,
+        headingSections,
         isInitialAppRender,
         editorContainerWidth,
         spacingScale,
@@ -1214,6 +1276,7 @@ export function DocumentContentEditor({
                 markTop,
                 markHeight: decoration.markHeight,
                 commentThreadIds: decoration.commentThreadIds,
+                visibleCommentThreadIds: decoration.visibleCommentThreadIds,
             };
         }).sort((a, b) => a.markTop - b.markTop);
 
@@ -1222,6 +1285,83 @@ export function DocumentContentEditor({
             decorations,
         };
     }, [decorationByMarkTop]);
+
+    /* ========================================================================== *\
+     *                              Heading sections                              *
+    \* ========================================================================== */
+
+    const copyHeadingLink = useEvent(async (headingSlug: string) => {
+        // Make sure the document has been created before copying a link to it, same as
+        // `onCopyLink` above.
+        await ensureCreateDocument();
+
+        // Heading links use the URL hash (`#introduction`), the standard anchor
+        // convention, so the link reads right when pasted outside Alpine (e.g. into a code
+        // editor). Comment thread links keep using the `scroll` search param
+        // (`?scroll=thread-...`); the hash is reserved for headings.
+        const url = new URL(`/doc/${documentId}`, window.location.href);
+        url.hash = headingSlug;
+        await writeTextToClipboard(url.toString());
+    });
+
+    // "Copy heading link" for right clicking a heading. The editor renders it in the
+    // same context menu section as its own collapse/expand heading action (see the
+    // `withCollapsibleHeadings` prop below).
+    const getHeadingContextMenuActions = useEvent(
+        (headingPos: number): ReadonlyArray<MenuAction> | null => {
+            const section = headingSections.find(section => section.headingPos === headingPos);
+            if (!section || section.slug === null) return null;
+
+            const headingSlug = section.slug;
+            return [
+                {
+                    label: "Copy heading link",
+                    icon: <LinkIcon />,
+                    iconPlacement: "end",
+                    pressErrorTitle: "Couldn\u2019t copy heading link",
+                    onPress: () => copyHeadingLink(headingSlug),
+                },
+            ];
+        },
+    );
+
+    // TODO(#heading-ids): Touch devices have no heading section controls at all for
+    // now. The global context menu only opens for mouse pointers, and we removed the
+    // long press touch menu we prototyped for headings (the `<MessageViewTouchMenu>`
+    // pattern) before shipping, for two reasons:
+    //
+    // - The document editor doesn't offer a context menu on touch devices today, and
+    //   getting that interaction right will take time: in testing on an iPhone the
+    //   haptic played a noticeable few hundred milliseconds _after_ the menu opened,
+    //   the menu didn't open while the keyboard was up (and it's unclear whether it
+    //   should), and "Copy heading link" put nothing on the clipboard.
+    // - Most mobile users are in a narrow view whose margin can't fit the expand
+    //   chevron (the `platform !== "mobile"` check below), so a collapsed section
+    //   would have no visual affordance. That's tolerable while collapse state is
+    //   client-side ephemeral — nobody opens a doc with sections already collapsed —
+    //   but narrow views need some indicator of collapsed state (maybe one we adopt
+    //   everywhere) before mobile gets collapse controls, and we don't have time to
+    //   design that now.
+    //
+    // The heading collapse plugin renders an expand chevron next to every collapsed
+    // heading, but only when the editor opts in with `withCollapsibleHeadings`. Match
+    // the comment side decorations: no chevron when the margin next to the content
+    // column is too narrow to fit it. The context menu still exposes expand for
+    // sections that are already collapsed.
+    const areHeadingSectionControlsVisible = useMemo(() => {
+        const headingExpandChevronMinMargin = convertRemLengthToPx("2.25rem", spacingScale);
+        return (
+            platform !== "mobile" &&
+            (editorContainerWidth === null ||
+                Math.max(
+                    0,
+                    editorContainerWidth -
+                        convertRemLengthToPx(contentStyles.blockMaxWidth[platform], spacingScale),
+                ) /
+                    2 >=
+                    headingExpandChevronMinMargin)
+        );
+    }, [editorContainerWidth, platform, spacingScale]);
 
     /* ========================================================================== *\
      *                       Scroll to comment in document                        *
@@ -1298,7 +1438,19 @@ export function DocumentContentEditor({
 
     const handleCommentThreadSnippetPress = useEvent((commentThreadId: DocumentCommentThreadId) => {
         const editorContainerElement = assertExists(editorContainerRef.current);
-        const firstCommentMarkElement = editorContainerElement.querySelector(
+        let firstCommentMarkElement = editorContainerElement.querySelector(
+            `[data-comment="${commentThreadId}"]`,
+        );
+        if (!firstCommentMarkElement) return;
+
+        // A mark inside a collapsed heading section is `display: none`, so its rect is
+        // useless and scrolling could never reveal it. Expand the sections hiding it
+        // first.
+        assertExists(editorRef.current).expandHeadingSectionsAtElement(firstCommentMarkElement);
+        // Expanding synchronously redraws the previously hidden blocks, which replaces
+        // their DOM nodes: the mark element we queried above may now be a detached orphan
+        // whose rect measures as zero, so query it again before measuring.
+        firstCommentMarkElement = editorContainerElement.querySelector(
             `[data-comment="${commentThreadId}"]`,
         );
         if (!firstCommentMarkElement) return;
@@ -1336,11 +1488,20 @@ export function DocumentContentEditor({
             const navigationBar = assertExists(navigationBarRef.current);
             const editorContainerElement = assertExists(editorContainerRef.current);
 
-            const commentMarkElements = editorContainerElement.querySelectorAll(
+            // Comment thread doesn't exist in the document anymore
+            const allCommentMarkElements = editorContainerElement.querySelectorAll(
                 `[data-comment="${commentThreadId}"]`,
             );
+            if (allCommentMarkElements.length === 0) return;
 
-            // Comment thread doesn't exist in the document anymore
+            // A mark inside a collapsed heading section is `display: none` with a meaningless
+            // zero rect. Opening its thread deliberately doesn't expand the section: the
+            // sidebar's thread preview already shows the comment's content, and clicking that
+            // preview expands the section and scrolls to the mark
+            // (`handleCommentThreadSnippetPress`). So there's nothing to scroll to here.
+            const commentMarkElements = Array.from(allCommentMarkElements).filter(
+                commentMarkElement => commentMarkElement.getClientRects().length > 0,
+            );
             if (commentMarkElements.length === 0) return;
 
             const spacingScale = getSpacingScaleWithoutListening();
@@ -1448,10 +1609,38 @@ export function DocumentContentEditor({
                     }
                     break;
                 }
+                case "Heading": {
+                    const headingIndex = headingSections.findIndex(
+                        section => section.slug === initialScroll.headingSlug,
+                    );
+                    // The slug in the URL is derived from heading text so it may not exist in this doc
+                    // anymore. Stay at the top of the doc in that case.
+                    if (headingIndex === -1) break;
+
+                    // Heading sections are in document order, so the nth section is the nth heading
+                    // element. This works even on the initial app render when the doc is a
+                    // server-rendered `<ContentView>`.
+                    const headingElement = editorContainerElement.querySelectorAll(
+                        contentEditorHeadingSelector,
+                    )[headingIndex];
+                    if (headingElement) {
+                        scrollToEditorRect(headingElement.getBoundingClientRect(), {
+                            behavior: "instant",
+                            prefer: "top",
+                        });
+                    }
+                    break;
+                }
                 default:
                     throw exhaustive(initialScroll);
             }
-        }, [documentId, initialCommentThreadResult, initialScroll, scrollToEditorRect]);
+        }, [
+            documentId,
+            headingSections,
+            initialCommentThreadResult,
+            initialScroll,
+            scrollToEditorRect,
+        ]);
     }
 
     /* ========================================================================== *\
@@ -1853,7 +2042,65 @@ export function DocumentContentEditor({
                                       }
                                   },
                               }),
-                          ],
+                              hasAccessLevel(accessLevel, "Manage") &&
+                                  cast<MenuAction>({
+                                      label: "Delete",
+                                      onPress: () => {
+                                          reporter.showDialog({
+                                              title: "Delete document?",
+                                              description: "This can\u2019t be undone.",
+                                              primaryButtonLabel: "Delete",
+                                              primaryButtonPressErrorTitle:
+                                                  "Couldn\u2019t delete document",
+                                              onPrimaryButtonPress: async () => {
+                                                  // Use `disconnectMutex` to prevent the document WebSocket from disconnecting until
+                                                  // after the deleted document state is persisted.
+                                                  await disconnectMutex.withLock(async () => {
+                                                      // Search modal peeks start advancing to an adjacent result without waiting for
+                                                      // that result's route data to load.
+                                                      if (peekContext?.onBeforeEntityDelete) {
+                                                          peekContext.onBeforeEntityDelete(
+                                                              `Document:${documentId}`,
+                                                          );
+                                                      } else {
+                                                          if (withinPeekStackOverlay) {
+                                                              await navigate(-1);
+                                                          } else {
+                                                              await navigate(`/home/${spaceId}`);
+                                                          }
+                                                      }
+
+                                                      const editorState = getIsGhostDocument()
+                                                          ? null
+                                                          : getEditorState().setDeletedTime(
+                                                                new Date(),
+                                                            );
+
+                                                      if (editorState) {
+                                                          const persistedVersion =
+                                                              editorState.getVersion() + 1;
+                                                          onEditorStateChange(editorState);
+                                                          searchEntityRegistry.getAndImmediatelyUpdateEntityStore(
+                                                              new SearchEntityModel({
+                                                                  type: "Document",
+                                                                  document: {
+                                                                      id: documentId,
+                                                                      version: persistedVersion,
+                                                                  },
+                                                                  // TODO(#null-title-means-deleted)
+                                                                  title: null,
+                                                              }),
+                                                          );
+                                                          await waitForPersistedVersion(
+                                                              persistedVersion,
+                                                          );
+                                                      }
+                                                  });
+                                              },
+                                          });
+                                      },
+                                  }),
+                          ].filter(isNonNullableOrFalse),
                       ]
                     : []),
             ],
@@ -1863,16 +2110,25 @@ export function DocumentContentEditor({
                 content,
                 context,
                 currentAccount,
+                disconnectMutex,
                 doNotShowDuplicationInstructionalModalAgain,
                 documentId,
                 favoriteMenuAction,
+                getEditorState,
+                getIsGhostDocument,
                 isRedoDisabled,
                 isUndoDisabled,
                 navigate,
                 onCopyLink,
+                onEditorStateChange,
+                peekContext,
                 peekStackContext,
                 platform,
+                reporter,
+                searchEntityRegistry,
                 spaceId,
+                waitForPersistedVersion,
+                withinPeekStackOverlay,
             ],
         ),
         menuExtraBottom:
@@ -2185,6 +2441,8 @@ export function DocumentContentEditor({
                                     )}
                                     onEnsureFileAttachmentTarget={ensureCreateDocument}
                                     onSelectGif={onSelectGifInDocument}
+                                    withCollapsibleHeadings={areHeadingSectionControlsVisible}
+                                    getHeadingContextMenuActions={getHeadingContextMenuActions}
                                     openCommentThread={openCommentThread}
                                     onCommentThreadPressedChange={(commentThreadId, isHovered) => {
                                         setPressedCommentThreadId(pressedCommentThreadId => {
@@ -2633,10 +2891,17 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
     editorContainerElement: HTMLElement;
     editorContainerRect: DOMRect;
     editor: ContentEditorRef<DocumentContentWithReferences>;
+    // The currently collapsed heading sections, in document order. Comment marks
+    // inside these ranges are `display: none` so their own coordinates are useless.
+    collapsedSections: ReadonlyArray<ContentHeadingSection>;
     seenCommentThreadIds: Set<DocumentCommentThreadId>;
     decorationByMarkTop: Map<
         number,
-        {markHeight: number; commentThreadIds: Set<DocumentCommentThreadId>}
+        {
+            markHeight: number;
+            commentThreadIds: Set<DocumentCommentThreadId>;
+            visibleCommentThreadIds: Set<DocumentCommentThreadId>;
+        }
     >;
     tableCacheByPos: Map<number, {totalColumnWidthPx: number}>;
 }>(node => {
@@ -2704,12 +2969,49 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
             }
         }
 
+        // A mark inside a collapsed heading section is hidden with `display: none`, so
+        // measuring it yields a meaningless zero rect. Anchor its decoration to its
+        // collapsed heading instead: that keeps the thread in document order for the
+        // sidebar's previous/next navigation while it's left out of
+        // `visibleCommentThreadIds` below so no preview renders for it.
+        const collapsedSection = state.collapsedSections.find(
+            section => offset >= section.sectionFrom && offset < section.sectionTo,
+        );
+
+        // A mark on a collapsed heading itself stays visible in the doc, but its margin
+        // preview would sit on the same line as the heading's expand chevron, so it
+        // doesn't render one either. The thread stays reachable through the sidebar's
+        // previous/next navigation and by clicking the mark.
+        const isOnCollapsedHeadingLine = state.collapsedSections.some(
+            section => offset >= section.headingPos && offset < section.sectionFrom,
+        );
+
         let coords: {top: number; bottom: number; left: number; right: number} | undefined;
 
-        // If this is a non-text node like `file` then get the DOM element for the node and
-        // use the dimensions of that element instead of the result of `coordsAtPos()`
-        // which will have a height of 0.
-        if (!node.type.inlineContent && !node.type.isText) {
+        if (collapsedSection) {
+            const headingDom = state.editor.nodeDom(collapsedSection.headingPos);
+            if (headingDom instanceof Element) {
+                // Anchor just below the _bottom_ edge of the heading. The heading's own comment
+                // marks measure from the text caret, which sits above the heading's bottom edge
+                // (the extra pixel guards against a caret rect that touches it), so hidden marks
+                // sort after them: previous/next navigation visits a comment on the collapsed
+                // heading before the comments hidden inside its section, matching document order.
+                //
+                // Every comment hidden in the same collapsed section lands on the same `markTop`,
+                // so they group into one decoration entry; within that group, insertion order (a
+                // doc-order traversal) keeps them sorted.
+                const headingRect = headingDom.getBoundingClientRect();
+                coords = {
+                    top: headingRect.bottom + 1,
+                    bottom: headingRect.bottom + 1,
+                    left: headingRect.left,
+                    right: headingRect.right,
+                };
+            }
+        } else if (!node.type.inlineContent && !node.type.isText) {
+            // If this is a non-text node like `file` then get the DOM element for the node and
+            // use the dimensions of that element instead of the result of `coordsAtPos()`
+            // which will have a height of 0.
             const nodeDom = state.editor.nodeDom(offset);
             if (nodeDom instanceof Element) {
                 coords = nodeDom.getBoundingClientRect();
@@ -2733,10 +3035,14 @@ const collectDecorationByMarkTop = createProsemirrorIncrementalReducer<{
             const decoration = getOrSetDefaultMapValue(state.decorationByMarkTop, markTop, () => ({
                 markHeight,
                 commentThreadIds: new Set<DocumentCommentThreadId>(),
+                visibleCommentThreadIds: new Set<DocumentCommentThreadId>(),
             }));
 
             state.seenCommentThreadIds.add(commentThreadId);
             decoration.commentThreadIds.add(commentThreadId);
+            if (!collapsedSection && !isOnCollapsedHeadingLine) {
+                decoration.visibleCommentThreadIds.add(commentThreadId);
+            }
         }
 
         return state;

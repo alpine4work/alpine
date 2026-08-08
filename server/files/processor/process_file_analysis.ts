@@ -7,17 +7,20 @@ import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
 import {FileProcessorActionContext} from "~/server/files/data/file_processor_context.js";
 import {
-    FileProcessorAnalysisResponse,
-    FileProcessorAnalysisResponseSchema,
-    createFileProcessorAudioTranscriptTagInstructions,
-    createFileProcessorVideoTagInstructions,
-    fileProcessorImageTagInstructions,
-} from "~/server/files/processor/file_processor_tag_instructions.js";
-import {
     fileProcessWhisperLocalModelDirectoryName,
     getFileProcessWhisperModelLoading,
 } from "~/server/files/processor/get_file_process_whisper_model_loading.js";
 import {materializePackagedFileProcessWhisperModelPathIfExists} from "~/server/files/processor/materialize_packaged_file_process_whisper_model_path_if_exists.js";
+import {
+    FileProcessorAnalysisResponse,
+    FileProcessorAnalysisResponseSchema,
+    createFileProcessorAudioTranscriptTagInstructions,
+    createFileProcessorCodeTextTagInstructions,
+    createFileProcessorDocumentTagInstructions,
+    createFileProcessorVideoTagInstructions,
+    fileProcessorAnalysisSystemInstructions,
+    fileProcessorImageTagInstructions,
+} from "~/server/files/processor/process_file_analysis_instructions.js";
 import {
     ffmpegExecutablePath,
     ffmpegThreadCount,
@@ -31,7 +34,8 @@ import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
 import {SupportedBedrockModel} from "~/server/language_models/supported_bedrock_model.js";
-import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
+import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
+import {DeadlineExceededError, InternalError} from "~/shared/error/error.open_source.js";
 import {
     FileAnalysisResult,
     FileAnalysisResultSchema,
@@ -41,19 +45,23 @@ import {
 } from "~/shared/files/file_analysis.js";
 import {
     FileAudioContentType,
+    FileCodeContentType,
     FileContentType,
+    FileDocumentContentType,
     FileImageContentType,
     FileVideoContentType,
     getFileContentTypePreferredExtension,
     isFileAudioContentType,
+    isFileCodeContentType,
+    isFileDocumentContentType,
     isFileImageContentType,
     isFileVideoContentType,
-} from "~/shared/files/file_content_type.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export type ProcessFileAnalysisResult =
     | {readonly ok: true; readonly analysis: FileAnalysisResult}
@@ -74,6 +82,8 @@ export type FileProcessTranscriptJson = {
 
 export type FileContentTypeSupportedForAnalysis =
     | FileAudioContentType
+    | FileCodeContentType
+    | FileDocumentContentType
     | FileImageContentType
     | FileVideoContentType;
 
@@ -82,6 +92,7 @@ const fileProcessTagsModelCacheDirectoryName = ".cache/cyberworlds/models";
 
 const fileProcessTagsTimeoutMs = 1000 * 60 * 5;
 const fileProcessTagsMaxImageDimensionPixels = 1024;
+const fileProcessTagsMaxTextCharacters = 24_000;
 const fileProcessTagsMaxTranscriptCharacters = 24_000;
 const fileProcessTagsMaxVideoFrameCount = 20;
 
@@ -109,7 +120,7 @@ const fileProcessTagsAsrPromiseByModelCacheDirectoryPath = new Map<
 >();
 
 /**
- * Analyze audio, video, and image files for search-oriented descriptions.
+ * Analyze files for search-oriented descriptions.
  *
  * This function never throws analysis failures to its caller. Instead it converts
  * them into `{ok: false}` so the caller can decide whether analysis failure should
@@ -118,8 +129,6 @@ const fileProcessTagsAsrPromiseByModelCacheDirectoryPath = new Map<
  * - ignored
  * - retried in a separate job
  * - or surfaced as a fatal error
- *
- * TODO: Support more file types.
  */
 export async function processFileAnalysis(
     context: FileProcessorActionContext,
@@ -209,7 +218,9 @@ export function isFileContentTypeSupportedForAnalysis(
     return (
         isFileImageContentType(contentType) ||
         isFileAudioContentType(contentType) ||
-        isFileVideoContentType(contentType)
+        isFileVideoContentType(contentType) ||
+        isFileDocumentContentType(contentType) ||
+        isFileCodeContentType(contentType)
     );
 }
 
@@ -279,8 +290,7 @@ async function downloadFileToPath(
 }
 
 /**
- * Route a supported content type to its image, audio, or video tag generation
- * pipeline.
+ * Route a supported content type to its tag generation pipeline.
  */
 async function runTagGeneration({
     context,
@@ -300,6 +310,18 @@ async function runTagGeneration({
     if (isFileImageContentType(contentType)) {
         return normalizeFileAnalysisResult(
             await generateImageTagsWithBedrock({context, filePath, signal}),
+        );
+    }
+
+    if (isFileDocumentContentType(contentType)) {
+        return normalizeFileAnalysisResult(
+            await generateDocumentTagsWithBedrock({context, contentType, filePath, signal}),
+        );
+    }
+
+    if (isFileCodeContentType(contentType)) {
+        return normalizeFileAnalysisResult(
+            await generateCodeTextTagsWithBedrock({context, contentType, filePath, signal}),
         );
     }
 
@@ -353,6 +375,69 @@ async function generateImageTagsWithBedrock({
                 },
             },
             {text: fileProcessorImageTagInstructions},
+        ],
+        context,
+        signal,
+    });
+}
+
+/**
+ * Generate tags and a summary for a document preview image.
+ */
+async function generateDocumentTagsWithBedrock({
+    context,
+    contentType,
+    filePath,
+    signal,
+}: {
+    context: FileProcessorActionContext;
+    contentType: FileDocumentContentType;
+    filePath: string;
+    signal: AbortSignal;
+}): Promise<FileProcessorAnalysisResponse> {
+    const imagePayload = await loadResizedImagePayload(filePath);
+    return await invokeBedrockTags({
+        contentBlocks: [
+            {
+                image: {
+                    format: imagePayload.format,
+                    source: {bytes: imagePayload.bytes},
+                },
+            },
+            {
+                text: createFileProcessorDocumentTagInstructions({
+                    contentTypeName: getFileContentTypeName(contentType),
+                }),
+            },
+        ],
+        context,
+        signal,
+    });
+}
+
+/**
+ * Generate tags and a summary for code or text files.
+ */
+async function generateCodeTextTagsWithBedrock({
+    context,
+    contentType,
+    filePath,
+    signal,
+}: {
+    context: FileProcessorActionContext;
+    contentType: FileCodeContentType;
+    filePath: string;
+    signal: AbortSignal;
+}): Promise<FileProcessorAnalysisResponse> {
+    const text = await loadTextSnippet({filePath, signal});
+    return await invokeBedrockTags({
+        contentBlocks: [
+            {
+                text: createFileProcessorCodeTextTagInstructions({
+                    contentTypeName: getFileContentTypeName(contentType),
+                    text,
+                }),
+            },
         ],
         context,
         signal,
@@ -440,7 +525,9 @@ async function generateVideoTagsWithBedrock({
                     timeSeconds: frameTimestampSeconds,
                 });
                 const framePayload = await loadResizedImagePayload(framePath);
-                contentBlocks.push({text: `Frame ${index + 1}.`});
+                contentBlocks.push({
+                    text: `Video moment ${index + 1} of ${frameTimestampsSeconds.length}.`,
+                });
                 contentBlocks.push({
                     image: {
                         format: framePayload.format,
@@ -504,6 +591,7 @@ async function invokeBedrockTags({
         model: fileProcessTagsLanguageModel,
         schema: FileProcessorAnalysisResponseSchema,
         signal,
+        system: fileProcessorAnalysisSystemInstructions,
     });
 
     return result.object;
@@ -674,6 +762,43 @@ async function loadResizedImagePayload(
         .catch(rethrowClassifiedSharpError);
 
     return {bytes: Uint8Array.from(buffer), format: "jpeg"};
+}
+
+/**
+ * Load a bounded UTF-8 snippet from a local file for text-based analysis.
+ */
+async function loadTextSnippet({
+    filePath,
+    signal,
+}: {
+    filePath: string;
+    signal: AbortSignal;
+}): Promise<string> {
+    const readStream = fsSync.createReadStream(filePath, {
+        encoding: "utf8",
+        highWaterMark: 64 * 1024,
+    });
+
+    let text = "";
+
+    try {
+        for await (const chunk of readStream) {
+            if (signal.aborted) {
+                throw signal.reason;
+            }
+
+            text += chunk;
+            if (text.length > fileProcessTagsMaxTextCharacters) break;
+        }
+    } finally {
+        readStream.destroy();
+    }
+
+    const normalizedText = text.trim();
+    if (normalizedText.length <= fileProcessTagsMaxTextCharacters) {
+        return normalizedText;
+    }
+    return `${normalizedText.slice(0, fileProcessTagsMaxTextCharacters - 3).trimEnd()}...`;
 }
 
 /**

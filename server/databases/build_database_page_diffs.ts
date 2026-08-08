@@ -7,9 +7,9 @@ import type {
     DatabaseTablePageDiffs,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {type PageDiff, diffPage} from "~/shared/databases/page_diff.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Build the realtime `PagesChanged` diffs for a mutation from the server's

@@ -40,7 +40,7 @@ export function ContentFilePdfViewer({
 
     const viewerAspectRatio = viewerWidth / viewerHeight;
 
-    const fileSize = getFilePreviewSize(file);
+    const fileSize = getFilePreviewSize(file.preview);
     const fileAspectRatio = fileSize.width / fileSize.height;
 
     let fileScale: number;

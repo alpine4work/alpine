@@ -1,35 +1,71 @@
 import fs from "fs/promises";
 import {join, normalize} from "path";
-import {documentationApiHomeUrl} from "~/client/web/docs/documentation_api_home_url.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
+import {documentationApiHomeUrl} from "~/shared/docs/documentation_api_home_url.js";
 import {
     DocumentationApiModel,
     DocumentationApiOperation,
-} from "~/client/web/docs/documentation_api_model.js";
+} from "~/shared/docs/documentation_api_model.js";
 import {
     DocumentationApiPageData,
     GeneratedDocumentationPageData,
-} from "~/client/web/docs/documentation_mdx_page.js";
+} from "~/shared/docs/documentation_mdx_page_data.js";
 import {
     DocumentationNavTree,
     createDocumentationDocUrl,
     getFirstDocumentationSlug,
-} from "~/client/web/docs/documentation_nav.js";
-import {GeneratedDocumentationApiNav} from "~/client/web/docs/generated_documentation.js";
+} from "~/shared/docs/documentation_nav.js";
+import {GeneratedDocumentationApiNav} from "~/shared/docs/generated_documentation.js";
 import {
     DocumentationSearchIndex,
     parseDocumentationSearchIndex,
-} from "~/client/web/docs/search_documentation_entries.js";
-import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+} from "~/shared/docs/search_documentation_entries.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 
 const generatedDocumentationDirectoryPath = join(
     runfilesPath,
-    "cyberworlds/client/web/docs/generated",
+    "cyberworlds/app/docs/codegen/generated",
 );
 
 const generatedPagesDirectoryPath = join(generatedDocumentationDirectoryPath, "pages");
+const generatedOpenGraphImageDirectoryNames = [
+    "generated_api",
+    "generated_blog",
+    "generated_guides",
+    "generated_schemas",
+];
+const generatedOpenGraphImagesDirectoryPaths = generatedOpenGraphImageDirectoryNames.map(name =>
+    process.env.NODE_ENV === "development"
+        ? join(getWorkspacePath(), "bazel-bin/app/docs/codegen/opengraph", name)
+        : join(runfilesPath, "cyberworlds/app/docs/codegen/opengraph", name),
+);
+
+/** Load a code-generated Open Graph PNG for its public page path. */
+export async function loadGeneratedDocumentationOpenGraphImage(
+    pagePath: string,
+): Promise<Buffer | null> {
+    const decoded = decodeGeneratedDocumentationUrl(pagePath);
+    if (decoded === null) return null;
+    const imagePath = join(decoded.replace(/^\/+/, ""), "og.png");
+
+    for (const directoryPath of generatedOpenGraphImagesDirectoryPaths) {
+        const normalized = normalize(join(directoryPath, imagePath));
+        if (normalized === directoryPath || !normalized.startsWith(`${directoryPath}/`)) {
+            return null;
+        }
+
+        try {
+            return await fs.readFile(normalized);
+        } catch (error) {
+            if (!isMissingFileError(error)) throw error;
+        }
+    }
+
+    return null;
+}
 
 /**
  * Load the generated guide navigation tree from Bazel runfiles.

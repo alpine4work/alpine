@@ -25,12 +25,12 @@ import {
 } from "~/shared/content/content_references.js";
 import {contextCacheMissTestCounter} from "~/shared/context/cache_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageReferencedIds, MessageReferences} from "~/shared/messaging/message_references.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";

@@ -2,9 +2,9 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {authorizeSiteAccess} from "~/server/sites/data/authorize_site_access.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {RynamoSiteEvent} from "~/shared/sites/site_realtime_protocol.js";
 
 /**

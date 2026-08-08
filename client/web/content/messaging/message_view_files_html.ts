@@ -11,14 +11,15 @@ import {AppContext} from "~/client/web/context/app_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {RemLength} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadModelFile} from "~/shared/messaging/message_model.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
@@ -117,10 +118,10 @@ export function renderMessageViewFiles(
         fileRowHtml.setAttribute(
             "style",
             [
-                `height: ${Math.max(...fileLayouts.map(({height}) => height))}px`,
+                `height: ${toFixedWithoutTrailingZeros(Math.max(...fileLayouts.map(({height}) => height)), 3)}px`,
                 "display: grid",
                 "grid-template-rows: 1fr",
-                `grid-template-columns: ${fileLayouts.map(({widthFr}) => `${widthFr}fr`).join(" ")}`,
+                `grid-template-columns: ${fileLayouts.map(({widthFr}) => `${toFixedWithoutTrailingZeros(widthFr, 6)}fr`).join(" ")}`,
                 // Left align message files instead of center aligning message files. This matches
                 // the more conversational format of messages as opposed to the carefully edited
                 // prose format of documents.

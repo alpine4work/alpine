@@ -1,7 +1,7 @@
 import {ServerMinimalActionContext} from "~/server/context/server_minimal_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function getFileAttachmentTargetAuthorizer(
     context: ServerMinimalActionContext,

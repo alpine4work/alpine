@@ -1,12 +1,15 @@
 import {FileAlternativeSchema} from "~/shared/files/file_alternative.js";
 import {FileAnalysisSchema} from "~/shared/files/file_analysis.js";
-import {FileContentType, FileContentTypeSchema} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    FileContentTypeSchema,
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileHasPreview, FilePreviewSchema} from "~/shared/files/file_preview.js";
 import {FileTranscriptSchema} from "~/shared/files/file_transcript.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export type FileModelData = SchemaType<typeof FileModelDataSchema>;
 

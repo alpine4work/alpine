@@ -18,14 +18,14 @@ import {DatabaseViewModel} from "~/shared/databases/model/database_view_model.js
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
     DatabaseViewId,
-} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     readonly tableRef: SqlQuery;

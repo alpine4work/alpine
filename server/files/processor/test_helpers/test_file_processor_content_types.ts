@@ -43,28 +43,28 @@ import {
     InvalidArgumentError,
     NotFoundError,
     UnimplementedError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {FileCodePreviewContent} from "~/shared/files/file_code_preview_content.js";
 import {
     FileContentType,
     getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileProcessorError} from "~/shared/files/file_processor_error.js";
 import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
-import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {waitForReadableStreamUint8Array} from "~/shared/helpers/binary/wait_for_readable_stream_uint8_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const testlogsPath = joinPath(assertExists(process.env.TEST_UNDECLARED_OUTPUTS_DIR), "files");
 const testFileProcessorAnalysisResult = {tags: ["processor test"]};
@@ -97,6 +97,7 @@ export type FileProcessorContentTypeTestCase = NonEmptyReadonlyArray<{
     audioPreviewErrorWhenProcessedConcurrently?: FileProcessorError;
     codePreviewContentLength?: number;
     codePreviewContent?: string;
+    analysisError?: FileProcessorError;
     previewError?: FileProcessorError;
     transcriptUnavailable?: true;
     looksSameTolerance?: number;
@@ -316,6 +317,7 @@ export function testFileProcessorContentTypes(
                         expectedAudioPreviewErrorWhenProcessedConcurrently,
                     codePreviewContentLength: expectedCodePreviewContentLength,
                     codePreviewContent: expectedCodePreviewContent,
+                    analysisError: expectedAnalysisError,
                     previewError: expectedPreviewError,
                     transcriptUnavailable: expectedTranscriptUnavailable,
                     looksSameTolerance = 35,
@@ -419,11 +421,17 @@ export function testFileProcessorContentTypes(
                                     isUploading: false,
                                     alternative: expectedAlternativeResult,
                                     analysis: file.hasAnalysis
-                                        ? {
-                                              isProcessing: false,
-                                              ok: true,
-                                              result: testFileProcessorAnalysisResult,
-                                          }
+                                        ? expectedAnalysisError
+                                            ? {
+                                                  isProcessing: false,
+                                                  ok: false,
+                                                  error: expectedAnalysisError,
+                                              }
+                                            : {
+                                                  isProcessing: false,
+                                                  ok: true,
+                                                  result: testFileProcessorAnalysisResult,
+                                              }
                                         : null,
                                     preview: expectedPreviewError
                                         ? {

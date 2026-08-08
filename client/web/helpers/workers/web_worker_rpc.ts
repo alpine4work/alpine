@@ -3,10 +3,14 @@ import {
     webWorkerRpcMessageSchema,
 } from "~/client/web/helpers/workers/web_worker_rpc_message.js";
 import {WebWorkerRpcMethodDefinitions} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {ObjectSchema, SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {
+    ObjectSchema,
+    SchemaSerializedValue,
+    SchemaType,
+} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Typed handler map inferred from a method definitions object. Each key matches a

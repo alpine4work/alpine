@@ -5,7 +5,7 @@ import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {TaskRealtimeActorInterface} from "~/server/tasks/data/task_realtime_actor_interface.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/data/task_realtime_context.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskGridViewExpansionState,
     TaskGridViewExpansionTaskState,

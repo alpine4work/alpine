@@ -2,7 +2,7 @@ import {DotsThreeVertical, IconContext} from "phosphor-react";
 import {useContext} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export function DotsThreeVerticalWithAsterisk({withAsterisk}: {withAsterisk: boolean}) {
     const {size = spacing["4"]} = useContext(IconContext);

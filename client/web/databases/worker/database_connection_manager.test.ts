@@ -6,9 +6,9 @@ import {
 } from "~/client/web/databases/worker/database_connection_manager.js";
 import type {DatabaseRealtimeEvent} from "~/shared/databases/database_realtime_protocol.js";
 import {sql} from "~/shared/databases/sql.js";
-import {InvalidArgumentError, UnavailableError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError, UnavailableError} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import type {DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * A fake socket whose `executeAction` never responds (mutations stay queued

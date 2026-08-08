@@ -18,14 +18,14 @@ import {
     InvalidArgumentError,
     NotFoundError,
     OutOfRangeError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {FeedEntryCursor} from "~/shared/feed/feed_entry_cursor.js";
 import {FeedEntryModel, FeedPostEntryModel} from "~/shared/feed/feed_entry_model.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 export class PostFeedList implements PostListInterface {
     public readonly endCursor: FeedEntryCursor | null;

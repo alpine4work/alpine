@@ -1,7 +1,7 @@
 import {
     ApiContent,
     ApiContentParagraphBlockElement,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 type ApiContentElement = ApiContent["elements"][number];
 

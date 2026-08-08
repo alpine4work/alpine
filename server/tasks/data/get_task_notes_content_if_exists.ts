@@ -2,7 +2,7 @@ import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/s
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {authorizeTaskAccessAndGetCommentsSummaryAndNotesItemsIfExists} from "~/server/tasks/data/internal/authorize_task_item_access.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskNotesContentWithReferences,
     emptyTaskNotesContent,

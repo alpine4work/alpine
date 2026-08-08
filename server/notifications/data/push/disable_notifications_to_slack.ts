@@ -4,9 +4,9 @@ import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_e
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
 import {Context} from "~/shared/context/context.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function disableNotificationsToSlack(
     context: Context<DynamoContextModules & {actor: ActorContextModule}>,

@@ -3,6 +3,28 @@ load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_run_binary"
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("//admin/typescript:typescript.bzl", "ts_project")
+load("//app/docs/codegen/images:responsive_documentation_images.bzl", "responsive_documentation_images")
+
+documentation_image_source_patterns = [
+    "files/api/**/*.avif",
+    "files/api/**/*.gif",
+    "files/api/**/*.jpeg",
+    "files/api/**/*.jpg",
+    "files/api/**/*.png",
+    "files/api/**/*.webp",
+    "files/blog/**/*.avif",
+    "files/blog/**/*.gif",
+    "files/blog/**/*.jpeg",
+    "files/blog/**/*.jpg",
+    "files/blog/**/*.png",
+    "files/blog/**/*.webp",
+    "files/docs/**/*.avif",
+    "files/docs/**/*.gif",
+    "files/docs/**/*.jpeg",
+    "files/docs/**/*.jpg",
+    "files/docs/**/*.png",
+    "files/docs/**/*.webp",
+]
 
 filegroup(
     name = "static",
@@ -12,9 +34,19 @@ filegroup(
         "files/fonts/inter-italic.v1.woff2",
         ":files",
         ":icon_pngs",
+        ":responsive_documentation_images_files",
         ":service_worker_file",
     ],
     visibility = ["//app:__subpackages__"],
+)
+
+filegroup(
+    name = "documentation_image_sources",
+    srcs = glob(
+        documentation_image_source_patterns,
+        allow_empty = True,
+    ),
+    visibility = ["//app/docs/codegen:__subpackages__"],
 )
 
 copy_file(
@@ -32,6 +64,22 @@ copy_to_bin(
     ),
 )
 
+js_library(
+    name = "documentation_open_graph_image_assets",
+    srcs = [
+        "files/blog/authors/caleb.avif",
+        "files/blog/authors/ian.avif",
+        "files/blog/authors/josh.avif",
+        "files/blog/authors/rachel.avif",
+        "fonts/commit-mono.woff2",
+        "fonts/inter.woff2",
+    ],
+    visibility = [
+        "//app/docs:__subpackages__",
+        "//client/web/docs:__subpackages__",
+    ],
+)
+
 js_binary(
     name = "generate_manifest_paths",
     data = [
@@ -43,11 +91,21 @@ js_binary(
 
 js_run_binary(
     name = "manifest_paths",
-    srcs = [":static"],
+    srcs = [
+        ":static",
+        "//app/docs/codegen:open_graph_images_api.json",
+        "//app/docs/codegen:open_graph_images_blog.json",
+        "//app/docs/codegen:open_graph_images_guides.json",
+        "//app/docs/codegen:open_graph_images_schemas.json",
+    ],
     outs = ["app_static_manifest_paths_output.ts"],
     args = [
         "$(rootpath app_static_manifest_paths_output.ts)",
         "$(rootpaths :static)",
+        "$(rootpath //app/docs/codegen:open_graph_images_api.json)",
+        "$(rootpath //app/docs/codegen:open_graph_images_blog.json)",
+        "$(rootpath //app/docs/codegen:open_graph_images_guides.json)",
+        "$(rootpath //app/docs/codegen:open_graph_images_schemas.json)",
     ],
     tool = ":generate_manifest_paths",
 )
@@ -139,6 +197,16 @@ genrule(
 
 ts_project(
     name = "static_lib",
+    srcs = glob(
+        ["**/*.ts", "**/*.tsx"],
+        exclude = [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "get_app_static_cache_control_headers.ts",
+        ],
+        allow_empty = True,
+    ),
+    test_srcs = [],
     deps = [
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/opentype.js",
@@ -155,6 +223,30 @@ ts_project(
         "//server/helpers/node",
         "//shared/helpers",
     ],
+)
+
+ts_project(
+    name = "static_cache_control",
+    srcs = ["get_app_static_cache_control_headers.ts"],
+    test_srcs = ["get_app_static_cache_control_headers.test.ts"],
+    deps = ["//shared/docs"],
+    visibility = [
+        "//app:__pkg__",
+        "//server/edge:__pkg__",
+        "//server/resources:__pkg__",
+    ],
+)
+
+responsive_documentation_images(
+    name = "responsive_documentation_images",
+    generator = "//app/docs/codegen/images:generate_responsive_documentation_images",
+    manifest = "responsive_documentation_image_manifest.json",
+    merger = "//app/docs/codegen/images:merge_responsive_documentation_image_manifests",
+    srcs = glob(
+        documentation_image_source_patterns,
+        allow_empty = True,
+    ),
+    visibility = ["//app/docs/codegen:__subpackages__"],
 )
 
 # Just the manifest source files. This library can be imported by

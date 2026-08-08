@@ -1,7 +1,7 @@
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {createPostDynamoItemKey} from "~/shared/forum/create_post_dynamo_item_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 // This test lives in `server/forum/data` instead of `shared/forum` because we need
 // to reference server code in the test.

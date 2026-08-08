@@ -4,8 +4,8 @@ import {
     getBazelOutputPath,
 } from "~/server/helpers/node/bazel_output_path.js";
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 async function main() {
     const paths = new Map<string, string>();

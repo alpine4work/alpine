@@ -6,8 +6,9 @@ import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messag
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key.js";
-import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
     ApiMessageRoomPath,
     parseApiMessageRoomPath,
@@ -15,20 +16,23 @@ import {
 import {
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageExperimentalApprovalDecisionValue,
-    ApiMessageStreamApprovalsPartPayload,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+    ApiMessageStreamExperimentalApprovalsPartPayload,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    deserializeDateString,
+    serializeDateString,
+} from "~/shared/helpers/date/date_string.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
@@ -67,8 +71,8 @@ function getApiMessageEntityIdForRoomPath(
     switch (room.type) {
         case "Chat":
             return `ChatMessage:${room.id}-${messageIndex}`;
-        case "DocumentCommentThread":
-            return `DocumentComment:${room.id}-${room.threadId}-${messageIndex}`;
+        case "DocumentThread":
+            return `DocumentComment:${room.document.id}-${room.id}-${messageIndex}`;
         case "Post":
             return `PostComment:${room.id}-${messageIndex}`;
         case "Task":
@@ -409,7 +413,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}#short)\n`,
             );
         });
 
@@ -458,7 +462,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}#mention)\n`,
             );
         });
 
@@ -505,7 +509,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}#mention)\n`,
             );
         });
 
@@ -552,7 +556,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}#mention)\n`,
             );
         });
 
@@ -599,7 +603,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}#mention)\n`,
             );
         });
 
@@ -639,7 +643,7 @@ export function testMessagingApiImplementation(
                         author: expect.objectContaining({
                             id: botAccount.id,
                             name: "Rosey the Robot",
-                            botId: botAccount.bot.id,
+                            bot: {id: botAccount.bot.id},
                         }),
                         payload: expect.objectContaining({
                             type: "Content",
@@ -651,6 +655,44 @@ export function testMessagingApiImplementation(
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
                 "Hello, world!\n",
             );
+        });
+
+        test("can\u2019t create message with file in content", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {roomPath} = await createPrivateRoom(session, botAccount);
+
+            expect(
+                await server.POST(`${roomPath}/messages`, {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {
+                        content: {
+                            elements: [
+                                {
+                                    type: "File",
+                                    file: {id: unknownFileId},
+                                },
+                            ],
+                        },
+                    },
+                }),
+            ).toEqual({
+                status: 400,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: expect.objectContaining({
+                        message:
+                            "`File` elements aren\u2019t supported in this type of content. Try again without `File` elements.",
+                        retry: {
+                            able: false,
+                        },
+                    }),
+                },
+            });
         });
 
         test("can\u2019t send message to room that doesn\u2019t exist", async () => {
@@ -806,7 +848,7 @@ export function testMessagingApiImplementation(
                         author: expect.objectContaining({
                             id: botAccount.id,
                             name: "Rosey the Robot",
-                            botId: botAccount.bot.id,
+                            bot: {id: botAccount.bot.id},
                         }),
                         payload: expect.objectContaining({
                             type: "Content",
@@ -873,7 +915,7 @@ export function testMessagingApiImplementation(
                         author: expect.objectContaining({
                             id: botAccount.id,
                             name: "Rosey the Robot",
-                            botId: botAccount.bot.id,
+                            bot: {id: botAccount.bot.id},
                         }),
                         payload: expect.objectContaining({
                             type: "Content",
@@ -1128,7 +1170,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}?short)\n`,
+                `Hello [Caleb](https://alpine.inc/mention/${session2.account.id}#short)\n`,
             );
         });
 
@@ -1180,7 +1222,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}?mention)\n`,
+                `We need to fix [Unknown task](https://alpine.inc/task/${unknownTaskId}#mention)\n`,
             );
         });
 
@@ -1230,7 +1272,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}?mention)\n`,
+                `We need to fix [Some bug](https://alpine.inc/task/${knownTaskId}#mention)\n`,
             );
         });
 
@@ -1280,7 +1322,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}?mention)\n`,
+                `We need to fix [Private task](https://alpine.inc/task/${privateTaskId}#mention)\n`,
             );
         });
 
@@ -1330,7 +1372,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.messages[0].payload.content)).toEqual(
-                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}?mention)\n`,
+                `We need to fix [Deleted task](https://alpine.inc/task/${deletedTaskId}#mention)\n`,
             );
         });
 
@@ -1452,6 +1494,66 @@ export function testMessagingApiImplementation(
             expect(response2.body.nextCursor).toBe(5);
         });
 
+        test("get messages endpoint supports negative cursor with `from=Start`", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {
+                roomPath,
+                room,
+                initialMessageCount: count,
+            } = await createPrivateRoom(session, botAccount);
+
+            for (let i = 0; i < 3; i++) {
+                await TestMessagingRoomBase.createMessage(room, session, `Message ${i}`);
+            }
+
+            const response = await server.GET(`${roomPath}/messages?limit=2&from=Start&cursor=-5`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
+
+            expect(response.body.messages.map((message: any) => message.index)).toEqual([0, 1]);
+            expect(response.body.totalMessageCount).toBe(count + 3);
+            expect(response.body.nextCursor).toBe(1);
+        });
+
+        test("get messages endpoint supports over-total cursor with `from=Start`", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {
+                roomPath,
+                room,
+                initialMessageCount: count,
+            } = await createPrivateRoom(session, botAccount);
+
+            for (let i = 0; i < 3; i++) {
+                await TestMessagingRoomBase.createMessage(room, session, `Message ${i}`);
+            }
+
+            const totalMessageCount = count + 3;
+            const response = await server.GET(
+                `${roomPath}/messages?limit=2&from=Start&cursor=${totalMessageCount + 5}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
+
+            expect(response.body.messages).toHaveLength(0);
+            expect(response.body.totalMessageCount).toBe(totalMessageCount);
+            expect(response.body.nextCursor).toBeNull();
+        });
+
         test("get messages endpoint returns null `nextCursor` when at end", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
@@ -1512,7 +1614,7 @@ export function testMessagingApiImplementation(
             expect(response.body.nextCursor).toBeNull();
         });
 
-        test("get messages endpoint supports `from=end` parameter", async () => {
+        test("get messages endpoint supports `from=End` parameter", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1531,7 +1633,7 @@ export function testMessagingApiImplementation(
             }
 
             // Get messages from end (newest first)
-            const response = await server.GET(`${roomPath}/messages?limit=3&from=end`, {
+            const response = await server.GET(`${roomPath}/messages?limit=3&from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1545,7 +1647,7 @@ export function testMessagingApiImplementation(
             expect(response.body.nextCursor).toBe(count + 7);
         });
 
-        test("get messages endpoint supports cursor pagination with `from=end`", async () => {
+        test("get messages endpoint supports cursor pagination with `from=End`", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1564,7 +1666,7 @@ export function testMessagingApiImplementation(
             }
 
             // First page from end
-            const response1 = await server.GET(`${roomPath}/messages?limit=3&from=end`, {
+            const response1 = await server.GET(`${roomPath}/messages?limit=3&from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1577,7 +1679,7 @@ export function testMessagingApiImplementation(
 
             // Second page from end using cursor
             const response2 = await server.GET(
-                `${roomPath}/messages?limit=3&from=end&cursor=${response1.body.nextCursor}`,
+                `${roomPath}/messages?limit=3&from=End&cursor=${response1.body.nextCursor}`,
                 {headers: {authorization: `bearer ${apiKey}`}},
             );
 
@@ -1591,7 +1693,70 @@ export function testMessagingApiImplementation(
             expect(response2.body.nextCursor).toBe(count + 4);
         });
 
-        test("get messages endpoint returns null `nextCursor` when reaching beginning with `from=end`", async () => {
+        test("get messages endpoint supports negative cursor with `from=End`", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {
+                roomPath,
+                room,
+                initialMessageCount: count,
+            } = await createPrivateRoom(session, botAccount);
+
+            for (let i = 0; i < 3; i++) {
+                await TestMessagingRoomBase.createMessage(room, session, `Message ${i}`);
+            }
+
+            const response = await server.GET(`${roomPath}/messages?limit=2&from=End&cursor=-5`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            });
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
+
+            expect(response.body.messages).toHaveLength(0);
+            expect(response.body.totalMessageCount).toBe(count + 3);
+            expect(response.body.nextCursor).toBeNull();
+        });
+
+        test("get messages endpoint supports over-total cursor with `from=End`", async () => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession({role: "Admin"});
+
+            const botAccount = await TestBot.createAndInstantiate(session);
+            const apiKey = await botAccount.createApiKey(session);
+
+            const {
+                roomPath,
+                room,
+                initialMessageCount: count,
+            } = await createPrivateRoom(session, botAccount);
+
+            for (let i = 0; i < 3; i++) {
+                await TestMessagingRoomBase.createMessage(room, session, `Message ${i}`);
+            }
+
+            const totalMessageCount = count + 3;
+            const response = await server.GET(
+                `${roomPath}/messages?limit=2&from=End&cursor=${totalMessageCount + 5}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            );
+
+            expect(response.status).toEqual(200);
+            expect(response.headers["content-type"]).toEqual("application/json");
+
+            expect(response.body.messages.map((message: any) => message.index)).toEqual([
+                count + 1,
+                count + 2,
+            ]);
+            expect(response.body.totalMessageCount).toBe(totalMessageCount);
+            expect(response.body.nextCursor).toBe(count + 1);
+        });
+
+        test("get messages endpoint returns null `nextCursor` when reaching beginning with `from=End`", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1610,7 +1775,7 @@ export function testMessagingApiImplementation(
             }
 
             // Get all messages from end - should return all 3 with null nextCursor
-            const response = await server.GET(`${roomPath}/messages?limit=10&from=end`, {
+            const response = await server.GET(`${roomPath}/messages?limit=10&from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1624,7 +1789,7 @@ export function testMessagingApiImplementation(
             expect(response.body.nextCursor).toBeNull();
         });
 
-        test("get messages endpoint returns null `nextCursor` when exactly reaching the beginning with `from=end`", async () => {
+        test("get messages endpoint returns null `nextCursor` when exactly reaching the beginning with `from=End`", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
 
@@ -1643,7 +1808,7 @@ export function testMessagingApiImplementation(
             }
 
             // Get all messages from end - should return all 3 with null nextCursor
-            const response = await server.GET(`${roomPath}/messages?limit=${count + 3}&from=end`, {
+            const response = await server.GET(`${roomPath}/messages?limit=${count + 3}&from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1715,7 +1880,7 @@ export function testMessagingApiImplementation(
             expect(response1.body.nextCursor).toBeNull();
 
             // Get messages from end
-            const response2 = await server.GET(`${roomPath}/messages?from=end`, {
+            const response2 = await server.GET(`${roomPath}/messages?from=End`, {
                 headers: {authorization: `bearer ${apiKey}`},
             });
 
@@ -1815,7 +1980,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                "<hr/>\n",
+                "<hr />\n",
             );
         });
 
@@ -1864,7 +2029,7 @@ export function testMessagingApiImplementation(
             });
 
             expect(printApiContentToMarkdown(response.body.message.payload.content)).toEqual(
-                "Hello, *world*!\n",
+                "Hello, _world_!\n",
             );
         });
 
@@ -1938,7 +2103,7 @@ export function testMessagingApiImplementation(
                                     {
                                         type: "Text",
                                         text: "world",
-                                        marks: [{type: "Comment", threadId: generateId()}],
+                                        marks: [{type: "Comment", thread: {id: generateId()}}],
                                     },
                                     {type: "Text", text: "!"},
                                 ],
@@ -2426,12 +2591,18 @@ export function testMessagingApiImplementation(
                     decoder.decode(part1Element.key),
                     decoder.decode(part2Element.key),
                 ]).toEqual([
-                    {version: 0, pos: 0, nodeSize: baseNode.nodeSize},
-                    {version: 0, pos: baseNode.nodeSize, nodeSize: part1Node.nodeSize},
+                    {version: 0, pos: 0, nodeSize: baseNode.nodeSize, inlineContent: true},
+                    {
+                        version: 0,
+                        pos: baseNode.nodeSize,
+                        nodeSize: part1Node.nodeSize,
+                        inlineContent: true,
+                    },
                     {
                         version: 0,
                         pos: baseNode.nodeSize + part1Node.nodeSize,
                         nodeSize: part2Node.nodeSize,
+                        inlineContent: true,
                     },
                 ]);
             });
@@ -2655,7 +2826,9 @@ export function testMessagingApiImplementation(
                     headers: expect.objectContaining({"content-type": "application/json"}),
                     body: {
                         error: expect.objectContaining({
-                            message: "Only the bot who created the stream can update it.",
+                            message: expect.stringMatching(
+                                /^(Only the bot who created the stream can update it\.|Can\u2019t create messages in chat the bot isn\u2019t a member of\. Try creating a new chat that includes the bot and send a message to that chat\.)$/,
+                            ),
                         }),
                     },
                 });
@@ -3588,7 +3761,7 @@ export function testMessagingApiImplementation(
                 function createApiPendingApprovalsPayload(
                     approvalCount: number,
                     options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
-                ): ApiMessageStreamApprovalsPartPayload {
+                ): ApiMessageStreamExperimentalApprovalsPartPayload {
                     return {
                         type: "ExperimentalApprovals",
                         approvals: createArrayWithLength(approvalCount, approvalIndex => ({
@@ -3607,12 +3780,12 @@ export function testMessagingApiImplementation(
 
                 function createApiPendingApprovalPayload(
                     options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
-                ): ApiMessageStreamApprovalsPartPayload {
+                ): ApiMessageStreamExperimentalApprovalsPartPayload {
                     return createApiPendingApprovalsPayload(1, options);
                 }
 
                 async function createApiStreamMessageWithFinalApprovalPart(
-                    approvalPayload: ApiMessageStreamApprovalsPartPayload = createApiPendingApprovalPayload(),
+                    approvalPayload: ApiMessageStreamExperimentalApprovalsPartPayload = createApiPendingApprovalPayload(),
                 ) {
                     const space = await TestSpace.create(context);
                     const session = await space.createSession({role: "Admin"});
@@ -4427,7 +4600,9 @@ export function testMessagingApiImplementation(
                     headers: expect.objectContaining({"content-type": "application/json"}),
                     body: {
                         error: expect.objectContaining({
-                            message: "Only the bot who created the stream can update it.",
+                            message: expect.stringMatching(
+                                /^(Only the bot who created the stream can update it\.|Can\u2019t create messages in chat the bot isn\u2019t a member of\. Try creating a new chat that includes the bot and send a message to that chat\.)$/,
+                            ),
                         }),
                     },
                 });
@@ -4778,7 +4953,9 @@ export function testMessagingApiImplementation(
                     headers: expect.objectContaining({"content-type": "application/json"}),
                     body: {
                         error: expect.objectContaining({
-                            message: "Only the bot who created the stream can update it.",
+                            message: expect.stringMatching(
+                                /^(Only the bot who created the stream can update it\.|Can\u2019t create messages in chat the bot isn\u2019t a member of\. Try creating a new chat that includes the bot and send a message to that chat\.)$/,
+                            ),
                             stack: expect.stringContaining("PermissionDeniedError"),
                         }),
                     },

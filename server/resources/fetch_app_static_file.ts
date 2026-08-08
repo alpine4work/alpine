@@ -1,6 +1,11 @@
+import {getAppStaticCacheControlHeaders} from "~/app/static/get_app_static_cache_control_headers.js";
+import {fetchCachedR2Object} from "~/server/cloudflare/fetch_cached_r2_object.js";
 import {ResourceServiceEnv} from "~/server/resources/resource_service_env.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
+/**
+ * Fetch and cache a bundled static file from its environment-specific source.
+ */
 export async function fetchAppStaticFile(
     request: Request,
     env: ResourceServiceEnv,
@@ -15,56 +20,47 @@ export async function fetchAppStaticFile(
         return await fetch(fetchUrl);
     }
 
-    const cache: Cache =
-        // @ts-expect-error: `@cloudflare/workers-types` doesn't seem to be providing
-        // the correct types for us.
-        caches.default;
-
-    // We follow R2's "[Use the Cache API][1]" example for caching R2 objects in
-    // Cloudflare's global cache.
-    //
-    // [1]: https://developers.cloudflare.com/r2/examples/cache-api/
-    const cachedResponse = await cache.match(request);
-    if (cachedResponse) return cachedResponse;
-
-    const object = await env.AppStaticBucket.get(`files${url.pathname}`);
-    if (object === null) {
+    const {clientCacheControl, edgeCacheControl} = getAppStaticCacheControlHeaders(url.pathname);
+    const response = await fetchCachedR2Object({
+        request,
+        bucket: env.AppStaticBucket,
+        objectKey: `files${url.pathname}`,
+        executionContext,
+        clientCacheControl,
+        edgeCacheControl,
+        setResponseHeaders: headers => {
+            setAppStaticCorsHeaders(headers, request, env, url);
+        },
+    });
+    if (response === null) {
         return new Response("404 Not Found", {
             status: 404,
             headers: {"content-type": "text/plain"},
         });
     }
+    return response;
+}
 
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-
-    // Remix fingerprints its assets so we can cache them forever. Other assets (like
-    // `favicon.ico`) are cached for a day then can be updated.
-    //
-    // We manually version our font assets so fonts can be cached forever too. If we
-    // need to update a font the file name will change.
-    if (
-        url.pathname.startsWith("/fonts/") ||
-        url.pathname.startsWith("/assets/") ||
-        // NOTE(calebmer, 2024-08-20): Exists for backwards compatibility before we used
-        // Vite for compilation. Can remove once clients that expect static assets under
-        // `/build` no longer exist.
-        url.pathname.startsWith("/build/")
-    ) {
-        // - `public`: Means we can store the asset in a shared cache since they don't
-        //   depend on authorization.
-        // - `max-age=31536000`: The asset lives for one year.
-        // - `immutable`: Indicates the response will never update.
-        headers.set("cache-control", "public, max-age=31536000, immutable");
-    } else {
-        // - `public`: Means we can store the asset in a shared cache since they don't
-        //   depend on authorization.
-        // - `max-age=86400`: The asset lives for one day.
-        // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
-        //   allowed to continue using it for a year as long as the cache revalidates the
-        //   asset in the background.
-        headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=31536000");
+function setAppStaticCorsHeaders(
+    headers: Headers,
+    request: Request,
+    env: ResourceServiceEnv,
+    url: URL,
+): void {
+    // Cache entries contain only origin-independent headers. Also clear values written
+    // by older deployments before applying this request's CORS policy.
+    headers.delete("Access-Control-Allow-Origin");
+    const vary = headers.get("Vary");
+    if (vary !== null) {
+        const varyValues = vary
+            .split(",")
+            .map(value => value.trim())
+            .filter(value => value.toLowerCase() !== "origin");
+        if (varyValues.length === 0) {
+            headers.delete("Vary");
+        } else {
+            headers.set("Vary", varyValues.join(", "));
+        }
     }
 
     // Add CORS headers to the response for trusted domains. Only origins that are in
@@ -84,11 +80,4 @@ export async function fetchAppStaticFile(
     // This header will allow no-cors requests from outside the same site as the
     // request origin. Useful for embedding static files in emails.
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-
-    const response = new Response(object.body, {headers});
-
-    // Put the R2 object in Cloudflare's cache to speed up future requests.
-    executionContext.waitUntil(cache.put(request, response.clone()));
-
-    return response;
 }

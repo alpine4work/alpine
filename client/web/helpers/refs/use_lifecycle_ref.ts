@@ -1,6 +1,6 @@
 import {Memo, RefCallback, useCallback, useRef} from "react";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
 
 let scheduledMicrotaskCallbacks: Array<() => void> = [];
 

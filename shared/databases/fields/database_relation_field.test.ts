@@ -1,7 +1,7 @@
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
-import {assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseRowId} from "~/shared/id/types/id_types.js";
+import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import type {DatabaseRowId} from "~/shared/id/types/id_types.open_source.js";
 
 describe("databaseRelationFieldProvider", () => {
     test("formats linked record names", () => {

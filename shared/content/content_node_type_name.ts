@@ -1,6 +1,6 @@
 import {Schema as ProsemirrorSchema} from "prosemirror-model";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 
 /**
  * Name of all node types for any kind of content in our system.
@@ -50,6 +50,24 @@ export const contentInlineNodeTypeNames = {
     text: true,
     break: true,
     mention: true,
+};
+
+/**
+ * Name of all leaf nodes for any kind of content in our system.
+ *
+ * May include node names that don't exist in the `shared/content` package but do
+ * exist elsewhere (like `shared/documents`).
+ *
+ * Useful for writing code that operates on any kind of content.
+ */
+export type ContentLeafNodeTypeName = keyof typeof contentLeafNodeTypeNames;
+
+export const contentLeafNodeTypeNames = {
+    text: true,
+    break: true,
+    mention: true,
+    divider: true,
+    file: true,
 };
 
 /**
@@ -146,6 +164,10 @@ export function assertContentTypeNamesCoverProsemirrorSchema(schema: Prosemirror
 
         if (type.isInline) {
             assert(hasOwnProperty(contentInlineNodeTypeNames, type.name));
+        }
+
+        if (type.isLeaf) {
+            assert(hasOwnProperty(contentLeafNodeTypeNames, type.name));
         }
 
         if (type.isTextblock) {

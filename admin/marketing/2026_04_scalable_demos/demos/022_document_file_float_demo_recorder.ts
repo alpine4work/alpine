@@ -6,9 +6,9 @@ import {runScalableDemoRecorder} from "~/admin/marketing/2026_04_scalable_demos/
 import {uploadDemoFile} from "~/admin/marketing/2026_04_scalable_demos/helpers/upload_demo_file.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 // NOTE: The fixture images for this demo aren't checked in. Before running this
 // demo, copy the relevant files to

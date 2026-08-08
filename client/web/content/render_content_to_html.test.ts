@@ -10,12 +10,12 @@ import {getSiteRegistry} from "~/client/web/sites/context/site_registry_context.
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import * as contentClassNameByName from "~/shared/design/core/constant_class_names.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {defaultClientInfo} from "~/shared/remix/client_info.js";
 
 const spaceId = generateId<SpaceId>();

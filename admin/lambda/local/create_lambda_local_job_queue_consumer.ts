@@ -4,10 +4,10 @@ import {JobQueueConsumer} from "~/server/jobs/queue/consumer/job_queue_consumer.
 import {LambdaSystemActionContext} from "~/server/lambda/create_lambda_job_queue_consumer_handler.js";
 import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
-import {DeadlineExceededError} from "~/shared/error/error.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {DeadlineExceededError} from "~/shared/error/error.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type LambdaLocalSqsConsumerOptions = {
     /**

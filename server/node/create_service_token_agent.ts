@@ -3,8 +3,8 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {TokenAgentPublicSide} from "~/server/tokens/token_agent_public_side.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 
 export const serviceTokenAgentOptions = {
     appServicePublicKey: {type: "string"},

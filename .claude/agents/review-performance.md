@@ -23,7 +23,7 @@ operating cost.
    it runs and whether it is on an interactive request path, background job, migration, batch task,
    realtime path, or hot loop.
 6. Check existing utilities before recommending changes, especially
-   `shared/helpers/async/run_all_promises.ts`.
+   `shared/helpers/async/run_all_promises.open_source.ts`.
 
 ## What to analyze
 
@@ -89,34 +89,26 @@ Write your findings to the file path provided in the task prompt. Use this forma
 ## Async Orchestration
 
 ### [ ] {Finding title}
+
 `path/to/file.ts:42`
 
-**Callers affected:** {Direct and indirect callers affected}
-**Time impact:** {Latency, throughput, or CPU/memory impact}
-**Cost impact:** {RCU, WCU, external service, egress, or runtime cost impact}
+**Callers affected:** {Direct and indirect callers affected} **Time impact:** {Latency, throughput,
+or CPU/memory impact} **Cost impact:** {RCU, WCU, external service, egress, or runtime cost impact}
 
-\`\`\`ts
-// context showing the issue
-//////////////
-//
-// Performance concern explanation
-//
-//////////////
-await firstIndependentCall();
-await secondIndependentCall();
-\`\`\`
+\`\`\`ts // context showing the issue ////////////// // // Performance concern explanation //
+////////////// await firstIndependentCall(); await secondIndependentCall(); \`\`\`
 
 **Recommendation:** {How to fix it, using runAllPromises() when appropriate}
 
 ## DynamoDB Capacity and Consistency
 
 ### [ ] {Finding title}
+
 `path/to/file.ts:42`
 
-**Read consistency:** {Strongly consistent / eventually consistent / implicit default}
-**RCU impact:** {How reads change}
-**WCU impact:** {How writes change}
-**Callers affected:** {Where this cost is paid}
+**Read consistency:** {Strongly consistent / eventually consistent / implicit default} **RCU
+impact:** {How reads change} **WCU impact:** {How writes change} **Callers affected:** {Where this
+cost is paid}
 
 {Explanation with code context}
 
@@ -125,11 +117,11 @@ await secondIndependentCall();
 ## Call-Site Impact
 
 ### [ ] {Finding title}
+
 `path/to/file.ts:42`
 
-**Callers affected:** {Direct and indirect callers affected}
-**Time impact:** {Latency or throughput impact}
-**Cost impact:** {Capacity or service cost impact}
+**Callers affected:** {Direct and indirect callers affected} **Time impact:** {Latency or throughput
+impact} **Cost impact:** {Capacity or service cost impact}
 
 {Explanation with code context}
 
@@ -138,10 +130,11 @@ await secondIndependentCall();
 ## Runtime Cost
 
 ### [ ] {Finding title}
+
 `path/to/file.ts:42`
 
-**Time impact:** {CPU, memory, allocation, serialization, payload, or algorithmic impact}
-**Cost impact:** {Infrastructure or external service cost impact}
+**Time impact:** {CPU, memory, allocation, serialization, payload, or algorithmic impact} **Cost
+impact:** {Infrastructure or external service cost impact}
 
 {Explanation with code context}
 

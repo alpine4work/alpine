@@ -1,19 +1,19 @@
 import {useState} from "react";
 import {Box} from "~/client/web/design/box.js";
-import {
-    DocumentationApiSchemaNode,
-    getDocumentationApiSchemaBaseName,
-    getDocumentationApiSchemaRefName,
-    resolveDocumentationApiSchemaNode,
-} from "~/client/web/docs/documentation_api_model.js";
 import {useDocumentationApiModel} from "~/client/web/docs/internal/documentation_api_context.js";
 import {DocumentationApiTypeLabel} from "~/client/web/docs/internal/documentation_api_type_link.js";
 import {DocumentationChevron} from "~/client/web/docs/internal/documentation_chevron.js";
 import {DocumentationPill} from "~/client/web/docs/internal/documentation_pill.js";
 import {DocumentationSegmentedControl} from "~/client/web/docs/internal/documentation_segmented_control.js";
 import {DocumentationUnstyledButton} from "~/client/web/docs/internal/documentation_unstyled_button.js";
-import {getDocumentationApiConstraintMeta} from "~/client/web/docs/internal/get_api_documentation_constraint_meta.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {
+    DocumentationApiSchemaNode,
+    getDocumentationApiSchemaBaseName,
+    getDocumentationApiSchemaRefName,
+    resolveDocumentationApiSchemaNode,
+} from "~/shared/docs/documentation_api_model.js";
+import {getDocumentationApiConstraintMeta} from "~/shared/docs/get_api_documentation_constraint_meta.js";
 
 /**
  * The core doc block renderer, reused for parameters, request bodies, responses,

@@ -1,14 +1,14 @@
+import {
+    renderApiOperationToMarkdown,
+    renderDocumentationApiSchemaToMarkdown,
+} from "~/client/web/docs/render_api_documentation_to_markdown.js";
 // The `render*` helpers here return markdown strings, not React Testing Library
 // render results.
 /* eslint-disable testing-library/render-result-naming-convention */
 import {
     DocumentationApiModel,
     DocumentationApiOperation,
-} from "~/client/web/docs/documentation_api_model.js";
-import {
-    renderApiOperationToMarkdown,
-    renderDocumentationApiSchemaToMarkdown,
-} from "~/client/web/docs/internal/markdown/render_api_documentation_to_markdown.js";
+} from "~/shared/docs/documentation_api_model.js";
 
 const model: DocumentationApiModel = {
     title: "Alpine API",

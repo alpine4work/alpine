@@ -18,10 +18,10 @@ import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageStream,
@@ -29,6 +29,8 @@ import {
     MessageStreamExperimentalApprovalsPartPayload,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
+import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -68,6 +70,12 @@ export function MessageStreamView({
     jumpAnimation,
     approvalSessionNoun,
     putApprovalDecisions,
+    reactionsByPos,
+    shouldShowQuickReactionOnLastStreamPart,
+    isReadOnly,
+    onSetReaction,
+    onDeleteReaction,
+    onPressSeeReactions,
 }: {
     message: MessageModel<string> | OptimisticMessageModel;
     isLastMessage: boolean;
@@ -78,6 +86,12 @@ export function MessageStreamView({
     jumpAnimation: Memo<{from: number | null; to: number | null; startTime: Date}> | null;
     approvalSessionNoun: MessageStreamApprovalSessionNoun;
     putApprovalDecisions: Memo<PutMessageStreamApprovalDecisionsFunction> | null;
+    reactionsByPos: ReadonlyMap<number, ReactionSet>;
+    shouldShowQuickReactionOnLastStreamPart: boolean;
+    isReadOnly: boolean;
+    onSetReaction: (pos: number, reaction: Reaction | "GenericLike") => void;
+    onDeleteReaction: (pos: number) => void;
+    onPressSeeReactions: (pos: number) => Promise<void>;
 }) {
     const orderedListItemNumberByNode = useMemo(() => {
         const orderedListItemNumberByNode = new Map<Node, number>();
@@ -234,6 +248,13 @@ export function MessageStreamView({
     }, [stream.parts]);
 
     const children: Array<ReactNode> = [];
+    let lastContentSectionIndex = -1;
+
+    for (let i = sections.length - 1; i >= 0; i--) {
+        if (sections[i]!.contentParts.length === 0) continue;
+        lastContentSectionIndex = i;
+        break;
+    }
 
     for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
         const section = sections[sectionIndex]!;
@@ -250,6 +271,7 @@ export function MessageStreamView({
                 orderedListItemNumberByNode={orderedListItemNumberByNode}
                 section={section}
                 isFirstSection={sectionIndex === 0}
+                isLastContentSection={sectionIndex === lastContentSectionIndex}
                 expandedRef={expandedRefBySectionIndex.get(sectionIndex)}
                 isExpanded={expandedSectionIndexes.has(sectionIndex)}
                 onToggleIsExpanded={() => {
@@ -263,6 +285,14 @@ export function MessageStreamView({
                         return newExpandedSectionIndexes;
                     });
                 }}
+                reactionsByPos={reactionsByPos}
+                shouldShowQuickReactionOnLastStreamPart={
+                    shouldShowQuickReactionOnLastStreamPart && approvalPart === null
+                }
+                isReadOnly={isReadOnly}
+                onSetReaction={onSetReaction}
+                onDeleteReaction={onDeleteReaction}
+                onPressSeeReactions={onPressSeeReactions}
             />,
         );
     }

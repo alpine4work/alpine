@@ -5,12 +5,13 @@ import {getPostItemWithContentForAuthorization} from "~/server/forum/data/intern
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {createPostNotFoundError} from "~/shared/forum/forum_error_messages.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
+import {AccountId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // Designed for `server/api/internal/forum/api_forum_paths.ts`.
 export async function getPostContentWithCustomReferencesAndChannelPreview<
@@ -32,6 +33,7 @@ export async function getPostContentWithCustomReferencesAndChannelPreview<
     createdTimeZone: TimeZone;
     channel: ChannelPreviewModel;
     content: Content;
+    commentCount: number;
 }> {
     const result = await getPostContentWithCustomReferencesAndChannelPreviewIfPossible(
         context,
@@ -63,6 +65,7 @@ export async function getPostContentWithCustomReferencesAndChannelPreviewIfPossi
         createdTimeZone: TimeZone;
         channel: ChannelPreviewModel;
         content: Content;
+        commentCount: number;
     }>
 > {
     const postItem = await getPostItemWithContentForAuthorization(context, postId, {consistency});
@@ -71,7 +74,7 @@ export async function getPostContentWithCustomReferencesAndChannelPreviewIfPossi
         getChannelPreviewIfPossible(context, postItem.channelId, {consistency}),
         captureResultPromise(
             buildContent(context, postItem.spaceId, {
-                authorId: postItem.authorId,
+                authorId: postItem.author.accountId,
                 contentVersion: postItem.contentUpdate?.mappings.length ?? 0,
                 content: postItem.content,
             }),
@@ -95,6 +98,7 @@ export async function getPostContentWithCustomReferencesAndChannelPreviewIfPossi
             createdTimeZone: postItem.createdTimeZone,
             channel: channelResult.value,
             content,
+            commentCount: sumIterable(postItem.commentsSummary.commentCountByAuthorId.values()),
         },
     };
 }

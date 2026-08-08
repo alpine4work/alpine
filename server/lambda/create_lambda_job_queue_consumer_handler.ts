@@ -20,12 +20,12 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {HoneycombDataset} from "~/server/tracer/tracer_client.js";
 import {Context} from "~/shared/context/context.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {Schema} from "~/shared/schema/schema.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type BatchItemFailures = Array<{itemIdentifier: string}>;
 

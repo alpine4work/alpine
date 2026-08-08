@@ -1,7 +1,7 @@
 import {AuthSignInOrSignUpOpen} from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {ReactionCharacter} from "~/shared/reactions/reaction.js";
 
 export type AuthenticationState =

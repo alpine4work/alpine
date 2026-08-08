@@ -1,5 +1,5 @@
 import {useNavigate} from "@remix-run/react";
-import {Copy, Eye, EyeSlash} from "phosphor-react";
+import {Copy} from "phosphor-react";
 import {useState} from "react";
 import {accountAvatarClassName} from "~/client/web/accounts/account_avatar_html.js";
 import {AvatarDefault} from "~/client/web/avatar/avatar_default.js";
@@ -9,6 +9,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
+import {SecretTextInputWithoutLabel} from "~/client/web/design/secret_text_input.js";
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
@@ -28,11 +29,11 @@ import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {assertId} from "~/shared/id/id.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     BotId,
@@ -41,19 +42,21 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {
     createBot,
     createScopedApiKeyForBot,
     createUnscopedApiKeyForBot,
+    deleteApiKeyForBot,
     deleteBot,
     getBotAccountIdForSpaceIfExists,
+    rotateApiKeyForBot,
 } from "~/shared/rpc/bots_rpc_definitions.js";
 import {instantiateBotSpaceAccount} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {getAvatarDefaultDesign} from "~/shared/spaces/get_avatar_default_design.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export function meta() {
     return [{title: `Bot Account Management${metaTitlePostfix}`}];
@@ -384,7 +387,6 @@ function BotRow({
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
-    const [visibleApiKeys, setVisibleApiKeys] = useState<Set<number>>(new Set());
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     // NOTE(ifitzsimmons, 2025-12-15): We manage the bot avatar's state locally in this
@@ -394,16 +396,6 @@ function BotRow({
     // `Bot#Avatar`. Keeping track of the bot state here means that the bot's avatar
     // will change as soon as the upload is complete!
     const [botAvatar, setBotAvatar] = useState(bot.avatar);
-
-    const toggleApiKeyVisibility = (index: number) => {
-        const newSet = new Set(visibleApiKeys);
-        if (newSet.has(index)) {
-            newSet.delete(index);
-        } else {
-            newSet.add(index);
-        }
-        setVisibleApiKeys(newSet);
-    };
 
     const iconColor = colorSchemeVars["grey-100"];
 
@@ -530,14 +522,13 @@ function BotRow({
                             {bot.apiKeys.map(({apiKey, name, spaceId, scope}, index) => (
                                 <ApiKeyRow
                                     key={index}
+                                    botId={bot.id}
                                     apiKey={apiKey}
                                     name={name}
                                     spaceId={spaceId}
                                     scope={scope}
-                                    index={index}
-                                    visibleApiKeys={visibleApiKeys}
-                                    onToggleVisibility={toggleApiKeyVisibility}
                                     iconColor={iconColor}
+                                    onChanged={() => navigate(0)}
                                 />
                             ))}
                         </Box>
@@ -550,24 +541,25 @@ function BotRow({
 }
 
 function ApiKeyRow({
+    botId,
     apiKey,
     name,
     spaceId,
     scope,
-    index,
-    visibleApiKeys,
-    onToggleVisibility,
     iconColor,
+    onChanged,
 }: {
+    botId: BotId;
     apiKey: string;
     name: string | null;
     spaceId: string | null;
     scope: unknown;
-    index: number;
-    visibleApiKeys: Set<number>;
-    onToggleVisibility: (index: number) => void;
     iconColor: string;
+    onChanged: () => void;
 }) {
+    const context = useAppContext();
+    const [confirmAction, setConfirmAction] = useState<"Revoke" | "Rotate" | null>(null);
+
     const scopeLabel =
         spaceId === null
             ? "Unscoped"
@@ -581,6 +573,34 @@ function ApiKeyRow({
             backgroundColor="grey-40"
             position="relative"
         >
+            {confirmAction === "Revoke" && (
+                <ModalDialog
+                    title="Revoke this API key?"
+                    description="This permanently revokes the key. Any integration using it will immediately lose access. This action cannot be undone."
+                    primaryButtonLabel="Revoke"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t revoke API key"
+                    onPrimaryButtonPress={async () => {
+                        await deleteApiKeyForBot(context, {botId, apiKey});
+                        onChanged();
+                    }}
+                    onClose={() => setConfirmAction(null)}
+                    initiallyFocus="Cancel"
+                />
+            )}
+            {confirmAction === "Rotate" && (
+                <ModalDialog
+                    title="Rotate this API key?"
+                    description="This issues a new key with the same scope and permanently revokes the current one. Any integration using the current key will immediately lose access until you give it the new key. This action cannot be undone."
+                    primaryButtonLabel="Rotate"
+                    primaryButtonPressErrorTitle="Couldn&#x2019;t rotate API key"
+                    onPrimaryButtonPress={async () => {
+                        await rotateApiKeyForBot(context, {botId, apiKey});
+                        onChanged();
+                    }}
+                    onClose={() => setConfirmAction(null)}
+                    initiallyFocus="Cancel"
+                />
+            )}
             <Box display="flex" alignItems="center" gap="2" paddingBottom="2">
                 <Box fontSize="75" fontStyle="semi-bold">
                     {name || "Unnamed API Key"}
@@ -597,40 +617,43 @@ function ApiKeyRow({
                         {spaceId}
                     </Box>
                 )}
-            </Box>
-            <TextInput
-                label=""
-                inputMode={visibleApiKeys.has(index) ? "text" : "password"}
-                fontSize="75"
-                value={apiKey}
-                isReadOnly={true}
-                onChange={() => {}}
-            />
-            <Box
-                position="absolute"
-                display="flex"
-                alignItems="center"
-                style={{
-                    right: "1rem",
-                    bottom: "0.85rem",
-                }}
-            >
+                <Box flexGrow="1" />
                 <Button
                     type="button"
+                    variant="quiet"
+                    fontSize="75"
                     height="6"
-                    paddingX="1.5"
-                    onPress={() => onToggleVisibility(index)}
+                    paddingX="2"
+                    onPress={() => setConfirmAction("Rotate")}
                 >
-                    {visibleApiKeys.has(index) ? (
-                        <EyeSlash color={iconColor} />
-                    ) : (
-                        <Eye color={iconColor} />
-                    )}
+                    Rotate
                 </Button>
                 <Button
                     type="button"
+                    variant="quiet"
+                    color="red-80"
+                    fontSize="75"
                     height="6"
-                    paddingX="1.5"
+                    paddingX="2"
+                    onPress={() => setConfirmAction("Revoke")}
+                >
+                    Revoke
+                </Button>
+            </Box>
+            <Box display="flex" gap="2" alignItems="flex-end">
+                <Box flexGrow="1" minWidth="flex-fit">
+                    <SecretTextInputWithoutLabel
+                        aria-label="API key"
+                        fontSize="75"
+                        value={apiKey}
+                        isReadOnly={true}
+                        onChange={() => {}}
+                    />
+                </Box>
+                <Button
+                    type="button"
+                    height="7"
+                    paddingX="2"
                     onPress={() => writeTextToClipboard(apiKey)}
                     pressErrorTitle="Couldn&#x2019;t copy API key"
                 >

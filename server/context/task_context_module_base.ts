@@ -11,22 +11,24 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Result} from "~/shared/helpers/control/result.js";
+import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {PartialBy} from "~/shared/helpers/types/partial_by.js";
 import {
-    AccountId,
     SpaceId,
     TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskActivityModel} from "~/shared/tasks/task_activity.js";
+import {TaskCreator} from "~/shared/tasks/task_creator.js";
 import {
     createTaskCollectionNotFoundError,
     createTaskNotFoundError,
@@ -41,7 +43,7 @@ export type TaskContextModuleActionTransaction = {
     readonly committedTime: Date;
     readonly actionTransactionId: TaskActionTransactionId;
     readonly actions: ReadonlyArray<TaskAction>;
-    readonly actorId: AccountId | null;
+    readonly actor: TaskCreator | null;
     readonly clientId: TaskRealtimeClientId | null;
 };
 
@@ -113,6 +115,19 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
     ): Promise<void>;
 
     /**
+     * Broadcast one projection transaction's TaskActivity Rynamo events to the clients
+     * connected to the task's `TaskNotesCollaborationService` durable object — batched
+     * so a transaction costs one request, not one per event.
+     */
+    public abstract broadcastTaskActivityEvents(
+        this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
+        input: {
+            taskId: TaskId;
+            events: ReadonlyArray<RynamoEvent<TaskActivityModel>>;
+        },
+    ): Promise<void>;
+
+    /**
      * Execute some queries.
      *
      * We execute our queries in a running `TaskRealtimeService` instance for the
@@ -144,7 +159,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {dangerouslyAllowDeleted?: boolean; consistency?: DynamoCacheReadConsistency},
     ): Promise<Result<TaskModel> | null>;
 
     /**
@@ -163,7 +178,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         taskId: TaskId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {dangerouslyAllowDeleted?: boolean; consistency?: DynamoCacheReadConsistency},
     ): Promise<TaskModel> {
         const taskResult = await this.getTaskWithoutDependenciesIfPossible(
             spaceId,
@@ -188,7 +203,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {dangerouslyAllowDeleted?: boolean; consistency?: DynamoCacheReadConsistency},
     ): Promise<Result<TaskCollectionModel> | null>;
 
     /**
@@ -204,7 +219,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase {
         this: TaskContextModuleBase & ContextModuleBase<ServerActionContextModules>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-        options?: {consistency?: DynamoCacheReadConsistency},
+        options?: {dangerouslyAllowDeleted?: boolean; consistency?: DynamoCacheReadConsistency},
     ): Promise<TaskCollectionModel> {
         const collectionResult = await this.getCollectionIfPossible(spaceId, collectionId, options);
         if (!collectionResult) throw createTaskCollectionNotFoundError(collectionId);
@@ -242,6 +257,10 @@ export class TestTaskContextModule
     }
 
     public override async applyActionTransactionInRealtimeService(): Promise<void> {
+        // Noop in tests...
+    }
+
+    public override async broadcastTaskActivityEvents(): Promise<void> {
         // Noop in tests...
     }
 

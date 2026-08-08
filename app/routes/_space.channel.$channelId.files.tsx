@@ -11,7 +11,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
 import {ChannelModel, ChannelOrMetadataModelSchema} from "~/shared/forum/channel_model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 const LoaderSchema = Schema.object({
     channelResult: createRynamoQuerySchema(ChannelOrMetadataModelSchema),

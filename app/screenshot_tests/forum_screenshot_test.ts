@@ -6,13 +6,13 @@ import {uploadScreenshotTestFixtureFile} from "~/app/screenshot_tests/helpers/up
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {PostDraftId, PostId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.open_source.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {PostDraftId, PostId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {services} = runner;

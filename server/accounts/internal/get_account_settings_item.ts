@@ -7,7 +7,7 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const AccountSettingsItemContextCache = new DynamoContextCache<AccountId, AccountSettingsItem>({
     // Allow sharing this cache because the results do not depend on who the actor is.

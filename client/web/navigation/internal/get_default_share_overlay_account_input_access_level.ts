@@ -4,7 +4,7 @@ import {
     ResolvedAccessPolicy,
     maxAccessLevel,
 } from "~/shared/access/access_policy.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * The default access level for `<ShareOverlayAccountInput>` is:

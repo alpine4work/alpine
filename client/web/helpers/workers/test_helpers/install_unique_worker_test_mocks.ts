@@ -7,7 +7,7 @@ import {
     UniqueWorkerTestMessageChannel,
     UniqueWorkerTestMessagePort,
 } from "~/client/web/helpers/workers/test_helpers/unique_worker_test_message_channel.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 /** The in-process body of a fake dedicated worker. */
 export interface UniqueWorkerTestWorkerScript {

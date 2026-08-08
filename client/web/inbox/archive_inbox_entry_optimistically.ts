@@ -3,7 +3,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {
     archiveInboxEntry,

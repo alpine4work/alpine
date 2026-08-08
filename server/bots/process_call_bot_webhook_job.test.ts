@@ -19,16 +19,19 @@ import {
     botWebhookSignatureHeader,
     verifyBotWebhookRequestSignature,
 } from "~/shared/api/specification/sign_bot_webhook_request.js";
-import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, BotWebhookEventId, ChatId} from "~/shared/id/types/id_types.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, BotWebhookEventId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {waitForExpect} from "~/shared/test_helpers/wait_for_expect.js";
 
 const mockTokenAgent: BotWebhookContextModuleTokenAgentInterface = {
@@ -142,8 +145,8 @@ test("if webhook is successful it\u2019s only called once", async () => {
     const event1Id = generateChronologicalId<BotWebhookEventId>();
 
     const event1: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -152,8 +155,8 @@ test("if webhook is successful it\u2019s only called once", async () => {
     const event2Id = generateChronologicalId<BotWebhookEventId>();
 
     const event2: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 1,
         createdTimeZone: defaultTimeZone,
@@ -246,8 +249,8 @@ test("webhook requests are signed when the bot has a webhook secret", async () =
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -312,8 +315,8 @@ test("webhook requests are not signed when the bot has no webhook secret", async
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -364,8 +367,8 @@ test("if webhook is successful it\u2019s only called once even if job is run mul
     const event1Id = generateChronologicalId<BotWebhookEventId>();
 
     const event1: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -374,8 +377,8 @@ test("if webhook is successful it\u2019s only called once even if job is run mul
     const event2Id = generateChronologicalId<BotWebhookEventId>();
 
     const event2: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 1,
         createdTimeZone: defaultTimeZone,
@@ -505,8 +508,8 @@ test("if job fails it\u2019s scheduled to be run later up to three times", async
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -580,8 +583,8 @@ test("if job fails it\u2019s scheduled to be run later up to three times (succes
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -647,8 +650,8 @@ test("if job fails it\u2019s scheduled to be run later up to three times (succes
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -724,8 +727,8 @@ test("same job queued while waiting to retry failed job also waits", async () =>
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -820,8 +823,8 @@ test("requests which don\u2019t finish promptly are timed out and retried", asyn
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -930,8 +933,8 @@ test("requests which don\u2019t finish promptly are timed out and retried even i
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,
@@ -1032,8 +1035,8 @@ test("requests which don\u2019t finish promptly and have a simulated process cra
     const eventId = generateChronologicalId<BotWebhookEventId>();
 
     const event: ApiBotWebhookEvent = {
-        type: "NewMessage",
-        authorId: generateId<AccountId>(),
+        type: "CreatedMessage",
+        author: {id: generateId<AccountId>()},
         room: {type: "Chat", id: generateId<ChatId>()},
         index: 0,
         createdTimeZone: defaultTimeZone,

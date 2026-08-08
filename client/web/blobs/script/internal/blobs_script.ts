@@ -11,7 +11,7 @@ import {
 } from "~/client/web/blobs/helpers/draw_blobs_factory.js";
 import {generateBlobsForContent} from "~/client/web/blobs/helpers/generate_blobs_for_content.js";
 import {ColorScheme} from "~/client/web/helpers/color_scheme.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 declare global {
     interface Window {

@@ -1,7 +1,11 @@
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import type {
+    DatabaseGroupId,
+    DatabaseTableId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 export async function getDatabaseTableLocation(
     context: ServerActionContext,

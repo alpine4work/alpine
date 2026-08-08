@@ -27,9 +27,9 @@ import {
 } from "~/client/web/styles/tasks_shared_styles.js";
 import {buildTaskTitleInputKeymapPlugin} from "~/client/web/tasks/internal/build_task_title_input_keymap_plugin.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {
     TaskTitleModel,

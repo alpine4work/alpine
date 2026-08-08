@@ -7,7 +7,7 @@ import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.j
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 
 const dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization = import.meta.jest.fn(
     searchInjection.dangerouslyAddSearchAffinityEntityPointsWithoutAuthorization.bind(null),

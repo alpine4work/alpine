@@ -1,6 +1,6 @@
-import {NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
 
 export function accountEmailAddressNotFoundError(
     emailAddress: string,

@@ -3,8 +3,8 @@ import {ServiceCloudflareR2Options} from "~/server/cloudflare/r2/create_service_
 import {ServerBasicProcessContextOptions} from "~/server/node/create_server_basic_process_context_modules.js";
 import {ServiceTokenAgentOptions} from "~/server/node/create_service_token_agent.js";
 import {ShutdownManagerBase} from "~/server/node/shutdown_manager.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type AppServiceConstants = {
     readonly tracer: TracerRoot;

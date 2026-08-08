@@ -7,13 +7,13 @@ import {
     TaskIndexDocType,
     TaskStatusTypeIntegerMapping,
 } from "~/server/tasks/data/task_index_doc.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskDisplayStatus,
     TaskDisplayStatusIntegerMapping,

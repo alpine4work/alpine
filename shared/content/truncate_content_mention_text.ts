@@ -1,5 +1,5 @@
-import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.js";
-import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.js";
+import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.open_source.js";
+import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max_reasonable_english_word_grapheme_count.open_source.js";
 
 export const contentMentionTextTruncatedSuffix = " […]";
 

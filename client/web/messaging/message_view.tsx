@@ -24,6 +24,7 @@ import {AccountShortName} from "~/client/web/accounts/account_short_name.js";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {ContentView} from "~/client/web/content/content_view.js";
 import {useFileRegistry} from "~/client/web/content/file_registry_context.js";
+import {getContentViewPosFromDom} from "~/client/web/content/get_content_view_pos_from_dom.js";
 import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/web/content/has_standalone_margin_by_content_block_node_type_name.js";
 import {disableMessagingViewPointerToolbarAnimationOutUntilAfterNextAnimationFrame} from "~/client/web/content/messaging/disable_messaging_view_pointer_toolbar_animation_out_until_after_next_animation_frame.js";
 import {
@@ -54,7 +55,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useStateWithDependenciesWithoutDispatch} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
 import {formatMessageViewTimestampDividerDate} from "~/client/web/messaging/format_message_view_timestamp_divider_date.js";
 import {getMessageTextForBigEmojiMessage} from "~/client/web/messaging/internal/get_message_text_for_big_emoji_message.js";
 import {getMessageViewMarginBottom} from "~/client/web/messaging/internal/get_message_view_margin_bottom.js";
@@ -145,20 +146,25 @@ import {
     spacing,
 } from "~/shared/design/core/spacing.js";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {assertNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
+import {getMessageReactionsByCanonicalPos} from "~/shared/messaging/get_message_reactions_by_canonical_pos.js";
 import {mapMessagePosFromContentVersion} from "~/shared/messaging/map_message_pos_from_content_version.js";
-import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_model.js";
+import {
+    MessageModel,
+    OptimisticMessageModel,
+    fromMessagePayloadModel,
+} from "~/shared/messaging/message_model.js";
 import {minMessageViewTimestampDividerElapsedMinutes} from "~/shared/notifications/min_message_view_timestamp_divider_elapsed_minutes.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
@@ -185,6 +191,45 @@ export const bufferedMessageViewHeight: RemLength = "4rem";
 //
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
+
+/**
+ * Returns the global position immediately after the last content block that can
+ * receive message-content reactions.
+ */
+function getMessageContentReactionEndPos(
+    message: Pick<MessageModel<string> | OptimisticMessageModel, "payload" | "stream">,
+): number | null {
+    if (message.payload.type !== "Content") return null;
+
+    let pos = 0;
+
+    if (!isContentEmpty(message.payload.content.doc)) {
+        pos += message.payload.content.doc.content.size;
+    }
+
+    for (const part of message.stream?.parts ?? []) {
+        if (part.payload.type !== "Content") continue;
+        pos += part.payload.content.content.size;
+    }
+
+    return pos === 0 ? null : pos;
+}
+
+/**
+ * Finds the message content position under the pointer when opening the reaction
+ * context menu.
+ */
+function getMessageViewReactionContextMenuTargetPos(event: MouseEvent): number | null {
+    if (!(event.target instanceof Node)) return null;
+
+    const contentElement = (
+        event.target instanceof Element ? event.target : event.target.parentElement
+    )?.closest(`.${messagingStyles.withPointerToolbarClassName}`);
+
+    if (!contentElement) return null;
+
+    return getContentViewPosFromDom(contentElement, event.target, 0)?.[1] ?? null;
+}
 
 export function MessageView<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",
@@ -459,6 +504,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
             const menuActions: Array<MenuAction> = [];
+            const reactionTargetPos = getMessageViewReactionContextMenuTargetPos(event);
 
             // Don't allow replying if the message payload is empty. The UI shouldn't normally
             // allow saving an empty message payload. We allow empty message payloads for
@@ -498,18 +544,23 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                     },
                 ]);
 
-                menuActions.push(
-                    messageViewReactionContextMenuAction({
-                        message,
-                        messageNoun,
-                        onSetMessageReaction,
-                        onDeleteMessageReaction,
-                        onUpdateMessagesOptimistically,
-                        inboxContext,
-                    }),
-                );
+                if (message.payload.files.length > 0 || messageContentReactionEndPos !== null) {
+                    menuActions.push(
+                        messageViewReactionContextMenuAction({
+                            message,
+                            messageNoun,
+                            onSetMessageReaction,
+                            onDeleteMessageReaction,
+                            onUpdateMessagesOptimistically,
+                            inboxContext,
+                            targetPos: reactionTargetPos ?? undefined,
+                        }),
+                    );
+                }
 
-                contextMenuActions.push(menuActions);
+                if (menuActions.length > 0) {
+                    contextMenuActions.push(menuActions);
+                }
             }
 
             // Add reply and reaction actions for file-only messages (messages with files but
@@ -544,6 +595,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                         onDeleteMessageReaction,
                         onUpdateMessagesOptimistically,
                         inboxContext,
+                        targetPos: reactionTargetPos ?? undefined,
                     }),
                 ]);
             }
@@ -960,12 +1012,47 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
         };
     }, [isFileOnlyMessage, jumpAnimation]);
 
+    const messageContentReactionEndPos = useMemo(
+        () => getMessageContentReactionEndPos(message),
+        [message],
+    );
+
+    const shouldShowQuickReactionOnStream = useMemo(() => {
+        // Don't show the add reaction button on the content if there are files. The files
+        // section will show its own add reaction button.
+        return (
+            message.stream !== null &&
+            !isReadOnly &&
+            isLastMessage &&
+            message.author.id !== currentAccountId &&
+            message.payload.type === "Content" &&
+            message.payload.files.length === 0 &&
+            messageContentReactionEndPos !== null
+        );
+    }, [
+        currentAccountId,
+        isLastMessage,
+        isReadOnly,
+        messageContentReactionEndPos,
+        message.author.id,
+        message.payload,
+        message.stream,
+    ]);
+
     const reactionsByPos = useMemo(() => {
         if (message.payload.type !== "Content") return emptyMap;
 
-        // If this is the last message in a messaging view and the message doesn't have any
-        // reactions then we want to render the add reaction button so the user can quickly
-        // add a reaction (dismissing the notification if they're in the inbox).
+        const messageReactionsByPos = getMessageReactionsByCanonicalPos({
+            message: {
+                payload: fromMessagePayloadModel(message.payload),
+                stream: message.stream,
+            },
+        });
+
+        // If this is the last message in a messaging view and the last paragraph doesn't
+        // have any reactions then we want to render the add reaction button so the user
+        // can quickly add a reaction (dismissing the notification if they're in the
+        // inbox).
         //
         // Don't show the add reaction button on the content if there are files. The files
         // section will show its own add reaction button.
@@ -973,14 +1060,29 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
             !isReadOnly &&
             isLastMessage &&
             message.author.id !== currentAccountId &&
-            message.payload.reactionsByPos.size === 0 &&
-            message.payload.files.length === 0
+            message.payload.files.length === 0 &&
+            message.stream === null &&
+            messageContentReactionEndPos !== null &&
+            !messageReactionsByPos.has(messageContentReactionEndPos)
         ) {
-            return new Map([[message.payload.content.doc.content.size, emptyReactionSet]]);
+            const messageReactionsByPosWithQuickReaction = new Map(messageReactionsByPos);
+            messageReactionsByPosWithQuickReaction.set(
+                messageContentReactionEndPos,
+                emptyReactionSet,
+            );
+            return messageReactionsByPosWithQuickReaction;
         }
 
-        return message.payload.reactionsByPos;
-    }, [message.payload, message.author.id, isReadOnly, isLastMessage, currentAccountId]);
+        return messageReactionsByPos;
+    }, [
+        currentAccountId,
+        isLastMessage,
+        isReadOnly,
+        message.author.id,
+        message.payload,
+        message.stream,
+        messageContentReactionEndPos,
+    ]);
 
     const handleSetReaction = useCallback(
         (pos: number | "Files", reaction: Reaction | "GenericLike") => {
@@ -1248,16 +1350,41 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                 jumpAnimation={jumpAnimation}
                 approvalSessionNoun={approvalSessionNoun}
                 putApprovalDecisions={putApprovalDecisions}
+                reactionsByPos={reactionsByPos}
+                shouldShowQuickReactionOnLastStreamPart={shouldShowQuickReactionOnStream}
+                isReadOnly={isReadOnly}
+                onSetReaction={handleSetReaction}
+                onDeleteReaction={handleDeleteReaction}
+                onPressSeeReactions={async pos => {
+                    if (message.isOptimistic) return;
+                    if (!currentAccountId) return;
+
+                    await navigate(
+                        message.getSeeReactionsUrl(
+                            space.id,
+                            message.payload.contentUpdate?.mappings.length ?? 0,
+                            pos,
+                        ),
+                    );
+                }}
             />
         );
     }, [
         approvalSessionNoun,
         canPrimaryInputHover,
+        currentAccountId,
         events.getClipboardSerializerAuthorPrefix,
+        handleDeleteReaction,
+        handleSetReaction,
         isLastMessage,
+        isReadOnly,
         jumpAnimation,
         message,
         putApprovalDecisions,
+        navigate,
+        reactionsByPos,
+        shouldShowQuickReactionOnStream,
+        space.id,
     ]);
 
     const deletedPayloadNode = useMemo(() => {

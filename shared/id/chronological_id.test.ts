@@ -1,15 +1,15 @@
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {
     ChronologicalId,
     generateChronologicalId,
     generateChronologicalIdWithTime,
     getDecodedChronologicalIdTime,
     maxChronologicalIdTime,
-} from "~/shared/id/chronological_id.js";
-import {Id, RandomId, decodeId, generateId} from "~/shared/id/id.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/chronological_id.open_source.js";
+import {Id, RandomId, decodeId, generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
 test("can\u2019t use `generateId()` to generate a `ChronologicalId`", () => {
     // @ts-expect-error

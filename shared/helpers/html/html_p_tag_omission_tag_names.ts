@@ -1,4 +1,4 @@
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 
 /**
  * HTML tags that trigger [`<p>` tag omission logic][1]. Web browsers will parse:

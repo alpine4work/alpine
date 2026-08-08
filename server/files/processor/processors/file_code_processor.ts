@@ -1,10 +1,10 @@
 import {NodeType, Tree} from "@lezer/common";
 import {highlightCode} from "@lezer/highlight";
 import {Readable as ReadableStream} from "stream";
+import {createFileProcessorAnalysisPromises} from "~/server/files/processor/processors/create_file_processor_analysis_promises.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
     FileCodePreviewContent,
     maxFileCodePreviewLineCodePointCount,
@@ -13,9 +13,10 @@ import {
 import {
     FileCodeContentType,
     getFileContentTypeContentCodeBlockLanguageId,
-} from "~/shared/files/file_content_type.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 
 const fileCodePreviewWaitForLineCount = 128;
 
@@ -26,10 +27,10 @@ export function createFileCodeProcessor(contentType: FileCodeContentType): FileP
     return {
         type: "Code",
         hasAlternative: false,
-        hasAnalysis: false,
+        hasAnalysis: true,
         hasPreview: {type: "Code"},
         hasTranscript: false,
-        process: (context, {spaceId, fileId, signal}) => ({
+        process: (context, {spaceId, fileId, signal, parentTemporaryDirectoryPath}) => ({
             codePreviewContentPromise: (async () => {
                 const object = await context.r2.GetObject(
                     {
@@ -149,6 +150,14 @@ export function createFileCodeProcessor(contentType: FileCodeContentType): FileP
 
                 return new FileCodePreviewContent(content);
             })(),
+            ...createFileProcessorAnalysisPromises(context, {
+                contentType,
+                fileId,
+                hasTranscript: false,
+                parentTemporaryDirectoryPath,
+                signal,
+                spaceId,
+            }),
         }),
     };
 }

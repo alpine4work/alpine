@@ -4,8 +4,8 @@ import type {
     Sqlite3Static,
     WasmPointer,
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * Registers an eponymous virtual table module that acts as a table-valued

@@ -1,14 +1,23 @@
+// TODO(calebmer, #api-path-destruction): We don't use this "API path" concept for
+// anything important anymore. What is now an `ApiReference` object used to be an
+// `ApiPath` string. `ApiPath` still exists here and there in our code but we
+// should work towards totally phasing it out and replacing it with `ApiReference`
+// or `ApiReferenceKey` objects.
+//
+// DO NOT USE THIS FOR NEW CODE.
+
 import {
     ApiBotWebhookEvent,
-    ApiMentionTarget,
-    ApiMessageRoomTarget,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.js";
-import {isId} from "~/shared/id/id.js";
+    ApiMentionReference,
+    ApiMessageRoomReference,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -19,7 +28,7 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Any API path supported by our system.
@@ -31,16 +40,16 @@ export type ApiPath = ApiPathsType[number]["path"];
  */
 export type ApiPathObject = ApiPathsType[number]["pathObject"];
 
-export type ApiMessageRoomPath = ApiContentFilteredPathType<ApiMessageRoomTarget>;
+export type ApiMessageRoomPath = ApiContentFilteredPathType<ApiMessageRoomReference>;
 
 export type ApiMessageRoomMessagesListPath = `${ApiMessageRoomPath}/messages`;
 
-export type ApiMentionTargetPath = ApiContentFilteredPathType<ApiMentionTarget>;
+export type ApiMentionReferencePath = ApiContentFilteredPathType<ApiMentionReference>;
 
-type ApiNotMentionTargetPath = Exclude<ApiPath, ApiMentionTargetPath>;
+type ApiNotMentionReferencePath = Exclude<ApiPath, ApiMentionReferencePath>;
 
 // All `ApiPath`s excluding mentionable paths (`ApiMentionPathObject`).
-export type ApiNotMentionPathObject = ApiContentFilteredPathObjectType<ApiNotMentionTargetPath>;
+export type ApiNotMentionPathObject = ApiContentFilteredPathObjectType<ApiNotMentionReferencePath>;
 
 export type ApiContentFilteredPathObjectType<Path extends ApiPath> =
     ApiContentFilteredPathObjectTypeInner<Path, ApiPathsType>;
@@ -62,9 +71,9 @@ type ApiContentFilteredPathTypeInnter<
     [Key in keyof Paths]: Paths[Key]["pathObject"] extends PathObject ? Paths[Key]["path"] : never;
 }[number];
 
-const apiMentionTargetTypes = new Set<string>(
+const ApiMentionReferenceTypes = new Set<string>(
     getObjectKeysWithKeyofType(
-        cast<Record<ApiMentionTarget["type"], true>>({
+        cast<Record<ApiMentionReference["type"], true>>({
             Account: true,
             Channel: true,
             Chat: true,
@@ -79,10 +88,10 @@ const apiMentionTargetTypes = new Set<string>(
 
 const apiMessageRoomTypes = new Set<string>(
     getObjectKeysWithKeyofType(
-        cast<Record<ApiMessageRoomTarget["type"], true>>({
+        cast<Record<ApiMessageRoomReference["type"], true>>({
             Chat: true,
             Post: true,
-            DocumentCommentThread: true,
+            DocumentThread: true,
             Task: true,
         }),
     ),
@@ -116,9 +125,9 @@ type ApiPathsType = [
     {
         path: `/documents/${DocumentId}/threads/${DocumentCommentThreadId}`;
         pathObject: {
-            readonly type: "DocumentCommentThread";
-            readonly id: DocumentId;
-            readonly threadId: DocumentCommentThreadId;
+            readonly type: "DocumentThread";
+            readonly id: DocumentCommentThreadId;
+            readonly document: {readonly id: DocumentId};
         };
     },
     {
@@ -315,9 +324,9 @@ export function parseApiPath(path: string): ApiPathObject {
                 }
 
                 return {
-                    type: "DocumentCommentThread",
-                    id: pathSegments[1],
-                    threadId: pathSegments[3],
+                    type: "DocumentThread",
+                    id: pathSegments[3],
+                    document: {id: pathSegments[1]},
                 };
             } else {
                 if (pathSegments.length !== 2) {
@@ -442,7 +451,7 @@ export function parseApiPath(path: string): ApiPathObject {
     }
 
     function getDisplayMessage() {
-        return errorDisplayMessage`Invalid mention target path: \u201C${path}\u201D.`;
+        return errorDisplayMessage`Invalid mention reference path: ${quote(path)}.`;
     }
 }
 
@@ -460,8 +469,8 @@ export function printApiPath(path: ApiPathObject): ApiPath {
             return `/chats/${path.id}/messages`;
         case "Document":
             return `/documents/${path.id}`;
-        case "DocumentCommentThread":
-            return `/documents/${path.id}/threads/${path.threadId}`;
+        case "DocumentThread":
+            return `/documents/${path.document.id}/threads/${path.id}`;
         case "DocumentComment":
             return `/documents/${path.id}/threads/${path.threadId}/messages/${path.index}`;
         case "DocumentCommentThreadComments":
@@ -502,20 +511,20 @@ export function isApiMessageRoomPath(path: ApiPath): path is ApiMessageRoomPath 
     return isApiMessageRoom(pathObject);
 }
 
-export function isApiMessageRoom(pathObject: ApiPathObject): pathObject is ApiMessageRoomTarget {
+export function isApiMessageRoom(pathObject: ApiPathObject): pathObject is ApiMessageRoomReference {
     return apiMessageRoomTypes.has(pathObject.type);
 }
 
 export function parseApiBotWebhookEventIntoMessageRoom(
     event: ApiBotWebhookEvent,
-): ApiMessageRoomTarget {
+): ApiMessageRoomReference {
     switch (event.type) {
         case "UpdatedMessageStreamExperimentalApprovalsPart":
-        case "NewMessage": {
+        case "CreatedMessage": {
             return event.room;
         }
-        case "NewPost": {
-            return {type: "Post", id: event.postId};
+        case "CreatedPost": {
+            return {type: "Post", id: event.post.id};
         }
         default: {
             throw exhaustive(event);
@@ -528,11 +537,11 @@ export function parseApiBotWebhookEventIntoMessageRoomPath(
 ): ApiMessageRoomPath {
     switch (event.type) {
         case "UpdatedMessageStreamExperimentalApprovalsPart":
-        case "NewMessage": {
+        case "CreatedMessage": {
             return printApiMessageRoomPath(event.room);
         }
-        case "NewPost": {
-            return `/posts/${event.postId}`;
+        case "CreatedPost": {
+            return `/posts/${event.post.id}`;
         }
         default: {
             throw exhaustive(event);
@@ -540,42 +549,46 @@ export function parseApiBotWebhookEventIntoMessageRoomPath(
     }
 }
 
-export function printApiMessageRoomPath(path: ApiMessageRoomTarget): ApiMessageRoomPath {
+export function printApiMessageRoomPath(path: ApiMessageRoomReference): ApiMessageRoomPath {
     return printApiPath(path) as ApiMessageRoomPath;
 }
 
-export function parseApiMessageRoomPath(path: ApiMessageRoomPath): ApiMessageRoomTarget {
-    return parseApiPath(path) as ApiMessageRoomTarget;
+export function parseApiMessageRoomPath(path: ApiMessageRoomPath): ApiMessageRoomReference {
+    return parseApiPath(path) as ApiMessageRoomReference;
 }
 
-export function printApiMentionTarget(path: ApiMentionTarget): ApiMentionTargetPath {
-    return printApiPath(path) as ApiMentionTargetPath;
+export function printApiMentionReference(path: ApiMentionReference): ApiMentionReferencePath {
+    return printApiPath(path) as ApiMentionReferencePath;
 }
 
-export function parseApiMentionTarget(path: ApiMentionTargetPath): ApiMentionTarget {
-    return parseApiPath(path) as ApiMentionTarget;
+export function parseApiMentionReference(path: ApiMentionReferencePath): ApiMentionReference {
+    return parseApiPath(path) as ApiMentionReference;
 }
 
-export function parseApiNotMentionTarget(path: ApiNotMentionTargetPath): ApiNotMentionPathObject {
+export function parseApiNotMentionReference(
+    path: ApiNotMentionReferencePath,
+): ApiNotMentionPathObject {
     return parseApiPath(path) as ApiNotMentionPathObject;
 }
 
-export function isApiMentionTargetPath(path: ApiPath): path is ApiMentionTargetPath {
+export function isApiMentionReferencePath(path: ApiPath): path is ApiMentionReferencePath {
     const pathObject = parseApiPath(path);
-    return apiMentionTargetTypes.has(pathObject.type);
+    return ApiMentionReferenceTypes.has(pathObject.type);
 }
 
-export function isApiNotMentionTargetPath(path: ApiPath): path is ApiNotMentionTargetPath {
-    return !isApiMentionTargetPath(path);
+export function isApiNotMentionReferencePath(path: ApiPath): path is ApiNotMentionReferencePath {
+    return !isApiMentionReferencePath(path);
 }
 
-export function getApiMentionTargetPathIfExists(path: ApiPath): ApiMentionTargetPath | null {
-    if (isApiMentionTargetPath(path)) return path;
+export function getApiMentionReferencePathIfExists(path: ApiPath): ApiMentionReferencePath | null {
+    if (isApiMentionReferencePath(path)) return path;
 
-    const pathObject = parseApiNotMentionTarget(path);
+    const pathObject = parseApiNotMentionReference(path);
 
     switch (pathObject.type) {
-        case "DocumentCommentThread":
+        case "DocumentThread": {
+            return `/documents/${pathObject.document.id}`;
+        }
         case "DocumentComment":
         case "DocumentCommentThreadComments": {
             return `/documents/${pathObject.id}`;

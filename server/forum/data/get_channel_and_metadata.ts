@@ -15,15 +15,15 @@ import {
     DeadlineExceededError,
     ErrorBase,
     InternalError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {ChannelModel, ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {ChannelId, SiteId} from "~/shared/id/types/id_types.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {ChannelId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 /**
  * Get a `ChannelModel` and post files in the channel all at once. Executes a

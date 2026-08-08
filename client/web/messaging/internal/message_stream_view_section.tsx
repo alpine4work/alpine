@@ -11,6 +11,8 @@ import {
     MessageStreamContentPartPayload,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+import {Reaction} from "~/shared/reactions/reaction.js";
+import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -47,9 +49,16 @@ export function MessageStreamViewSection({
     orderedListItemNumberByNode,
     section,
     isFirstSection,
+    isLastContentSection,
     expandedRef,
     isExpanded,
     onToggleIsExpanded,
+    reactionsByPos,
+    shouldShowQuickReactionOnLastStreamPart,
+    isReadOnly,
+    onSetReaction,
+    onDeleteReaction,
+    onPressSeeReactions,
 }: {
     message: MessageModel<string> | OptimisticMessageModel;
     content: MessageContentWithReferences;
@@ -60,9 +69,16 @@ export function MessageStreamViewSection({
     orderedListItemNumberByNode: ReadonlyMap<Node, number>;
     section: MessageStreamSection;
     isFirstSection: boolean;
+    isLastContentSection: boolean;
     expandedRef: Ref<HTMLDivElement | null>;
     isExpanded: boolean;
     onToggleIsExpanded: () => void;
+    reactionsByPos: ReadonlyMap<number, ReactionSet>;
+    shouldShowQuickReactionOnLastStreamPart: boolean;
+    isReadOnly: boolean;
+    onSetReaction: (pos: number, reaction: Reaction | "GenericLike") => void;
+    onDeleteReaction: (pos: number) => void;
+    onPressSeeReactions: (pos: number) => Promise<void>;
 }) {
     const children: Array<ReactNode> = [];
 
@@ -86,6 +102,17 @@ export function MessageStreamViewSection({
                 }
                 jumpAnimation={jumpAnimation}
                 previousBlockNodeTypeName={previousBlockNodeTypeName}
+                shouldShowQuickReaction={
+                    shouldShowQuickReactionOnLastStreamPart &&
+                    isLastContentSection &&
+                    i === section.contentParts.length - 1 &&
+                    streamCompletedTime !== null
+                }
+                reactionsByPos={reactionsByPos}
+                isReadOnly={isReadOnly}
+                onSetReaction={onSetReaction}
+                onDeleteReaction={onDeleteReaction}
+                onPressSeeReactions={onPressSeeReactions}
             />,
         );
 

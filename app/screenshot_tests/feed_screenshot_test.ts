@@ -14,12 +14,12 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {ChatId, PostId, SiteId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {ChatId, PostId, SiteId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const screenshotTime = new Date("2025-10-14T17:30:00.000Z");

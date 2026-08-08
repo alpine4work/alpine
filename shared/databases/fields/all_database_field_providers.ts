@@ -4,9 +4,13 @@ import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_nu
 import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {Schema, type SchemaSerializedValue, type SchemaType} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {
+    Schema,
+    type SchemaSerializedValue,
+    type SchemaType,
+} from "~/shared/schema/schema.open_source.js";
 
 class LazySchema<Value> extends Schema<Value> {
     constructor(schema: Lazy<Schema<Value>>) {

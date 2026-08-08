@@ -8,8 +8,8 @@ import {
 import {useStore} from "~/client/web/helpers/use_store.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     SearchEntityModel,
     SearchEntityModelData,

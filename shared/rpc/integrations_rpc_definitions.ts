@@ -1,6 +1,6 @@
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export const disconnectSlackWorkspace = defineRpc({
     name: "disconnectSlackWorkspace",

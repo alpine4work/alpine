@@ -1,5 +1,5 @@
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {MessageDraftSurface} from "~/shared/messaging/message_draft_surface.js";
 
 /**

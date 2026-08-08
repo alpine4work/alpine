@@ -1,6 +1,6 @@
 import freeEmailDomains from "free-email-domains/domains.json" with {type: "json"};
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 
 /**
  * Email domains we don't consider work email domains. For work domains, we create

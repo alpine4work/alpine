@@ -19,7 +19,7 @@ import {getSelectionStartNodeAndEndNode} from "~/client/web/helpers/get_selectio
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
 import {shouldMergeMessages} from "~/client/web/messaging/internal/should_merge_messages.js";
 import {useMessagingViewToolbarReactionState} from "~/client/web/messaging/internal/use_messaging_view_toolbar_reaction_state.js";
 import {MessageList} from "~/client/web/messaging/message_list.js";
@@ -47,9 +47,9 @@ import {doubleClickDelayMs} from "~/shared/design/core/timing.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {finallyMaybePromise} from "~/shared/helpers/async/finally_maybe_promise.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageContentPayloadMessagesRangeParent,

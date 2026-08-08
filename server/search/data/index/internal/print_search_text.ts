@@ -9,10 +9,10 @@ import {
     RenderContentMentionToTextSearchEntity,
     renderContentMentionToText,
 } from "~/shared/content/render_content_mention_to_text.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 
 export function printSearchTextForInlineFragment(

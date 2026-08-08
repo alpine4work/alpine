@@ -14,4 +14,7 @@
 **/migrations/meta/
 
 # Test file that's intentionally not formatted
-admin/prettier/plugin/prettier_markdown_comments_negative_test_input.ts
+/admin/prettier/plugin/prettier_markdown_comments_negative_test_input.ts
+
+# Formatted for agents
+/skills/*/*.open_source.md

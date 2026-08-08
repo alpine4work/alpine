@@ -13,40 +13,40 @@ import {
     TaskClientQueryInternal,
 } from "~/client/web/tasks/core/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/web/tasks/core/task_client_task_subscription.js";
-import {getSynchronizedSystemClock} from "~/client/web/tracer/synchronized_system_clock.js";
+import {getClientTracerSynchronizedSystemClock} from "~/client/web/tracer/client_tracer_synchronized_system_clock.js";
 import {ResolvedAccessPolicyWithGenerations} from "~/shared/access/access_policy.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {ContentDuplicationVariableValues} from "~/shared/content/content_duplication_variable_schema.js";
 import {Context} from "~/shared/context/context.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {Mutex} from "~/shared/helpers/async/mutex.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
+import {DeadlineExceededError, InternalError} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {Clock} from "~/shared/helpers/clock/clock.js";
+import {Clock} from "~/shared/helpers/clock/clock.open_source.js";
 import {
     HybridLogicalClock,
     HybridLogicalTime,
     maxHybridLogicalTime,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {AdvancedWeakValuesMap} from "~/shared/helpers/map/advanced_weak_values_map.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {generateId} from "~/shared/id/id.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     SiteId,
@@ -55,7 +55,7 @@ import {
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     commitTaskActionTransaction,
@@ -875,7 +875,7 @@ export class TaskClientStoreInternal {
         this.currentAccountId = currentAccountId;
         this._onError = onError;
 
-        const synchronizedSystemClockPromise = getSynchronizedSystemClock();
+        const synchronizedSystemClockPromise = getClientTracerSynchronizedSystemClock();
         let synchronizedSystemClock: Clock | null = null;
 
         this.clock = new HybridLogicalClock({

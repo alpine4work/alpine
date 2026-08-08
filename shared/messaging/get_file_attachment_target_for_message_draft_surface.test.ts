@@ -1,11 +1,11 @@
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ChatId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {getFileAttachmentTargetForMessageDraftSurface} from "~/shared/messaging/get_file_attachment_target_for_message_draft_surface.js";
 
 describe("getFileAttachmentTargetForMessageDraftSurface()", () => {

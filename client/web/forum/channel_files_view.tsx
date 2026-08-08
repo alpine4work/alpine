@@ -39,7 +39,7 @@ import {
     screenPaddingXRem,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {
     ChannelModel,
@@ -47,10 +47,10 @@ import {
     ChannelPostFilesModel,
 } from "~/shared/forum/channel_model.js";
 import {ChannelRealtimeProtocol} from "~/shared/forum/channel_realtime_protocol.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {
     backfillChannelAndMetadata,
     getChannelAndMetadata,

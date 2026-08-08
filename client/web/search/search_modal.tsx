@@ -81,10 +81,11 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {Spacing, addRemLengths, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {InternalError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {
     clearSearchEntityAffinity,
@@ -202,6 +203,41 @@ export function SearchModal({
             }
         }
     }, [output, selectedPeek, searchEntityRegistry, space.id, switchPeek, accountRegistry]);
+
+    // Start navigating away from a search result before its canonical entity store
+    // publishes the deletion. Starting the transition is synchronous, so deletion is
+    // not serialized behind loading the adjacent peek's route data.
+    const handleBeforeEntityDelete = useEvent((entityId: SearchEntityId) => {
+        assert(selectedPeek);
+        assert(selectedPeek.extra.entityId === entityId);
+
+        const adjacentEntity =
+            getPreviousSearchEntity(output, entityId) ?? getNextSearchEntity(output, entityId);
+
+        if (!adjacentEntity) {
+            void switchPeek(null);
+            return;
+        }
+
+        const adjacentEntityDataSnapshot = getSearchEntityDataSnapshot(
+            adjacentEntity,
+            searchEntityRegistry,
+            accountRegistry,
+        );
+        const adjacentEntityId = printSearchEntityWithAccountModelId(adjacentEntityDataSnapshot);
+        const path = getSearchEntityPath({
+            spaceId: space.id,
+            entityData: adjacentEntityDataSnapshot,
+            randomSeed: output.key,
+            currentTime: output.queryTime,
+            routeLayout: "narrow",
+        });
+
+        void switchPeek({
+            spacePath: path,
+            extra: {entityId: adjacentEntityId},
+        });
+    });
 
     const shouldShowInputLoadingIndicator =
         useDelayLoadingIndicator(output.isPending) &&
@@ -601,6 +637,7 @@ export function SearchModal({
                                             key={activePeek.id}
                                             peek={activePeek}
                                             onClose={onClose}
+                                            onBeforeEntityDelete={handleBeforeEntityDelete}
                                             pushPeekStack={pushPeekStack}
                                             switchPeek={switchPeek}
                                             markResultSelectAffinityInteraction={
@@ -625,6 +662,7 @@ export function SearchModal({
                             ),
                             [
                                 activePeek,
+                                handleBeforeEntityDelete,
                                 markResultSelectAffinityInteraction,
                                 onClose,
                                 pushPeekStack,
@@ -1179,12 +1217,14 @@ function SearchModalResultList({
 function SearchModalPeekContent({
     peek,
     onClose,
+    onBeforeEntityDelete,
     pushPeekStack,
     switchPeek,
     markResultSelectAffinityInteraction,
 }: {
     peek: PeekSwitcherStatePeek<{entityId: SearchEntityId}>;
     onClose: () => void;
+    onBeforeEntityDelete: (entityId: SearchEntityId) => void;
     pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
     switchPeek: Memo<
         (
@@ -1198,6 +1238,14 @@ function SearchModalPeekContent({
 }) {
     if (!peek.routerResult.ok) throw peek.routerResult.error;
     const router = peek.routerResult.value;
+
+    const handleBeforeEmbeddedEntityDelete = useEvent((entityId: SearchEntityId) => {
+        if (peek.history.index > 0) {
+            peek.history.go(-1);
+        } else {
+            onBeforeEntityDelete(entityId);
+        }
+    });
 
     const navigate = useNavigate();
 
@@ -1351,6 +1399,7 @@ function SearchModalPeekContent({
                     withoutSearchAffinityViewEntityInteraction={true}
                     router={router}
                     onGoBackOverflow={onClose}
+                    onBeforeEntityDelete={handleBeforeEmbeddedEntityDelete}
                 />
             </ContentBlockWidthContextProvider>
         </Box>

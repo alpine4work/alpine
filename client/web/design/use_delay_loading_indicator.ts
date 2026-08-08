@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {delayLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 
 /**
  * To improve the user experience, we avoid showing a loading indicator until a

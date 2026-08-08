@@ -2,8 +2,8 @@ import {
     generateDeterministicNotionFileIdSync,
     generateDeterministicNotionIdSync,
 } from "~/server/importer/notion/internal/generate_deterministic_notion_id.js";
-import {getChronologicalIdTime} from "~/shared/id/chronological_id.js";
-import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
+import {getChronologicalIdTime} from "~/shared/id/chronological_id.open_source.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 describe("generateDeterministicNotionIdSync", () => {
     const spaceId1 = "space1" as SpaceId;

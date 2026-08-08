@@ -24,39 +24,44 @@ import {
 import {nameToAlpineId} from "~/admin/lambda/send_alert/internal/send_alert_user_mappings.js";
 import {
     ApiContent,
-    ApiCreateTaskRequestBody,
-    ApiGetTaskCollectionResponse,
-    ApiGetTaskResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {TaskCollectionId} from "~/shared/id/types/id_types.js";
+    ApiGetMessageResponse,
+    ApiGetTaskWithNotesResponse,
+    ApiPatchTaskResponse,
+    ApiTaskPriority,
+    ApiTaskResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import type {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
 type ApiContentElement = ApiContent["elements"][number];
 type HoneycombPayloadType = NonNullable<HoneycombEventPayload["type"]>;
+type ApiGetTaskCollectionResponse =
+    ApiSpecification.paths["/task-collections/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
 type ApiTaskCollectionTasksResponse =
     ApiSpecification.paths["/task-collections/{id}/tasks"]["get"]["responses"]["200"]["content"]["application/json"];
+type ApiCreateTaskRequestBody =
+    ApiSpecification.paths["/tasks"]["post"]["requestBody"]["content"]["application/json"];
 type ApiUpdateTaskRequestBody =
     ApiSpecification.paths["/tasks/{id}"]["patch"]["requestBody"]["content"]["application/json"];
 type ApiCreateTaskMessageRequestBody =
     ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"];
 type ApiGetTaskMessagesResponse =
     ApiSpecification.paths["/tasks/{id}/messages"]["get"]["responses"]["200"]["content"]["application/json"];
-type ApiTaskWithoutNotes = ApiSpecification.components["schemas"]["TaskWithoutNotes"];
-type ApiTaskPriority = NonNullable<ApiTaskWithoutNotes["priority"]>;
+type ApiTaskPriorityType = ApiTaskPriority["type"];
 type SendAlertErrorResult = Extract<SendAlertResult, {ok: false}>;
 
 // Keep in sync with `taskTitleMaxLength` from `shared/tasks/title/task_title.ts`.
 // Importing that module would pull the ProseMirror title model into this Lambda.
 const honeycombTaskTitleMaxLength = 512;
 const honeycombTaskOccurrenceCommentPrefix = "This happened again";
-const honeycombTaskPriorityByCurrentPriority = new Map<ApiTaskPriority, ApiTaskPriority>([
+const honeycombTaskPriorityByCurrentPriority = new Map<ApiTaskPriorityType, ApiTaskPriorityType>([
     ["Low", "Medium"],
     ["Medium", "High"],
     ["High", "Urgent"],
     ["Urgent", "Urgent"],
 ]);
-const honeycombTaskPriorityByPayloadPriority = new Map<string, ApiTaskPriority>([
+const honeycombTaskPriorityByPayloadPriority = new Map<string, ApiTaskPriorityType>([
     ["low", "Low"],
     ["medium", "Medium"],
     ["high", "High"],
@@ -305,12 +310,12 @@ export class HoneycombAlertSource extends AlertSource {
     private async listOpenTasks(collectionId: TaskCollectionId): Promise<
         | {
               ok: true;
-              tasks: Array<ApiTaskWithoutNotes>;
+              tasks: Array<ApiTaskResponse>;
           }
         | SendAlertErrorResult
     > {
-        const tasks: Array<ApiTaskWithoutNotes> = [];
-        let cursor: string | null = null;
+        const tasks: Array<ApiTaskResponse> = [];
+        let cursor: ApiTaskCollectionTasksResponse["nextCursor"] = null;
 
         do {
             const searchParams = new URLSearchParams({
@@ -331,7 +336,7 @@ export class HoneycombAlertSource extends AlertSource {
                 return result;
             }
 
-            tasks.push(...result.value.tasks);
+            tasks.push(...result.value.tasks.map(({task}) => task));
             cursor = result.value.nextCursor;
         } while (cursor);
 
@@ -344,18 +349,18 @@ export class HoneycombAlertSource extends AlertSource {
         title: string,
         content: ApiContent,
         priority: ApiTaskPriority,
-    ): Promise<{ok: true; task: ApiTaskWithoutNotes} | SendAlertErrorResult> {
+    ): Promise<{ok: true; task: ApiTaskResponse} | SendAlertErrorResult> {
         const body = {
             spaceId,
             task: {
                 title,
-                content,
+                notes: {content},
                 priority,
             },
         } satisfies ApiCreateTaskRequestBody;
 
         console.log(`Creating Honeycomb task: ${title}`);
-        const createResult = await this.fetchAlpineApi<ApiGetTaskResponse>("/tasks", {
+        const createResult = await this.fetchAlpineApi<ApiGetTaskWithNotesResponse>("/tasks", {
             method: "POST",
             body,
         });
@@ -371,7 +376,7 @@ export class HoneycombAlertSource extends AlertSource {
                 },
             ],
         } satisfies ApiUpdateTaskRequestBody;
-        const patchResult = await this.fetchAlpineApi<ApiGetTaskResponse>(
+        const patchResult = await this.fetchAlpineApi<ApiPatchTaskResponse>(
             `/tasks/${createResult.value.task.id}`,
             {
                 method: "PATCH",
@@ -386,7 +391,7 @@ export class HoneycombAlertSource extends AlertSource {
     }
 
     private async updateTaskPriorityIfNeeded(
-        task: ApiTaskWithoutNotes,
+        task: ApiTaskResponse,
         data: HoneycombTaskPayload,
     ): Promise<{ok: true; updatedPriority: ApiTaskPriority | null} | SendAlertErrorResult> {
         const occurrenceCommentCount = await this.countTaskOccurrenceComments(task.id);
@@ -394,19 +399,23 @@ export class HoneycombAlertSource extends AlertSource {
             return occurrenceCommentCount;
         }
 
-        const currentPriority = task.priority ?? "Low";
+        const currentPriority = task.priority ?? {type: "Low"};
         const recurrencePriority =
             occurrenceCommentCount.count > 0 && occurrenceCommentCount.count % 5 === 0
-                ? (honeycombTaskPriorityByCurrentPriority.get(currentPriority) ?? currentPriority)
+                ? {
+                      type:
+                          honeycombTaskPriorityByCurrentPriority.get(currentPriority.type) ??
+                          currentPriority.type,
+                  }
                 : currentPriority;
         const payloadPriority = getHoneycombTaskInitialPriority(data.priority);
         const nextPriority = getHigherHoneycombTaskPriority(recurrencePriority, payloadPriority);
-        if (nextPriority === currentPriority) {
+        if (nextPriority.type === currentPriority.type) {
             return {ok: true, updatedPriority: null};
         }
 
-        console.log(`Updating Honeycomb task priority: ${task.title} (${nextPriority})`);
-        const result = await this.fetchAlpineApi<ApiGetTaskResponse>(`/tasks/${task.id}`, {
+        console.log(`Updating Honeycomb task priority: ${task.title} (${nextPriority.type})`);
+        const result = await this.fetchAlpineApi<ApiPatchTaskResponse>(`/tasks/${task.id}`, {
             method: "PATCH",
             body: {
                 patches: [
@@ -425,7 +434,7 @@ export class HoneycombAlertSource extends AlertSource {
     }
 
     private async countTaskOccurrenceComments(
-        taskId: ApiTaskWithoutNotes["id"],
+        taskId: ApiTaskResponse["id"],
     ): Promise<{ok: true; count: number} | SendAlertErrorResult> {
         let cursor: number | null = null;
         let count = 0;
@@ -463,7 +472,7 @@ export class HoneycombAlertSource extends AlertSource {
 
     private async postTaskPreviewToChannel(
         channel: SendAlertAvailableChannel,
-        task: ApiTaskWithoutNotes,
+        task: ApiTaskResponse,
         data: HoneycombTaskPayload,
     ): Promise<SendAlertResult> {
         return await this.postAlertToAlpine(channel, {
@@ -474,11 +483,11 @@ export class HoneycombAlertSource extends AlertSource {
                 ),
                 {
                     type: "Preview",
-                    target: {
+                    reference: {
                         type: "Task",
                         id: task.id,
+                        title: task.title,
                     },
-                    title: task.title,
                 },
             ],
         });
@@ -486,7 +495,7 @@ export class HoneycombAlertSource extends AlertSource {
 
     private async postTaskPriorityBumpToChannel(
         channel: SendAlertAvailableChannel,
-        task: ApiTaskWithoutNotes,
+        task: ApiTaskResponse,
         priority: ApiTaskPriority,
         data: HoneycombTaskPayload,
     ): Promise<SendAlertResult> {
@@ -505,25 +514,25 @@ export class HoneycombAlertSource extends AlertSource {
                         },
                         {
                             type: "Text",
-                            text: priority,
+                            text: priority.type,
                             marks: [{type: "Bold"}],
                         },
                     ],
                 },
                 {
                     type: "Preview",
-                    target: {
+                    reference: {
                         type: "Task",
                         id: task.id,
+                        title: task.title,
                     },
-                    title: task.title,
                 },
             ],
         });
     }
 
     private async createTaskOccurrenceComment(
-        task: ApiTaskWithoutNotes,
+        task: ApiTaskResponse,
         count: number,
         resultUrl: string,
         row: HoneycombResultGroup,
@@ -557,10 +566,13 @@ export class HoneycombAlertSource extends AlertSource {
         } satisfies ApiCreateTaskMessageRequestBody;
 
         console.log(`Commenting on existing Honeycomb task: ${task.title}`);
-        const result = await this.fetchAlpineApi<unknown>(`/tasks/${task.id}/messages`, {
-            method: "POST",
-            body,
-        });
+        const result = await this.fetchAlpineApi<ApiGetMessageResponse>(
+            `/tasks/${task.id}/messages`,
+            {
+                method: "POST",
+                body,
+            },
+        );
         if (!result.ok) {
             return result;
         }
@@ -596,9 +608,11 @@ function getLegacyHoneycombPayloadType(data: HoneycombEventPayload): "trigger" |
 }
 
 function getHoneycombTaskInitialPriority(priority: string | undefined): ApiTaskPriority {
-    return (
-        honeycombTaskPriorityByPayloadPriority.get(priority?.trim().toLowerCase() ?? "") ?? "Low"
-    );
+    return {
+        type:
+            honeycombTaskPriorityByPayloadPriority.get(priority?.trim().toLowerCase() ?? "") ??
+            "Low",
+    };
 }
 
 function getHoneycombTaskPriorityIcon(priority: ApiTaskPriority): string {
@@ -619,7 +633,9 @@ function getHigherHoneycombTaskPriority(
 }
 
 function getHoneycombTaskPriorityRank(priority: ApiTaskPriority): number {
-    switch (priority) {
+    const priorityType = priority.type;
+
+    switch (priorityType) {
         case "Low":
             return 0;
         case "Medium":
@@ -629,12 +645,14 @@ function getHoneycombTaskPriorityRank(priority: ApiTaskPriority): number {
         case "Urgent":
             return 3;
         default:
-            throw exhaustive(priority);
+            throw exhaustive(priorityType);
     }
 }
 
 function isHoneycombTaskAlertPriority(priority: ApiTaskPriority): boolean {
-    switch (priority) {
+    const priorityType = priority.type;
+
+    switch (priorityType) {
         case "Low":
         case "Medium":
             return false;
@@ -642,7 +660,7 @@ function isHoneycombTaskAlertPriority(priority: ApiTaskPriority): boolean {
         case "Urgent":
             return true;
         default:
-            throw exhaustive(priority);
+            throw exhaustive(priorityType);
     }
 }
 

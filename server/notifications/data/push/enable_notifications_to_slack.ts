@@ -2,8 +2,8 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getConnectedSlackAccountIfExists} from "~/server/integrations/slack/get_connected_slack_account_if_exists.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Enables notifications to a Slack workspace for an account.

@@ -10,8 +10,8 @@ import {
     SearchEntityKeywordIndex,
 } from "~/server/search/data/index/internal/search_entity_keyword_index.js";
 import type {AccessPolicy, EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import type {DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import type {DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function indexDatabaseTableSearchEntity(
     context: ServerActionContext,

@@ -1,4 +1,4 @@
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 
 /**
  * Returns an iterable that's a section of the input. Same as `Array.slice()`

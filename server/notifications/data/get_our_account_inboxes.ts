@@ -3,9 +3,9 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 
 /**

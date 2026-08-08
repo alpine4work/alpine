@@ -1,7 +1,7 @@
 import {DOMOutputSpec, Fragment, Mark, Node} from "prosemirror-model";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     HtmlContainerGenerator,
     HtmlElementGenerator,
@@ -9,7 +9,7 @@ import {
     HtmlGenerator,
     HtmlTextGenerator,
 } from "~/shared/helpers/html/html_generator.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 export type RecursiveReadonlyArray<Value> = ReadonlyArray<Value | RecursiveReadonlyArray<Value>>;
 

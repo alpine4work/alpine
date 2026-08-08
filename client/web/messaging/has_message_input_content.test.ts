@@ -3,8 +3,8 @@ import {
     createSimpleMessageContent,
     emptyMessageContent,
 } from "~/shared/content/message_content_schema.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 describe("hasMessageInputContent()", () => {
     test("returns false for empty content with no parent or files", () => {

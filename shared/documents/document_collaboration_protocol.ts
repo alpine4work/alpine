@@ -1,6 +1,7 @@
 import {LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicySchema} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {ShareNotificationSchema} from "~/shared/access/share_notification.js";
+import type {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {ContentSelectionSchema} from "~/shared/content/content_selection_schema.js";
 import {
     MessageContentSchema,
@@ -25,7 +26,7 @@ import {
     DocumentCommentThreadId,
     SpaceId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
@@ -36,7 +37,7 @@ import {
 import {PutMessageApprovalDecisionsPayloadSchema} from "~/shared/messaging/put_message_approval_decisions_payload_schema.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
@@ -54,6 +55,27 @@ const DocumentCollaborationPresenceStateSchema = Schema.object({
     selection: ContentSelectionSchema,
 });
 
+const ApiContentKeySchema = Schema.string.transform<ApiContentKey>({
+    serialize: key => key,
+    deserialize: key => key as ApiContentKey,
+});
+
+const ApiContentPositionSchema = Schema.union({
+    Inline: Schema.object({
+        type: Schema.value("Inline"),
+        key: ApiContentKeySchema,
+        index: Schema.integer.min(0),
+    }),
+    Before: Schema.object({
+        type: Schema.value("Before"),
+        key: ApiContentKeySchema,
+    }),
+    After: Schema.object({
+        type: Schema.value("After"),
+        key: ApiContentKeySchema,
+    }),
+});
+
 const UpdateContentInputSchema = {
     version: Schema.integer,
     steps: Schema.array(DocumentContentStepSchema),
@@ -69,6 +91,11 @@ const UpdateContentInputSchema = {
     intentionallyUpdateAccessPolicy: Schema.object({
         accessPolicy: LocalAccessPolicySchema,
         notification: ShareNotificationSchema.nullable(),
+    })
+        .nullable()
+        .default(null),
+    intentionallyUpdateDeletedTime: Schema.object({
+        deletedTime: Schema.date,
     })
         .nullable()
         .default(null),
@@ -161,6 +188,11 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
                 intentionallyUpdateAccessPolicy: Schema.object({
                     accessPolicy: CreateOrUpdateAccessPolicySchema,
                     notification: ShareNotificationSchema.nullable(),
+                })
+                    .nullable()
+                    .default(null),
+                intentionallyUpdateDeletedTime: Schema.object({
+                    deletedTime: Schema.date,
                 })
                     .nullable()
                     .default(null),
@@ -472,7 +504,8 @@ export const DocumentCollaborationProtocol = defineWebSocketProtocol({
 
 export const DocumentCollaborationUpdateContentWithDiffRequestBodySchema = Schema.object({
     version: Schema.integer,
-    content: Schema.array(DocumentContentNodeSchema),
+    title: Schema.string.optional(),
+    content: Schema.array(DocumentContentNodeSchema).optional(),
 });
 
 export const DocumentCollaborationUpdateContentWithDiffResponseBodySchema = Schema.result(
@@ -482,6 +515,45 @@ export const DocumentCollaborationUpdateContentWithDiffResponseBodySchema = Sche
         creatorId: Schema.id<AccountId>().nullable(),
         newVersion: Schema.integer,
         newContent: DocumentContentSchema,
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);
+
+export const DocumentCollaborationSetCommentThreadResolvedRequestBodySchema = Schema.object({
+    resolved: Schema.boolean,
+});
+
+export const DocumentCollaborationSetCommentThreadResolvedResponseBodySchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+    }),
+    Schema.object({
+        ok: Schema.value(false),
+        error: ErrorSchema,
+    }),
+);
+
+export const DocumentCollaborationCreateCommentThreadForApiRequestBodySchema = Schema.object({
+    range: Schema.object({
+        start: ApiContentPositionSchema,
+        end: ApiContentPositionSchema,
+    }),
+    content: MessageContentSchema,
+    fileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
+    createdTimeZone: TimeZoneSchema,
+});
+
+export const DocumentCollaborationCreateCommentThreadForApiResponseBodySchema = Schema.result(
+    Schema.object({
+        ok: Schema.value(true),
+        spaceId: Schema.id<SpaceId>(),
+        commentThread: Schema.object({
+            id: Schema.id<DocumentCommentThreadId>(),
+            createdTime: Schema.date,
+        }),
     }),
     Schema.object({
         ok: Schema.value(false),

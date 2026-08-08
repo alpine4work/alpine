@@ -14,8 +14,8 @@ import {getRemPxWithoutListening} from "~/client/web/remix/spacing_scale_context
 import {scrollbarStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ParsableRemLength, parseRemLength} from "~/shared/design/core/spacing.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 const {
     nativeScrollbarClassName,

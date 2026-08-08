@@ -2,7 +2,7 @@
 
 import {createContext, useContext} from "react";
 import type {DatabaseWorkerConnection} from "~/client/web/databases/connect_to_database.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export const DatabaseConnectionContext = createContext<DatabaseWorkerConnection | null>(null);
 

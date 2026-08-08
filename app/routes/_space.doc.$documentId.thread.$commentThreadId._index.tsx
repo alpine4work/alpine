@@ -34,14 +34,14 @@ import {
     DocumentModel,
 } from "~/shared/documents/document_model.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {
     MessageDraftWithFilesSchema,
     emptyMessageDraftWithFiles,
 } from "~/shared/messaging/message_draft_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
     ServerSynchronizationCheckpointSchema,
     generateServerSynchronizationCheckpoint,

@@ -5,7 +5,7 @@ import {
     DatabaseTableRegistrationsSchema,
 } from "~/shared/databases/database_protocol_schemas.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 test("round-trips a table registration", () => {
     const registrations = new Map([

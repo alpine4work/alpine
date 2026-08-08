@@ -1,6 +1,6 @@
 import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {InboxItemModelSchema} from "~/shared/notifications/inbox_model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     WebSocketProtocolEventType,
     defineWebSocketProtocol,

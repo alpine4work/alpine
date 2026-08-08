@@ -6,9 +6,9 @@ import {
     DocumentationHeader,
     DocumentationSurface,
 } from "~/client/web/docs/internal/documentation_header.js";
-import {DocumentationSearchIndex} from "~/client/web/docs/search_documentation_entries.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {DocumentationSearchIndex} from "~/shared/docs/search_documentation_entries.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 const documentationHeaderHeight = 56;
 
@@ -140,6 +140,7 @@ export function DocumentationPageLayout({
                     paddingTop="10"
                     paddingBottom="28"
                     width="full"
+                    userSelect="text"
                     style={contentStyle}
                 >
                     {children}

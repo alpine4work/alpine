@@ -2,9 +2,9 @@ import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {ApiKey} from "~/shared/id/api_key.js";
-import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the information associated with an `ApiKey`. Like what bot the `ApiKey` is

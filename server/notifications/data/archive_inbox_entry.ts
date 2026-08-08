@@ -1,9 +1,9 @@
 import {ServerSessionActionContextWithPush} from "~/server/context/server_session_action_context_with_push.js";
 import {getInboxEntryItemKey} from "~/server/notifications/data/internal/get_inbox_entry_item_key.js";
 import {updateInboxEntry} from "~/server/notifications/data/internal/update_inbox_entry.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxEntryKey} from "~/shared/notifications/inbox_model.js";
 
 /**

@@ -4,7 +4,7 @@ import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js
 import {MyAccountDurableObject} from "~/server/notifications/my_account/my_account_durable_object.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 
 const baseContext = createTestWorkerContext();
 

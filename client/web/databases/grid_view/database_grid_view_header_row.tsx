@@ -20,8 +20,8 @@ import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {DatabaseFieldConfig} from "~/shared/databases/fields/all_database_field_providers.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
-import {DatabaseFieldId} from "~/shared/id/types/id_types.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {DatabaseFieldId} from "~/shared/id/types/id_types.open_source.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
 export function DatabaseGridViewHeaderRow({

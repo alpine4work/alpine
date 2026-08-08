@@ -13,11 +13,11 @@ import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_regis
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {ContentFileLayout} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -27,10 +27,10 @@ import {
 } from "~/shared/documents/document_content_schema.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {Store} from "~/shared/store/store.js";

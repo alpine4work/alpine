@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import {SQSClient, SendMessageCommand} from "@aws-sdk/client-sqs";
 import {JobQueueMessageBody, JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 
 type ScheduleDeployLambdaInputEvent = {
     commitSha?: string;

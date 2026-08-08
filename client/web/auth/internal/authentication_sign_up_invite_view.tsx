@@ -25,12 +25,12 @@ import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {inputPlaceholderStyles} from "~/client/web/styles/styles.js";
 import {getEmailDomainForAutoAddSpaceAccounts} from "~/shared/accounts/get_email_domain_for_auto_add_space_accounts.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {isEmailAddressValid} from "~/shared/helpers/string/email_address.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 export function AuthenticationSignUpInviteView({
     state,

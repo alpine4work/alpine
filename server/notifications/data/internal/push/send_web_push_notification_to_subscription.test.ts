@@ -14,9 +14,9 @@ import {
     NotFoundError,
     PermissionDeniedError,
     UnknownError,
-} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
+} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
 import {WebPushNotificationContent} from "~/shared/notifications/web_push_notification_content.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 

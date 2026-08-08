@@ -4,15 +4,15 @@ import type {
     Sqlite3Static,
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {registerSqliteTableFunction} from "~/shared/databases/sqlite_table_function.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {
     type OrderKey,
     generateOrderKeyBetween,
     generateOrderKeysBetween,
     isOrderKey,
-} from "~/shared/helpers/sort/order_key.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {isId} from "~/shared/id/id.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
 
 /**
  * Registers Alpine's custom SQL functions on a SQLite database handle. Must be

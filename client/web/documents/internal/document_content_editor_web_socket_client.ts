@@ -22,16 +22,16 @@ import {
     DocumentCommentThreadModel,
 } from "~/shared/documents/document_model.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {isTransientError} from "~/shared/error/is_transient_error.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
-import {SchemaType} from "~/shared/schema/schema.js";
+import {SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
@@ -196,6 +196,23 @@ export class DocumentContentEditorWebSocketClient {
 
     public changeEditorState(editorState: ContentEditorState<DocumentContentWithReferences>) {
         this._dispatch({type: "Edit", editorState});
+    }
+
+    /**
+     * Resolve after the collaboration service confirms that `version` has been
+     * persisted.
+     */
+    public waitForPersistedVersion(version: number): Promise<void> {
+        if (this._state.getSnapshot().persistedVersion >= version) return Promise.resolve();
+
+        return new Promise(resolve => {
+            const unsubscribe = this._state.subscribe(() => {
+                if (this._state.getSnapshot().persistedVersion < version) return;
+
+                unsubscribe();
+                resolve();
+            });
+        });
     }
 
     public clearOurPresenceState() {
@@ -513,6 +530,8 @@ export class DocumentContentEditorWebSocketClient {
                         createCommentThreads: state.extra.pendingCreateCommentThreads ?? [],
                         intentionallyUpdateAccessPolicy:
                             state.extra.pendingIntentionallyUpdateAccessPolicy,
+                        intentionallyUpdateDeletedTime:
+                            state.extra.pendingIntentionallyUpdateDeletedTime,
                         updateOurPresenceState: {
                             state: state.extra.ourPresenceState
                                 ? {

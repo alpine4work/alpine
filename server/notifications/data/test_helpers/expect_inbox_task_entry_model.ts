@@ -3,12 +3,13 @@ import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxTaskEntryModel} from "~/shared/notifications/inbox_model.js";
 
 export function expectInboxTaskEntryModel({
     session,
     task,
+    isTaskDeleted = false,
     isArchived = false,
     loudNotificationCount = 0,
     latestComment,
@@ -18,6 +19,7 @@ export function expectInboxTaskEntryModel({
     task:
         | {task: TestTask; taskOwner: TestSpaceSession; isPrivate?: false}
         | {isPrivate: true; taskId: TaskId};
+    isTaskDeleted?: boolean;
     isArchived?: boolean;
     loudNotificationCount?: number;
     latestComment: {
@@ -32,7 +34,7 @@ export function expectInboxTaskEntryModel({
         spaceId: latestComment.comment.space.id,
         accountId: session.account.id,
         task: task.isPrivate
-            ? {isPrivate: true, taskId: task.taskId}
+            ? {isPrivate: true, isDeleted: isTaskDeleted, taskId: task.taskId}
             : {
                   isPrivate: false,
                   taskId: task.task.id,

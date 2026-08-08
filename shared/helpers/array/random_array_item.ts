@@ -1,4 +1,4 @@
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 
 /**

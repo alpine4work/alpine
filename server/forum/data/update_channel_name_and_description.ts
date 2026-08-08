@@ -1,13 +1,14 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeChannelItemAccess} from "~/server/forum/data/internal/authorize_channel_item_access.js";
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
 import {createChannelNotFoundError} from "~/shared/forum/forum_error_messages.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**
@@ -19,10 +20,12 @@ export async function updateChannelNameAndDescription(
         channelId,
         name,
         description,
+        consistency,
     }: {
         channelId: ChannelId;
         name: string;
         description: MessageContent;
+        consistency?: DynamoCacheReadConsistency;
     },
 ): Promise<{
     getRynamoEvents: (
@@ -48,6 +51,7 @@ export async function updateChannelNameAndDescription(
 
             return channelItem.update({name, description});
         },
+        {consistency},
     );
 
     assert(spaceId);

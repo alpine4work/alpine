@@ -9,12 +9,12 @@ import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
-import {generateId} from "~/shared/id/id.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const context = createTestContext();

@@ -12,10 +12,10 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getLatestEmailAddressByAccountId} from "~/server/spaces/get_latest_email_address_by_account_id.js";
 import {getSpace} from "~/server/spaces/get_space.js";
 import {Context} from "~/shared/context/context.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // Verify time is still a valid time for this inbox's schedule just in case their
 // schedule has changed. Specifying a lag time of 0 ensures we'll get back the same

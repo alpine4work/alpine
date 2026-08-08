@@ -6,7 +6,7 @@ import {
     parseNotionImportIndexHtml,
     stripTrailingNotionId,
 } from "~/server/importer/notion/internal/notion_import_index_html_parsing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export type NotionImportMetadata = {
     /** The name of the Notion workspace. */

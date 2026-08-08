@@ -1,4 +1,4 @@
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 
 /**
  * Return the last value from the iterable. Must iterate through the entire

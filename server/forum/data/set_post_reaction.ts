@@ -3,7 +3,7 @@ import {authorizeChannelAccess} from "~/server/forum/data/authorize_channel_acce
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getPostItemWithContentForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {sumIterable} from "~/shared/helpers/iterable/sum_iterable.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 

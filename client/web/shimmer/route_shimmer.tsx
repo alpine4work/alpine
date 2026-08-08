@@ -171,10 +171,10 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
 

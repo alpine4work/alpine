@@ -10,8 +10,8 @@ import {scrollbarStyles} from "~/client/web/styles/styles.js";
 import {linkClassName} from "~/shared/design/core/constant_class_names.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 export function DocumentPresentationView({
     slides,

@@ -1,4 +1,4 @@
-import {BotId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 export const chatGptKnownBotIdForProduction = "03stggwzcvnrq8019hkxbkxhvc" as BotId;
 

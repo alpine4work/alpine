@@ -1,6 +1,8 @@
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import {
+    ServerAccountActionContext,
     ServerActionContext,
+    ServerImpersonatedAccountActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
@@ -17,34 +19,23 @@ import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_fro
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {MessageContent, emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {RynamoEvent, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {FeedEntry} from "~/shared/feed/feed_entry_schema.js";
 import {ChannelModel} from "~/shared/forum/channel_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**
  * Create a new channel.
  */
 export async function createChannel(
-    context: ServerSessionActionContext,
-    {
-        spaceId,
-        channelId = generateId<ChannelId>(),
-        name,
-        description = emptyMessageContent,
-        accessPolicy = {
-            type: "Local",
-            accountGrantById: new Map([
-                [context.actor.getAccountId(), {level: "Manage", generation: 0}],
-            ]),
-            defaultGrant: {level: "Manage", generation: 1},
-            urlGrant: null,
-        },
-    }: {
+    context: ServerAccountActionContext,
+    options: {
         spaceId: SpaceId;
         channelId?: ChannelId;
+        creatorId?: AccountId;
         name: string;
         description?: MessageContent;
         accessPolicy?: CreateOrUpdateAccessPolicy;
@@ -57,6 +48,50 @@ export async function createChannel(
         context: ServerActionContext,
     ) => Promise<ReadonlyArray<RynamoEvent<SitePreviewModel | SiteEntryModel>>>;
 }> {
+    const {
+        spaceId,
+        channelId = generateId<ChannelId>(),
+        name,
+        description = emptyMessageContent,
+    } = options;
+    let {creatorId, accessPolicy} = options;
+
+    if (
+        creatorId &&
+        context.actor.type !== "Bot" &&
+        creatorId !== context.actor.getPossiblyBotAccountId()
+    ) {
+        throw new PermissionDeniedError(
+            "Only bots can create channels on behalf of other accounts",
+        );
+    }
+
+    if (context.actor.type === "Bot") {
+        if (accessPolicy === undefined) {
+            throw new FailedPreconditionError(
+                "You must set the `accessPolicy` field when creating a channel from a bot context",
+            );
+        }
+    } else {
+        accessPolicy ??= {
+            type: "Local",
+            accountGrantById: new Map([
+                [context.actor.getAccountId(), {level: "Manage", generation: 0}],
+            ]),
+            defaultGrant: {level: "Manage", generation: 1},
+            urlGrant: null,
+        };
+    }
+
+    creatorId ??= context.actor.getPossiblyBotAccountId();
+    const creator = {
+        accountId: creatorId,
+        from:
+            context.actor.type === "Bot" && creatorId !== context.actor.getBotAccountId()
+                ? {type: "Bot" as const, accountId: context.actor.getBotAccountId()}
+                : null,
+    };
+
     await authorizeSpaceAccess(context, spaceId);
 
     const {resolvedAccessPolicy, transactionEntries} = await validateAccessPolicyUpdateForServer(
@@ -67,15 +102,13 @@ export async function createChannel(
         accessPolicy,
     );
 
-    const creatorId = context.actor.getAccountId();
-
     const channelItem: ChannelAttributesItem = {
         partitionType: "Channel",
         sortRangeType: "Attributes",
         channelId,
         spaceId,
         createdTime: new Date(),
-        creatorId,
+        creator,
         name,
         description,
         accessPolicy,
@@ -95,7 +128,7 @@ export async function createChannel(
                 sortRangeType: "Contributors",
                 channelId,
                 spaceId,
-                contributionCountByAccountId: new Map([[context.actor.getAccountId(), 1]]),
+                contributionCountByAccountId: new Map([[creatorId, 1]]),
                 accountIdsWithGrant: Array.from(resolvedAccessPolicy.accountGrantById.keys()),
             },
         ),
@@ -104,7 +137,7 @@ export async function createChannel(
             partitionType: "Channel",
             sortRangeType: "Subscription",
             channelId,
-            accountId: context.actor.getAccountId(),
+            accountId: creatorId,
             createdTime: channelItem.createdTime,
         }),
         ...transactionEntries.map(entry => entry.transactionEntry),
@@ -147,14 +180,20 @@ export async function createChannel(
         },
     });
 
-    context.process.waitUntil(
-        markSearchAffinityEntityInteraction(context, {
-            spaceId,
-            entityId: `Channel:${channelItem.channelId}`,
-            interaction: {type: "HighIntentUpdate"},
-            siteId: getSiteIdFromAccessPolicyIfExists(accessPolicy),
-        }),
-    );
+    // Bots do not accrue affinity points.
+    if (context.actor.type !== "Bot") {
+        context.process.waitUntil(
+            markSearchAffinityEntityInteraction(
+                context as ServerSessionActionContext | ServerImpersonatedAccountActionContext,
+                {
+                    spaceId,
+                    entityId: `Channel:${channelItem.channelId}`,
+                    interaction: {type: "HighIntentUpdate"},
+                    siteId: getSiteIdFromAccessPolicyIfExists(accessPolicy),
+                },
+            ),
+        );
+    }
 
     return {
         id: channelItem.channelId,

@@ -1,10 +1,10 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
 import {useStateWithDependencies} from "~/client/web/helpers/lifecycle/use_state_with_dependencies.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Use some data saved to [local storage][1]. Keeps our component up-to-date as the

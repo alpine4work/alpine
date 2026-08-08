@@ -14,19 +14,19 @@ import {
 } from "~/shared/access/access_policy.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
 import {
     FailedPreconditionError,
     InvalidArgumentError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {assertSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";

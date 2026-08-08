@@ -29,7 +29,7 @@ import {
     DocumentId,
     SiteId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadModelFileSchema} from "~/shared/messaging/message_model.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
@@ -47,7 +47,7 @@ import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SiteContainerIdSchema} from "~/shared/sites/site_entry_id.js";
 import {SiteOrSiteEntryModelSchema} from "~/shared/sites/site_model.js";
 import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";
@@ -187,11 +187,15 @@ export const updateDocumentContent = defineRpc({
                 initialCommentFileIds: Schema.array(FileIdOrFileEntityIdSchema).default([]),
                 createdTimeZone: TimeZoneSchema,
                 createdTime: Schema.date.optional(),
+                attachInitialCommentFilesAsBot: Schema.boolean.optional(),
             }),
         ),
         intentionallyUpdateAccessPolicy: Schema.object({
             accessPolicy: CreateOrUpdateAccessPolicySchema,
             notification: ShareNotificationSchema.nullable(),
+        }).optional(),
+        intentionallyUpdateDeletedTime: Schema.object({
+            deletedTime: Schema.date,
         }).optional(),
         resolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),
         unresolveCommentThreadIds: Schema.array(Schema.id<DocumentCommentThreadId>()).optional(),

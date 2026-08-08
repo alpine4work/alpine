@@ -8,7 +8,6 @@ import {
     processCommentsQuery,
 } from "~/server/messaging/helpers/process_comments_query.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 
 export async function* runCommentsQuery(
     context: ServerActionContext,
@@ -40,7 +39,7 @@ export async function* runCommentsQuery(
         }) => AsyncIterable<CommentQueryItem | CommentQueryStreamItem | CommentQueryStreamPartItem>;
     },
 ): AsyncIterableIterator<MessageItem> {
-    assert(startIndex <= endIndex);
+    if (startIndex > endIndex) return;
 
     let uncachedStartIndex = startIndex;
     let uncachedEndIndex = endIndex;

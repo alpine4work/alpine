@@ -5,9 +5,9 @@ import {
     taskRealtimeServiceRoutesInvalidatedMs,
     taskRealtimeServiceRoutesRevalidateMs,
 } from "~/server/tasks/router/task_realtime_service_router_base.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 
 /**
  * Returns encrypted task service routing information for `EdgeService`. This way

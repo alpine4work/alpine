@@ -1,7 +1,7 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {flattenDocumentationMarkdownChildren} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
+import {flattenDocumentationMarkdownChildren} from "~/shared/docs/documentation_markdown_component.js";
 
 /** A body paragraph. */
 export const DocumentationParagraph = documentationComponent({

@@ -1,8 +1,8 @@
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export const scheduleTryOnDesktopEmailDelaySeconds = 5 * 60;
 

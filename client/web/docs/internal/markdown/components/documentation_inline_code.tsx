@@ -1,9 +1,9 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/web/design/box.js";
-import {toDocumentationMarkdownCodeBlock} from "~/client/web/docs/internal/documentation_code_block.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {flattenDocumentationMarkdownChildren} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
-import {documentationMarkdownStringProp} from "~/client/web/docs/internal/markdown/documentation_markdown_string_prop.js";
+import {flattenDocumentationMarkdownChildren} from "~/shared/docs/documentation_markdown_component.js";
+import {documentationMarkdownStringProp} from "~/shared/docs/documentation_markdown_string_prop.js";
+import {toDocumentationMarkdownCodeBlock} from "~/shared/docs/to_documentation_markdown_code_block.js";
 
 /**
  * Inline `code`. MDX also nests `code` inside `pre` for fenced blocks, tagging it

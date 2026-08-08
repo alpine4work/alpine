@@ -7,13 +7,13 @@ import {
     TokenAgentPrivateSide,
 } from "~/server/tokens/token_agent_private_side.js";
 import {TokenAgentPublicSide} from "~/server/tokens/token_agent_public_side.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {encodeBase64} from "~/shared/helpers/binary/base64.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
 
 let appServiceTokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
 let edgeServiceTokenAgent: TokenAgent;

@@ -3,17 +3,20 @@ import {FileProcessorActionContext} from "~/server/files/data/file_processor_con
 import {rethrowClassifiedSharpError} from "~/server/files/processor/sharp/rethrow_classified_sharp_error.js";
 import {sharpTimeoutSeconds} from "~/server/files/processor/sharp/sharp_timeout_seconds.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {FileContentType, FileImageContentType} from "~/shared/files/file_content_type.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {
+    FileContentType,
+    FileImageContentType,
+} from "~/shared/files/file_content_type.open_source.js";
 import {
     FileImagePreviewPlaceholder,
     fileImagePreviewPlaceholderBaseSize,
 } from "~/shared/files/file_image_preview_placeholder.js";
 import {FileImagePreviewSize} from "~/shared/files/file_preview.js";
 import {wait} from "~/shared/helpers/async/wait.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * Generate a placeholder image which we'll render before the browser has
@@ -227,18 +230,18 @@ export function processImageFile(
             } catch (error) {
                 // NOTE(calebmer, 2024-11-13): `sharp` is flaky when it comes to returning an error
                 // message. Our "can't upload invalid image data" test in `upload_file.test.ts`
-                // observes occasional failures where we get the truncated error message "Input
-                // buffer has corrupt header: " instead of the full "Input buffer has corrupt
-                // header: x2vips: libX error: Improper image header...". So when we detect a
-                // truncated error message from `sharp` let's retry the `metadata()` call up to 10
-                // times until we get a real error message.
+                // observes occasional failures where we get a truncated error message such as
+                // "Input buffer has corrupt header: " or "Input file has corrupt header: " instead
+                // of the full "Input buffer has corrupt header: x2vips: libX error: Improper image
+                // header...". So when we detect a truncated error message from `sharp` let's retry
+                // the `metadata()` call up to 10 times until we get a real error message.
                 //
                 // Code in `sharp` where this error message is created:
                 // https://github.com/lovell/sharp/blob/1533bf995acda779313fc178d2b9d46791349961/src/common.cc#L417
                 if (
                     retryCount <= 10 &&
                     error instanceof Error &&
-                    /^Input buffer has corrupt header: *$/.test(error.message)
+                    /^Input (?:buffer|file) has corrupt header: *$/.test(error.message)
                 ) {
                     await wait(100);
                     continue;

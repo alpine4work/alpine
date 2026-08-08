@@ -1,6 +1,10 @@
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
-import {DataLossError, FailedPreconditionError, NotFoundError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {
+    DataLossError,
+    FailedPreconditionError,
+    NotFoundError,
+} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 /**

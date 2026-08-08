@@ -11,18 +11,23 @@ import {
 import {isEmptyContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {AccountId, FileId, SpaceId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    FileId,
+    SpaceId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageReferencedIds,

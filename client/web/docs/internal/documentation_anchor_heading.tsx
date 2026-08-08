@@ -2,12 +2,12 @@
 import {ReactNode} from "react";
 import {useHover} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
+import {sprinkles} from "~/client/web/styles/styles.js";
 import {
     DocumentationMarkdownChildren,
     flattenDocumentationMarkdownChildren,
-} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
-import {sprinkles} from "~/client/web/styles/styles.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+} from "~/shared/docs/documentation_markdown_component.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * A page heading with a stable anchor id. Hovering reveals a `#` link so readers

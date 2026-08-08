@@ -1,7 +1,7 @@
 import {NodeType} from "prosemirror-model";
 import {Command, Transaction} from "prosemirror-state";
 import {findWrapping} from "prosemirror-transform";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Creates a command that toggles list items on and off for the `EditorState`

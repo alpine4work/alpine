@@ -1,21 +1,21 @@
 // TODO(#sites-not-blocking):
 // https://app.graphite.com/github/pr/cyberworlds/cyberworlds/1465/site-data-model#comment-PRRC_kwDOH2ktg86826pe
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import {assertId, isId} from "~/shared/id/id.js";
+import {assertId, isId} from "~/shared/id/id.open_source.js";
 import {
     ChannelId,
     ChatId,
     DocumentId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
 import {
     GetSearchEntityIdActualTestMapUnionType,
     SearchDynamicEntityIdObject,

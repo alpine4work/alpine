@@ -5,7 +5,7 @@ import {
     hiddenIfDarkColorSchemeClassName,
     hiddenIfLightColorSchemeClassName,
 } from "~/client/web/styles/styles.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function ColorSchemeToggleButton() {
     const {colorScheme} = useColorScheme();

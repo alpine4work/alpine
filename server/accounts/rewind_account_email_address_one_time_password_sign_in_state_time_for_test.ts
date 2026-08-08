@@ -1,7 +1,7 @@
 import {subHours} from "date-fns";
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 
 /**

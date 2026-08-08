@@ -1,5 +1,5 @@
-import {OrderKey, assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
+import {OrderKey, assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -8,7 +8,7 @@ import {
     SiteSideBarSectionId,
     SiteTopBarId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {
     SiteContainerId,

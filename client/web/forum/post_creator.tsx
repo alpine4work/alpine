@@ -41,10 +41,10 @@ import {trimContent} from "~/shared/content/trim_content.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.open_source.js";
 import {createOrReplacePostDraft, createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function PostCreator({

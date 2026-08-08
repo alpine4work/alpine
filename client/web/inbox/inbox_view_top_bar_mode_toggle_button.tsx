@@ -1,6 +1,6 @@
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 
 export function InboxViewTopBarModeToggleButton({

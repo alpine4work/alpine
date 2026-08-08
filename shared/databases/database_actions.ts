@@ -23,16 +23,16 @@ import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import type {
     DatabaseFieldId,
     DatabaseRowId,
     DatabaseTableId,
     DatabaseViewId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {
@@ -40,7 +40,7 @@ import {
     Schema,
     type SchemaSerializedValue,
     type SchemaType,
-} from "~/shared/schema/schema.js";
+} from "~/shared/schema/schema.open_source.js";
 
 export function createDatabaseActionContext(
     db: SqliteDatabase,

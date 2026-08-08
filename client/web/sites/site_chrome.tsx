@@ -1,8 +1,8 @@
 import {ReactElement, ReactNode} from "react";
 import {SiteTreeForClient} from "~/client/web/sites/context/site_context.js";
 import {SiteSideBar} from "~/client/web/sites/site_side_bar.js";
-import {UnimplementedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {UnimplementedError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";
 import {SiteSideBarModel, SiteTopBarModel} from "~/shared/sites/site_model.js";
 

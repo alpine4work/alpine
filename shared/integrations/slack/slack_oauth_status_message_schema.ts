@@ -1,5 +1,5 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 // The name of the window that the Slack OAuth flow is running in. This is used to
 // ensure messages we're receiving are from the correct window.

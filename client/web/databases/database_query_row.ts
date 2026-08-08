@@ -1,5 +1,5 @@
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * A page of database view rows. Wraps the raw array-based row data from

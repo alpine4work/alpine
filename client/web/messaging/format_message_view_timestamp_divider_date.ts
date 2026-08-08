@@ -1,9 +1,9 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {differenceInDays} from "date-fns/differenceInDays";
-import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
-import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.js";
-import {Locale} from "~/shared/helpers/intl/locale.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
+import {getIntlDateTimeFormat} from "~/shared/helpers/intl/get_intl_date_time_format.open_source.js";
+import {Locale} from "~/shared/helpers/intl/locale.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 export function formatMessageViewTimestampDividerDate(
     time: Date,

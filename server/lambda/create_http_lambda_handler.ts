@@ -19,12 +19,12 @@ import {
 } from "~/server/tracer/trace_server_response.js";
 import {HoneycombDataset, TracerClient} from "~/server/tracer/tracer_client.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {Schema} from "~/shared/schema/schema.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 const honeycombApiKey =
     process.env.NODE_ENV !== "production"

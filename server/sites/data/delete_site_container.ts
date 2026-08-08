@@ -7,11 +7,11 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {getSiteTreeForUpdate} from "~/server/sites/data/internal/get_site_tree_for_update.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {
     SiteSideBarContainerIdObject,
     SiteSideBarSectionContainerIdObject,

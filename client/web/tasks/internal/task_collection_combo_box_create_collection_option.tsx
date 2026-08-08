@@ -10,7 +10,7 @@ import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_in
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {buttonStyles, spinAnimationClassName, sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export function TaskCollectionComboBoxCreateCollectionOption<T>({
     comboBoxState,

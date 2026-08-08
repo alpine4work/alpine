@@ -30,9 +30,9 @@ import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import * as definitions from "~/shared/rpc/documents_rpc_definitions.js";
 
 export default implementRpcs(definitions, {
@@ -40,7 +40,7 @@ export default implementRpcs(definitions, {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
             const {spaceId} = await authorizeDocumentAccess(
-                context.actor.authorizeSession(),
+                context.actor.authorizeAccount(),
                 input.documentId,
                 input.expectedAccessLevel,
             );
@@ -115,7 +115,9 @@ export default implementRpcs(definitions, {
     getDocumentContentSteps: {
         visibility: ["DocumentCollaborationService"],
         execute: async (context, input) => {
-            const steps = await getDocumentContentSteps(context.actor.authorizeSession(), {
+            // Bot actors may call this RPC indirectly through the document collaboration
+            // Durable Object when an API update needs to rebase over persisted steps.
+            const steps = await getDocumentContentSteps(context.actor.authorizeAccount(), {
                 id: input.documentId,
                 startVersion: input.startVersion,
                 endVersion: input.endVersion,
@@ -141,6 +143,7 @@ export default implementRpcs(definitions, {
                     clientRequestToken: callId,
                     createCommentThreads: input.createCommentThreads,
                     intentionallyUpdateAccessPolicy: input.intentionallyUpdateAccessPolicy,
+                    intentionallyUpdateDeletedTime: input.intentionallyUpdateDeletedTime,
                     resolveCommentThreadIds: input.resolveCommentThreadIds,
                     unresolveCommentThreadIds: input.unresolveCommentThreadIds,
                 });

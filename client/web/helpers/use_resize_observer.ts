@@ -1,10 +1,10 @@
 import {RefCallback, useCallback, useState} from "react";
 import {flushSync} from "react-dom";
 import {useLifecycleRef} from "~/client/web/helpers/refs/use_lifecycle_ref.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {emptyObject} from "~/shared/helpers/object/empty_object.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
 
 /**
  * Watch the size of the provided element with a [`ResizeObserver`][1].

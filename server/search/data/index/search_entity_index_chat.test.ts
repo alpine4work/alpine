@@ -1,7 +1,7 @@
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {
     pingChatMessageStream,
-    putChatMessageStreamPart,
+    putChatMessageStreamPartAndBroadcastEvent,
     sendChatMessage,
 } from "~/server/chat/data/chat_messaging.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
@@ -24,13 +24,13 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {runAllTimersAndWaitForTestTasks} from "~/shared/test_helpers/run_all_timers_and_wait_for_test_tasks.js";
@@ -1093,7 +1093,7 @@ test("will index streaming chat message after delay", async () => {
         createdTimeZone: defaultTimeZone,
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 0,
@@ -1103,7 +1103,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 1,
@@ -1113,7 +1113,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 1,
@@ -1123,7 +1123,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 2,
@@ -1207,7 +1207,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 2,
@@ -1217,7 +1217,7 @@ test("will index streaming chat message after delay", async () => {
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 3,
@@ -1320,7 +1320,7 @@ test("will complete streaming chat message with error if not updated after delay
         createdTimeZone: defaultTimeZone,
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 0,
@@ -1330,7 +1330,7 @@ test("will complete streaming chat message with error if not updated after delay
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 1,
@@ -1340,7 +1340,7 @@ test("will complete streaming chat message with error if not updated after delay
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 1,
@@ -1350,7 +1350,7 @@ test("will complete streaming chat message with error if not updated after delay
         },
     });
 
-    await putChatMessageStreamPart(botAccount.action(session), {
+    await putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
         chatId: chat.id,
         messageIndex: message.index,
         partIndex: 2,
@@ -1420,7 +1420,7 @@ test("will complete streaming chat message with error if not updated after delay
     });
 
     await expect(
-        putChatMessageStreamPart(botAccount.action(session), {
+        putChatMessageStreamPartAndBroadcastEvent(botAccount.action(session), {
             chatId: chat.id,
             messageIndex: message.index,
             partIndex: 2,

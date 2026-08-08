@@ -2,16 +2,18 @@ import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_servi
 import {intoApiContentWithReferences} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
-import {ApiTaskNotesResponse} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
+import {
+    ApiTaskNotesPatch,
+    ApiTaskNotesResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
     TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,
@@ -21,17 +23,24 @@ import {
     assertTaskNotesContent,
 } from "~/shared/tasks/task_notes_content_schema.js";
 
-type TaskNotesPatch =
-    ApiSpecification.paths["/tasks/{id}/notes"]["patch"]["requestBody"]["content"]["application/json"]["notes"];
-
 /**
  * Updates the task notes content via the `TaskNotesCollaborationService` Durable
  * Object and returns the updated notes content.
  */
 export async function updateTaskNotesFromApi(
     context: ApiServiceBotActionContext,
-    {taskId, patch}: {taskId: TaskId; patch: TaskNotesPatch},
+    {taskId, patches}: {taskId: TaskId; patches: ReadonlyArray<ApiTaskNotesPatch>},
 ): Promise<{spaceId: SpaceId; notes: ApiTaskNotesResponse}> {
+    if (patches.length !== 1) {
+        throw new InvalidArgumentError(
+            "A task notes update must contain exactly one SetContent patch",
+            {
+                displayMessage: errorDisplayMessage`You can only include one \`SetContent\` patch when updating a task\u2019s notes. Try again with at most one \`SetContent\` patch.`,
+            },
+        );
+    }
+
+    const patch = patches[0]!;
     const requestContent = validateTaskNotesPatchContent(patch);
 
     // Attach any new files referenced in the updated content before applying the
@@ -72,18 +81,15 @@ export async function updateTaskNotesFromApi(
         spaceId: responseBody.spaceId,
         notes: {
             version: responseBody.newVersion,
-            content: await intoApiContentWithReferences(
-                context,
-                responseBody.spaceId,
-                FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
-                responseBody.newContent,
-                {
-                    encoder: new ApiContentKeyEncoder({
-                        entityId: `Task:${taskId}`,
-                        version: responseBody.newVersion,
-                    }),
-                },
-            ),
+            content: await intoApiContentWithReferences(context, {
+                spaceId: responseBody.spaceId,
+                fileAuthorizer: FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
+                content: responseBody.newContent,
+                contentKeyEncoder: new ApiContentKeyEncoder({
+                    entityId: `Task:${taskId}`,
+                    version: responseBody.newVersion,
+                }),
+            }),
         },
     };
 }
@@ -93,7 +99,7 @@ export async function updateTaskNotesFromApi(
 // `InvalidArgumentError` instead of an `InternalError`. This could happen if a
 // user submits structurally valid content that contains content types that aren't
 // supported by the task notes content schema (e.g. a file float).
-function validateTaskNotesPatchContent(patch: TaskNotesPatch) {
+function validateTaskNotesPatchContent(patch: ApiTaskNotesPatch) {
     try {
         return assertTaskNotesContent(
             fromApiContent(TaskNotesContentProsemirrorSchema, patch.content),

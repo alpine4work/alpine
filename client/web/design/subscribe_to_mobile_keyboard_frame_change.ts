@@ -1,7 +1,7 @@
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
 
 export type MobileKeyboardFrameChangeEvent = {
     readonly oldKeyboardHeight: number;

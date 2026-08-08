@@ -2,10 +2,13 @@ import {Memo, useContext, useEffect, useRef} from "react";
 import {markMemoIfNotRendering} from "~/client/web/helpers/lifecycle/mark_memo_if_not_rendering.js";
 import {GlobalLoadingIndicator} from "~/client/web/spaces/global_loading_indicator_types.js";
 import {GlobalLoadingIndicatorContext} from "~/client/web/spaces/internal/global_loading_indicator_context.js";
-import {InternalError} from "~/shared/error/error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const mockGlobalLoadingIndicatorContextForTest: GlobalLoadingIndicatorContext | null = import.meta
     .jest

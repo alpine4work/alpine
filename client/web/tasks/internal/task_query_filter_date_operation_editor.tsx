@@ -8,9 +8,9 @@ import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {TaskDateInput} from "~/client/web/tasks/internal/task_date_input.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/web/tasks/internal/task_query_filter_operator_editor.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {
     TaskQueryFilterDateOperation,
     TaskQueryFilterDateOperationDuration,

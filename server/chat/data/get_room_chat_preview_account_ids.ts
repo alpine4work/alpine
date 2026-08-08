@@ -1,11 +1,11 @@
 import {
     NonEmptyReadonlyArray,
     assertNonEmptyReadonlyArray,
-} from "~/shared/helpers/array/non_empty_readonly_array.js";
+} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {AccountId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 export function getRoomChatPreviewAccountIds(
     chatId: ChatId,

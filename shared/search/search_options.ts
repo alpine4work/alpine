@@ -1,5 +1,5 @@
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Options that configure details of how a search is executed. If you have internal

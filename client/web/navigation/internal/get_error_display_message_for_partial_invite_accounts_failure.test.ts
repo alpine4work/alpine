@@ -1,6 +1,6 @@
 import {getErrorDisplayMessageForPartialInviteAccountsFailure} from "~/client/web/navigation/internal/get_error_display_message_for_partial_invite_accounts_failure.js";
-import {InternalError} from "~/shared/error/error.js";
-import {defaultLocale} from "~/shared/helpers/intl/locale.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
 
 function createEmptyErrors() {
     return {

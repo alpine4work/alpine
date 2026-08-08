@@ -1,7 +1,7 @@
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
 import {getFileFromAnyAttachment} from "~/server/files/data/get_file_from_any_attachment.js";
-import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 // 1x1 transparent PNG used as the response for unknownFileId. API consumers never
 // need to handle unknownFileId specially; requesting it just returns an empty

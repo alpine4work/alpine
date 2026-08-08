@@ -12,8 +12,8 @@ import {normalizeContentEditorCodeText} from "~/client/web/content/state/interna
 import {addSharedContentEditorInputRules} from "~/client/web/content/state/shared/build_shared_content_editor_input_rules_plugin.js";
 import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/web/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export function buildContentEditorInputRulesPlugin(schema: ContentProsemirrorSchema) {
     const rules: Array<InputRule> = [];

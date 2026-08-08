@@ -12,7 +12,7 @@ import {
     DocumentId,
     PostId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {InboxEntryStatusSchema} from "~/shared/notifications/inbox_entry_status.js";
 import {
     InboxEntryKeySchema,
@@ -21,7 +21,7 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {WebPushSubscriptionSchema} from "~/shared/notifications/web_push_subscription.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const getInboxWithStrongReadConsistency = defineRpc({

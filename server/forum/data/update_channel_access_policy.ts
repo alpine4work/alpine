@@ -7,7 +7,7 @@ import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
-import {ChannelId} from "~/shared/id/types/id_types.js";
+import {ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**

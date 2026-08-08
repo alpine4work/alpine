@@ -49,14 +49,18 @@ import {
 } from "~/shared/documents/document_model.js";
 import {stripDocumentContentCommentMarks} from "~/shared/documents/strip_document_content_comment_marks.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {
     AccountId,
@@ -65,7 +69,7 @@ import {
     SiteId,
     SpaceId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {createDocument, getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {SearchEntityModel, SearchEntityModelData} from "~/shared/search/search_entity_model.js";
@@ -154,7 +158,10 @@ export function useDocumentContentEditorWebSocket(
     subscribeToCommentThreadEvents: SubscribeToCommentThreadEventsFunction;
     subscribeToSpellCheckIgnoredLintEvents: SubscribeToSpellCheckIgnoredLintEventsFunction;
     subscribeToPongs: Memo<(subscriber: (message: WebSocketPongMessage) => void) => () => void>;
+    isGhostDocument: boolean;
     ensureCreateDocument: () => Promise<void>;
+    waitForPersistedVersion: (version: number) => Promise<void>;
+    disconnectMutex: Mutex;
 } {
     const {currentAccount, space} = useSpaceContext();
     const {initialDocument, documentId} = input;
@@ -260,6 +267,13 @@ export function useDocumentContentEditorWebSocket(
 
     const [shouldConnect, setShouldConnect] = useState(true);
 
+    const toggleShouldConnect = useCallback(() => {
+        setShouldConnect(shouldConnect => !shouldConnect);
+    }, []);
+
+    const setErrorState = useErrorState();
+    const [disconnectMutex] = useState(() => new Mutex());
+
     useEffect(() => {
         if (!shouldConnect) return;
         if (clientState.type === "NotExists") return;
@@ -268,17 +282,16 @@ export function useDocumentContentEditorWebSocket(
         // object. We'd constantly get authorization errors.
         if (!currentAccount) return;
 
-        clientState.client.connect();
+        disconnectMutex.withLock(async () => clientState.client.connect()).catch(setErrorState);
+
         return () => {
-            clientState.client.disconnect();
+            // `disconnectMutex` allows us to delay document disconnection until some other
+            // async work has finished operating on the connection.
+            disconnectMutex
+                .withLock(async () => clientState.client.disconnect())
+                .catch(setErrorState);
         };
-    }, [clientState, currentAccount, shouldConnect]);
-
-    const toggleShouldConnect = useCallback(() => {
-        setShouldConnect(shouldConnect => !shouldConnect);
-    }, []);
-
-    const setErrorState = useErrorState();
+    }, [clientState, currentAccount, disconnectMutex, setErrorState, shouldConnect]);
 
     const createDocumentPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -581,21 +594,25 @@ export function useDocumentContentEditorWebSocket(
 
     // Update `SearchEntityRegistry` with the latest document title. Now as the title
     // changes in realtime, any `SearchEntityModel`s rendered elsewhere in the product
-    // will also update.
+    // will also update. Soft-deleted documents publish `title: null` so search can
+    // filter them out immediately.
     //
-    // Optimization: Only updates `SearchEntityRegistry` when `title` changes. Not on
-    // any arbitrary update to the document. Otherwise we'd put this in `useMemo()`.
+    // Optimization: Only updates `SearchEntityRegistry` when `title` or deletion state
+    // changes. Not on any arbitrary update to the document. Otherwise we'd put this in
+    // `useMemo()`.
     {
+        const persistedSearchTitle = persistedContent.attrs.deletedTime ? null : persistedTitle;
+
         const searchEntityRef = useRef<{
-            title: string;
+            title: string | null;
             store: Store<SearchEntityModelData>;
         } | null>(null);
 
         useEffect(() => {
-            if (searchEntityRef.current?.title === persistedTitle) return;
+            if (searchEntityRef.current?.title === persistedSearchTitle) return;
 
             searchEntityRef.current = {
-                title: persistedTitle,
+                title: persistedSearchTitle,
                 store: searchEntityRegistry.getEntityStore(
                     new SearchEntityModel({
                         type: "Document",
@@ -603,11 +620,11 @@ export function useDocumentContentEditorWebSocket(
                             id: documentId,
                             version: state.persistedVersion,
                         },
-                        title: persistedTitle,
+                        title: persistedSearchTitle,
                     }),
                 ),
             };
-        }, [documentId, persistedTitle, searchEntityRegistry, state.persistedVersion]);
+        }, [documentId, persistedSearchTitle, searchEntityRegistry, state.persistedVersion]);
     }
 
     return {
@@ -703,7 +720,16 @@ export function useDocumentContentEditorWebSocket(
             },
             [clientState],
         ),
+        isGhostDocument: clientState.type === "NotExists",
         ensureCreateDocument,
+        waitForPersistedVersion: useCallback(
+            async version => {
+                assert(clientState.type === "Exists");
+                await clientState.client.waitForPersistedVersion(version);
+            },
+            [clientState],
+        ),
+        disconnectMutex,
     };
 }
 

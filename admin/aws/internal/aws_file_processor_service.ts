@@ -42,9 +42,9 @@ import {AwsHttpLambda} from "~/admin/aws/internal/constructs/aws_http_lambda.js"
 import {AwsSqsLambdaSubscriber} from "~/admin/aws/internal/constructs/aws_sqs_lambda.js";
 import {createAwsBedrockInvokeModelResources} from "~/admin/aws/internal/create_aws_bedrock_invoke_model_resources.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {fileProcessorTimeoutMs, maxFileContentLength} from "~/shared/files/file_constants.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 // IMPORTANT: `FileProcessorService` has a pretty broad attack surface given all
 // the libraries it uses to process dependencies. `FileProcessorService` uses

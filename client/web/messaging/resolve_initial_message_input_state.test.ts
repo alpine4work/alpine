@@ -9,11 +9,11 @@ import {
     emptyMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 
 const spaceId = generateId<SpaceId>();
@@ -183,7 +183,7 @@ describe("resolveInitialMessageInputState()", () => {
         ).toEqual(createSimpleMessageContent("restored").toJSON());
     });
 
-    test("falls back to server draft when restore stash is empty", () => {
+    test("prefers an empty restore stash over a server draft", () => {
         const restoreStateRef: RestoreStateRef = {
             current: {
                 state: ContentEditorState.create({
@@ -203,6 +203,6 @@ describe("resolveInitialMessageInputState()", () => {
             })
                 .state.getDoc()
                 .toJSON(),
-        ).toEqual(createSimpleMessageContent("from draft").toJSON());
+        ).toEqual(emptyMessageContent.toJSON());
     });
 });

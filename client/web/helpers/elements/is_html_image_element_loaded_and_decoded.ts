@@ -1,7 +1,7 @@
-import {UnknownError} from "~/shared/error/error.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 let htmlImageElementLoadedAndDecodedPromiseByElement:
     | WeakMap<HTMLImageElement, PromiseImmediate<void>>

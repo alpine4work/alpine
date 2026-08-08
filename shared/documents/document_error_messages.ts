@@ -1,8 +1,8 @@
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 export const documentPermissionDeniedErrorDisplayMessageByExpectedAccessLevel: Record<
     AccessLevel,
@@ -25,6 +25,8 @@ export function createDocumentNotFoundError(documentId: string | undefined) {
         displayMessage: errorDisplayMessage`This document doesn\u2019t exist. Try searching \u201Cmy documents\u201D to see documents you\u2019ve created.`,
     });
 }
+
+export const documentDeletedErrorDisplayMessage = errorDisplayMessage`Document was deleted.`;
 
 export function createDocumentCommentThreadNotFoundError(
     documentId: DocumentId,

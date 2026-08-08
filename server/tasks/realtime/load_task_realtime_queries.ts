@@ -22,16 +22,25 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {ErrorCode} from "~/shared/error/error_code.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {ErrorCode} from "~/shared/error/error_code.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {AccountId, SiteId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {
+    AccountId,
+    SiteId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
+import {decodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
 import {collectReferencedIdsFromTaskCollectionModelData} from "~/shared/tasks/model/collect_referenced_ids_from_task_collection_model_data.js";
 import {collectReferencedIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_ids_from_task_model_data.js";
 import {
@@ -42,6 +51,7 @@ import {
     TaskQueryNormalizedSort,
     normalizeTaskQuerySorts,
 } from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
@@ -212,11 +222,13 @@ export async function loadTaskRealtimeQueries(
             | {type: "Possible"; normalizedFilters: TaskQueryNormalizedFilters}
             | {type: "Impossible"};
         let sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        let expensivelyAfterCursor: TaskQuerySortCursor | null;
 
         switch (query.type) {
             case "Normalized": {
                 filtersResult = {type: "Possible", normalizedFilters: query.filters};
                 sorts = query.sorts;
+                expensivelyAfterCursor = query.expensivelyAfterCursor ?? null;
                 break;
             }
             case "Collection": {
@@ -228,6 +240,9 @@ export async function loadTaskRealtimeQueries(
                     {consistency},
                 );
 
+                const inputFilters = query.filters ?? defaults.filters;
+                const inputSorts = query.sorts ?? defaults.sorts;
+
                 filtersResult = normalizeTaskQueryFilters(
                     [
                         {
@@ -237,7 +252,7 @@ export async function loadTaskRealtimeQueries(
                                 collectionIds: new Set([query.collectionId]),
                             },
                         },
-                        ...defaults.filters,
+                        ...inputFilters,
                     ],
                     query.evaluationContext,
                 );
@@ -246,7 +261,7 @@ export async function loadTaskRealtimeQueries(
                 // collection position. Otherwise a filtered view automatically applies a sort so
                 // newly created tasks land somewhere predictable.
                 sorts =
-                    defaults.filters.length === 0 && defaults.sorts.length === 0
+                    inputFilters.length === 0 && inputSorts.length === 0
                         ? [
                               {
                                   type: "CollectionPosition",
@@ -260,8 +275,91 @@ export async function loadTaskRealtimeQueries(
                                   missing: "Last",
                               },
                           ]
-                        : normalizeTaskQuerySorts(defaults.sorts);
+                        : normalizeTaskQuerySorts(inputSorts);
 
+                if (query.expensivelyAfterCursorForApi === undefined) {
+                    expensivelyAfterCursor = null;
+                } else {
+                    try {
+                        expensivelyAfterCursor = decodeApiTaskQueryCursor(
+                            sorts,
+                            query.expensivelyAfterCursorForApi,
+                        );
+                    } catch (error) {
+                        throw InvalidArgumentError.from(error, undefined, {
+                            // Throw an error with a nice display message for API clients.
+                            displayMessage:
+                                inputFilters.length === 0 && inputSorts.length === 0
+                                    ? errorDisplayMessage`Invalid task query cursor for this collection. You may get this error if you\u2019re paginating through a task collection when the task collection\u2019s default sorts change. In that case try paginating from the start of the collection again and you\u2019ll pick up the new sorts, or try overriding the default sorts so if the default sorts change you\u2019ll be able to continue paginating.`
+                                    : errorDisplayMessage`Invalid task query cursor for this collection. Try again with a task query cursor that matches the requested sorts.`,
+                        });
+                    }
+                }
+                break;
+            }
+            case "Children": {
+                await server.authorizeTaskAccess(originalContext, spaceId, query.taskId, "View", {
+                    consistency,
+                });
+
+                const inputFilters = query.filters ?? [];
+                const inputSorts = query.sorts ?? [];
+
+                filtersResult = normalizeTaskQueryFilters(
+                    [
+                        {
+                            type: "DisplayStatus",
+                            operation: {
+                                type: "OneOf",
+                                displayStatuses: new Set(["OpenInactive", "OpenActive", "Closed"]),
+                            },
+                        },
+                        ...inputFilters,
+                    ],
+                    query.evaluationContext,
+                );
+
+                if (filtersResult.type === "Possible") {
+                    filtersResult = {
+                        type: "Possible",
+                        normalizedFilters: {
+                            ...filtersResult.normalizedFilters,
+                            parentFilter: {parentTaskId: query.taskId},
+                        },
+                    };
+                }
+
+                sorts =
+                    inputFilters.length === 0 && inputSorts.length === 0
+                        ? [
+                              {
+                                  type: "ParentPosition",
+                                  direction: "Ascending",
+                                  missing: "Last",
+                              },
+                              {
+                                  type: "CreatedTime",
+                                  direction: "Ascending",
+                                  missing: "Last",
+                              },
+                          ]
+                        : normalizeTaskQuerySorts(inputSorts);
+
+                if (query.expensivelyAfterCursorForApi === undefined) {
+                    expensivelyAfterCursor = null;
+                } else {
+                    try {
+                        expensivelyAfterCursor = decodeApiTaskQueryCursor(
+                            sorts,
+                            query.expensivelyAfterCursorForApi,
+                        );
+                    } catch (error) {
+                        throw InvalidArgumentError.from(error, undefined, {
+                            // Throw an error with a nice display message for API clients.
+                            displayMessage: errorDisplayMessage`Invalid task query cursor for this task. Try again with a task query cursor that matches the requested sorts.`,
+                        });
+                    }
+                }
                 break;
             }
             default:
@@ -285,12 +383,20 @@ export async function loadTaskRealtimeQueries(
         });
 
         const [{loadedState, tasks}, gridViewExpansionState] = await runAllPromises([
-            server.loadQuery(context, {
-                spaceId,
-                filters: filtersResult.normalizedFilters,
-                sorts,
-                limit: query.limit,
-            }),
+            expensivelyAfterCursor === null
+                ? server.loadQuery(context, {
+                      spaceId,
+                      filters: filtersResult.normalizedFilters,
+                      sorts,
+                      limit: query.limit,
+                  })
+                : server.expensivelyLoadQueryAfterCursor(context, {
+                      spaceId,
+                      filters: filtersResult.normalizedFilters,
+                      sorts,
+                      limit: query.limit,
+                      afterCursor: expensivelyAfterCursor,
+                  }),
             query.type === "Normalized" &&
             query.shouldLoadGridViewExpandedChildTasksForBrowserId &&
             originalContext.actor.type === "Session"

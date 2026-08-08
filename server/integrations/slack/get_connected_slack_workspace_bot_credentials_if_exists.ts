@@ -3,9 +3,9 @@ import {maxLabelStringForDynamoKeyAttribute} from "~/server/dynamo/core/dynamo_k
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {IntegrationsTable} from "~/server/integrations/internal/integrations_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {minLabelString} from "~/shared/schema/helpers/label_string_schema.js";
 
 /**

@@ -8,8 +8,8 @@ import {Button} from "~/client/web/design/button.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DatabaseReactiveActionId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import type {DatabaseReactiveActionId} from "~/shared/id/types/id_types.open_source.js";
 
 interface WatchEntry {
     readonly id: DatabaseReactiveActionId;

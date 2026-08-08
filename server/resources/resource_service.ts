@@ -15,15 +15,21 @@ import {
     AvatarVariant,
     isAvatarVariant,
 } from "~/shared/avatar/avatar_entity_path.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
-import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {canonicalizeFileContentTypeIfExists} from "~/shared/files/file_content_type.open_source.js";
 import {getContentFileDownloadNameFromContentType} from "~/shared/files/get_content_file_download_name_from_content_type.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, AvatarId, BotId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {
+    AccountId,
+    AvatarId,
+    BotId,
+    FileId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 let sharedResources: ResourceServiceSharedResources | null = null;
 

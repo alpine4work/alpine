@@ -1,10 +1,10 @@
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext} from "~/client/web/context/app_context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const SessionStorageSchema = Schema.object({

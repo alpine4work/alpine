@@ -4,11 +4,11 @@ import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {navigationBarStyles} from "~/client/web/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {BazelBuildEvent} from "~/shared/schema/helpers/bazel_build_event_schema.js";
 
 let BazelBuildIndicator;

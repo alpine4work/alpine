@@ -2,7 +2,7 @@ import {useEffect, useRef} from "react";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useErrorState} from "~/client/web/helpers/use_error_state.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {createLifetimeAccessCheckoutSessionUrl} from "~/shared/rpc/accounts_rpc_definitions.js";
 
 export default function PurchaseLifetimeAccessRoute() {

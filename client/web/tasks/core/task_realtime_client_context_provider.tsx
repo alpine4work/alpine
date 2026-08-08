@@ -26,17 +26,17 @@ import {
     unknownTaskQueryFromServerRetentionPeriodMs,
 } from "~/client/web/tasks/core/task_realtime_client.js";
 import {useWebSocketErrorDialog} from "~/client/web/web_socket/use_web_socket.js";
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
 import {flatIterable} from "~/shared/helpers/iterable/flat_iterable.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {taskStoreLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {TaskStoreLoaderDataSchema} from "~/shared/remix/task_store_loader_data.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 
 const taskRealtimeClientBySpaceIdForClient =

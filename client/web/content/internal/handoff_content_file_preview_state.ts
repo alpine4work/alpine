@@ -1,9 +1,9 @@
 import {useState} from "react";
 import {FileModel} from "~/shared/files/file_model.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 let handoffContentFilePreviewStatesByFileId: Map<
     FileId,

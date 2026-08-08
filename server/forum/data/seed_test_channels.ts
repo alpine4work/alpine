@@ -4,8 +4,8 @@ import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_ta
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {emptyMessageContent} from "~/shared/content/message_content_schema.js";
 import {Context} from "~/shared/context/context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 
 export async function seedTestChannels(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
@@ -22,7 +22,7 @@ export async function seedTestChannels(
             channelId: testChannelId,
             spaceId: defaultSpaceId,
             createdTime: new Date(),
-            creatorId: null,
+            creator: {accountId: null, from: null},
             name: "Test",
             description: emptyMessageContent,
             accessPolicy: {

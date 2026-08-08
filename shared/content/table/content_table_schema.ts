@@ -31,7 +31,7 @@ import {
     tableWrapper3ClassName,
     tableWrapperClassName,
 } from "~/shared/design/core/constant_class_names.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 function createProsemirrorSchemaSpec<Schema extends SchemaSpec<string, string>>(
     schema: Schema,

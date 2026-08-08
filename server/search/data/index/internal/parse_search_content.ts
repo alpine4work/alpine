@@ -15,15 +15,15 @@ import {
     DocumentWithoutTitleContent,
     DocumentWithoutTitleContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
-import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {interleaveArray} from "~/shared/helpers/array/interleave_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 const searchContentTableOpenHtml = "<table><tbody><tr><td>";
 const searchContentTableCellCloseAndOpenHtml = "</td><td>";

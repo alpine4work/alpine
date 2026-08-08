@@ -2,7 +2,7 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
-import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * If the bot is instantiated in the provided `SpaceId` then return the `AccountId`

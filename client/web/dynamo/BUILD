@@ -2,6 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "dynamo",
+    test_deps = [
+        "//:node_modules/@testing-library/react",
+        "//:node_modules/react-dom",
+    ],
     visibility = [
         "//app:__subpackages__",
         "//client/web:__subpackages__",

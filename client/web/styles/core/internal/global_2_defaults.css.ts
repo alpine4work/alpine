@@ -22,7 +22,7 @@ import {
     mediumSpacingScaleSelector,
 } from "~/client/web/styles/core/internal/selectors.css.js";
 import {backgroundColorVar} from "~/client/web/styles/core/internal/sprinkles.css.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 
 globalStyle(":root", {
     backgroundColor: colorSchemeVars["grey-0"],

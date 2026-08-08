@@ -17,6 +17,7 @@ ts_project(
         "//client/web/bots",
         "//client/web/content",
         "//client/web/helpers",
+        "//client/web/inbox/context",
         "//client/web/messaging",
         "//client/web/rpc",
         "//client/web/search/core",

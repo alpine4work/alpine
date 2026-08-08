@@ -1,4 +1,4 @@
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export const calebKnownAccountId = "9mk91mwgrezh497fpptaykzjk0" as AccountId;
 export const ianKnownAccountId = "r5xdesn6c45w6ps2ydrybpcc0c" as AccountId;

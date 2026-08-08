@@ -7,8 +7,8 @@ import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/get_task
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {TaskNotesCollaborationContentManager} from "~/server/tasks/notes_collaboration/task_notes_collaboration_content_manager.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {TaskNotesContentProsemirrorSchema as schema} from "~/shared/tasks/task_notes_content_schema.js";
 
 const context = createTestWorkerContext({documentsInjection});

@@ -51,6 +51,7 @@ ts_project(
     deps = [
         ":upload_file",
         "//:node_modules/pretty-bytes",
+        "//app/static:static_cache_control",
         "//app/static:static_manifest",
         "//server/chat/realtime",
         "//server/cloudflare",
@@ -66,6 +67,7 @@ ts_project(
         "//shared/auth",
         "//shared/avatar",
         "//shared/avatar/protocol",
+        "//shared/docs",
         "//shared/files",
         "//shared/helpers",
         "//shared/schema",

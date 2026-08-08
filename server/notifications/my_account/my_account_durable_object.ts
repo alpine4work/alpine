@@ -14,14 +14,14 @@ import {
 } from "~/server/notifications/my_account/my_account_connection.js";
 import {MyAccountDurableObjectAuthorizer} from "~/server/notifications/my_account/my_account_durable_object_authorizer.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MyAccountBroadcastInboxRealtimeEventsSchema,
     MyAccountProtocol,
 } from "~/shared/notifications/my_account_protocol.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 type MyAccountDurableObjectRoute = "Main" | "BroadcastInboxRealtimeEvents" | "NotFound";
 

@@ -17,8 +17,8 @@ import {
     archiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
     subscribeToArchiveInboxDocumentNewCommentThreadsEntryCommentThreadOptimistically,
 } from "~/client/web/inbox/archive_inbox_document_new_comment_threads_entry_comment_thread_optimistically.js";
-import {useInboxContext} from "~/client/web/inbox/inbox_context.js";
-import {InboxContextNavigation} from "~/client/web/inbox/inbox_context_types.js";
+import {useInboxContext} from "~/client/web/inbox/context/inbox_context.js";
+import {InboxContextNavigation} from "~/client/web/inbox/context/inbox_context_types.js";
 import {useInboxBannerOutletContainer} from "~/client/web/inbox/use_inbox_banner_outlet_container.js";
 import {getInitialLoadMessageCount} from "~/client/web/messaging/get_initial_load_message_count.js";
 import {useNavigationBar} from "~/client/web/navigation/navigation_bar.js";
@@ -52,14 +52,14 @@ import {
     DocumentModel,
 } from "~/shared/documents/document_model.js";
 import {RynamoItem, createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraft, MessageDraftSchema} from "~/shared/messaging/message_draft_schema.js";
 import {
     InboxDocumentCommentThreadEntryModel,
@@ -70,7 +70,7 @@ import {
     archiveInboxDocumentNewCommentThreadsEntryCommentThread,
     unarchiveInboxDocumentNewCommentThreadsEntryCommentThread,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
     ServerSynchronizationCheckpoint,
     ServerSynchronizationCheckpointSchema,

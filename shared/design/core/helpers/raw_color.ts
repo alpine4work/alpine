@@ -1,6 +1,6 @@
-import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 /**
  * Helper type for manipulating the low-level representation of a color in RGB

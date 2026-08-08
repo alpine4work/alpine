@@ -9,14 +9,14 @@ import {useResizeObserver} from "~/client/web/helpers/use_resize_observer.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {contentStyles, documentPresentationStyles, fontSizes} from "~/client/web/styles/styles.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {DocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContentProsemirrorSchema,
     DocumentWithoutTitleContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 const lineHeightRatio = 0.05;
 

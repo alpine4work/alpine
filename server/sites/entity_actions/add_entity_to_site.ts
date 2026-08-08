@@ -9,10 +9,10 @@ import {markSearchAffinityEntityInteraction} from "~/server/search/data/table/se
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     SiteItemSearchEntityId,
     parseSiteItemSearchEntityId,
@@ -179,6 +179,7 @@ async function runAddEntityToSiteByEntityType(
                                         accessPolicy: newAccessPolicy,
                                         notification: null,
                                     },
+                                    intentionallyUpdateDeletedTime: null,
                                     updateOurPresenceState: {
                                         state: null,
                                     },

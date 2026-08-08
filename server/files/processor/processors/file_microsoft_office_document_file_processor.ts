@@ -3,22 +3,23 @@ import fs from "fs/promises";
 import {join as joinPath} from "path";
 import {Readable as ReadableStream} from "stream";
 import {finished} from "stream/promises";
+import {createFileProcessorAnalysisPromises} from "~/server/files/processor/processors/create_file_processor_analysis_promises.js";
 import {processPdfDocumentFile} from "~/server/files/processor/processors/file_pdf_document_processor.js";
 import {FileProcessor} from "~/server/files/processor/processors/file_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {runProcess} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {getFileContentTypeName} from "~/shared/content/code/get_file_content_type_name.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {
     FileMicrosoftOfficeDocumentContentType,
     getFileContentTypePreferredExtension,
-} from "~/shared/files/file_content_type.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * Lookup system installed [LibreOffice][1] executable path using common
@@ -79,7 +80,7 @@ export function createFileMicrosoftOfficeDocumentProcessor(
     return {
         type: "MicrosoftOfficeDocument",
         hasAlternative: true,
-        hasAnalysis: false,
+        hasAnalysis: true,
         hasPreview: {
             type: "Image",
             hasContent: true,
@@ -231,6 +232,15 @@ export function createFileMicrosoftOfficeDocumentProcessor(
                 imagePreviewSizePromise,
                 imagePreviewPlaceholderPromise,
                 imagePreviewContentPromise,
+                ...createFileProcessorAnalysisPromises(context, {
+                    contentType,
+                    fileId,
+                    hasTranscript: false,
+                    inputPathIfExists: outputPath,
+                    parentTemporaryDirectoryPath,
+                    signal,
+                    spaceId,
+                }),
             };
         },
     };

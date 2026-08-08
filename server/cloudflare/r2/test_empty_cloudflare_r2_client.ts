@@ -1,6 +1,6 @@
 import {CloudflareR2ClientBase} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
-import {InternalError, NotFoundError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 
 export class TestEmptyCloudflareR2Client implements CloudflareR2ClientBase {

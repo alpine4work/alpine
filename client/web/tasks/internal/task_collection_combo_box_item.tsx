@@ -1,6 +1,6 @@
 import {Item} from "react-stately";
 import {TaskCollectionOption} from "~/client/web/tasks/internal/task_collection_option.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
 export type TaskCollectionComboBoxItem =

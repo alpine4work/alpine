@@ -1,7 +1,7 @@
 import type {AccessLevel, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import type {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import type {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * A table's registration in the server's durable-object table store — everything

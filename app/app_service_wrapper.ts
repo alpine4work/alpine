@@ -4,6 +4,7 @@ import createServeStaticMiddleware from "serve-static";
 import {WebSocket} from "ws";
 import {AppServiceConstants, AppServiceModule} from "~/app/app_service_types.js";
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
+import {getAppStaticCacheControlHeaders} from "~/app/static/get_app_static_cache_control_headers.js";
 import {serviceCloudflareR2Options} from "~/server/cloudflare/r2/create_service_cloudflare_r2_context_module.js";
 import {getBazelOutputPath} from "~/server/helpers/node/bazel_output_path.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -17,20 +18,21 @@ import {
     ShutdownReason,
 } from "~/server/node/shutdown_manager.js";
 import {serviceOpensearchOptions} from "~/server/opensearch/create_service_opensearch_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {BazelBuildEvent} from "~/shared/schema/helpers/bazel_build_event_schema.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 const staticPath = joinPath(runfilesPath, "cyberworlds/app/build/client");
-const staticAssetsPath = joinPath(staticPath, "assets");
-const staticFontsPath = joinPath(staticPath, "fonts");
 
 type Options = ServiceOptions<typeof options>;
 
@@ -78,6 +80,7 @@ export const options = {
     ...serviceCloudflareR2Options,
 } as const;
 
+/** Start the app service HTTP server and connect its runtime adapters. */
 export async function run({
     options,
     tracer,
@@ -110,29 +113,9 @@ export async function run({
         process.env.NODE_ENV !== "production" && !isViteDevEnabled
             ? createServeStaticMiddleware(staticPath, {
                   setHeaders: (res, path) => {
-                      // Remix fingerprints its assets so we can cache them forever. Other assets (like
-                      // `favicon.ico`) are cached for a day then can be updated.
-                      //
-                      // We manually version our font assets so fonts can be cached forever too. If we
-                      // need to update a font the file name will change.
-                      if (path.startsWith(staticAssetsPath) || path.startsWith(staticFontsPath)) {
-                          // - `public`: Means we can store the asset in a shared cache since they don't
-                          //   depend on authorization.
-                          // - `max-age=31536000`: The asset lives for one year.
-                          // - `immutable`: Indicates the response will never update.
-                          res.setHeader("cache-control", "public, max-age=31536000, immutable");
-                      } else {
-                          // - `public`: Means we can store the asset in a shared cache since they don't
-                          //   depend on authorization.
-                          // - `max-age=86400`: The asset lives for one day.
-                          // - `stale-while-revalidate=31536000`: When the asset is stale, the cache is
-                          //   allowed to continue using it for a year as long as the cache revalidates the
-                          //   asset in the background.
-                          res.setHeader(
-                              "cache-control",
-                              "public, max-age=86400, stale-while-revalidate=31536000",
-                          );
-                      }
+                      const pathname = path.slice(staticPath.length);
+                      const {clientCacheControl} = getAppStaticCacheControlHeaders(pathname);
+                      res.setHeader("cache-control", clientCacheControl);
                   },
               })
             : null;
@@ -159,12 +142,19 @@ export async function run({
     let requestListener = (await module?.getAppService(constants)) ?? null;
 
     const actualRequestListener = (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => {
+        const requestPath = req.url!.replace(/\?.*$/, "");
+        const isDocumentationOpenGraphImagePath =
+            (requestPath.startsWith("/docs/") || requestPath.startsWith("/blog/")) &&
+            requestPath.endsWith("/og.png");
+
         // In development, static assets are served by `serve-static` middleware in
-        // `AppService`. In production we serve static assets from Cloudflare R2.
+        // `AppService`. Generated Open Graph images remain on their explicit-build Remix
+        // fallback because they are intentionally not Vite inputs. In production
+        // EdgeService serves their manifest paths from Cloudflare R2.
         if (
             process.env.NODE_ENV !== "production" &&
             (req.url!.startsWith("/assets/") ||
-                appStaticManifestPaths.has(req.url!.replace(/\?.*$/, "")))
+                (appStaticManifestPaths.has(requestPath) && !isDocumentationOpenGraphImagePath))
         ) {
             if (serveStaticMiddleware === null) {
                 res.writeHead(404, {"content-type": "text/plain"});

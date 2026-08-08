@@ -1,14 +1,18 @@
 import {Context} from "~/shared/context/context.js";
-import {ErrorBase} from "~/shared/error/error.js";
-import {isTransientError} from "~/shared/error/is_transient_error.js";
-import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
-import {generateId} from "~/shared/id/id.js";
-import {RpcCallId} from "~/shared/id/types/id_types.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
+import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
-import {ObjectSchemaConfigBase, ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
+import {
+    ObjectSchemaConfigBase,
+    ObjectSchemaConfigType,
+    Schema,
+} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Define the interface for an RPC.

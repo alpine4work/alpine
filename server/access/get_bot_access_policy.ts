@@ -1,8 +1,8 @@
 import {ServerMinimalBotActionContext} from "~/server/context/server_minimal_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {EffectiveAccessPolicy} from "~/shared/access/access_policy.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 
 /**
  * Gets the access policy for a bot based on its scope. Bot access policies are

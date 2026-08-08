@@ -4,12 +4,12 @@ import {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database
 import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {Schema, type SchemaType} from "~/shared/schema/schema.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export const DatabaseRelationFieldConfigSchema = Schema.object({
     type: Schema.value("relation"),

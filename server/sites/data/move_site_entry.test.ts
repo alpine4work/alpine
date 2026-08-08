@@ -3,10 +3,10 @@ import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {moveSiteEntry} from "~/server/sites/data/move_site_entry.js";
 import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {OrderKey, assertOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChannelId, SiteId, SiteSideBarSectionId} from "~/shared/id/types/id_types.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {OrderKey, assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChannelId, SiteId, SiteSideBarSectionId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId, printSiteContainerId} from "~/shared/sites/site_entry_id.js";
 

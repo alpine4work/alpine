@@ -7,8 +7,8 @@ import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_in
 import {colorSchemeVars, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 export function MobileSettingsRow({
     isSelected = false,

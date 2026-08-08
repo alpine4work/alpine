@@ -23,9 +23,9 @@ import {
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 

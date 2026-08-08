@@ -4,9 +4,9 @@ import {
     cursorKnownBotIdForProduction,
 } from "~/shared/bots/known_bot_ids.js";
 import {SettingsDefaultKnownBotAccountModelData} from "~/shared/bots/settings_default_known_bot_account_model_data_types.js";
-import {decodeBase64} from "~/shared/helpers/binary/base64.js";
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {BotId} from "~/shared/id/types/id_types.js";
+import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 export const chatGptKnownBotId =
     process.env.NODE_ENV !== "production"

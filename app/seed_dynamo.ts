@@ -7,8 +7,8 @@ import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {seedTestBotAccounts} from "~/server/spaces/seed_test_bot_accounts.js";
 import {seedTestSpaces} from "~/server/spaces/seed_test_spaces.js";
 import {Context} from "~/shared/context/context.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Seed DynamoDB with some data in development and test environments.

@@ -1,6 +1,6 @@
-import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {decodeId} from "~/shared/id/id.js";
-import {getRealmId} from "~/shared/id/realm_id.js";
+import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
+import {decodeId} from "~/shared/id/id.open_source.js";
+import {getRealmId} from "~/shared/id/realm_id.open_source.js";
 
 /**
  * We use the `RealmId` (really the first 32 bits of the `RealmId`) as the

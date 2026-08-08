@@ -1,6 +1,6 @@
 import {Memo} from "react";
 import {MenuCustomAction} from "~/client/web/design/menu.js";
-import {InboxContext} from "~/client/web/inbox/inbox_context_types.js";
+import {InboxContext} from "~/client/web/inbox/context/inbox_context_types.js";
 import {MessageViewContextMenuReactionButton} from "~/client/web/messaging/internal/message_view_context_menu_reaction_button.js";
 import {
     OnDeleteMessageReactionFunction,
@@ -8,8 +8,10 @@ import {
     OnUpdateMessagesOptimisticallyFunction,
 } from "~/client/web/messaging/set_or_delete_message_reaction_with_optimistic_update.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {MessageModel} from "~/shared/messaging/message_model.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {findMessageReactionPosIfPossible} from "~/shared/messaging/compute_set_message_reaction.js";
+import {getMessageReactionsByCanonicalPos} from "~/shared/messaging/get_message_reactions_by_canonical_pos.js";
+import {MessageModel, fromMessagePayloadModel} from "~/shared/messaging/message_model.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 
 export function messageViewReactionContextMenuAction<
@@ -22,6 +24,7 @@ export function messageViewReactionContextMenuAction<
     onDeleteMessageReaction,
     onUpdateMessagesOptimistically,
     inboxContext,
+    targetPos,
 }: {
     message: Message;
     messageNoun: string;
@@ -29,6 +32,7 @@ export function messageViewReactionContextMenuAction<
     onDeleteMessageReaction: Memo<OnDeleteMessageReactionFunction<RoomKey>>;
     onUpdateMessagesOptimistically: Memo<OnUpdateMessagesOptimisticallyFunction<RoomKey, Message>>;
     inboxContext: InboxContext | null;
+    targetPos?: number;
 }): MenuCustomAction {
     assert(message.payload.type === "Content");
 
@@ -47,31 +51,38 @@ export function messageViewReactionContextMenuAction<
             if (payload.files.length > 0) {
                 pos = "Files";
             } else if (message.stream === null) {
-                pos = payload.content.doc.content.size;
+                pos = targetPos ?? payload.content.doc.content.size;
             } else {
-                pos = 0;
-
-                if (!isContentEmpty(payload.content.doc)) {
-                    pos += payload.content.doc.content.size;
-                }
-
-                const usableStreamPartCount =
-                    message.stream.parts.length -
-                    // If the stream is incomplete then we can't react to the last part. Since the last
-                    // part may still be receiving updates.
-                    (message.stream.completedTime === null ? 1 : 0);
-
-                for (let i = 0; i < usableStreamPartCount; i++) {
-                    const part = message.stream.parts[i]!;
-                    if (part.payload.type !== "Content") continue;
-                    pos += part.payload.content.content.size;
-                }
+                pos = targetPos ?? getMessageStreamContentEndPos(message);
             }
 
-            const reactions =
-                pos === "Files"
-                    ? payload.filesReactions
-                    : (payload.reactionsByPos.get(pos) ?? emptyReactionSet);
+            let reactions;
+
+            if (pos === "Files") {
+                reactions = payload.filesReactions;
+            } else {
+                const messagePayload = fromMessagePayloadModel(message.payload);
+                const result = findMessageReactionPosIfPossible({
+                    message: {
+                        payload: messagePayload,
+                        stream: message.stream,
+                    },
+                    contentVersion: payload.contentUpdate?.mappings.length ?? 0,
+                    pos,
+                });
+
+                if (result.ok) {
+                    pos = result.value.pos;
+                }
+
+                reactions =
+                    getMessageReactionsByCanonicalPos({
+                        message: {
+                            payload: messagePayload,
+                            stream: message.stream,
+                        },
+                    }).get(pos) ?? emptyReactionSet;
+            }
 
             return (
                 <MessageViewContextMenuReactionButton
@@ -92,4 +103,24 @@ export function messageViewReactionContextMenuAction<
             );
         },
     };
+}
+
+/**
+ * Returns the global position immediately after the last stream content block.
+ */
+function getMessageStreamContentEndPos(message: MessageModel<string>): number {
+    assert(message.payload.type === "Content");
+
+    let pos = 0;
+
+    if (!isContentEmpty(message.payload.content.doc)) {
+        pos += message.payload.content.doc.content.size;
+    }
+
+    for (const part of message.stream?.parts ?? []) {
+        if (part.payload.type !== "Content") continue;
+        pos += part.payload.content.content.size;
+    }
+
+    return pos;
 }

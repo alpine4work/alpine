@@ -1,8 +1,8 @@
 import {Location} from "@remix-run/router";
 import {spaceLayoutStyles} from "~/client/web/styles/styles.js";
-import {isId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export type WebMobileTab = SchemaType<typeof WebMobileTabSchema>;
 export const WebMobileTabSchema = Schema.enum(spaceLayoutStyles.webMobileTabs);

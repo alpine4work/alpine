@@ -3,8 +3,8 @@ import {NotificationsTable} from "~/server/notifications/data/internal/notificat
 import {createOrUpdateAccountWebPushSubscriptionWithoutAuthorization} from "~/server/notifications/data/internal/push/create_or_update_web_push_subscription_without_authorization.js";
 import {createTestWebPushSubscription} from "~/server/notifications/data/push/test_helpers/create_test_web_push_subscription.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {generateId} from "~/shared/id/id.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
 
 import.meta.jest.useFakeTimers();
 

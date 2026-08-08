@@ -2,13 +2,13 @@ import {Fragment, Node, Slice} from "prosemirror-model";
 import {Step} from "prosemirror-transform";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {FileEntityId, FileEntityIdSchema, isFileEntityId} from "~/shared/files/file_entity_id.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {emptySet} from "~/shared/helpers/set/empty_set.js";
-import {isId} from "~/shared/id/id.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {
     ProsemirrorVisitor,
     visitProsemirrorFragment,
@@ -16,7 +16,7 @@ import {
     visitProsemirrorSlice,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     SearchMentionEntityId,
     SearchMentionEntityIdSchema,

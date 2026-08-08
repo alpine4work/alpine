@@ -1,7 +1,7 @@
 // The implementation of this file was derived from:
 // https://github.com/ealmansi/elen/blob/3a38e52c1a153dd11fb30add7d3c7a7f1c30e5d8/src/binary64.js
 
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * The underlying representation of a [floating point number][1].

@@ -60,7 +60,7 @@ import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {getSiteIdFromAccessPolicyIfExists} from "~/shared/access/get_site_id_from_access_policy_if_exists.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
-import {ApiBotWebhookNewMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {ApiBotWebhookCreatedMessageEventParent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {createChatMessageNotFoundError} from "~/shared/chat/chat_error_messages.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
@@ -74,23 +74,23 @@ import {
     InvalidArgumentError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {Id, isId} from "~/shared/id/id.js";
-import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {Id, isId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChatId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {computeDeleteMessageReaction} from "~/shared/messaging/compute_delete_message_reaction.js";
 import {computeSetMessageReaction} from "~/shared/messaging/compute_set_message_reaction.js";
 import {cutMessageContentPayload} from "~/shared/messaging/cut_message_content_payload.js";
@@ -237,7 +237,7 @@ function sendChatMessageForAccount(
 
                     return item;
                 })(),
-                (async (): Promise<ApiBotWebhookNewMessageEventParent | null> => {
+                (async (): Promise<ApiBotWebhookCreatedMessageEventParent | null> => {
                     if (!parent) return null;
 
                     switch (parent.type) {
@@ -772,7 +772,14 @@ export async function putChatMessageApprovalDecisions(
  * Currently, you completely replace a part when you update it. We may allow more
  * granular part updates in the future.
  */
-export function putChatMessageStreamPart(
+// NOTE(ifitzsimmons, 2026-07-16): This function adds/updates a part of the message
+// stream and broadcasts an event to all connected clients. Stream parts can/should
+// only be added in two scenarios:
+//
+// 1. A bot is sending a message via our API.
+// 2. We've detected that a message stream has timed out and we're completing the
+//    stream with an error message.
+export function putChatMessageStreamPartAndBroadcastEvent(
     context: ServerActionContext,
     {
         chatId,
@@ -1964,8 +1971,10 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
 }> {
     if (limit === 0) return {messages: [], otherReferencedMessages: []};
 
-    const queryStartMessageIndex =
-        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0;
+    const queryStartMessageIndex = Math.max(
+        0,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
 
     const queryEndMessageIndex = Math.min(
         queryStartMessageIndex + limit - 1,
@@ -2087,8 +2096,10 @@ export async function getChatMessagePayloadsFromStart(
     messageCount: number;
     messages: Array<MessageItem>;
 }> {
-    const queryStartMessageIndex =
-        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0;
+    const queryStartMessageIndex = Math.max(
+        0,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
 
     const queryEndMessageIndex = Math.min(
         queryStartMessageIndex + limit - 1,
@@ -2203,19 +2214,15 @@ export async function dangerouslyGetChatMessagesFromEndAssumingAuthorizedChat(
 }> {
     if (limit === 0) return {messages: [], otherReferencedMessages: []};
 
-    const queryStartMessageIndex = Math.max(
-        typeof beforeMessageIndex === "number"
-            ? beforeMessageIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              (await chatItemPromise).messageCount - limit,
-        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    const queryEndMessageIndex = Math.min(
+        (await chatItemPromise).messageCount - 1,
+        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndMessageIndex =
-        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartMessageIndex = Math.max(
+        queryEndMessageIndex - limit + 1,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
 
     const messageItems = await arrayFromAsyncIterable(
         typeof beforeMessageIndex !== "number" || beforeMessageIndex > 0
@@ -2333,19 +2340,15 @@ export async function getChatMessagePayloadsFromEnd(
         consistency,
     });
 
-    const queryStartMessageIndex = Math.max(
-        typeof beforeMessageIndex === "number"
-            ? beforeMessageIndex - limit
-            : // TODO(calebmer): An optimized version of this might query `limit` items and if
-              // there was a message stream then query again with `limit: "All"` and a proper
-              // query start index. Instead right now we wait for chat access to authorize before
-              // starting our query which is slower than authorizing + querying in parallel.
-              getChatMessageCount((await chatItemPromise).messagesSummary) - limit,
-        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    const queryEndMessageIndex = Math.min(
+        getChatMessageCount((await chatItemPromise).messagesSummary) - 1,
+        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER,
     );
 
-    const queryEndMessageIndex =
-        typeof beforeMessageIndex === "number" ? beforeMessageIndex - 1 : Number.MAX_SAFE_INTEGER;
+    const queryStartMessageIndex = Math.max(
+        queryEndMessageIndex - limit + 1,
+        typeof afterMessageIndex === "number" ? afterMessageIndex + 1 : 0,
+    );
 
     const [chatItem, messageItems] = await runAllPromises([
         chatItemPromise,

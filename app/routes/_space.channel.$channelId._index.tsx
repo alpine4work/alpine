@@ -54,13 +54,13 @@ import {
     ChannelOrMetadataModelSchema,
 } from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {
     ServerSynchronizationCheckpoint,
     generateServerSynchronizationCheckpoint,

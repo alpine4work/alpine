@@ -5,9 +5,9 @@ import {
     assertPostContent,
     PostContentProsemirrorSchema as schema,
 } from "~/shared/forum/post_content_schema.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {assertId, generateId} from "~/shared/id/id.js";
-import {AccountId, DocumentId} from "~/shared/id/types/id_types.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {createTestAccountModelWithoutSpace} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 
 test("creates title for document with file that doesn\u2019t exist", () => {

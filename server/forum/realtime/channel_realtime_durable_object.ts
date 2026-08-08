@@ -14,14 +14,14 @@ import {
     ChannelRealtimeEventStub,
 } from "~/server/forum/realtime/channel_realtime_connection.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {
     ChannelBroadcastRealtimeEventsSchema,
     ChannelRealtimeProtocol,
 } from "~/shared/forum/channel_realtime_protocol.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {ChannelId, SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 type ChannelRealtimeDurableObjectRoute = "Main" | "BroadcastRealtimeEvents" | "NotFound";
 

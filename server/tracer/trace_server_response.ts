@@ -1,19 +1,19 @@
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {isId} from "~/shared/id/id.js";
-import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
+import {isId} from "~/shared/id/id.open_source.js";
+import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 import {
     getHeadersTracerData,
     obfuscateCookieHeader,
     obfuscateSetCookieHeaders,
-} from "~/shared/tracer/fetch_with_tracer.js";
-import {tracerEventHttpSearchParamNameByServiceName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
-import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propagation_context_header.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {tracerEventHttpSearchParamNameByServiceName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.open_source.js";
+import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export function createTraceServerResponseHandleSpanName(
     tracer: TracerRoot,
@@ -44,7 +44,7 @@ export async function traceServerResponse(
         assert(
             new RegExp(
                 route.replaceAll(
-                    /(^|\/)(\*|:[a-zA-Z0-9_]+)(?=\/|$)/g,
+                    /(^|\/)(\*|:[a-zA-Z0-9_]+)(?=-|\/|$)/g,
                     (substring, match1, match2) => `${match1}${match2 === "*" ? ".*" : "[^/]*"}`,
                 ),
             ).test(requestUrl.pathname),

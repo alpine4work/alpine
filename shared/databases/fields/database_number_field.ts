@@ -1,9 +1,9 @@
 import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
 import {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import type {Result} from "~/shared/helpers/control/result.js";
-import {Schema, type SchemaType} from "~/shared/schema/schema.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import type {Result} from "~/shared/helpers/control/result.open_source.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export const DatabaseNumberFieldConfigSchema = Schema.object({
     type: Schema.value("number"),

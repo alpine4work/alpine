@@ -1,9 +1,9 @@
 /* eslint-disable react-refresh/only-export-components -- co-located component factories bind API models for markdown generation. */
 import {Box} from "~/client/web/design/box.js";
-import {DocumentationApiModel} from "~/client/web/docs/documentation_api_model.js";
 import {useDocumentationApiModel} from "~/client/web/docs/internal/documentation_api_context.js";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {DocumentationApiModel} from "~/shared/docs/documentation_api_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 /**
  * The Introduction page's at-a-glance grid: base URL, wire format, and live counts

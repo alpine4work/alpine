@@ -38,10 +38,10 @@ import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_t
 import {sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
 import type {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
-import {UnavailableError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {UnavailableError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     AccountId,
     DatabaseFieldId,
@@ -50,8 +50,8 @@ import type {
     DatabaseRowId,
     DatabaseTableId,
     SpaceId,
-} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 type DatabaseDurableStorage = Parameters<typeof DatabaseServer.create>[0];
 

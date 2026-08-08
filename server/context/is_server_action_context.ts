@@ -7,7 +7,7 @@ import {
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
 
 export function isServerActionContext<Modules extends ServerProcessContextModules>(
     context: Context<Modules>,

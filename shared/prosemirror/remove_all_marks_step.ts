@@ -1,6 +1,6 @@
 import {Mark, Node} from "prosemirror-model";
 import {AddMarkStep, AddNodeMarkStep, Mappable, Step, StepResult} from "prosemirror-transform";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 
 /**
  * Remove all marks that match the provided mark object in the document. No matter

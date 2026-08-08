@@ -29,15 +29,15 @@ import {
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {type SqliteMigration} from "~/shared/databases/sqlite_migrations.js";
 import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import type {Result} from "~/shared/helpers/control/result.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import type {Result} from "~/shared/helpers/control/result.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 interface OptimisticMutation {
     mutationId: DatabaseMutationId;

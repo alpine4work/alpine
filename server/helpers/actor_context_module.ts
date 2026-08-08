@@ -4,15 +4,15 @@ import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {printSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
 
 /**
  * Services that may perform an action against our system.

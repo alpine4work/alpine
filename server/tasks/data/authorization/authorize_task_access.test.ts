@@ -20,12 +20,16 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {testTaskClock} from "~/server/tasks/data/test_helpers/test_task_clock.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {NotFoundError, PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {
+    NotFoundError,
+    PermissionDeniedError,
+    UnauthenticatedError,
+} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     spacesInjection,
@@ -2056,15 +2060,15 @@ describe("authorizeTaskAccess()", () => {
                 beforeCommentIndex: null,
             });
 
-            expect(getCount()).toEqual(4);
+            expect(getCount()).toEqual(3);
 
             await authorizeTaskAccess(actionContext, task.id, "View");
 
-            expect(getCount()).toEqual(4);
+            expect(getCount()).toEqual(3);
 
             await authorizeTaskAccess(actionContext, task.id, "View");
 
-            expect(getCount()).toEqual(4);
+            expect(getCount()).toEqual(3);
 
             for (let i = 0; i < 5; i++) {
                 await runAllPromises([
@@ -2074,7 +2078,7 @@ describe("authorizeTaskAccess()", () => {
                 ]);
             }
 
-            expect(getCount()).toEqual(4);
+            expect(getCount()).toEqual(3);
         }
     });
 
@@ -2169,15 +2173,15 @@ describe("authorizeTaskAccess()", () => {
                 beforeCommentIndex: null,
             });
 
-            expect(getCount()).toEqual(2);
+            expect(getCount()).toEqual(1);
 
             await authorizeTaskAccess(actionContext, task.id, "View");
 
-            expect(getCount()).toEqual(2);
+            expect(getCount()).toEqual(1);
 
             await authorizeTaskAccess(actionContext, task.id, "View");
 
-            expect(getCount()).toEqual(2);
+            expect(getCount()).toEqual(1);
 
             for (let i = 0; i < 5; i++) {
                 await runAllPromises([
@@ -2187,7 +2191,7 @@ describe("authorizeTaskAccess()", () => {
                 ]);
             }
 
-            expect(getCount()).toEqual(2);
+            expect(getCount()).toEqual(1);
         }
     });
 

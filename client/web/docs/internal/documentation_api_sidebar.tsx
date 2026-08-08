@@ -1,19 +1,19 @@
 import {useEffect, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
-import {
-    DocumentationApiGroup,
-    createDocumentationApiOperationUrl,
-    createDocumentationApiSchemaUrl,
-    getDocumentationApiSchemaBaseName,
-} from "~/client/web/docs/documentation_api_model.js";
-import {GeneratedDocumentationApiNav} from "~/client/web/docs/generated_documentation.js";
 import {DocumentationChevron} from "~/client/web/docs/internal/documentation_chevron.js";
 import {DocumentationMethodPill} from "~/client/web/docs/internal/documentation_method_pill.js";
 import {DocumentationNavRow} from "~/client/web/docs/internal/documentation_nav_row.js";
 import {DocumentationSectionLabel} from "~/client/web/docs/internal/documentation_section_label.js";
 import {DocumentationUnstyledButton} from "~/client/web/docs/internal/documentation_unstyled_button.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {
+    DocumentationApiGroup,
+    createDocumentationApiOperationUrl,
+    createDocumentationApiSchemaUrl,
+    getDocumentationApiSchemaBaseName,
+} from "~/shared/docs/documentation_api_model.js";
+import {GeneratedDocumentationApiNav} from "~/shared/docs/generated_documentation.js";
 
 export type DocumentationApiSidebarActive =
     | {type: "page"; slug: string}

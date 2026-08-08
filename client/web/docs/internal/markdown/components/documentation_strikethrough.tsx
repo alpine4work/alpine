@@ -1,6 +1,6 @@
 import {ReactNode} from "react";
 import {documentationComponent} from "~/client/web/docs/internal/markdown/documentation_component.js";
-import {flattenDocumentationMarkdownChildren} from "~/client/web/docs/internal/markdown/documentation_markdown_component.js";
+import {flattenDocumentationMarkdownChildren} from "~/shared/docs/documentation_markdown_component.js";
 
 /** Strikethrough inline text (`~~…~~`). */
 export const DocumentationStrikethrough = documentationComponent({

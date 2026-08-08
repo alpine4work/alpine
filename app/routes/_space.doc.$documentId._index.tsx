@@ -1,4 +1,4 @@
-import {ShouldRevalidateFunction, useParams, useSearchParams} from "@remix-run/react";
+import {ShouldRevalidateFunction, useLocation, useParams, useSearchParams} from "@remix-run/react";
 import {useEffect, useState} from "react";
 import {createHeadMetaForDocument} from "~/app/helpers/create_head_meta.js";
 import {
@@ -42,17 +42,17 @@ import {
     getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {RynamoQueryResult, createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftWithFilesSchema,
     emptyMessageDraftWithFiles,
 } from "~/shared/messaging/message_draft_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {
     ServerSynchronizationCheckpointSchema,
@@ -270,6 +270,7 @@ function DocumentRouteInner() {
         spellCheckIgnoredLints: initialSpellCheckIgnoredLints,
     } = useLoaderDataWithSchema(LoaderSchema);
     const params = useParams();
+    const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
     const updateMetaTitle = useUpdateMetaTitle();
     const context = useAppContext();
@@ -288,17 +289,29 @@ function DocumentRouteInner() {
         if (commentIndex !== null) return {type: "CommentInOpenThread", commentIndex};
 
         const scrollString = searchParams.get("scroll");
-        if (!scrollString) return null;
-
-        // NOTE(calebmer): Prefix with `thread-` since in the future I could see us
-        // initially scrolling to headings or other things in the document.
-        if (scrollString.startsWith("thread-")) {
-            const commentThreadId = scrollString.slice(9);
-            if (!isId<DocumentCommentThreadId>(commentThreadId)) {
-                throw new InvalidArgumentError("Expected `DocumentCommentThreadId`");
+        if (scrollString) {
+            // NOTE(calebmer): Prefix with `thread-` since in the future I could see us
+            // initially scrolling to other things in the document. (Headings scroll with the
+            // URL hash below instead, the standard anchor convention.)
+            if (scrollString.startsWith("thread-")) {
+                const commentThreadId = scrollString.slice("thread-".length);
+                if (!isId<DocumentCommentThreadId>(commentThreadId)) {
+                    throw new InvalidArgumentError("Expected `DocumentCommentThreadId`");
+                }
+                return {type: "CommentThread", commentThreadId};
             }
-            return {type: "CommentThread", commentThreadId};
+
+            return null;
         }
+
+        // Scroll to a heading by the derived slug in the URL hash (`#introduction`). Slugs
+        // only contain URL-safe characters (see `convertToUrlPathnameSlug()`) so there's
+        // nothing to decode. The slug isn't guaranteed to exist in the doc; when it
+        // doesn't we stay at the top of the doc. The hash is never sent to the server so
+        // this only resolves on the client, which is fine since the scroll itself happens
+        // in a client-side effect.
+        const headingSlug = location.hash.slice(1);
+        if (headingSlug !== "") return {type: "Heading", headingSlug};
 
         return null;
     });

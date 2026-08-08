@@ -1,5 +1,5 @@
 import {createContext} from "react";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
 
 export type BottomBarFrameContext = {
     currentBottomBarHeight: {

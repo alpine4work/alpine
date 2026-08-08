@@ -1,4 +1,4 @@
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Cursor of an entry in an account's feed. This is used to paginate through a

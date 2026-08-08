@@ -9,9 +9,9 @@ import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {printApiContentToMarkdown} from "~/shared/api/markdown/print_api_content_to_markdown.js";
+import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {generateApiKey} from "~/shared/id/api_key.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const context = createTestContext({
     chatInjection,
@@ -68,6 +68,93 @@ test("serves the final API specification", async () => {
         status: 200,
         headers: expect.objectContaining({"content-type": "application/yaml"}),
         body: expect.stringContaining("openapi: 3.0.0"),
+    });
+});
+
+describe("Alpine-Version header", () => {
+    beforeEach(() => {
+        import.meta.jest.useFakeTimers();
+        import.meta.jest.setSystemTime(new Date("2026-07-29T02:00:00.000Z"));
+    });
+
+    afterEach(() => {
+        import.meta.jest.useRealTimers();
+    });
+
+    test("is required", async () => {
+        expect(
+            await server.GET(`/chats/${generateId()}/messages/0`, {
+                unsetHeaders: ["Alpine-Version"],
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: {
+                    message: expect.stringMatching(/^Missing `Alpine-Version` header\./),
+                    retry: {
+                        able: false,
+                    },
+                },
+            },
+        });
+    });
+
+    test("recommends using today\u2019s date in the default time zone", async () => {
+        expect(
+            await server.GET(`/chats/${generateId()}/messages/0`, {
+                unsetHeaders: ["Alpine-Version"],
+            }),
+        ).toEqual({
+            status: 400,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: {
+                    message:
+                        "Missing `Alpine-Version` header. When starting a new project, you should set the `Alpine-Version` header to today\u2019s date: `2026-07-28`. Don\u2019t dynamically compute the `Alpine-Version` header from today\u2019s date or your code may be broken by backwards incompatible API changes.",
+                    retry: {
+                        able: false,
+                    },
+                },
+            },
+        });
+    });
+
+    test("allows one date in the future but not two", async () => {
+        const allowedResponse = await server.GET(`/chats/${generateId()}/messages/0`, {
+            headers: {"Alpine-Version": "2026-07-29"},
+        });
+        const rejectedResponse = await server.GET(`/chats/${generateId()}/messages/0`, {
+            headers: {"Alpine-Version": "2026-07-30"},
+        });
+
+        expect([allowedResponse, rejectedResponse]).toEqual([
+            {
+                status: 401,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: {
+                        message: "Missing `Authorization` header.",
+                        retry: {
+                            able: false,
+                        },
+                    },
+                },
+            },
+            {
+                status: 400,
+                headers: expect.objectContaining({"content-type": "application/json"}),
+                body: {
+                    error: {
+                        message:
+                            "Can\u2019t set the `Alpine-Version` header to a future date. When starting a new project, you should set the `Alpine-Version` header to today\u2019s date: `2026-07-28`. Don\u2019t dynamically compute the `Alpine-Version` header from today\u2019s date or your code may be broken by backwards incompatible API changes.",
+                        retry: {
+                            able: false,
+                        },
+                    },
+                },
+            },
+        ]);
     });
 });
 
@@ -679,6 +766,43 @@ test("validates response with schema in tests", async () => {
         },
     });
 });
+
+test.each(["top-level", "nested", "array", "union"])(
+    "validates response object property order in tests (%s)",
+    async testPropertyOrder => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const chat = await TestChat.get(session1, session2);
+        const message = await chat.sendMessage(session1, "Hello, world!");
+
+        expect(
+            await server.GET(
+                `/chats/${chat.id}/messages/${message.index}?test-property-order=${testPropertyOrder}`,
+                {headers: {authorization: `bearer ${apiKey}`}},
+            ),
+        ).toEqual({
+            status: 500,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: {
+                    message:
+                        "An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc",
+                    stack: expect.stringMatching(
+                        /^InternalError: Response schema validation failed: must list `.+` before `.+`\n/,
+                    ),
+                    retry: {
+                        able: true,
+                    },
+                },
+            },
+        });
+    },
+);
 
 test("path param that doesn\u2019t match pattern", async () => {
     const space = await TestSpace.create(context);

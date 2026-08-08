@@ -1,5 +1,5 @@
-import {freezeMap} from "~/shared/helpers/map/freeze_map.js";
-import {freezeSet} from "~/shared/helpers/set/freeze_set.js";
+import {freezeMap} from "~/shared/helpers/map/freeze_map.open_source.js";
+import {freezeSet} from "~/shared/helpers/set/freeze_set.open_source.js";
 
 let deepFrozen: WeakSet<object> | null = null;
 

@@ -63,17 +63,17 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {assertId} from "~/shared/id/id.js";
-import {AccountId, ChatId} from "~/shared/id/types/id_types.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {assertId} from "~/shared/id/id.open_source.js";
+import {AccountId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {getChat} from "~/shared/rpc/chat_rpc_definitions.js";
 import {searchByAffinity, searchRoomChatsByKeywords} from "~/shared/rpc/search_rpc_definitions.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";

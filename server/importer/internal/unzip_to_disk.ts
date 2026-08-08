@@ -3,7 +3,7 @@ import {mkdir} from "fs/promises";
 import {dirname, join as joinPath} from "path";
 import {pipeline} from "stream/promises";
 import * as yauzl from "yauzl";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 
 /**
  * Extracts a zip file to a directory on disk using true streaming.

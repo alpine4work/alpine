@@ -2,7 +2,7 @@ import {useRef} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {pulseAnimationClassName} from "~/client/web/styles/styles.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export function useCoordinatedShimmerAnimations({isDisabled = false}: {isDisabled?: boolean} = {}) {
     const platform = usePlatform();

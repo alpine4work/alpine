@@ -7,7 +7,7 @@ GENERATE_SRCS = [
 ]
 
 ts_project(
-    name = "api",
+    name = "specification",
     srcs = glob(
         ["**/*.ts"],
         exclude = GENERATE_SRCS + ["**/*.test.ts"],
@@ -22,7 +22,7 @@ ts_project(
     visibility = ["//visibility:public"],
     # IMPORTANT: We try to keep the first-party dependency list for this
     # package pretty small. We'd like to open source this code someday!
-    # This package is a dependency of `//shared/api/markdown` which we know
+    # This package is a dependency of `//shared/api/content` which we know
     # we want to open source.
     deps = [
         "//shared/error",
@@ -35,13 +35,7 @@ ts_project(
 filegroup(
     name = "api_specification_final",
     srcs = ["api_specification_final.yaml"],
-    visibility = ["//client/web/docs:__subpackages__"],
-)
-
-alias(
-    name = "specification",
-    actual = ":api",
-    visibility = ["//visibility:public"],
+    visibility = ["//app/docs/codegen:__subpackages__"],
 )
 
 ts_project(
@@ -86,6 +80,7 @@ js_run_binary(
         "api_content_code_block_language_definition_generated.ts",
         "api_specification_final_generated.yaml",
         "types/api_specification_types_generated.ts",
+        "types/api_specification_convenience_types_generated.ts",
     ],
     tool = ":specification_generate",
 )
@@ -94,7 +89,8 @@ write_source_files(
     name = "write_specification",
     files = {
         "api_specification_final.yaml": "api_specification_final_generated.yaml",
-        "types/api_specification_types.ts": "types/api_specification_types_generated.ts",
-        "api_content_code_block_language_definition.ts": "api_content_code_block_language_definition_generated.ts",
+        "types/api_specification_types.open_source.ts": "types/api_specification_types_generated.ts",
+        "types/api_specification_convenience_types.open_source.ts": "types/api_specification_convenience_types_generated.ts",
+        "api_content_code_block_language_definition.open_source.ts": "api_content_code_block_language_definition_generated.ts",
     },
 )

@@ -5,7 +5,7 @@ import {getSiteAttributeUpdateTransaction} from "~/server/sites/data/internal/ge
 import {getSiteTreeForUpdate} from "~/server/sites/data/internal/get_site_tree_for_update.js";
 import {SitesTable} from "~/server/sites/data/internal/sites_table.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {SiteId} from "~/shared/id/types/id_types.js";
+import {SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 

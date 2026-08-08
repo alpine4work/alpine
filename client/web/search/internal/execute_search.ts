@@ -1,8 +1,8 @@
 import {AppContext} from "~/client/web/context/app_context.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {searchByKeywords, searchBySemantics} from "~/shared/rpc/search_rpc_definitions.js";
 import {mergeKeywordAndSemanticSearchResults} from "~/shared/search/merge_keyword_and_semantic_search_results.js";
 import {SearchEntityResultModel} from "~/shared/search/search_entity_result_model.js";

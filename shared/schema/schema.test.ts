@@ -1,8 +1,8 @@
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
 
 function validate<Value>(schema: Schema<Value>, value: unknown): boolean {
     try {

@@ -8,7 +8,6 @@ import {
     MessageQueryStreamPartItem,
     processMessagesQuery,
 } from "~/server/messaging/helpers/process_messages_query.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 
 export async function* runMessagesQuery(
     context: ServerActionContext,
@@ -40,7 +39,7 @@ export async function* runMessagesQuery(
         }) => AsyncIterable<MessageQueryItem | MessageQueryStreamItem | MessageQueryStreamPartItem>;
     },
 ): AsyncIterableIterator<MessageItem> {
-    assert(startIndex <= endIndex);
+    if (startIndex > endIndex) return;
 
     let uncachedStartIndex = startIndex;
     let uncachedEndIndex = endIndex;

@@ -54,20 +54,20 @@ import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_mo
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {RynamoEvent, RynamoItem, RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
-import {ErrorBase, UnimplementedError} from "~/shared/error/error.js";
+import {ErrorBase, UnimplementedError} from "~/shared/error/error.open_source.js";
 import {
     FileAttachmentTarget,
     FileAttachmentTargetByArea,
 } from "~/shared/files/file_attachment_target.js";
 import {ChannelOrMetadataModel} from "~/shared/forum/channel_model.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {OrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {
     AccountId,
@@ -80,7 +80,7 @@ import {
     SpaceId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchAffinityEntityInteraction} from "~/shared/search/search_affinity_entity_interaction.js";
 import {SearchAffinityEntityId, SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";

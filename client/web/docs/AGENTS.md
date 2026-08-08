@@ -4,18 +4,19 @@ This package powers the public `alpine.inc/docs` and `alpine.inc/blog` surfaces.
 content surfaces are rendered with the app's design system (`<Box>`) and generated through the same
 docs codegen target:
 
-- **Guides**: authored MDX under `content/guides/**`, compiled into Bazel JSON artifacts under the
-  `//client/web/docs:docs_generated` output tree.
+- **Guides**: authored MDX under `app/docs/codegen/content/guides/**`, compiled into Bazel JSON
+  artifacts under the `//app/docs/codegen:docs_generated` output tree.
 - **API reference**: the "Get started" pages (Introduction, Authentication, Errors, Webhooks) are
-  authored MDX under `content/api/**`. They show above the endpoint and schema lists in the API
-  sidebar. The endpoint and schema pages themselves are generated from the OpenAPI spec
-  (`shared/api/specification/api_specification_final.yaml`). API MDX pages, the parsed API model,
-  navigation data, and search metadata are generated into Bazel output trees and read from runfiles.
-- **Blog**: authored Markdown or MDX posts live directly under `content/blog/**`, with author
-  metadata in `content/blog/blog_authors.json`. The public URL slug comes from required frontmatter
-  `slug`, not the filename, so titles and filenames can change without breaking links. Posts are
-  sorted by frontmatter `publishDate`, compiled into the same `//client/web/docs:docs_generated`
-  output tree, and included in the shared docs search metadata.
+  authored MDX under `app/docs/codegen/content/api/**`. They show above the endpoint and schema
+  lists in the API sidebar. The endpoint and schema pages themselves are generated from the OpenAPI
+  spec (`shared/api/specification/api_specification_final.yaml`). API MDX pages, the parsed API
+  model, navigation data, and search metadata are generated into Bazel output trees and read from
+  runfiles.
+- **Blog**: authored Markdown or MDX posts live under `app/docs/codegen/content/blog/**`, with
+  author metadata in `app/docs/codegen/content/blog/blog_authors.json`. The public URL slug comes
+  from required frontmatter `slug`, not the filename, so titles and filenames can change without
+  breaking links. Posts are sorted by frontmatter `publishDate`, compiled into the same
+  `//app/docs/codegen:docs_generated` output tree, and included in the shared docs search metadata.
 
 Guide, API, and blog MDX pages share `documentation_mdx_components.tsx`. The shared map includes
 API-aware tags: `<Schema>` (a schema's field table), `<ApiStats>`, `<BaseUrl>`, `<ExampleId>`, and
@@ -23,26 +24,23 @@ API-aware tags: `<Schema>` (a schema's field table), `<ApiStats>`, `<BaseUrl>`, 
 
 ## Directory Layout
 
-- `content/`: authored guides, API support docs, and blog posts.
-- `content/blog/blog_authors.json`: blog author records keyed by author ID. The generator maps each
-  ID to `/blog/authors/<id>.avif`.
-- top-level `*.tsx`/`*.ts`: route-facing docs pages, live UI components, runtime helpers, and data
-  contracts imported by `app/routes`.
+- top-level `*.tsx`/`*.ts`: route-facing docs pages, live UI components, and browser runtime helpers
+  imported by `app/routes`.
 - `internal/`: shared implementation details for the docs package. App routes should not import
   directly from here.
 - `internal/markdown/components/`: live React MDX components plus their markdown variants.
-- `internal/codegen/`: Bazel-only docs data generation plus helpers that only run while building the
-  generated docs artifacts.
-- `internal/markdown/`: Bazel-only `.md` rendering, markdown serialization internals, and markdown
-  variant support code.
+- `internal/markdown/`: markdown variant support used by the generator in `app/docs/codegen`.
+
+Authored content and build-only tools belong in `app/docs/codegen`. Cross-runtime data contracts and
+pure documentation helpers belong in `shared/docs`.
 
 ## Generated Data
 
-The docs generated data is not checked into source. `//client/web/docs:docs_generated` writes a
+The docs generated data is not checked into source. `//app/docs/codegen:docs_generated` writes a
 Bazel output tree named `generated`, and the app reads those files from runfiles at request time via
 `app/docs/load_generated_docs.server.ts` and `app/docs/load_generated_blog.server.ts`. `app/BUILD`
 includes this target in the app runfiles, so a running app gets the generated JSON without any
-`client/web/docs/generated/**` source files.
+`app/docs/codegen/generated/**` source files.
 
 The generated tree includes:
 
@@ -55,10 +53,10 @@ Regenerate the JSON artifacts after changing guide content, blog content, docs r
 or the OpenAPI spec:
 
 ```sh
-bazel build //client/web/docs:docs_generated
+bazel build //app/docs/codegen:docs_generated
 ```
 
-Do not create, edit, or commit `client/web/docs/generated/**` by hand. Use Bazel's output tree as
+Do not create, edit, or commit `app/docs/codegen/generated/**` by hand. Use Bazel's output tree as
 the review/debug surface for output changes.
 
 In dev, the process manager watches workspace files and rebuilds any running artifact whose Bazel
@@ -92,9 +90,9 @@ markdown component map; API variants that need the spec are model-bound through
 `createDocumentationMdxMarkdownComponents`). The API endpoint and schema pages are serialized from
 the model (`render_api_documentation_to_markdown.ts`).
 
-The markdown files are also not checked into source.
-`//client/web/docs/internal/codegen:docs_markdown` writes a Bazel output tree named `pages`, and
-`app/docs/load_docs_markdown.server.ts` reads it from runfiles to serve `.md` requests for docs and
-blog URLs. Do not create, edit, or commit `client/web/docs/internal/codegen/pages/**` by hand, and
-do not add a "generated" header comment to those outputs (this note is the provenance). They rebuild
-whenever the content, the spec, or the docs components change.
+The markdown files are also not checked into source. `//app/docs/codegen:docs_markdown` writes a
+Bazel output tree named `pages`, and `app/docs/load_docs_markdown.server.ts` reads it from runfiles
+to serve `.md` requests for docs and blog URLs. Do not create, edit, or commit
+`app/docs/codegen/pages/**` by hand, and do not add a "generated" header comment to those outputs
+(this note is the provenance). They rebuild whenever the content, the spec, or the docs components
+change.

@@ -1,4 +1,4 @@
-import {AbortedError, UnknownError} from "~/shared/error/error.js";
+import {AbortedError, UnknownError} from "~/shared/error/error.open_source.js";
 
 /**
  * Uploads a file to a presigned S3 URL using XMLHttpRequest for progress tracking.

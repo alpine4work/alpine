@@ -1,13 +1,13 @@
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {validateTracerEventFlatData} from "~/server/tracer/validate_tracer_event_flat_data.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
-import {DataLossError, InvalidArgumentError} from "~/shared/error/error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
+import {DataLossError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
-import {TracerEvent} from "~/shared/tracer/tracer_event.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
 
 export async function action({request, context, span}: LoaderArgs) {
     try {
@@ -40,13 +40,29 @@ export async function action({request, context, span}: LoaderArgs) {
                         "All events coming from an untrusted client must have the `meta.untrusted` attribute set to true",
                     );
 
-                // We may have other untrusted hosts in the future. We validate both the
-                // `meta.untrusted` attribute and `js.host` so that we can filter on
-                // `js.host = "Node"` and be guaranteed to see only trusted events.
-                if (event.data["js.host"] !== "Web")
-                    throw new InvalidArgumentError(
-                        "All events coming from an untrusted client must have `js.host` set to an untrusted host",
-                    );
+                switch (event.data["service.name"]) {
+                    case "AppClient": {
+                        if (event.data["js.host"] !== "Web") {
+                            throw new InvalidArgumentError(
+                                "All events coming from `AppClient` untrusted client must have `js.host` set to `Web`",
+                            );
+                        }
+                        break;
+                    }
+                    case "CliClient": {
+                        if (event.data["js.host"] !== "Node") {
+                            throw new InvalidArgumentError(
+                                "All events coming from `CliClient` untrusted client must have `js.host` set to `Node`",
+                            );
+                        }
+                        break;
+                    }
+                    default: {
+                        throw new InvalidArgumentError(
+                            "Unrecognized `service.name` for untrusted client",
+                        );
+                    }
+                }
 
                 // Now that we've validated our event, send it with our root tracer. The root
                 // tracer will handle batching events into one request to Honeycomb.

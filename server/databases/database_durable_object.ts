@@ -22,12 +22,12 @@ import {
     DatabaseRealtimeProtocol,
     DatabaseTableMetadataBroadcastRealtimeEventsSchema,
 } from "~/shared/databases/database_realtime_protocol.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import type {DatabaseGroupId, DatabaseMutationId} from "~/shared/id/types/id_types.open_source.js";
 import {authorizeDatabaseGroupAccess} from "~/shared/rpc/database_tables_rpc_definitions.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 type DatabaseGroupDurableObjectRoute =
     | "Main"

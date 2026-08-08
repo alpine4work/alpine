@@ -4,8 +4,8 @@ import {IconProps} from "phosphor-react";
 import * as _iconComponents from "phosphor-react";
 import {ComponentType, createElement} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const iconComponents = _iconComponents as any as {[key: string]: ComponentType<IconProps>};
 

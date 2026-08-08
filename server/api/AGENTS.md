@@ -57,7 +57,7 @@ API content model or an endpoint payload shape, make sure the change still prove
 Relevant tests live primarily in:
 
 - `shared/api/content`
-- `shared/api/markdown`
+- `shared/api/content/closed_source`
 - `server/api/internal/*/*.test.ts`
 
 When adding a new content feature, prefer adding a focused round-trip test close to the
@@ -66,6 +66,8 @@ serializer/parser pair that owns it.
 ## Design Principles
 
 - Prefer complete, reusable payloads over endpoint-specific convenience shapes.
+- For thread/message APIs, use API-facing nouns like `thread` and `message` in payload fields; avoid
+  exposing `commentThread` or `comment` as response property names.
 - Preserve semantics, not just appearance. Markdown and HTML should represent the same authored
   content the API stores.
 - Keep the API expressive enough that an external developer can rebuild Alpine's core product

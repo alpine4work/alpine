@@ -7,25 +7,39 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
+import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestPost} from "~/server/forum/test_helpers/test_post.js";
 import {TestMessagingRoomBase} from "~/server/messaging/test_helpers/test_messaging_room_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {ApiContentKeyDecoder} from "~/shared/api/content/api_content_key.js";
+import {ApiContentKeyDecoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {ChannelId, DocumentId, PostId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {ChannelId, DocumentId, PostId} from "~/shared/id/types/id_types.open_source.js";
+import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
+
+const searchMentionEntityById = new Map<string, {isPrivate: false; entity: SearchEntityModel}>();
+
+beforeEach(() => {
+    searchMentionEntityById.clear();
+});
 
 const context = createTestContext({
     documentsInjection,
     forumInjection,
     notificationsInjection: {
         archiveInboxPostCommentsEntryAfterSetPostCommentReaction: async () => {},
+    },
+    // Most references in this suite are intentionally missing. Individual tests can
+    // register a reference when they need to exercise successful resolution.
+    searchInjection: {
+        getSearchMentionEntityIfPossible: async (_context, _spaceId, entityId) =>
+            searchMentionEntityById.get(entityId) ?? null,
     },
 });
 
@@ -47,6 +61,17 @@ function expectApiContentWithTextBlockKeys(content: {
                 key: expect.any(String),
             }),
         ),
+    };
+}
+
+function createApiParagraphContent(text: string) {
+    return {
+        elements: [
+            {
+                type: "Paragraph" as const,
+                elements: [{type: "Text" as const, text}],
+            },
+        ],
     };
 }
 
@@ -90,6 +115,157 @@ test("can read channel information", async () => {
                 }),
             }),
         }),
+    });
+});
+
+test("can create channel information", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const response = await server.POST("/channels", {
+        headers: {authorization: `bearer ${apiKey}`},
+        body: {
+            spaceId: space.id,
+            channel: {
+                creator: {account: {id: session.account.id}},
+                name: "Created API Channel",
+                description: createApiParagraphContent("Created through the API"),
+            },
+        },
+    });
+
+    expect(response).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            spaceId: space.id,
+            channel: {
+                id: expect.any(String),
+                name: "Created API Channel",
+                description: expectApiContentWithTextBlockKeys({
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Created through the API"}],
+                        },
+                    ],
+                }),
+            },
+        },
+    });
+
+    await expect(
+        getChannelNameAndDescriptionContent(space.systemAction(), response.body.channel.id, {
+            consistency: "StrongWithinCache",
+        }),
+    ).resolves.toMatchObject({
+        creatorId: session.account.id,
+    });
+});
+
+test("can update channel information", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+
+    const channel = await TestChannel.create(session, {
+        name: "Original Channel",
+        description: "Original description",
+        access: "Public",
+    });
+
+    expect(
+        await server.PATCH(`/channels/${channel.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [
+                    {type: "SetName", name: "Updated Channel"},
+                    {
+                        type: "SetDescription",
+                        description: createApiParagraphContent("Updated description"),
+                    },
+                ],
+            },
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            spaceId: space.id,
+            channel: {
+                id: channel.id,
+                name: "Updated Channel",
+                description: expectApiContentWithTextBlockKeys({
+                    elements: [
+                        {
+                            type: "Paragraph",
+                            elements: [{type: "Text", text: "Updated description"}],
+                        },
+                    ],
+                }),
+            },
+        },
+    });
+});
+
+test("can\u2019t update channel information without access", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession({role: "Admin"});
+    const session2 = await space.createSession();
+
+    const bot = await TestBot.createAndInstantiate(session1);
+    const apiKey = await bot.createApiKey(session1);
+
+    const channel = await TestChannel.create(session2, {access: "Private"});
+
+    expect(
+        await server.PATCH(`/channels/${channel.id}`, {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                patches: [{type: "SetName", name: "Updated Channel"}],
+            },
+        }),
+    ).toEqual({
+        status: 403,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            error: expect.objectContaining({
+                message: expect.stringMatching("You aren\u2019t allowed"),
+            }),
+        },
+    });
+});
+
+test("can read a channel preview without its description", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session);
+    const apiKey = await bot.createApiKey(session);
+    const channel = await TestChannel.create(session, {
+        name: "Preview Channel",
+        description: "Description that should not be returned",
+        access: "Public",
+    });
+
+    expect(
+        await server.GET(`/channels/${channel.id}-preview`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            spaceId: space.id,
+            channel: {
+                id: channel.id,
+                name: "Preview Channel",
+            },
+        },
     });
 });
 
@@ -140,7 +316,7 @@ test("can\u2019t read channel information for non-existent channel", async () =>
     });
 });
 
-describe("/channels/{id}/mention", () => {
+describe("/channels/{id}-reference", () => {
     test("can read channel mention", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({role: "Admin"});
@@ -154,7 +330,7 @@ describe("/channels/{id}/mention", () => {
         });
 
         expect(
-            await server.GET(`/channels/${channel.id}/mention`, {
+            await server.GET(`/channels/${channel.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -162,11 +338,9 @@ describe("/channels/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Channel",
-                        id: channel.id,
-                    },
+                reference: {
+                    type: "Channel",
+                    id: channel.id,
                     title: "Test Channel Name",
                 },
             },
@@ -184,7 +358,7 @@ describe("/channels/{id}/mention", () => {
         const channel = await TestChannel.create(session2, {access: "Private"});
 
         expect(
-            await server.GET(`/channels/${channel.id}/mention`, {
+            await server.GET(`/channels/${channel.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -208,7 +382,7 @@ describe("/channels/{id}/mention", () => {
         const apiKey = await bot.createApiKey(session);
 
         expect(
-            await server.GET(`/channels/${generateId<ChannelId>()}/mention`, {
+            await server.GET(`/channels/${generateId<ChannelId>()}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -224,9 +398,9 @@ describe("/channels/{id}/mention", () => {
 });
 
 describe("/channels/{id}/posts", () => {
-    test("can read channel post previews with pagination", async () => {
+    test("channel post preview titles include their authors, channels, and previews", async () => {
         const space = await TestSpace.create(context);
-        const session = await space.createSession({name: "Post Author", role: "Admin"});
+        const session = await space.createSession({name: "Alice Example", role: "Admin"});
 
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
@@ -248,32 +422,56 @@ describe("/channels/{id}/posts", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
+                channel: {
+                    id: channel.id,
+                    name: "Test Channel",
+                },
                 posts: [
                     {
                         id: post3.id,
                         author: expect.objectContaining({
                             id: session.account.id,
-                            name: "Post Author",
+                            name: "Alice Example",
                         }),
                         createdTime: expect.any(String),
                         createdTimeZone: defaultTimeZone,
+                        commentCount: 0,
                         channel: {
                             id: channel.id,
                             name: "Test Channel",
                         },
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Third post content."}],
+                                },
+                            ],
+                        },
+                        reference: {title: "Alice in Test Channel: Third post content"},
                     },
                     {
                         id: post2.id,
                         author: expect.objectContaining({
                             id: session.account.id,
-                            name: "Post Author",
+                            name: "Alice Example",
                         }),
                         createdTime: expect.any(String),
                         createdTimeZone: defaultTimeZone,
+                        commentCount: 0,
                         channel: {
                             id: channel.id,
                             name: "Test Channel",
                         },
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Second post content."}],
+                                },
+                            ],
+                        },
+                        reference: {title: "Alice in Test Channel: Second post content"},
                     },
                 ],
                 nextCursor: expect.any(String),
@@ -298,22 +496,62 @@ describe("/channels/{id}/posts", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
+                channel: {
+                    id: channel.id,
+                    name: "Test Channel",
+                },
                 posts: [
                     {
                         id: post1.id,
                         author: expect.objectContaining({
                             id: session.account.id,
-                            name: "Post Author",
+                            name: "Alice Example",
                         }),
                         createdTime: expect.any(String),
                         createdTimeZone: defaultTimeZone,
+                        commentCount: 0,
                         channel: {
                             id: channel.id,
                             name: "Test Channel",
                         },
+                        contentSnippet: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "First post content."}],
+                                },
+                            ],
+                        },
+                        reference: {title: "Alice in Test Channel: First post content"},
                     },
                 ],
                 nextCursor: null,
+            },
+        });
+    });
+
+    test("truncates channel post preview content deterministically", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {access: "Public"});
+        await channel.createPost(session, "x".repeat(1_300));
+
+        expect(
+            await server.GET(`/channels/${channel.id}/posts`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toMatchObject({
+            status: 200,
+            body: {
+                posts: [
+                    {
+                        contentSnippet: createApiParagraphContent("x".repeat(1_223)),
+                    },
+                ],
             },
         });
     });
@@ -345,9 +583,178 @@ describe("/channels/{id}/posts", () => {
     });
 });
 
-test("can read post information", async () => {
+describe("/posts/{id}-preview", () => {
+    test("post preview title includes its author, channel, and preview", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Example", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Test Channel",
+            access: "Public",
+        });
+        const post = await channel.createPost(session, "This is a test post preview.");
+
+        expect(
+            await server.GET(`/posts/${post.id}-preview`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 200,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                spaceId: space.id,
+                post: {
+                    id: post.id,
+                    author: expect.objectContaining({
+                        id: session.account.id,
+                        name: "Alice Example",
+                    }),
+                    createdTime: expect.any(String),
+                    createdTimeZone: defaultTimeZone,
+                    channel: {
+                        id: channel.id,
+                        name: "Test Channel",
+                    },
+                    contentSnippet: createApiParagraphContent("This is a test post preview."),
+                    commentCount: 0,
+                    reference: {
+                        title: "Alice in Test Channel: This is a test post preview",
+                    },
+                },
+            },
+        });
+    });
+
+    test("can\u2019t read a post preview without access", async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession({role: "Admin"});
+        const session2 = await space.createSession();
+
+        const bot = await TestBot.createAndInstantiate(session1);
+        const apiKey = await bot.createApiKey(session1);
+
+        const channel = await TestChannel.create(session2, {access: "Private"});
+        const post = await channel.createPost(session2);
+
+        expect(
+            await server.GET(`/posts/${post.id}-preview`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 403,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("You aren\u2019t allowed"),
+                }),
+            },
+        });
+    });
+
+    test("can\u2019t read a post preview for a non-existent post", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        expect(
+            await server.GET(`/posts/${generateId<PostId>()}-preview`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toEqual({
+            status: 404,
+            headers: expect.objectContaining({"content-type": "application/json"}),
+            body: {
+                error: expect.objectContaining({
+                    message: expect.stringMatching("doesn\u2019t exist"),
+                }),
+            },
+        });
+    });
+
+    test("can read a post preview with post scope", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const channel = await TestChannel.create(session, {access: "Private"});
+        const post = await channel.createPost(session, "Post-scoped preview content.");
+        const apiKey = await bot.createApiKey({type: "Post", postId: post.id});
+
+        const response = await server.GET(`/posts/${post.id}-preview`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            status: response.status,
+            spaceId: response.body.spaceId,
+            postId: response.body.post.id,
+            contentSnippet: response.body.post.contentSnippet,
+        }).toEqual({
+            status: 200,
+            spaceId: space.id,
+            postId: post.id,
+            contentSnippet: createApiParagraphContent("Post-scoped preview content."),
+        });
+    });
+
+    test("truncates post preview content deterministically", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {access: "Public"});
+        const post = await channel.createPost(session, "x".repeat(1_300));
+
+        const response = await server.GET(`/posts/${post.id}-preview`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            status: response.status,
+            contentSnippet: response.body.post.contentSnippet,
+        }).toEqual({
+            status: 200,
+            contentSnippet: createApiParagraphContent("x".repeat(1_223)),
+        });
+    });
+
+    test("post preview content remains keyless after content and metadata updates", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {access: "Public"});
+        const post = await channel.createPost(session, "Original post content.");
+
+        await post.updateContent(session, "Updated post content.");
+        await post.setReaction(session);
+
+        const response = await server.GET(`/posts/${post.id}-preview`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        });
+
+        expect({
+            status: response.status,
+            contentSnippet: response.body.post.contentSnippet,
+        }).toEqual({
+            status: 200,
+            contentSnippet: createApiParagraphContent("Updated post content."),
+        });
+    });
+});
+
+test("post title includes its author, channel, and preview", async () => {
     const space = await TestSpace.create(context);
-    const session = await space.createSession({name: "Post Author", role: "Admin"});
+    const session = await space.createSession({name: "Alice Example", role: "Admin"});
 
     const bot = await TestBot.createAndInstantiate(session);
     const apiKey = await bot.createApiKey(session);
@@ -371,7 +778,7 @@ test("can read post information", async () => {
                 id: post.id,
                 author: expect.objectContaining({
                     id: session.account.id,
-                    name: "Post Author",
+                    name: "Alice Example",
                 }),
                 channel: expect.objectContaining({
                     id: channel.id,
@@ -390,6 +797,9 @@ test("can read post information", async () => {
                         }),
                     ]),
                 }),
+                reference: {
+                    title: "Alice in Test Channel: This is a test post content",
+                },
             }),
         }),
     });
@@ -485,8 +895,8 @@ test("can\u2019t read post information for non-existent post", async () => {
     });
 });
 
-describe("/posts/{id}/mention", () => {
-    test("can read post mention", async () => {
+describe("/posts/{id}-reference", () => {
+    test("post reference title includes its author, channel, and preview", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Bob", role: "Admin"});
 
@@ -500,7 +910,7 @@ describe("/posts/{id}/mention", () => {
         const post = await channel.createPost(session, "This is post content for mention.");
 
         expect(
-            await server.GET(`/posts/${post.id}/mention`, {
+            await server.GET(`/posts/${post.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -508,11 +918,9 @@ describe("/posts/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Post",
-                        id: post.id,
-                    },
+                reference: {
+                    type: "Post",
+                    id: post.id,
                     title: "Bob in Test Channel: This is post content for mention",
                 },
             },
@@ -530,7 +938,7 @@ describe("/posts/{id}/mention", () => {
         const channel = await TestChannel.create(session2, {access: "Private"});
         const post = await channel.createPost(session2, "Private post content");
 
-        const response = await server.GET(`/posts/${post.id}/mention`, {
+        const response = await server.GET(`/posts/${post.id}-reference`, {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
@@ -545,7 +953,7 @@ describe("/posts/{id}/mention", () => {
         const bot = await TestBot.createAndInstantiate(session);
         const apiKey = await bot.createApiKey(session);
 
-        const response = await server.GET(`/posts/${generateId<PostId>()}/mention`, {
+        const response = await server.GET(`/posts/${generateId<PostId>()}-reference`, {
             headers: {authorization: `bearer ${apiKey}`},
         });
 
@@ -566,7 +974,7 @@ describe("/posts/{id}/mention", () => {
         const apiKey = await bot.createApiKey({type: "Post", postId: post.id});
 
         expect(
-            await server.GET(`/posts/${post.id}/mention`, {
+            await server.GET(`/posts/${post.id}-reference`, {
                 headers: {authorization: `bearer ${apiKey}`},
             }),
         ).toEqual({
@@ -574,11 +982,9 @@ describe("/posts/{id}/mention", () => {
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
                 spaceId: space.id,
-                mention: {
-                    target: {
-                        type: "Post",
-                        id: post.id,
-                    },
+                reference: {
+                    type: "Post",
+                    id: post.id,
                     title: "Bob in Scoped Channel: Scoped post content",
                 },
             },
@@ -636,7 +1042,7 @@ test("can read post information with post scope", async () => {
 });
 
 describe("post creation", () => {
-    test("can create a post", async () => {
+    test("created post title includes its author, channel, and preview", async () => {
         const space = await TestSpace.create(context);
         const session = await space.createSession({name: "Post Author", role: "Admin"});
 
@@ -651,14 +1057,17 @@ describe("post creation", () => {
         const response = await server.POST("/posts", {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                channelId: channel.id,
-                content: {
-                    elements: [
-                        {
-                            type: "Paragraph",
-                            elements: [{type: "Text", text: "This is my new post!"}],
-                        },
-                    ],
+                spaceId: space.id,
+                post: {
+                    channel: {id: channel.id},
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [{type: "Text", text: "This is my new post!"}],
+                            },
+                        ],
+                    },
                 },
             },
         });
@@ -671,8 +1080,8 @@ describe("post creation", () => {
                 post: {
                     id: expect.any(String),
                     author: {
-                        botId: bot.bot.id,
                         id: bot.action().actor.getBotAccountId(),
+                        bot: {id: bot.bot.id},
                         name: expect.stringMatching(bot.initialName),
                         shortName: "Test",
                         space: {
@@ -701,7 +1110,89 @@ describe("post creation", () => {
                             ],
                         }).elements,
                     },
-                    contentPreview: "in Test Channel: This is my new post!",
+                    reference: {title: "Test in Test Channel: This is my new post!"},
+                },
+            },
+        });
+    });
+
+    test("post mention content includes the post author, channel, and preview in its title", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({
+            name: "Referenced Author",
+            role: "Admin",
+        });
+
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Reference Channel",
+            access: "Public",
+        });
+        const referencedPost = await channel.createPost(session, "Referenced post content.");
+
+        searchMentionEntityById.set(`Post:${referencedPost.id}`, {
+            isPrivate: false,
+            entity: new SearchEntityModel({
+                type: "Post",
+                title: "in Reference Channel: Referenced post content",
+                post: {
+                    id: referencedPost.id,
+                    version: 0,
+                    channelVersion: 0,
+                    author: await session.get(),
+                },
+            }),
+        });
+
+        const response = await server.POST("/posts", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                post: {
+                    channel: {id: channel.id},
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Mention",
+                                        reference: {
+                                            type: "Post",
+                                            id: referencedPost.id,
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            },
+        });
+
+        expect(response).toMatchObject({
+            status: 200,
+            body: {
+                post: {
+                    content: {
+                        elements: [
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {
+                                        type: "Mention",
+                                        reference: {
+                                            type: "Post",
+                                            id: referencedPost.id,
+                                            title: "Referenced in Reference Channel: Referenced post content",
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
                 },
             },
         });
@@ -722,33 +1213,36 @@ describe("post creation", () => {
         const response = await server.POST("/posts", {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                channelId: channel.id,
-                content: {
-                    elements: [
-                        {
-                            type: "Heading",
-                            level: 1,
-                            elements: [{type: "Text", text: "Important Announcement"}],
-                        },
-                        {
-                            type: "Paragraph",
-                            elements: [
-                                {type: "Text", text: "This is "},
-                                {
-                                    type: "Text",
-                                    text: "bold",
-                                    marks: [{type: "Bold"}],
-                                },
-                                {type: "Text", text: " and "},
-                                {
-                                    type: "Text",
-                                    text: "italic",
-                                    marks: [{type: "Italic"}],
-                                },
-                                {type: "Text", text: " text."},
-                            ],
-                        },
-                    ],
+                spaceId: space.id,
+                post: {
+                    channel: {id: channel.id},
+                    content: {
+                        elements: [
+                            {
+                                type: "Heading",
+                                level: 1,
+                                elements: [{type: "Text", text: "Important Announcement"}],
+                            },
+                            {
+                                type: "Paragraph",
+                                elements: [
+                                    {type: "Text", text: "This is "},
+                                    {
+                                        type: "Text",
+                                        text: "bold",
+                                        marks: [{type: "Bold"}],
+                                    },
+                                    {type: "Text", text: " and "},
+                                    {
+                                        type: "Text",
+                                        text: "italic",
+                                        marks: [{type: "Italic"}],
+                                    },
+                                    {type: "Text", text: " text."},
+                                ],
+                            },
+                        ],
+                    },
                 },
             },
         });
@@ -761,8 +1255,8 @@ describe("post creation", () => {
                 post: {
                     id: expect.any(String),
                     author: {
-                        botId: bot.bot.id,
                         id: bot.action().actor.getBotAccountId(),
+                        bot: {id: bot.bot.id},
                         name: expect.stringMatching(bot.initialName),
                         shortName: "Test",
                         space: {
@@ -801,7 +1295,62 @@ describe("post creation", () => {
                             ],
                         }).elements,
                     },
-                    contentPreview: "in Rich Content Channel: Important Announcement",
+                    reference: {
+                        title: "Test in Rich Content Channel: Important Announcement",
+                    },
+                },
+            },
+        });
+    });
+
+    test("can create a post with an explicit creator", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Post Creator", role: "Admin"});
+
+        const bot = await TestBot.createAndInstantiate(session, {name: "Test Bot"});
+        const apiKey = await bot.createApiKey(session);
+
+        const channel = await TestChannel.create(session, {
+            name: "Creator Channel",
+            access: "Public",
+        });
+
+        const response = await server.POST("/posts", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                post: {
+                    creator: {account: {id: session.account.id}},
+                    channel: {id: channel.id},
+                    content: createApiParagraphContent("This post has an explicit creator."),
+                },
+            },
+        });
+
+        assert(response.status === 200);
+
+        expect(response.body.post.author).toMatchObject({
+            id: session.account.id,
+            name: "Post Creator",
+            shortName: "Post",
+            space: {
+                role: "Admin",
+            },
+        });
+
+        expect(
+            await server.GET(`/posts/${response.body.post.id}`, {
+                headers: {authorization: `bearer ${apiKey}`},
+            }),
+        ).toMatchObject({
+            status: 200,
+            body: {
+                post: {
+                    author: {
+                        id: session.account.id,
+                        name: "Post Creator",
+                        shortName: "Post",
+                    },
                 },
             },
         });
@@ -821,14 +1370,17 @@ describe("post creation", () => {
             await server.POST("/posts", {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {
-                    channelId: channel.id,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Unauthorized post"}],
-                            },
-                        ],
+                    spaceId: space.id,
+                    post: {
+                        channel: {id: channel.id},
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Unauthorized post"}],
+                                },
+                            ],
+                        },
                     },
                 },
             }),
@@ -855,14 +1407,17 @@ describe("post creation", () => {
             await server.POST("/posts", {
                 headers: {authorization: `bearer ${apiKey}`},
                 body: {
-                    channelId: generateId<ChannelId>(),
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Post to nowhere"}],
-                            },
-                        ],
+                    spaceId: space.id,
+                    post: {
+                        channel: {id: generateId<ChannelId>()},
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Post to nowhere"}],
+                                },
+                            ],
+                        },
                     },
                 },
             }),
@@ -891,14 +1446,17 @@ describe("post creation", () => {
             await server.POST("/posts", {
                 headers: {},
                 body: {
-                    channelId: channel.id,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Unauthorized post"}],
-                            },
-                        ],
+                    spaceId: space.id,
+                    post: {
+                        channel: {id: channel.id},
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Unauthorized post"}],
+                                },
+                            ],
+                        },
                     },
                 },
             }),
@@ -928,9 +1486,12 @@ describe("post creation", () => {
         const response = await server.POST("/posts", {
             headers: {authorization: `bearer ${apiKey}`},
             body: {
-                channelId: channel.id,
-                content: {
-                    elements: [{type: "Paragraph", elements: []}],
+                spaceId: space.id,
+                post: {
+                    channel: {id: channel.id},
+                    content: {
+                        elements: [{type: "Paragraph", elements: []}],
+                    },
                 },
             },
         });
@@ -943,8 +1504,8 @@ describe("post creation", () => {
                 post: {
                     id: expect.any(String),
                     author: {
-                        botId: bot.bot.id,
                         id: bot.action().actor.getBotAccountId(),
+                        bot: {id: bot.bot.id},
                         name: expect.stringMatching(bot.initialName),
                         shortName: "Test",
                         space: {
@@ -966,7 +1527,7 @@ describe("post creation", () => {
                             ],
                         }).elements,
                     },
-                    contentPreview: "in Test Channel:",
+                    reference: {title: "Test in Test Channel:"},
                     createdTime: expect.any(String),
                     createdTimeZone: defaultTimeZone,
                 },
@@ -1210,14 +1771,17 @@ test("can create post with file attachment", async () => {
     const response = await server.POST("/posts", {
         headers: {authorization: `bearer ${apiKey}`},
         body: {
-            channelId: channel.id,
-            content: {
-                elements: [
-                    {
-                        type: "File",
-                        id: file.id,
-                    },
-                ],
+            spaceId: space.id,
+            post: {
+                channel: {id: channel.id},
+                content: {
+                    elements: [
+                        {
+                            type: "File",
+                            file: {id: file.id},
+                        },
+                    ],
+                },
             },
         },
     });
@@ -1230,7 +1794,7 @@ test("can create post with file attachment", async () => {
                     elements: expect.arrayContaining([
                         expect.objectContaining({
                             type: "File",
-                            id: file.id,
+                            file: expect.objectContaining({id: file.id}),
                         }),
                     ]),
                 }),
@@ -1265,9 +1829,11 @@ test("can read post with file attachment", async () => {
                     elements: expect.arrayContaining([
                         expect.objectContaining({
                             type: "File",
-                            id: file.id,
-                            contentType: "image/png",
-                            contentLength: 5232,
+                            file: {
+                                id: file.id,
+                                contentType: "image/png",
+                                contentLength: 5232,
+                            },
                         }),
                     ]),
                 }),
@@ -1303,7 +1869,7 @@ test("can create post comment with file attachments", async () => {
                     {type: "Paragraph", elements: [{type: "Text", text: "Comment with file"}]},
                 ],
             },
-            files: [{element: {type: "File", id: file.id}}],
+            files: [{element: {type: "File", file: {id: file.id}}}],
         },
     });
 
@@ -1319,9 +1885,11 @@ test("can create post comment with file attachments", async () => {
                             width: 1,
                             element: {
                                 type: "File",
-                                id: file.id,
-                                contentType: expect.any(String),
-                                contentLength: expect.any(Number),
+                                file: {
+                                    id: file.id,
+                                    contentType: expect.any(String),
+                                    contentLength: expect.any(Number),
+                                },
                             },
                         }),
                     ],
@@ -1383,7 +1951,7 @@ test("post comment with preview entity returns Preview in files", async () => {
                     {type: "Paragraph", elements: [{type: "Text", text: "Comment with preview"}]},
                 ],
             },
-            files: [{element: {type: "Preview", target: {type: "Document", id: documentId}}}],
+            files: [{element: {type: "Preview", reference: {type: "Document", id: documentId}}}],
         },
     });
 
@@ -1399,8 +1967,11 @@ test("post comment with preview entity returns Preview in files", async () => {
                             width: 1,
                             element: {
                                 type: "Preview",
-                                target: {type: "Document", id: documentId},
-                                title: "Document",
+                                reference: {
+                                    type: "Document",
+                                    id: documentId,
+                                    title: "Unknown document",
+                                },
                             },
                         }),
                     ],
@@ -1437,9 +2008,9 @@ test("post comment with files and previews returns both", async () => {
                 ],
             },
             files: [
-                {element: {type: "File", id: file.id}},
+                {element: {type: "File", file: {id: file.id}}},
                 {
-                    element: {type: "Preview", target: {type: "Document", id: documentId}},
+                    element: {type: "Preview", reference: {type: "Document", id: documentId}},
                 },
             ],
         },
@@ -1454,21 +2025,26 @@ test("post comment with files and previews returns both", async () => {
                     files: [
                         expect.objectContaining({
                             rowIndex: 0,
-                            width: 0.380763,
+                            width: 0.38,
                             element: {
                                 type: "File",
-                                id: file.id,
-                                contentType: expect.any(String),
-                                contentLength: expect.any(Number),
+                                file: {
+                                    id: file.id,
+                                    contentType: expect.any(String),
+                                    contentLength: expect.any(Number),
+                                },
                             },
                         }),
                         expect.objectContaining({
                             rowIndex: 0,
-                            width: 0.619237,
+                            width: 0.62,
                             element: {
                                 type: "Preview",
-                                target: {type: "Document", id: documentId},
-                                title: "Document",
+                                reference: {
+                                    type: "Document",
+                                    id: documentId,
+                                    title: "Unknown document",
+                                },
                             },
                         }),
                     ],
@@ -1494,7 +2070,7 @@ test("post comment with invalid file object returns 400", async () => {
             content: {
                 elements: [{type: "Paragraph", elements: [{type: "Text", text: "Bad file"}]}],
             },
-            files: [{element: {type: "File", id: "not-a-valid-id"}}],
+            files: [{element: {type: "File", file: {id: "not-a-valid-id"}}}],
         },
     });
 

@@ -5,7 +5,7 @@ import {
     WebPushSubscriptionItem,
 } from "~/server/notifications/data/internal/notifications_table.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {AccountId, BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId, BrowserId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Gets the `browserId` of a web push subscription for the provided `accountId` and

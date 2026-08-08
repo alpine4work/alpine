@@ -1,5 +1,5 @@
 import createTree, {Tree} from "functional-red-black-tree";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 import {TreeChange, symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
 
 // A bunch of methods have been added to `ReadonlyMap` iterator methods like

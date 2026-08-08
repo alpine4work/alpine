@@ -15,10 +15,10 @@ import {
     isTaskIndexDocDeleted,
 } from "~/server/tasks/data/task_index_doc.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {
     TaskCollectionTestInterface,
     TaskTestInterface,

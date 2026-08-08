@@ -3,8 +3,8 @@ import {
     DatabaseFieldConfigSqlSchema,
     getDatabaseFieldProvider,
 } from "~/shared/databases/fields/all_database_field_providers.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 describe("databaseFieldProviders registry", () => {
     test("getDatabaseFieldProvider returns the matching provider", () => {

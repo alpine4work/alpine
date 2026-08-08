@@ -6,17 +6,17 @@ import {Decoration, DecorationSet} from "prosemirror-view";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
 import {ContentCodeBlockHtmlSerializationDecoration} from "~/shared/content/code/create_content_code_block_html_serialization_decorations_store.js";
 import {createContentCodeBlockNodeInput} from "~/shared/content/code/create_content_code_block_node_input.js";
-import {lezerClassHighlighter} from "~/shared/content/code/lezer_class_highlighter.js";
 import {
     IterableChange,
     actuallySymmetricDiffIterable,
 } from "~/shared/content/code/symmetric_diff_iterable.js";
 import {ContentCodeBlockLanguageId} from "~/shared/content/content_code_block_language_id.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
+import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 import {Store} from "~/shared/store/store.js";
 
 declare module "prosemirror-view" {

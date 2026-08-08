@@ -8,7 +8,7 @@ import {
 import {trimSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/web/content/state/trim_selection_invisible_extension_into_adjacent_nodes.js";
 import {isMobileWebKit} from "~/client/web/helpers/browser/is_mobile_web_kit.js";
 import {getClientInfo} from "~/client/web/remix/client_info_context.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 type Command = (
     state: EditorState,

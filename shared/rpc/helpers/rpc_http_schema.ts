@@ -1,6 +1,6 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {RpcCallId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
 
 export const RpcHttpCallInputSchema = Schema.object({

@@ -3,9 +3,9 @@ import {AttributeType, BillingMode, ITable, ProjectionType, Table} from "aws-cdk
 import {IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {crawlDynamoTableSchemas} from "~/admin/crawl/crawl.js";
 import {DynamoClientAction} from "~/server/dynamo/core/dynamo_client_action.js";
-import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 
 const awsDynamoReadPermissionMask = 0b01;
 const awsDynamoWritePermissionMask = 0b10;

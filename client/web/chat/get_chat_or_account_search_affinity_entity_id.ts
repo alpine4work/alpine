@@ -1,7 +1,7 @@
 import {ChatModel} from "~/shared/chat/chat_model.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 export function getChatOrAccountSearchAffinityEntityId(

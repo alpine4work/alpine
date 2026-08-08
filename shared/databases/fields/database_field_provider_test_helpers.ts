@@ -3,7 +3,7 @@ import type {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/dat
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {sql} from "~/shared/databases/sql.js";
 import type {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export function databaseFieldProviderStrings<
     Type extends DatabaseFieldType,

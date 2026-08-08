@@ -1,8 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {getAccount} from "~/server/spaces/get_account.js";
 import {getTaskCollectionSearchResult} from "~/server/tasks/data/get_task_collection_search_result.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryFilterReferences,

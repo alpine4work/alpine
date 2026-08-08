@@ -25,10 +25,10 @@ import type {
 import {diffPage} from "~/shared/databases/page_diff.js";
 import {SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import {InternalError} from "~/shared/error/error.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
-import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 const testConn = makeDatabaseClientConnection();
 const emptyExecuteActionRegistrationFields = {

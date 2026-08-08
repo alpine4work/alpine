@@ -13,7 +13,7 @@ import {
     extractTestNotionImportToDisk,
     readTestNotionImportIndexHtml,
 } from "~/server/importer/notion/test_helpers/extract_test_notion_import_to_disk.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 function readFixture(name: string): Uint8Array {
     const runfiles = process.env.RUNFILES;

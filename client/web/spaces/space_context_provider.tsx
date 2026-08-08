@@ -17,13 +17,13 @@ import {
     initialAccountSettings,
 } from "~/shared/accounts/accounts_settings.js";
 import {ContextBatcher} from "~/shared/context/batch_context_module.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {TimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 import {updateOurAccountSettings} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";

@@ -4,10 +4,10 @@ import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_el
 import {getSelectionStartNodeAndEndNode} from "~/client/web/helpers/get_selection_start_node_and_end_node.js";
 import {trimDomSelectionInvisibleExtensionIntoAdjacentNodes} from "~/client/web/helpers/trim_dom_selection_invisible_extension_into_adjacent_nodes.js";
 import {writeTextToClipboardFallback} from "~/client/web/helpers/write_text_to_clipboard.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {htmlBlockTagNames} from "~/shared/helpers/html/html_block_tag_names.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type ClipboardSerializer = (selection: {

@@ -17,9 +17,9 @@ import {createDocumentNotFoundError} from "~/shared/documents/document_error_mes
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {DocumentId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {noop} from "~/shared/helpers/control/noop.open_source.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";

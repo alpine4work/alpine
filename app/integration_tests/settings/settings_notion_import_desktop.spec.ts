@@ -9,7 +9,7 @@ import {
     createTestNotionImportZip,
 } from "~/server/importer/notion/test_helpers/create_test_notion_import_zip.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const {context, services} = createTestServices();
 

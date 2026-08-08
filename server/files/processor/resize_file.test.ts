@@ -34,14 +34,17 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError} from "~/shared/error/error.js";
-import {FileContentType, FileWebSafeImageContentType} from "~/shared/files/file_content_type.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {
+    FileContentType,
+    FileWebSafeImageContentType,
+} from "~/shared/files/file_content_type.open_source.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 // Increase timeout to reduce test flakiness. Working with images can be expensive,

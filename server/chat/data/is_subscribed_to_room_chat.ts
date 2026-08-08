@@ -2,7 +2,7 @@ import {authorizeChatAccessAndReturnItem} from "~/server/chat/data/internal/auth
 import {ChatTable} from "~/server/chat/data/internal/chat_table.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {ChatId} from "~/shared/id/types/id_types.js";
+import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Returns true if the actor is subscribed to the room chat. In other words would

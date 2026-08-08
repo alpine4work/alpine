@@ -11,7 +11,7 @@ import {TaskBrandIcon} from "~/client/web/icons/brand/task_brand_icon.js";
 import {TaskCollectionBrandIcon} from "~/client/web/icons/brand/task_collection_brand_icon.js";
 import {TaskCommentBrandIcon} from "~/client/web/icons/brand/task_comment_brand_icon.js";
 import {TaskQueryBrandIcon} from "~/client/web/icons/brand/task_query_brand_icon.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SearchEntityModelDataWithAccount} from "~/shared/search/search_entity_model.js";
 
 // NOTE(calebmer): The icons used here for create actions are the same icons used

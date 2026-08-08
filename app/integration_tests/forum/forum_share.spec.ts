@@ -11,7 +11,7 @@ import {allAccessLevels, hasAccessLevel} from "~/shared/access/access_policy.js"
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
 import {PostContentProsemirrorSchema} from "~/shared/forum/post_content_schema.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 
 const {context, services} = createTestServices();
 

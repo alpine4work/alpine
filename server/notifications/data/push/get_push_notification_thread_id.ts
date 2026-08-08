@@ -1,6 +1,6 @@
 import {InboxEntryItem} from "~/server/notifications/data/internal/inbox_table.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Returns a string that is unique\* for a given inbox topic, limited to 32

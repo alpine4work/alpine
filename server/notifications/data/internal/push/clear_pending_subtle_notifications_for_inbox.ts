@@ -1,6 +1,6 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function clearPendingSubtleNotificationsForInbox(
     context: ServerActionContext,

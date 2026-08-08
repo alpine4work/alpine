@@ -2,9 +2,9 @@ import {ServerSessionActionContext} from "~/server/context/server_action_context
 import {ImporterContextModuleBase} from "~/server/importer/importer_context_module_base.js";
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Called by the client after the file upload to S3/local storage completes.

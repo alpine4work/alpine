@@ -1,7 +1,7 @@
 import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the AccountId associated with an email address, if one exists.

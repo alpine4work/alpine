@@ -26,8 +26,8 @@ import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {randomArrayItem} from "~/shared/helpers/array/random_array_item.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 function DocumentContentCoverBlobsArtOption({
     blob,

@@ -2,8 +2,8 @@ import {
     getTaskQueryManuallySortedDirection,
     isTaskQueryManuallySorted,
 } from "~/client/web/tasks/internal/task_grid_view_virtualized_list.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 describe("getTaskQueryManuallySortedDirection", () => {

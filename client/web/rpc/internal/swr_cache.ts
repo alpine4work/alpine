@@ -1,11 +1,11 @@
 import {createGlobalContext} from "~/client/web/helpers/global_context.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {SafeFloatingPromiseLike} from "~/shared/helpers/types/safe_floating_promise.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {createPromiseStore} from "~/shared/store/promise_store.js";

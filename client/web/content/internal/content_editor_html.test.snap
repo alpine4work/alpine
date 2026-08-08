@@ -5752,7 +5752,20 @@ exports[`heading 1 plain 1`] = `
   <h2
     class="content_headingLevel1"
   >
-    Hello world!
+    <div>
+      <div
+        aria-label="Expand heading"
+        role="button"
+      >
+        <svg
+          viewBox="0 0 256 256"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+      </div>
+    </div>
+    <span>
+      Hello world!
+    </span>
   </h2>
 </div>
 `;
@@ -5878,7 +5891,20 @@ exports[`heading 2 plain 1`] = `
   <h3
     class="content_headingLevel2"
   >
-    Hello world!
+    <div>
+      <div
+        aria-label="Expand heading"
+        role="button"
+      >
+        <svg
+          viewBox="0 0 256 256"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+      </div>
+    </div>
+    <span>
+      Hello world!
+    </span>
   </h3>
 </div>
 `;
@@ -6004,7 +6030,20 @@ exports[`heading 3 plain 1`] = `
   <h4
     class="content_headingLevel3"
   >
-    Hello world!
+    <div>
+      <div
+        aria-label="Expand heading"
+        role="button"
+      >
+        <svg
+          viewBox="0 0 256 256"
+          xmlns="http://www.w3.org/2000/svg"
+        />
+      </div>
+    </div>
+    <span>
+      Hello world!
+    </span>
   </h4>
 </div>
 `;

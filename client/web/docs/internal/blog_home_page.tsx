@@ -1,11 +1,12 @@
 import {Link} from "@remix-run/react";
 import {Info} from "phosphor-react";
 import {Box} from "~/client/web/design/box.js";
-import {BlogAuthorById} from "~/client/web/docs/internal/blog_author.js";
-import {BlogPostListItem, createBlogPostUrl} from "~/client/web/docs/internal/blog_post.js";
+import {DocumentationResponsiveImage} from "~/client/web/docs/documentation_responsive_image.js";
 import {DocumentationHeader} from "~/client/web/docs/internal/documentation_header.js";
 import {formatBlogPublishDate} from "~/client/web/docs/internal/format_blog_publish_date.js";
-import {DocumentationSearchIndex} from "~/client/web/docs/search_documentation_entries.js";
+import {BlogAuthorById} from "~/shared/docs/blog_author.js";
+import {BlogPostListItem, createBlogPostUrl} from "~/shared/docs/blog_post.js";
+import {DocumentationSearchIndex} from "~/shared/docs/search_documentation_entries.js";
 
 const blogLayoutCss = `
 .blogFeaturedGrid { grid-template-columns: minmax(0, 1fr); }
@@ -66,7 +67,7 @@ export function BlogHomePage({
             </Box>
 
             <DocumentationHeader surface="blog" searchIndex={searchIndex} />
-            <Box as="main" paddingX="6" paddingTop="12" paddingBottom="24">
+            <Box as="main" paddingX="6" paddingTop="12" paddingBottom="24" userSelect="text">
                 <Box marginX="center" style={{maxWidth: 1180}}>
                     <Box as="header" marginBottom="10">
                         <Box
@@ -92,12 +93,13 @@ export function BlogHomePage({
                     {featuredPosts.length > 0 ? (
                         <Box as="section" marginBottom="14">
                             <Box className="blogFeaturedGrid" display="grid" gap="5">
-                                {featuredPosts.map(post => (
+                                {featuredPosts.map((post, index) => (
                                     <BlogPostCard
                                         key={post.slug}
                                         post={post}
                                         authors={authors}
                                         featured
+                                        prioritizeImage={index === 0}
                                     />
                                 ))}
                             </Box>
@@ -136,10 +138,12 @@ function BlogPostCard({
     post,
     authors,
     featured = false,
+    prioritizeImage = false,
 }: {
     post: BlogPostListItem;
     authors: BlogAuthorById;
     featured?: boolean;
+    prioritizeImage?: boolean;
 }) {
     const author = authors[post.authorId];
 
@@ -159,11 +163,32 @@ function BlogPostCard({
                 height="full"
                 style={{transition: "border-color 120ms ease, transform 120ms ease"}}
             >
-                {post.previewImage !== null ? (
+                {post.previewImageData !== null ? (
+                    <DocumentationResponsiveImage
+                        className={featured ? "blogFeaturedImage" : undefined}
+                        image={post.previewImageData}
+                        alt={post.previewImageAlt ?? ""}
+                        sizes={
+                            featured
+                                ? "(max-width: 680px) calc(100vw - 48px), (max-width: 1228px) 44vw, 519px"
+                                : "(max-width: 680px) calc(100vw - 48px), (max-width: 980px) calc((100vw - 68px) / 2), 380px"
+                        }
+                        loading={prioritizeImage ? "eager" : "lazy"}
+                        fetchPriority={prioritizeImage ? "high" : "auto"}
+                        style={{
+                            aspectRatio: featured ? undefined : "5 / 3",
+                            display: "block",
+                            objectFit: "cover",
+                            width: "100%",
+                        }}
+                    />
+                ) : post.previewImage !== null ? (
                     <img
                         className={featured ? "blogFeaturedImage" : undefined}
                         src={post.previewImage}
                         alt={post.previewImageAlt ?? ""}
+                        loading={prioritizeImage ? "eager" : "lazy"}
+                        fetchPriority={prioritizeImage ? "high" : "auto"}
                         style={{
                             aspectRatio: featured ? undefined : "5 / 3",
                             display: "block",
@@ -207,9 +232,10 @@ function BlogPostCard({
                         {post.summary}
                     </Box>
                     <Box display="flex" alignItems="center" gap="2" marginTop="4">
-                        <img
-                            src={author.avatarUrl}
+                        <DocumentationResponsiveImage
+                            image={author.avatarImage}
                             alt=""
+                            sizes="24px"
                             style={{borderRadius: "999px", height: 24, width: 24}}
                         />
                         <Box
@@ -232,39 +258,5 @@ function BlogPostCard({
                 </Box>
             </Box>
         </Link>
-    );
-}
-
-/**
- * Render shared blog post metadata for cards and individual post headers.
- */
-export function BlogPostMeta({post, authors}: {post: BlogPostListItem; authors: BlogAuthorById}) {
-    const author = authors[post.authorId];
-    return (
-        <Box
-            display="flex"
-            alignItems="center"
-            gap="2"
-            flexWrap="wrap"
-            fontSize="75"
-            color="grey-50"
-        >
-            <time dateTime={post.publishDate}>{formatBlogPublishDate(post.publishDate)}</time>
-            <Box as="span">/</Box>
-            <Box as="span">{author.name}</Box>
-            {post.tags.slice(0, 2).map(tag => (
-                <Box
-                    key={tag}
-                    as="span"
-                    backgroundColor="grey-5"
-                    color="grey-60"
-                    borderRadius="full"
-                    paddingX="2"
-                    paddingY="0.5"
-                >
-                    {tag}
-                </Box>
-            ))}
-        </Box>
     );
 }

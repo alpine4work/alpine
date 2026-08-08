@@ -22,28 +22,28 @@ import {createFileWebUnsafeImageProcessor} from "~/server/files/processor/proces
 import {createFileWebUnsafeVideoProcessor} from "~/server/files/processor/processors/file_web_unsafe_video_processor.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
 import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
-import {createAggregateError} from "~/shared/error/aggregate_error.js";
+import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
 import {
     AbortedError,
     DeadlineExceededError,
     FailedPreconditionError,
     InternalError,
-} from "~/shared/error/error.js";
+} from "~/shared/error/error.open_source.js";
 import {fileProcessorTimeoutMs} from "~/shared/files/file_constants.js";
 import {
     FileContentType,
     canonicalizeFileContentTypeIfExists,
-} from "~/shared/files/file_content_type.js";
-import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+} from "~/shared/files/file_content_type.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export async function processFile(
     context: FileProcessorActionContext,
@@ -346,17 +346,15 @@ export async function processFile(
               })()
             : null;
 
-        const analysisPromise = promises.analysisPromise
-            ? (async () => {
-                  const analysis = await promises.analysisPromise;
+        const analysisPromise = (async () => {
+            const analysis = await promises.analysisPromise;
 
-                  if (analysis !== null) {
-                      await fileUploader.finishProcessingAnalysis(context, analysis);
-                  }
+            if (analysis !== null) {
+                await fileUploader.finishProcessingAnalysis(context, analysis);
+            }
 
-                  return analysis;
-              })()
-            : null;
+            return analysis;
+        })();
 
         const transcriptPromise = promises.transcriptPromise
             ? (async () => {
@@ -383,9 +381,7 @@ export async function processFile(
               })()
             : null;
 
-        const analysisResultPromise = analysisPromise
-            ? captureResultPromise(analysisPromise)
-            : null;
+        const analysisResultPromise = captureResultPromise(analysisPromise);
 
         const transcriptResultPromise = transcriptPromise
             ? captureResultPromise(transcriptPromise)
@@ -536,7 +532,7 @@ export async function processFile(
                 );
             }),
             runAllPromises([
-                analysisResultPromise?.finally(() => {
+                analysisResultPromise.finally(() => {
                     const endTime = span.clock.now();
 
                     span.addData({
@@ -553,10 +549,10 @@ export async function processFile(
             ]),
         ]);
 
-        const analysisResult = analysisResultPromise ? await analysisResultPromise : null;
+        const analysisResult = await analysisResultPromise;
         const transcriptResult = transcriptResultPromise ? await transcriptResultPromise : null;
         const analysisErrors = [
-            ...(analysisResult?.ok === false ? [analysisResult.error] : []),
+            ...(analysisResult.ok === false ? [analysisResult.error] : []),
             ...(transcriptResult?.ok === false ? [transcriptResult.error] : []),
         ];
 
@@ -574,7 +570,7 @@ export async function processFile(
             caughtErrors.push(analysisError);
 
             const analysisProcessorError =
-                analysisResult?.ok === false
+                analysisResult.ok === false
                     ? (getFileProcessorErrors(analysisResult.error)[0] ?? {
                           type: "Unknown" as const,
                       })

@@ -1,11 +1,11 @@
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {
     ObjectSchema,
     ObjectSchemaConfigBase,
     ObjectSchemaConfigType,
     Schema,
     SchemaType,
-} from "~/shared/schema/schema.js";
+} from "~/shared/schema/schema.open_source.js";
 
 /**
  * A set of RPC method definitions for a web worker. Keys are method names, values

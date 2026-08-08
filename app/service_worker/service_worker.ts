@@ -2,15 +2,15 @@
 
 import {serializeWebPushSubscription} from "~/client/web/notifications/serialize_web_push_subscription.js";
 import {getWebPushStore} from "~/client/web/notifications/web_push_store.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertId, generateId} from "~/shared/id/id.js";
-import {BrowserId} from "~/shared/id/types/id_types.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
-import {TracerEvent} from "~/shared/tracer/tracer_event.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertId, generateId} from "~/shared/id/id.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -66,6 +66,7 @@ self.addEventListener("push", (event: PushEvent) => {
     event.waitUntil(
         self.registration.showNotification(title, {
             ...notificationData,
+            badge: "/notification-badge.svg",
         }),
     );
 });

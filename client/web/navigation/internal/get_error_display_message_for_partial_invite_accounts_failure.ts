@@ -1,7 +1,7 @@
-import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Locale} from "~/shared/helpers/intl/locale.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.js";
+import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Locale} from "~/shared/helpers/intl/locale.open_source.js";
+import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
 
 export function getErrorDisplayMessageForPartialInviteAccountsFailure(
     locale: Locale,

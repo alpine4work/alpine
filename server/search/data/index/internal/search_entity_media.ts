@@ -1,11 +1,11 @@
 import {themeColors} from "~/shared/design/core/theme_colors.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
 
 export type SearchEntityMedia = SchemaType<typeof SearchEntityMediaSchema>;

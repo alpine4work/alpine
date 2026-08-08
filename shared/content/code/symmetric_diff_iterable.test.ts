@@ -1,5 +1,5 @@
 import {symmetricDiffIterable} from "~/shared/content/code/symmetric_diff_iterable.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array.js";
 
 test("no change", () => {

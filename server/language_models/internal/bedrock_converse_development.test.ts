@@ -1,9 +1,9 @@
 import {jest} from "@jest/globals";
 import {sendLanguageModelsBedrockConverseRequestWithBearerToken} from "~/server/language_models/internal/bedrock_converse_development.js";
 import {SupportedBedrockModel} from "~/server/language_models/supported_bedrock_model.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
-import {TracerEvent} from "~/shared/tracer/tracer_event.js";
-import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
+import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 
 const testBedrockModel: SupportedBedrockModel = "google.gemma-3-12b-it";
 

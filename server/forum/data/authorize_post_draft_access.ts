@@ -3,12 +3,12 @@ import {permissionDeniedBotError} from "~/server/helpers/permission_denied_bot_e
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {authorizeSpaceAccessIfPossible} from "~/server/spaces/authorize_space_access.js";
 import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {AccountId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {AccountId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function authorizePostDraftAccess(
     context: ServerActionContext,

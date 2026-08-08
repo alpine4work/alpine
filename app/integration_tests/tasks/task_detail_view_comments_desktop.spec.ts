@@ -7,8 +7,8 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {getTaskCommentsFromStart} from "~/server/tasks/data/task_messaging.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 const {context, services} = createTestServices();
 
@@ -151,7 +151,7 @@ test("can create a comment with a file on a ghost task", async ({
     ).toBeVisible();
 });
 
-test("comment access can be gained and lost in realtime", async ({
+test("comment controls update when access changes in realtime", async ({
     browser,
     page: page1,
     context: browserContext1,
@@ -180,7 +180,14 @@ test("comment access can be gained and lost in realtime", async ({
     await page2.goto(`/task/${task1.id}`);
 
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeHidden();
-    await expect(page2.getByText("Comment 1")).toBeHidden();
+    await expect(page2.getByTestId("DisabledMessageInput")).toBeVisible();
+
+    const comment1 = page2.getByText("Comment 1");
+    await expect(comment1).toBeVisible();
+    await comment1.click({button: "right"});
+    await expect(page2.getByText("Add reaction")).toHaveCount(0);
+    await expect(page2.getByText("Reply", {exact: true})).toHaveCount(0);
+    await page2.keyboard.press("Escape");
 
     await page1.getByRole("button", {name: "Share"}).click();
     await page1
@@ -190,11 +197,13 @@ test("comment access can be gained and lost in realtime", async ({
     await page1.getByRole("menuitem", {name: "can comment"}).click();
 
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeVisible();
-    await expect(page2.getByText("Comment 1")).toBeVisible();
+    await expect(page2.getByTestId("DisabledMessageInput")).toHaveCount(0);
+    await expect(comment1).toBeVisible();
 
     await page2.goto(`/task/${task2.id}`);
 
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeVisible();
+    await expect(page2.getByTestId("DisabledMessageInput")).toHaveCount(0);
     await expect(page2.getByText("Comment 2")).toBeVisible();
 
     await page1.goto(`/task-collection/${collection2.id}`);
@@ -206,7 +215,8 @@ test("comment access can be gained and lost in realtime", async ({
     await page1.getByRole("menuitem", {name: "can view"}).click();
 
     await expect(page2.getByRole("textbox", {name: "New comment"})).toBeHidden();
-    await expect(page2.getByText("Comment 2")).toBeHidden();
+    await expect(page2.getByTestId("DisabledMessageInput")).toBeVisible();
+    await expect(page2.getByText("Comment 2")).toBeVisible();
 
     await browserContext2.close();
 });

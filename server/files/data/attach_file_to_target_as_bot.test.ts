@@ -3,11 +3,12 @@ import {FileDocumentAuthorizer} from "~/server/documents/data/documents_actions.
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
+import {startUploadingFile} from "~/server/files/data/files_actions.js";
 import {getFileFromAnyAttachment} from "~/server/files/data/get_file_from_any_attachment.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     documentsInjection: {
@@ -15,7 +16,7 @@ const context = createTestContext({
     },
 });
 
-test("bot can attach file it uploaded to a document", async () => {
+test("returns metadata for the attached file", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});
     const bot = await TestBot.createAndInstantiate(session);
@@ -35,14 +36,46 @@ test("bot can attach file it uploaded to a document", async () => {
         title: "Doc 2",
         access: "Public",
     });
-    await attachFileToTargetAsBot(
+    const attachedFile = await attachFileToTargetAsBot(
         bot.action(),
         file.id,
         FileDocumentAuthorizer.bind({type: "Document", documentId: doc2.id}),
     );
 
-    const result = await getFileFromAnyAttachment(session.action(), file.id);
-    expect(result.id).toBe(file.id);
+    expect(attachedFile).toMatchObject({
+        id: file.id,
+        spaceId: space.id,
+        contentType: expect.any(String),
+        contentLength: expect.any(Number),
+    });
+});
+
+test("returns metadata for a file uploaded by the bot", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const bot = await TestBot.createAndInstantiate(session);
+    const document = await TestDocument.create(session, {
+        title: "Doc",
+        access: "Public",
+    });
+    const {fileId} = await startUploadingFile(bot.action(), {
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 123,
+    });
+
+    const attachedFile = await attachFileToTargetAsBot(
+        bot.action(),
+        fileId,
+        FileDocumentAuthorizer.bind({type: "Document", documentId: document.id}),
+    );
+
+    expect(attachedFile).toMatchObject({
+        id: fileId,
+        spaceId: space.id,
+        contentType: "image/png",
+        contentLength: 123,
+    });
 });
 
 test("non-bot actor is rejected", async () => {

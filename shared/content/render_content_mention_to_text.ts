@@ -3,8 +3,8 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {truncateContentMentionText} from "~/shared/content/truncate_content_mention_text.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {
     deletedSearchEntityTitle,

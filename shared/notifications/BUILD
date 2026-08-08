@@ -3,6 +3,9 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "notifications",
     visibility = ["//visibility:public"],
+    test_deps = [
+        "//shared/spaces/test_helpers",
+    ],
     deps = [
         "//:node_modules/@types/web-push",
         "//:node_modules/@remix-run/router",

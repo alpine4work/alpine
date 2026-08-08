@@ -23,8 +23,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {Sprinkles, modalStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {greyElevated1ClassName} from "~/shared/design/core/constant_class_names.js";
 import {RemLength, Spacing, isRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export const defaultModalMaxWidth: Spacing = "128";
 

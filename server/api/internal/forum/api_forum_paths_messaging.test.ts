@@ -7,8 +7,8 @@ import {
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {forumInjection} from "~/server/forum/data/forum_injection.js";
 import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
-import {generateId} from "~/shared/id/id.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     forumInjection,

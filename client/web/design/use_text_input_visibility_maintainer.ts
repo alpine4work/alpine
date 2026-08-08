@@ -11,7 +11,7 @@ import {isTextInputElement} from "~/client/web/helpers/elements/is_text_input_el
 import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {getRemPxWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
 
 export const textInputVisibilityMaintainerMarginYRem = parseRemLength("5");
 

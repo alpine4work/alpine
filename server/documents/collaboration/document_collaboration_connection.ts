@@ -45,28 +45,31 @@ import {
     InternalError,
     NotFoundError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+} from "~/shared/error/error.open_source.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    runAllPromiseThunks,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {voidSafeFloatingPromise} from "~/shared/helpers/async/void_safe_floating_promise.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     WebSocketConnectionId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,
     MessagingRealtimeBroadcastNewMessageRequest,
@@ -96,7 +99,7 @@ import {
     updateDocumentCommentContent,
 } from "~/shared/rpc/documents_rpc_definitions.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const documentCollaborationConnectionBeforeBackfillMessagesTestCheckpoint =
@@ -373,9 +376,9 @@ export class DocumentCollaborationConnection {
             }),
 
         updateContent: (context, input) => {
-            const expectedAccessLevel = getExpectedAccessLevelForUpdateDocumentContentSteps(
-                input.steps,
-            );
+            const expectedAccessLevel: AccessLevel = input.intentionallyUpdateDeletedTime
+                ? "Manage"
+                : getExpectedAccessLevelForUpdateDocumentContentSteps(input.steps);
 
             if (!hasAccessLevel(this.accessLevel, expectedAccessLevel)) {
                 throw new PermissionDeniedError("Can\u2019t update document", {
@@ -412,9 +415,9 @@ export class DocumentCollaborationConnection {
         },
 
         updateContentWithoutOptimisticBroadcast: (context, input) => {
-            const expectedAccessLevel = getExpectedAccessLevelForUpdateDocumentContentSteps(
-                input.steps,
-            );
+            const expectedAccessLevel: AccessLevel = input.intentionallyUpdateDeletedTime
+                ? "Manage"
+                : getExpectedAccessLevelForUpdateDocumentContentSteps(input.steps);
 
             if (!hasAccessLevel(this.accessLevel, expectedAccessLevel)) {
                 throw new PermissionDeniedError("Can\u2019t update document", {
@@ -772,6 +775,7 @@ export class DocumentCollaborationConnection {
                 clientId: generateId(),
                 createCommentThreads: [],
                 intentionallyUpdateAccessPolicy: null,
+                intentionallyUpdateDeletedTime: null,
                 resolveCommentThreadIds: [commentThreadId],
                 updateOurPresenceState: {state: null},
             });
@@ -831,6 +835,7 @@ export class DocumentCollaborationConnection {
                 clientId: generateId(),
                 createCommentThreads: [],
                 intentionallyUpdateAccessPolicy: null,
+                intentionallyUpdateDeletedTime: null,
                 unresolveCommentThreadIds: [commentThreadId],
                 updateOurPresenceState: {state: null},
             });

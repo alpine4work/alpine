@@ -1,7 +1,7 @@
 import {ContentEditorState} from "~/client/web/content/state/content_editor_state.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
 
 /**

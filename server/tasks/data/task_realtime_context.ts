@@ -26,8 +26,8 @@ import {ConstantsContextModule} from "~/shared/context/constants_context_module.
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {Replace} from "~/shared/helpers/types/replace.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 
 export type TaskRealtimeProcessContext = Context<TaskRealtimeProcessContextModules>;
 

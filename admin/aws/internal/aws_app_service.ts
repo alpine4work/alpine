@@ -12,7 +12,7 @@ import {AwsSes} from "~/admin/aws/internal/aws_ses.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {createAwsAppOrApiService} from "~/admin/aws/internal/create_aws_app_or_api_service.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export class AwsAppService extends Construct {
     constructor(

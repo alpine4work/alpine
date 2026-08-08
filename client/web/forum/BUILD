@@ -27,6 +27,7 @@ ts_project(
         "//client/web/dynamo",
         "//client/web/helpers",
         "//client/web/icons",
+        "//client/web/inbox/context",
         "//client/web/messaging",
         "//client/web/navigation",
         "//client/web/peek",

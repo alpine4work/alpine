@@ -1,8 +1,8 @@
-import {UnavailableError} from "~/shared/error/error.js";
+import {UnavailableError} from "~/shared/error/error.open_source.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {PromiseState, pendingPromiseState} from "~/shared/helpers/async/promise_state.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
  * Same as a promise except `PromiseImmediate.then()` will call its callbacks

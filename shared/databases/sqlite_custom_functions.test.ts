@@ -3,7 +3,7 @@ import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {sql} from "~/shared/databases/sql.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
-import {isOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {isOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;

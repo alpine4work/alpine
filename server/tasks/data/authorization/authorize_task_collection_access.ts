@@ -6,7 +6,7 @@ import {
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskRealtimeActionContext} from "~/server/tasks/data/task_realtime_context.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
-import {SiteId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {SiteId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";
 
 export async function authorizeTaskCollectionAccess(

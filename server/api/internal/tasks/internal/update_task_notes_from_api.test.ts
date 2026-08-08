@@ -6,9 +6,9 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
-import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
     TaskNotesCollaborationUpdateContentWithDiffResponseBodySchema,
@@ -93,17 +93,20 @@ describe("updateTaskNotesFromApi()", () => {
             context.getTaskRealtimeServer().botAction(bot, session),
             {
                 taskId: task.id,
-                patch: {
-                    version: 0,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated notes"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: 0,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated notes"}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             },
         );
 
@@ -138,18 +141,21 @@ describe("updateTaskNotesFromApi()", () => {
         await expect(
             updateTaskNotesFromApi(context.getTaskRealtimeServer().botAction(bot, session), {
                 taskId: task.id,
-                patch: {
-                    version: 0,
-                    content: {
-                        elements: [
-                            {
-                                type: "FileFloat",
-                                side: "Left",
-                                element: {type: "File", id: unknownFileId},
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: 0,
+                        content: {
+                            elements: [
+                                {
+                                    type: "FileFloat",
+                                    side: "Left",
+                                    element: {type: "File", file: {id: unknownFileId}},
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             }),
         ).rejects.toThrow("Received invalid task notes content");
     });
@@ -165,18 +171,21 @@ describe("updateTaskNotesFromApi()", () => {
 
         await updateTaskNotesFromApi(context.getTaskRealtimeServer().botAction(bot, session), {
             taskId: task.id,
-            patch: {
-                version: 0,
-                content: {
-                    elements: [
-                        {
-                            type: "FileFloat",
-                            side: "Left",
-                            element: {type: "File", id: unknownFileId},
-                        },
-                    ],
+            patches: [
+                {
+                    type: "SetContent",
+                    version: 0,
+                    content: {
+                        elements: [
+                            {
+                                type: "FileFloat",
+                                side: "Left",
+                                element: {type: "File", file: {id: unknownFileId}},
+                            },
+                        ],
+                    },
                 },
-            },
+            ],
         }).catch(() => undefined);
 
         expect(updateContentRequestCount).toBe(0);
@@ -196,17 +205,20 @@ describe("updateTaskNotesFromApi()", () => {
         await expect(
             updateTaskNotesFromApi(context.getTaskRealtimeServer().botAction(bot, session), {
                 taskId: task.id,
-                patch: {
-                    version: 0,
-                    content: {
-                        elements: [
-                            {
-                                type: "Paragraph",
-                                elements: [{type: "Text", text: "Updated notes"}],
-                            },
-                        ],
+                patches: [
+                    {
+                        type: "SetContent",
+                        version: 0,
+                        content: {
+                            elements: [
+                                {
+                                    type: "Paragraph",
+                                    elements: [{type: "Text", text: "Updated notes"}],
+                                },
+                            ],
+                        },
                     },
-                },
+                ],
             }),
         ).rejects.toThrow("Notes are out of date.");
     });

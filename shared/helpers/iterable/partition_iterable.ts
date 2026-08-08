@@ -1,4 +1,4 @@
-import {Queue} from "~/shared/helpers/array/queue.js";
+import {Queue} from "~/shared/helpers/array/queue.open_source.js";
 
 /**
  * Splits an iterable in two. The iterable array is for all items where `predicate`

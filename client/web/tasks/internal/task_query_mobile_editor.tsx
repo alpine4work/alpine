@@ -6,7 +6,7 @@ import {scheduleAfterNavigationAnimation} from "~/client/web/design/schedule_aft
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export function TaskQueryMobileEditor({
     initialName,

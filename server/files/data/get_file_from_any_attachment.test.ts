@@ -10,9 +10,9 @@ import {TestChannel} from "~/server/forum/test_helpers/test_channel.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({
     chatInjection: {

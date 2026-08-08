@@ -9,14 +9,14 @@ import {observeInboxItem} from "~/server/notifications/data/internal/observe_inb
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {NotFoundError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxChannelPostsEntryModel} from "~/shared/notifications/inbox_model.js";
 
 /**

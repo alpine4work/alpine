@@ -1,7 +1,7 @@
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {TaskTable} from "~/server/tasks/data/internal/task_table.js";
 import {TaskStepCountByAccountId} from "~/server/tasks/data/task_step_count_by_account_id.js";
-import {SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 export function createTaskNotesCreateTransactionEntry({

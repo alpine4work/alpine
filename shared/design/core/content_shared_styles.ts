@@ -1,5 +1,5 @@
 import {parseRemLength, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 
 // Content max width is spacing "160" (40rem). See `content.css.ts` for the
 // canonical CSS definition.

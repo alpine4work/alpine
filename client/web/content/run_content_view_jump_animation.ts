@@ -3,7 +3,7 @@ import {AnimationPlaybackControls, animate} from "motion";
 import {getColorSchemeWithoutListeningIfBrowser} from "~/client/web/helpers/color_scheme.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {easeOutCubic} from "~/shared/design/core/easing.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export const jumpAnimationDurationMs = 3000;
 export const jumpAnimationFadeInDurationMs = 70;

@@ -4,7 +4,7 @@ import {authorizeInboxAccessForAccount} from "~/server/notifications/data/author
 import {getInboxEntryItemKey} from "~/server/notifications/data/internal/get_inbox_entry_item_key.js";
 import {InboxTable} from "~/server/notifications/data/internal/inbox_table.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxEntryKey, InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 
 /**

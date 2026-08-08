@@ -1,5 +1,5 @@
-import {visitApiContent} from "~/shared/api/content/visit_api_content.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+import {visitApiContent} from "~/shared/api/content/visit_api_content.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 describe("visitApiContent", () => {
     test("visits all block elements", () => {
@@ -211,14 +211,14 @@ describe("visitApiContent", () => {
             ],
         };
 
-        const isInCodeBlocks: Array<boolean> = [];
+        const withinCodeBlockElements: Array<boolean> = [];
         visitApiContent(content, {
             visitInlineElement: (_, context) => {
-                isInCodeBlocks.push(context.isInCodeBlock);
+                withinCodeBlockElements.push(context.withinCodeBlockElement);
             },
         });
 
-        expect(isInCodeBlocks).toEqual([false, true]);
+        expect(withinCodeBlockElements).toEqual([false, true]);
     });
 
     test("visits marks on inline elements", () => {
@@ -239,7 +239,7 @@ describe("visitApiContent", () => {
 
         const markTypes: Array<string> = [];
         visitApiContent(content, {
-            visitInlineElementMark: mark => {
+            visitMark: mark => {
                 markTypes.push(mark.type);
             },
         });
@@ -275,7 +275,7 @@ describe("visitApiContent", () => {
                     type: "Paragraph",
                     elements: [
                         {type: "Text", text: "See "},
-                        {type: "Mention", target: {type: "Document", id: "doc123" as any}},
+                        {type: "Mention", reference: {type: "Document", id: "doc123" as any}},
                         {type: "Text", text: " for details"},
                     ],
                 },

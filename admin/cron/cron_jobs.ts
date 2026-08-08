@@ -1,6 +1,6 @@
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
 
 type CronJobBase = {
     readonly name: string;

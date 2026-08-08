@@ -8,11 +8,11 @@ import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
-import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
+import {getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export async function uploadDemoFile(
     tokenAgent: TokenAgent,

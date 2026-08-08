@@ -1,5 +1,5 @@
 import {SqliteStorageType} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * SQLite accepts anything as the 'type' of a columm, and will return it through

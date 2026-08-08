@@ -17,8 +17,8 @@ import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {borderRadius} from "~/shared/design/core/border_radius.js";
 import {addRemLengths, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 export function meta() {
     return [{title: `Create${metaTitlePostfix}`}];

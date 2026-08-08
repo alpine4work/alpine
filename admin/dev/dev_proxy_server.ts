@@ -6,8 +6,8 @@ import {
     handleProxiedSocketError,
 } from "~/server/helpers/node/bridge_proxied_sockets.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 // This will be ~30s of retrying.
 const retryDurationMs = 50;

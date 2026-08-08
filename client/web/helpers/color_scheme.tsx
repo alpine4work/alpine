@@ -3,10 +3,10 @@
 import {useEffect, useState} from "react";
 import {flushSync} from "react-dom";
 import {useIsInitialAppRender} from "~/client/web/helpers/lifecycle/initial_app_render.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 
 export type ColorScheme = "light" | "dark";
 

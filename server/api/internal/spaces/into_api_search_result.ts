@@ -1,12 +1,11 @@
-import {intoApiTaskStatus} from "~/shared/api/content/into_api_task_status.js";
-import {
-    ApiSearchResult,
-    ApiSearchResultBodyMatchItem,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
+import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
+import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {contentMentionTextTruncatedSuffix} from "~/shared/content/truncate_content_mention_text.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {getSearchEntityNoun} from "~/shared/search/get_search_entity_noun.js";
 import {missingSearchEntityTitle} from "~/shared/search/missing_and_private_search_entity_titles.js";
 import {SearchDynamicEntityType} from "~/shared/search/search_entity_id.js";
@@ -15,61 +14,58 @@ import {SearchEntityResultModel} from "~/shared/search/search_entity_result_mode
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 
-export function intoApiSearchResult(entity: SearchEntityResultModel): ApiSearchResult | null {
-    const result = actuallyIntoApiSearchResult(entity);
+export function intoApiSearchResult(
+    {model, bodyTextSnippet, parsedFilter: resultParsedFilter}: SearchEntityResultModel,
+    queryText: string,
+): ApiSearchResultResponse | null {
+    let bodySnippet: {
+        text: string;
+        matches: Array<{type: "BodySnippet"; index: number; length: number}>;
+    } | null;
 
-    if (result === null) return null;
+    if (bodyTextSnippet.length === 0) {
+        bodySnippet = null;
+    } else {
+        bodySnippet = {
+            text: "",
+            matches: [],
+        };
 
-    // In development, make sure the properties shared across all results are in a
-    // consistent order. So the JSON we send to the client is neat and pretty.
-    //
-    // TODO(calebmer): Maybe we should have a more generic assertion that objects have
-    // the same key order as the `api_specification.yaml` JSON schema.
-    if (process.env.NODE_ENV !== "production") {
-        const resultEntries = Object.keys(result);
+        let bodyIndex = 0;
+        for (const {text, isHighlighted} of bodyTextSnippet) {
+            bodySnippet.text += text;
 
-        const expectedKeys = [];
+            if (isHighlighted && text.length > 0) {
+                bodySnippet.matches.push({
+                    type: "BodySnippet",
+                    index: bodyIndex,
+                    length: text.length,
+                });
+            }
 
-        expectedKeys.push("title");
-        expectedKeys.push("bodyMatch");
-
-        if (hasOwnProperty(result, "parsedFilter")) {
-            expectedKeys.push("parsedFilter");
+            bodyIndex += text.length;
         }
 
-        expectedKeys.push("type");
-
-        if (hasOwnProperty(result, "id")) {
-            expectedKeys.push("id");
-        }
-
-        assert(isDeepEqual(resultEntries.slice(0, expectedKeys.length), expectedKeys));
+        bodySnippet.matches = mergeApiSearchResultMatchesSeparatedByWhitespace(
+            bodySnippet.text,
+            bodySnippet.matches,
+        );
     }
 
-    return result;
-}
-
-function actuallyIntoApiSearchResult({
-    model,
-    bodyTextSnippet,
-    parsedFilter: resultParsedFilter,
-}: SearchEntityResultModel): ApiSearchResult | null {
-    const bodyMatch =
-        bodyTextSnippet.length > 0
-            ? bodyTextSnippet.map(
-                  (snippet): ApiSearchResultBodyMatchItem => ({
-                      text: snippet.text,
-                      ...(snippet.isHighlighted ? {isMatch: true} : {}),
-                  }),
-              )
-            : null;
+    const parsedFilter = resultParsedFilter ?? undefined;
 
     if (model instanceof AccountModel) {
+        const title = model.initialData.name;
+
         return {
-            title: model.initialData.name,
-            bodyMatch: null,
             type: "Account",
             id: model.id,
+            title,
+            bodySnippet: null,
+            matches: createApiSearchResultTitleMatches(title, queryText),
+            parsedFilter,
+            shortName: getAccountShortNameWithoutFullNameTooltip(model.initialData),
+            bot: model.botId !== undefined ? {id: model.botId} : undefined,
         };
     }
 
@@ -84,117 +80,288 @@ function actuallyIntoApiSearchResult({
         return null;
     }
 
-    const parsedFilter = resultParsedFilter ?? undefined;
-
     switch (entity.type) {
         case "Channel": {
+            const title = model.initialData.title ?? getMissingSearchEntityTitle(entity);
+
             return {
-                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
-                bodyMatch: null,
-                parsedFilter,
                 type: "Channel",
                 id: entity.channel.id,
+                title,
+                bodySnippet: null,
+                matches: createApiSearchResultTitleMatches(title, queryText),
+                parsedFilter,
             };
         }
         case "Chat": {
+            const title = model.initialData.title ?? getMissingSearchEntityTitle(entity);
+
             return {
-                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
-                bodyMatch: null,
-                parsedFilter,
                 type: "Chat",
                 id: entity.chat.id,
+                title,
+                bodySnippet: null,
+                matches: createApiSearchResultTitleMatches(title, queryText),
+                parsedFilter,
             };
         }
         case "ChatMessage": {
             // look at `get_search_entity` to see which data is supposed to be there
-            assert(bodyMatch !== null);
+            assert(bodySnippet !== null);
 
             return {
-                title: null,
-                bodyMatch,
-                parsedFilter,
                 type: "ChatMessage",
                 id: entity.message.chatId,
                 index: entity.message.index,
+                title: null,
+                bodySnippet: bodySnippet.text,
+                matches: bodySnippet.matches,
+                parsedFilter,
                 author: intoApiAccount(entity.message.author.initialData),
             };
         }
         case "Document": {
+            const title = model.initialData.title ?? getMissingSearchEntityTitle(entity);
+
             return {
-                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
-                bodyMatch,
-                parsedFilter,
                 type: "Document",
                 id: entity.document.id,
+                title,
+                bodySnippet: bodySnippet?.text ?? null,
+                matches: [
+                    ...createApiSearchResultTitleMatches(title, queryText),
+                    ...(bodySnippet?.matches ?? []),
+                ],
+                parsedFilter,
             };
         }
         case "DocumentComment": {
+            assert(bodySnippet !== null);
+
             return {
-                title: null,
-                bodyMatch,
-                parsedFilter,
                 type: "DocumentMessage",
                 id: entity.comment.documentId,
                 threadId: entity.comment.commentThreadId,
                 index: entity.comment.index,
+                title: null,
+                bodySnippet: bodySnippet.text,
+                matches: bodySnippet.matches,
+                parsedFilter,
                 author: intoApiAccount(entity.comment.author.initialData),
             };
         }
         case "Post": {
+            const postTitle = model.initialData.title;
+
+            const title =
+                postTitle !== null
+                    ? `${getAccountShortNameWithoutFullNameTooltip(entity.post.author.initialData)} ${postTitle}`
+                    : getMissingSearchEntityTitle(entity);
+
+            let titleMatches = createApiSearchResultTitleMatches(title, queryText);
+
+            // HACK: Posts uniquely generate the post title from the post's body. This leads to
+            // an awkward situation for our search API where if left alone `title` and
+            // `bodySnippet` will have the same content. This then looks weird for anyone
+            // processing API results (like our MCP search tool) because you'll see the same
+            // content repeated twice if you're printing both the body snippet and title.
+            //
+            // So try to detect when we've matched some part of the body that's also present in
+            // the title and drop that part of the body from the `bodySnippet`. Sometimes
+            // dropping the fully body if the body is fully contained by the title!
+            //
+            // The title string and body string should be character-for-character identical in
+            // most cases.
+            //
+            // - We write the title + body atomically when indexing a post for search so they
+            //   should be based on the same data. Including the referenced channel which is
+            //   also loaded and inlined by the search indexer atomically across both the title
+            //   and body.
+            //
+            // - To print a title `createPostSearchEntityTitle()` we take a snippet of the body
+            //   content (`getContentSnippet()`) and then use
+            //   `printContentSingleLineTextSnippet()` to print it to a string.
+            //
+            // - To print the body to a string is more complicated. We use
+            //   `chunkSearchContent()` to generate the markdown we index in OpenSearch for
+            //   search content. Then we use `parseSearchContent()` to convert the markdown
+            //   from OpenSearch back into a string. We try hard to make sure all content
+            //   printed by `chunkSearchContent()` can be exactly parsed to the same thing by
+            //   `parseSearchContent()` minus some meaningless details for the purpose of
+            //   rendering to a string like mention or link URLs (see
+            //   `chunk_search_content.test.ts`). Then after `parseSearchContent()` on the
+            //   highlighted text from OpenSearch we use `printContentSingleLineTextSnippet()`
+            //   to print our content back into a string.
+            //
+            //     So if all goes well, we end up calling `printContentSingleLineTextSnippet()`
+            //     on identical content as we had when printing the title and so we should get
+            //     identical strings.
+            //
+            //     One possible problem is that we call `parseSearchContent()` on text selected
+            //     by OpenSearch using the "highlight" feature. The highlight feature truncates
+            //     the body at some point before and after the matched text. This means
+            //     OpenSearch might truncate essential markdown we need for
+            //     `parseSearchContent()` to return identical content as what we had when
+            //     printing the title. We accept this hack not working in that case, the body
+            //     match will already be shifted forward a bit so it won't start at the same
+            //     place as the post title anyway. _shrug_
+            if (postTitle !== null && bodySnippet !== null) {
+                const postTitleForBodyOverlap = postTitle.endsWith(
+                    contentMentionTextTruncatedSuffix,
+                )
+                    ? postTitle.slice(0, -contentMentionTextTruncatedSuffix.length)
+                    : postTitle;
+
+                let dropLength = 0;
+                let titleDropIndex = 0;
+
+                for (let i1 = 0; i1 < postTitleForBodyOverlap.length; i1++) {
+                    const c1 = postTitleForBodyOverlap[i1]!;
+
+                    if (!(dropLength < bodySnippet.text.length)) break;
+
+                    const c2 = bodySnippet.text[dropLength]!;
+
+                    if (c1 === c2) {
+                        if (dropLength === 0) titleDropIndex = i1;
+                        dropLength++;
+                    } else if (dropLength > 0) {
+                        // If there's a character mismatch then this is an invalid drop. Cancel the loop.
+                        dropLength = 0;
+                        break;
+                    }
+                }
+
+                if (dropLength > 0) {
+                    // Skip over whitespace and non-alphanumeric characters. The regex used here was
+                    // taken from
+                    // `approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer()`
+                    // which is in turn based on our OpenSearch analyzer.
+                    while (dropLength < bodySnippet.text.length) {
+                        if (
+                            // eslint-disable-next-line no-control-regex
+                            /^[\u000D\u000A\u000B\u000C\u0085\u2028\u2029]|\p{Zs}|[^\p{Ll}\p{Lm}\p{Lo}\p{Lt}\p{Lu}\p{Nd}|\p{Nl}|\p{No}]$/u.test(
+                                bodySnippet.text[dropLength]!,
+                            )
+                        ) {
+                            dropLength++;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    const titleIndexOffset = title.length - postTitle.length + titleDropIndex;
+                    const bodyTitleMatches = filterMapArray(bodySnippet.matches, match => {
+                        const length = Math.min(match.length, dropLength - match.index);
+                        if (length <= 0) return;
+
+                        return {
+                            type: "Title" as const,
+                            index: titleIndexOffset + match.index,
+                            length,
+                        };
+                    });
+                    if (bodyTitleMatches.length > 0) {
+                        titleMatches = mergeApiSearchResultMatchesSeparatedByWhitespace(title, [
+                            ...titleMatches,
+                            ...bodyTitleMatches,
+                        ]);
+                    }
+
+                    if (!(dropLength < bodySnippet.text.length)) {
+                        bodySnippet = null;
+                    } else {
+                        bodySnippet.text = bodySnippet.text.slice(dropLength);
+
+                        bodySnippet.matches = filterMapArray(bodySnippet.matches, match => {
+                            const index = match.index - dropLength;
+                            if (index >= 0)
+                                return {type: "BodySnippet" as const, index, length: match.length};
+
+                            const length = match.length + index;
+                            if (length <= 0) return;
+
+                            return {type: "BodySnippet" as const, index: 0, length};
+                        });
+                    }
+                }
+            }
+
             return {
-                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
-                bodyMatch,
-                parsedFilter,
                 type: "Post",
                 id: entity.post.id,
+                // Posts start with "in ${channelName}: " and expect client rendering code to add
+                // the post author name to the start of the title.
+                title,
+                bodySnippet: bodySnippet?.text ?? null,
+                matches: [...titleMatches, ...(bodySnippet?.matches ?? [])],
+                parsedFilter,
                 author: intoApiAccount(entity.post.author.initialData),
             };
         }
         case "PostComment": {
+            assert(bodySnippet !== null);
+
             return {
-                title: null,
-                bodyMatch,
-                parsedFilter,
                 type: "PostMessage",
                 id: entity.comment.postId,
                 index: entity.comment.index,
+                title: null,
+                bodySnippet: bodySnippet.text,
+                matches: bodySnippet.matches,
+                parsedFilter,
                 author: intoApiAccount(entity.comment.author.initialData),
             };
         }
         case "Task": {
+            const title = model.initialData.title ?? getMissingSearchEntityTitle(entity);
+
             return {
-                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
-                bodyMatch,
-                parsedFilter,
                 type: "Task",
                 id: entity.task.id,
+                title,
+                bodySnippet: bodySnippet?.text ?? null,
+                matches: [
+                    ...createApiSearchResultTitleMatches(title, queryText),
+                    ...(bodySnippet?.matches ?? []),
+                ],
+                parsedFilter,
                 status: intoApiTaskStatus(entity.task.displayStatus.value),
             };
         }
         case "TaskCollection": {
+            const title = model.initialData.title ?? getMissingSearchEntityTitle(entity);
+
             return {
-                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
-                bodyMatch: null,
-                parsedFilter,
                 type: "TaskCollection",
                 id: entity.collection.id,
+                title,
+                bodySnippet: null,
+                matches: createApiSearchResultTitleMatches(title, queryText),
+                parsedFilter,
             };
         }
         case "TaskComment": {
+            assert(bodySnippet !== null);
+
             return {
-                title: null,
-                bodyMatch,
-                parsedFilter,
                 type: "TaskMessage",
                 id: entity.comment.taskId,
                 index: entity.comment.index,
+                title: null,
+                bodySnippet: bodySnippet.text,
+                matches: bodySnippet.matches,
+                parsedFilter,
                 author: intoApiAccount(entity.comment.author.initialData),
             };
         }
         case "Site": {
+            const title = model.initialData.title ?? getMissingSearchEntityTitle(entity);
+
             return {
-                title: model.initialData.title ?? getMissingSearchEntityTitle(entity),
-                bodyMatch: null,
+                title,
+                bodySnippet: null,
+                matches: createApiSearchResultTitleMatches(title, queryText),
                 parsedFilter,
                 type: "Site",
                 id: entity.site.id,
@@ -206,6 +373,71 @@ function actuallyIntoApiSearchResult({
         default:
             throw exhaustive(entity);
     }
+}
+
+function createApiSearchResultTitleMatches(
+    title: string,
+    queryText: string,
+): Array<{type: "Title"; index: number; length: number}> {
+    const queryTokens = new Set(
+        approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(queryText).map(
+            token => token.text,
+        ),
+    );
+
+    const titleMatches: Array<{type: "Title"; index: number; length: number}> = [];
+
+    // As of 2023-12-18 our in-process highlighter doesn't have full compatibility with
+    // OpenSearch's highlighter. For example, we don't support highlighting tokens that
+    // would have been split up by the `word_delimiter_graph` filter and we don't
+    // support highlighting typos from a fuzzy match.
+    for (const token of approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(
+        title,
+    )) {
+        if (!queryTokens.has(token.text)) continue;
+
+        titleMatches.push({
+            type: "Title",
+            index: token.sourceStartIndex,
+            length: token.sourceLength,
+        });
+    }
+
+    return mergeApiSearchResultMatchesSeparatedByWhitespace(title, titleMatches);
+}
+
+function mergeApiSearchResultMatchesSeparatedByWhitespace<
+    Match extends {index: number; length: number},
+>(text: string, matches: Array<Match>): Array<Match> {
+    const mergedMatches: Array<Match> = [];
+
+    const sortedMatches = matches.toSorted((match1, match2) => match1.index - match2.index);
+    for (const match of sortedMatches) {
+        const previousMatch = mergedMatches.at(-1);
+        if (previousMatch === undefined) {
+            mergedMatches.push(match);
+            continue;
+        }
+
+        const previousMatchEndIndex = previousMatch.index + previousMatch.length;
+        const matchEndIndex = match.index + match.length;
+        const textBetweenMatches = text.slice(previousMatchEndIndex, match.index);
+
+        if (
+            match.index <= previousMatchEndIndex ||
+            /^\p{White_Space}*$/u.test(textBetweenMatches)
+        ) {
+            mergedMatches[mergedMatches.length - 1] = {
+                ...previousMatch,
+                index: previousMatch.index,
+                length: Math.max(previousMatchEndIndex, matchEndIndex) - previousMatch.index,
+            } as Match;
+        } else {
+            mergedMatches.push(match);
+        }
+    }
+
+    return mergedMatches;
 }
 
 function getMissingSearchEntityTitle(entity: {type: SearchDynamicEntityType}): string {

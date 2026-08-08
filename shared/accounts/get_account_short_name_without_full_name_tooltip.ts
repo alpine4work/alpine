@@ -1,5 +1,5 @@
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 /**
  * Shorter version of the account's name. If the account has a name formatted like

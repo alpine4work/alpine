@@ -31,8 +31,8 @@ import {IChainable, IntegrationPattern, JsonPath, Timeout} from "aws-cdk-lib/aws
 import {CallAwsService} from "aws-cdk-lib/aws-stepfunctions-tasks";
 import {Construct} from "constructs";
 import {awsGithubTestRunnerImageBuilderComponents} from "~/admin/aws/internal/aws_github_test_runner_image_builder_components.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 const awsGithubRunnerTaskTimeout = Duration.hours(6);
 const awsGithubRunnerHeartbeatTimeout = Duration.minutes(10);

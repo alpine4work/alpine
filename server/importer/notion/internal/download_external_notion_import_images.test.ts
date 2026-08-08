@@ -3,10 +3,10 @@ import {readFile} from "fs/promises";
 import {join as joinPath} from "path";
 import {downloadExternalNotionImportImages} from "~/server/importer/notion/internal/download_external_notion_import_images.js";
 import {TestImporterContextModule} from "~/server/importer/test_helpers/test_importer_context_module.js";
-import {UnknownError} from "~/shared/error/error.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const spaceId = generateId<SpaceId>();
 const workspaceId = "test-workspace-id";

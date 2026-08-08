@@ -1,5 +1,5 @@
 import {AppContext} from "~/client/web/context/app_context.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 /**
  * Props for a `<ModalDialog>` component.

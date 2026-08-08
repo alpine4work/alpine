@@ -1,12 +1,12 @@
 import murmurhash from "murmurhash";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.js";
-import {SchemaSerializedScalarValue} from "~/shared/schema/schema.js";
-import {SchemaSerializedCompositeValueDescription} from "~/shared/schema/types/schema_description_types.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {SchemaSerializedScalarValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedCompositeValueDescription} from "~/shared/schema/types/schema_description_types.open_source.js";
 
 const schemaCompositeDescriptionTypes: {
     [K in SchemaSerializedCompositeValueDescription["type"] | "Enum"]: true;

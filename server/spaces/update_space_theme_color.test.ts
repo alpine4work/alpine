@@ -3,7 +3,7 @@ import {getSpace} from "~/server/spaces/get_space.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {updateSpaceThemeColor} from "~/server/spaces/update_space_theme_color.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 
 const context = createTestContext({
     spacesInjection,

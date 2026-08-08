@@ -1,19 +1,21 @@
-import {Node} from "prosemirror-model";
+import {Mark, Node} from "prosemirror-model";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
-import {intoApiContentSnippetInlineElementMarks} from "~/shared/api/content/into_api_content.js";
 import {
     ApiMessageContentPayloadParentContentSnippet,
+    ApiMessageContentPayloadParentContentSnippetInlineElementMark,
     ApiMessageContentPayloadParentResponse,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {printContentSingleLineTextSnippetPreservingMarks} from "~/shared/content/print_content_single_line_text_snippet.js";
 import {truncateContentForMessageReplyPreview} from "~/shared/content/truncate_content_for_message_reply_preview.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getAuthorFromSearchEntityIfExists} from "~/shared/search/get_author_from_search_entity_if_exists.js";
 
 export async function intoApiMessageContentPayloadParent(
@@ -42,8 +44,8 @@ export async function intoApiMessageContentPayloadParent(
             return {
                 type: "Message",
                 index: parent.index,
-                contentSnippet,
                 author,
+                contentSnippet,
             };
         }
         case "MessagesRange": {
@@ -51,15 +53,15 @@ export async function intoApiMessageContentPayloadParent(
                 type: "Message",
                 index: parent.startIndex,
                 endIndex: parent.endIndex,
-                contentSnippet,
                 author,
+                contentSnippet,
             };
         }
         case "PostRange": {
             return {
                 type: "Post",
-                contentSnippet,
                 author,
+                contentSnippet,
             };
         }
         default:
@@ -124,9 +126,26 @@ async function intoApiContentSnippet(
             text: segment.text,
             marks:
                 segment.marks.length > 0
-                    ? intoApiContentSnippetInlineElementMarks(segment.marks)
+                    ? segment.marks.map(
+                          intoApiMessageContentPayloadParentContentSnippetInlineElementMark,
+                      )
                     : undefined,
         })),
         isTruncated,
     };
+}
+
+function intoApiMessageContentPayloadParentContentSnippetInlineElementMark(
+    mark: Mark,
+): ApiMessageContentPayloadParentContentSnippetInlineElementMark {
+    switch (mark.type.name) {
+        case "strike":
+            return {type: "Strike"};
+        case "code":
+            return {type: "Code"};
+        default:
+            throw new InternalError(
+                quote`${mark.type.name} mark isn\u2019t supported in \`ContentSnippet\` inline element`,
+            );
+    }
 }

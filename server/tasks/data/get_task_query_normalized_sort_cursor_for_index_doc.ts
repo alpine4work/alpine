@@ -1,6 +1,6 @@
 import {TaskIndexDoc, getTaskIndexDocDisplayStatus} from "~/server/tasks/data/task_index_doc.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {TaskDisplayStatusIntegerMapping} from "~/shared/tasks/task_display_status.js";
 import {TaskLayoutIntegerMapping} from "~/shared/tasks/task_layout.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
@@ -13,7 +13,10 @@ import {
 
 export function getTaskQueryNormalizedSortCursorForIndexDoc(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
-    task: Omit<TaskIndexDoc, "lastIndexSearchEntityJob" | "approximateActionCountByAccountId">,
+    task: Omit<
+        TaskIndexDoc,
+        "lastIndexSearchEntityJob" | "approximateActionCountByAccountId" | "titleIndexVersion"
+    >,
 ): TaskQuerySortCursor {
     const cursor: Array<TaskQuerySortCursorValue> = [];
 
@@ -28,7 +31,10 @@ export function getTaskQueryNormalizedSortCursorForIndexDoc(
 
 function getTaskQueryNormalizedSortCursorValueForIndexDoc(
     sort: TaskQueryNormalizedSort,
-    task: Omit<TaskIndexDoc, "lastIndexSearchEntityJob" | "approximateActionCountByAccountId">,
+    task: Omit<
+        TaskIndexDoc,
+        "lastIndexSearchEntityJob" | "approximateActionCountByAccountId" | "titleIndexVersion"
+    >,
 ): TaskQuerySortCursorValue {
     switch (sort.type) {
         case "DisplayStatus": {

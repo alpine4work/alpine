@@ -6,11 +6,18 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {type DatabaseFieldConfig} from "~/shared/databases/fields/all_database_field_providers.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import type {DatabaseFieldId, DatabaseTableId, DatabaseViewId} from "~/shared/id/types/id_types.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {
+    type OrderKey,
+    generateOrderKeyBetween,
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import type {
+    DatabaseFieldId,
+    DatabaseTableId,
+    DatabaseViewId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 export type DatabaseGridViewField = {
     readonly id: DatabaseFieldId;

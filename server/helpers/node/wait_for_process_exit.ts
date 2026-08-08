@@ -1,7 +1,7 @@
 import {ChildProcess} from "child_process";
 import path from "path";
-import {UnknownError} from "~/shared/error/error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+import {UnknownError} from "~/shared/error/error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
  * Wait for a process spawned by `child_process` to exit. Rejects if the process

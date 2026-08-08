@@ -1,7 +1,7 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**
  * A context module we use when rendering a React component.

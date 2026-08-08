@@ -1,10 +1,10 @@
 import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
 import {getLatestAvatarVersion} from "~/shared/avatar/get_latest_avatar_version.js";
 import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Since Each `document`/`channel`/`task collection` itself has permissions, we
@@ -52,11 +52,6 @@ export class SpaceModel extends Model(
          * blue if not set.
          */
         themeColor: Schema.enum(themeColors).default(defaultThemeColor),
-        /**
-         * The workspace's database group — the SQLite instance (backed by a Cloudflare
-         * Durable Object) that holds all of the workspace's database tables. Assigned when
-         * the first database is created, so spaces without databases do not have it.
-         */
         databaseGroupId: Schema.id<DatabaseGroupId>().optional(),
     }),
 ) {

@@ -1,5 +1,5 @@
 import {getSelectionStartNodeAndEndNode} from "~/client/web/helpers/get_selection_start_node_and_end_node.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 test("same text node with anchor before focus", () => {
     const textNode = document.createTextNode("Hello World");

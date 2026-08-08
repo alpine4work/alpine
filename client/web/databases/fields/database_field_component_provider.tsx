@@ -9,7 +9,7 @@ import {
     DatabaseFieldType,
     DatabaseFieldValue,
 } from "~/shared/databases/fields/all_database_field_providers.js";
-import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 // -- Grid view cell props -----------------------------------------------------
 

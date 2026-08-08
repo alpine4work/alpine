@@ -3,8 +3,8 @@ import {createTestSession} from "~/server/dynamo/test_helpers/create_test_sessio
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createChannel} from "~/server/forum/data/create_channel.js";
 import {ChannelRealtimeDurableObject} from "~/server/forum/realtime/channel_realtime_durable_object.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {generateId} from "~/shared/id/id.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 const context = createTestWorkerContext();
 const {connectForTest} = ChannelRealtimeDurableObject.test(context);

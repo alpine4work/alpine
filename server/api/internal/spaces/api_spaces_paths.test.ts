@@ -8,8 +8,8 @@ import {updateBotSpaceSettingsPropertyValue} from "~/server/bots/with_spaces/upd
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {emptySimpleContent} from "~/shared/content/simple_content_schema.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
 
@@ -35,6 +35,32 @@ test("can read account information", async () => {
                 name: "Test Account",
             }),
         }),
+    });
+});
+
+test("bot account reference includes long title, short name, and bot id", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+
+    const bot = await TestBot.createAndInstantiate(session, {name: "Release Helper"});
+    const apiKey = await bot.createApiKey(session);
+
+    expect(
+        await server.GET(`/accounts/${bot.id}-reference`, {
+            headers: {authorization: `bearer ${apiKey}`},
+        }),
+    ).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            reference: {
+                type: "Account",
+                id: bot.id,
+                title: "Release Helper",
+                shortName: "Release",
+                bot: {id: bot.bot.id},
+            },
+        },
     });
 });
 

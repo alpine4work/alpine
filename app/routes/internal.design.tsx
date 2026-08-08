@@ -11,7 +11,7 @@ import {useInitialAppRenderId} from "~/client/web/helpers/lifecycle/initial_app_
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 
 export function meta() {
     return [{title: `Design Playground${metaTitlePostfix}`}];

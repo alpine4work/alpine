@@ -3,10 +3,10 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getMessageContentPayloadModelFile} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getAccount} from "~/server/spaces/get_account.js";
-import {InternalError} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageReferencedIds, MessageReferences} from "~/shared/messaging/message_references.js";
 
 export async function getMessageReferences(

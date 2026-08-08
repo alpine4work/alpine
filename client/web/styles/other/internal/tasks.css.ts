@@ -15,7 +15,7 @@ import {
 import {containerClassName} from "~/client/web/styles/other/internal/content_editor.css.js";
 import {convertRemLengthToPx, parseRemLength, spacing} from "~/shared/design/core/spacing.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 
 export const textCursorNotInheritedClassName = style({
     cursor: "text",

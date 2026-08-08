@@ -1,5 +1,5 @@
 import {decodeBytesWithFallback} from "~/server/emails/mime/decode_bytes_with_fallback.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 
 function isHexDigit(character: string): boolean {
     return /^[0-9A-Fa-f]$/.test(character);

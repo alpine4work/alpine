@@ -3,7 +3,7 @@ import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {unknownAccountId} from "~/shared/accounts/account_model_without_space.js";
 import {Context} from "~/shared/context/context.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function getAccountBillingItemIfExists(
     context: Context<DynamoContextModules>,

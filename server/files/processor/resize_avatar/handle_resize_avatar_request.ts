@@ -3,8 +3,8 @@ import {LambdaActionContext} from "~/server/lambda/helpers/lambda_action_context
 import {createDynamoActorSessionContextModule} from "~/server/spaces/create_actor_context_module_from_authorization_header.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {ResizeAvatarForUploadRequestSchema} from "~/shared/avatar/protocol/resize_avatar_for_upload_request_schema.js";
-import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export async function handleResizeAvatarRequest(
     contextWithoutActor: LambdaActionContext,

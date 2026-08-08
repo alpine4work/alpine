@@ -8,12 +8,12 @@ import {ReactContextModule} from "~/client/web/context/react_context_module.js";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.js";
-import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
-import {isTransientError} from "~/shared/error/is_transient_error.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.open_source.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.open_source.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
+import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // We've patched Remix so that when it serializes and deserializes errors it looks
 // for this global and uses it.

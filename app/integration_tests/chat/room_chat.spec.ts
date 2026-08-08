@@ -7,7 +7,7 @@ import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 
 const {context, services} = createTestServices();
 

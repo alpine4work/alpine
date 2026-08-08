@@ -1,8 +1,11 @@
+import {createAccessPolicyForContentCreatedByBot} from "~/server/access/create_access_policy_for_content_created_by_bot.js";
 import {createIntoApiPostCommentContentPayloadParent} from "~/server/api/internal/forum/internal/create_into_api_post_comment_content_payload_parent.js";
 import {ApiPaths} from "~/server/api/internal/shared/api_paths_type.js";
+import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_service_context.js";
 import {fromApiMessageContentPayloadParent} from "~/server/api/internal/shared/from_api_message_content_payload_parent.js";
 import {fromApiMessageStreamPartPayload} from "~/server/api/internal/shared/from_api_message_stream_part_payload.js";
 import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
+import {getFileIdOrFileEntityIdFromApiMessageContentPayloadFile} from "~/server/api/internal/shared/get_file_id_or_file_entity_id_from_api_message_content_payload_file.js";
 import {
     getApiMentionTitleWithStrongConsistency,
     intoApiContentWithReferencesAndReturnReferences,
@@ -10,13 +13,14 @@ import {
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiMessage} from "~/server/api/internal/shared/into_api_message.js";
 import {intoApiMessageExperimentalApproval} from "~/server/api/internal/shared/into_api_message_stream_part_payload.js";
-import {parseFileIdFromApiFileElement} from "~/server/api/internal/shared/parse_file_id_or_file_entity_id.js";
 import {getContentReferencesForServerPrintSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet_for_server.js";
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
+import {createChannel} from "~/server/forum/data/create_channel.js";
 import {createPost} from "~/server/forum/data/create_post.js";
 import {FilePostAuthorizer} from "~/server/forum/data/file_post_authorizer.js";
 import {getChannelNameAndDescriptionContent} from "~/server/forum/data/get_channel_name_and_description_content.js";
 import {getChannelPostContents} from "~/server/forum/data/get_channel_posts.js";
+import {getChannelPreview} from "~/server/forum/data/get_channel_preview.js";
 import {getPostContentWithCustomReferencesAndChannelPreview} from "~/server/forum/data/get_post_content_with_custom_references_and_channel_preview.js";
 import {
     broadcastPutPostCommentStreamPart,
@@ -28,58 +32,145 @@ import {
     getPostCommentPayloadsFromStart,
     pingPostCommentStream,
     putPostCommentMessageApprovalDecisions,
-    putPostCommentStreamPart,
+    putPostCommentStreamPartAndBroadcastEvent,
 } from "~/server/forum/data/post_messaging.js";
-import {ApiContentKeyEncoder} from "~/shared/api/content/api_content_key.js";
-import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
-import {unknownFileId} from "~/shared/api/content/unknown_file_id.js";
+import {updateChannelDescription} from "~/server/forum/data/update_channel_description.js";
+import {updateChannelName} from "~/server/forum/data/update_channel_name.js";
+import {updateChannelNameAndDescription} from "~/server/forum/data/update_channel_name_and_description.js";
+import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
+import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
+import {
+    ApiChannelPreview,
+    ApiContent,
+    ApiGetChannelResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
+import {getPostContentSnippet} from "~/shared/forum/get_post_content_snippet.js";
 import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {deserializeDateString, serializeDateString} from "~/shared/helpers/date/date_string.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {generateId, isId} from "~/shared/id/id.js";
-import {FileId, PostId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {
+    deserializeDateString,
+    serializeDateString,
+} from "~/shared/helpers/date/date_string.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {generateId, isId} from "~/shared/id/id.open_source.js";
+import {ChannelId, FileId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 
 export const apiForumPaths: Pick<
     ApiPaths,
-    keyof ApiPaths & (`/channels/${string}` | `/posts${string}`)
+    keyof ApiPaths & ("/channels" | `/channels/${string}` | `/posts${string}`)
 > = {
-    "/channels/{id}": {
-        get: async (context, {pathParameters}) => {
-            const channel = await getChannelNameAndDescriptionContent(context, pathParameters.id, {
-                consistency: "StrongWithinCache",
+    "/channels": {
+        post: async (context, {requestBody}) => {
+            const consistency = "StrongWithinCache" as const;
+            const channelId = generateId<ChannelId>();
+            const accessPolicy = await createAccessPolicyForContentCreatedByBot(
+                context,
+                requestBody.spaceId,
+                {consistency},
+            );
+            const createContext = context.dynamo.unexpectStrongReadConsistency();
+            const description = assertMessageContent(
+                fromApiContent(MessageContentProsemirrorSchema, requestBody.channel.description),
+            );
+
+            await createChannel(createContext, {
+                spaceId: requestBody.spaceId,
+                channelId,
+                creatorId: requestBody.channel.creator?.account.id,
+                name: requestBody.channel.name,
+                description,
+                accessPolicy,
             });
 
             return {
                 content: {
-                    spaceId: channel.spaceId,
+                    spaceId: requestBody.spaceId,
                     channel: {
-                        id: pathParameters.id,
-                        name: channel.name,
+                        id: channelId,
+                        name: requestBody.channel.name,
                         description: await intoApiMessageContentWithReferences(context, {
-                            spaceId: channel.spaceId,
-                            node: channel.description,
-                            encoder: new ApiContentKeyEncoder({
-                                entityId: `Channel:${pathParameters.id}`,
-                                // We don't track channel versions like we do for messages/posts
+                            spaceId: requestBody.spaceId,
+                            content: description,
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Channel:${channelId}`,
+                                // We don't track channel versions like we do for messages/posts.
                                 version: 0,
                             }),
                         }),
                     },
                 },
+            };
+        },
+    },
+
+    "/channels/{id}": {
+        get: async (context, {pathParameters}) => {
+            return {
+                content: await intoApiChannelResponse(context, pathParameters.id),
+            };
+        },
+
+        patch: async (context, {pathParameters, requestBody}) => {
+            let name: string | undefined;
+            let patchDescription: ApiContent | undefined;
+
+            // NOTE: Last write wins, so if someone sends the `SetName` patch three times,
+            // we'll only write the third name
+            for (const patch of requestBody.patches) {
+                switch (patch.type) {
+                    case "SetName":
+                        name = patch.name;
+                        break;
+                    case "SetDescription":
+                        patchDescription = patch.description;
+                        break;
+                    default:
+                        throw exhaustive(patch);
+                }
+            }
+
+            const description = patchDescription
+                ? assertMessageContent(
+                      fromApiContent(MessageContentProsemirrorSchema, patchDescription),
+                  )
+                : undefined;
+
+            const consistency = "StrongWithinCache" as const;
+
+            if (name !== undefined && description !== undefined) {
+                await updateChannelNameAndDescription(context, {
+                    channelId: pathParameters.id,
+                    name,
+                    description,
+                    consistency,
+                });
+            } else if (name !== undefined) {
+                await updateChannelName(context, {channelId: pathParameters.id, name, consistency});
+            } else if (description !== undefined) {
+                await updateChannelDescription(context, {
+                    channelId: pathParameters.id,
+                    description,
+                    consistency,
+                });
+            }
+
+            return {
+                content: await intoApiChannelResponse(context, pathParameters.id),
             };
         },
     },
@@ -103,33 +194,66 @@ export const apiForumPaths: Pick<
                     ? serializeDateString(lastPost.createdTime)
                     : null;
 
+            const channel: ApiChannelPreview = {
+                id: pathParameters.id,
+                name: postsResult.channelName,
+            };
+
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
+            const posts = await runAllPromises(
+                postsResult.posts.map(async post => {
+                    const [author, {content: contentSnippet, references}] = await runAllPromises([
+                        getApiAccount(referencesContext, postsResult.spaceId, post.authorId),
+                        intoApiContentWithReferencesAndReturnReferences(referencesContext, {
+                            spaceId: postsResult.spaceId,
+                            fileAuthorizer: FilePostAuthorizer.bind({
+                                type: "Post",
+                                postId: post.postId,
+                            }),
+                            content: getPostContentSnippet(post.content, {
+                                platform: "desktop",
+                                routeLayout: "wide",
+                            }),
+                            // As a content snippet, keys won't line up properly with the source content so
+                            // don't generate keys.
+                            contentKeyEncoder: null,
+                        }),
+                    ]);
+
+                    return {
+                        id: post.postId,
+                        author,
+                        createdTime: serializeDateString(post.createdTime),
+                        createdTimeZone: post.createdTimeZone,
+                        channel,
+                        contentSnippet,
+                        commentCount: post.commentCount,
+                        reference: {
+                            // Posts start with "in ${channelName}: " and expect client rendering code to add
+                            // the post author name to the start of the title.
+                            title: `${author.shortName} ${createPostSearchEntityTitle(
+                                postsResult.channelName,
+                                post.content,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(references),
+                            )}`,
+                        },
+                    };
+                }),
+            );
+
             return {
                 content: {
                     spaceId: postsResult.spaceId,
+                    channel,
                     nextCursor,
-                    posts: await runAllPromises(
-                        postsResult.posts.map(async post => ({
-                            id: post.postId,
-                            author: await getApiAccount(
-                                context,
-                                postsResult.spaceId,
-                                post.authorId,
-                                {consistency: "StrongWithinCache"},
-                            ),
-                            createdTime: serializeDateString(post.createdTime),
-                            createdTimeZone: post.createdTimeZone,
-                            channel: {
-                                id: pathParameters.id,
-                                name: postsResult.channelName,
-                            },
-                        })),
-                    ),
+                    posts,
                 },
             };
         },
     },
 
-    "/channels/{id}/mention": {
+    "/channels/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -142,12 +266,28 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Channel",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "Channel",
+                        id: pathParameters.id,
                         title,
+                    },
+                },
+            };
+        },
+    },
+
+    "/channels/{id}-preview": {
+        get: async (context, {pathParameters}) => {
+            const channel = await getChannelPreview(context, pathParameters.id, {
+                consistency: "StrongWithinCache",
+            });
+
+            return {
+                content: {
+                    spaceId: channel.spaceId,
+                    channel: {
+                        id: channel.id,
+                        name: channel.name,
                     },
                 },
             };
@@ -156,16 +296,16 @@ export const apiForumPaths: Pick<
 
     "/posts": {
         post: async (context, {requestBody}) => {
-            const channelId = requestBody.channelId;
+            const channelId = requestBody.post.channel.id;
             const postId = generateId<PostId>();
 
             const content = assertPostContent(
-                fromApiContent(PostContentProsemirrorSchema, requestBody.content),
+                fromApiContent(PostContentProsemirrorSchema, requestBody.post.content),
             );
 
             // Attach files referenced in the content to the post before creating the post so
             // there's no race where a reader sees the post before its files are attached.
-            const fileIds = extractFileIdsFromApiContent(requestBody.content);
+            const fileIds = extractFileIdsFromApiContent(requestBody.post.content);
             fileIds.delete(unknownFileId);
             if (fileIds.size > 0) {
                 await runAllPromises(
@@ -180,55 +320,55 @@ export const apiForumPaths: Pick<
             }
 
             const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+            const creatorId =
+                requestBody.post.creator?.account.id ?? referencesContext.actor.getBotAccountId();
             const [post, author] = await runAllPromises([
                 createPost(context, {
                     id: postId,
                     channelId,
-                    createdTimeZone: requestBody.createdTimeZone ?? defaultTimeZone,
+                    creatorId,
+                    createdTimeZone: requestBody.post.createdTimeZone ?? defaultTimeZone,
                     content,
-                    consistency: "Strong",
+                    consistency: "StrongWithinCache",
                 }),
-                getApiAccount(
-                    referencesContext,
-                    referencesContext.actor.getSpaceId(),
-                    referencesContext.actor.getBotAccountId(),
-                ),
+                getApiAccount(referencesContext, referencesContext.actor.getSpaceId(), creatorId),
             ]);
 
             // Resolve content references after creating the post so the file authorizer can
             // find the post attachment target.
             const {content: contentWithReferences, references} =
-                await intoApiContentWithReferencesAndReturnReferences(
-                    referencesContext,
-                    referencesContext.actor.getSpaceId(),
-                    FilePostAuthorizer.bind({type: "Post", postId}),
+                await intoApiContentWithReferencesAndReturnReferences(referencesContext, {
+                    spaceId: referencesContext.actor.getSpaceId(),
+                    fileAuthorizer: FilePostAuthorizer.bind({type: "Post", postId}),
                     content,
-                    {
-                        encoder: new ApiContentKeyEncoder({
-                            entityId: `Post:${postId}`,
-                            version: 0,
-                        }),
-                    },
-                );
+                    contentKeyEncoder: new ApiContentKeyEncoder({
+                        entityId: `Post:${postId}`,
+                        version: 0,
+                    }),
+                });
 
             return {
                 content: {
                     spaceId: post.spaceId,
                     post: {
                         id: post.id,
+                        author,
                         createdTime: serializeDateString(post.createdTime),
                         createdTimeZone: post.createdTimeZone,
                         channel: {
                             id: channelId,
                             name: post.channelName,
                         },
-                        author,
                         content: contentWithReferences,
-                        contentPreview: createPostSearchEntityTitle(
-                            post.channelName,
-                            content,
-                            getContentReferencesForServerPrintSingleLineTextSnippet(references),
-                        ),
+                        reference: {
+                            // Posts start with "in ${channelName}: " and expect client rendering code to add
+                            // the post author name to the start of the title.
+                            title: `${author.shortName} ${createPostSearchEntityTitle(
+                                post.channelName,
+                                content,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(references),
+                            )}`,
+                        },
                     },
                 },
             };
@@ -237,26 +377,26 @@ export const apiForumPaths: Pick<
 
     "/posts/{id}": {
         get: async (context, {pathParameters}) => {
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
             const post = await getPostContentWithCustomReferencesAndChannelPreview(
                 context,
                 pathParameters.id,
                 async (context, spaceId, post) => {
                     const [author, {content, references}] = await runAllPromises([
-                        getApiAccount(context, spaceId, post.authorId, {
-                            consistency: "StrongWithinCache",
-                        }),
-                        intoApiContentWithReferencesAndReturnReferences(
-                            context,
+                        getApiAccount(referencesContext, spaceId, post.authorId),
+                        intoApiContentWithReferencesAndReturnReferences(referencesContext, {
                             spaceId,
-                            FilePostAuthorizer.bind({type: "Post", postId: pathParameters.id}),
-                            post.content,
-                            {
-                                encoder: new ApiContentKeyEncoder({
-                                    entityId: `Post:${pathParameters.id}`,
-                                    version: post.contentVersion,
-                                }),
-                            },
-                        ),
+                            fileAuthorizer: FilePostAuthorizer.bind({
+                                type: "Post",
+                                postId: pathParameters.id,
+                            }),
+                            content: post.content,
+                            contentKeyEncoder: new ApiContentKeyEncoder({
+                                entityId: `Post:${pathParameters.id}`,
+                                version: post.contentVersion,
+                            }),
+                        }),
                     ]);
 
                     return {
@@ -282,20 +422,91 @@ export const apiForumPaths: Pick<
                             name: post.channel.name,
                         },
                         content: post.content.content,
-                        contentPreview: createPostSearchEntityTitle(
-                            post.channel.name,
-                            post.content.originalContent,
-                            getContentReferencesForServerPrintSingleLineTextSnippet(
-                                post.content.references,
-                            ),
-                        ),
+                        reference: {
+                            // Posts start with "in ${channelName}: " and expect client rendering code to add
+                            // the post author name to the start of the title.
+                            title: `${post.content.author.shortName} ${createPostSearchEntityTitle(
+                                post.channel.name,
+                                post.content.originalContent,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(
+                                    post.content.references,
+                                ),
+                            )}`,
+                        },
                     },
                 },
             };
         },
     },
 
-    "/posts/{id}/mention": {
+    "/posts/{id}-preview": {
+        get: async (context, {pathParameters}) => {
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
+
+            const post = await getPostContentWithCustomReferencesAndChannelPreview(
+                context,
+                pathParameters.id,
+                async (context, spaceId, post) => {
+                    const [author, {content: contentSnippet, references}] = await runAllPromises([
+                        getApiAccount(referencesContext, spaceId, post.authorId),
+                        intoApiContentWithReferencesAndReturnReferences(referencesContext, {
+                            spaceId,
+                            fileAuthorizer: FilePostAuthorizer.bind({
+                                type: "Post",
+                                postId: pathParameters.id,
+                            }),
+                            content: getPostContentSnippet(post.content, {
+                                platform: "desktop",
+                                routeLayout: "wide",
+                            }),
+                            // As a content snippet, keys won't line up properly with the source content so
+                            // don't generate keys.
+                            contentKeyEncoder: null,
+                        }),
+                    ]);
+
+                    return {
+                        author,
+                        originalContent: post.content,
+                        contentSnippet,
+                        references,
+                    };
+                },
+                {consistency: "StrongWithinCache"},
+            );
+
+            return {
+                content: {
+                    spaceId: post.spaceId,
+                    post: {
+                        id: pathParameters.id,
+                        author: post.content.author,
+                        createdTime: serializeDateString(post.createdTime),
+                        createdTimeZone: post.createdTimeZone,
+                        channel: {
+                            id: post.channel.id,
+                            name: post.channel.name,
+                        },
+                        contentSnippet: post.content.contentSnippet,
+                        commentCount: post.commentCount,
+                        reference: {
+                            // Posts start with "in ${channelName}: " and expect client rendering code to add
+                            // the post author name to the start of the title.
+                            title: `${post.content.author.shortName} ${createPostSearchEntityTitle(
+                                post.channel.name,
+                                post.content.originalContent,
+                                getContentReferencesForServerPrintSingleLineTextSnippet(
+                                    post.content.references,
+                                ),
+                            )}`,
+                        },
+                    },
+                },
+            };
+        },
+    },
+
+    "/posts/{id}-reference": {
         get: async (context, {pathParameters}) => {
             const spaceId = context.actor.getSpaceId();
 
@@ -308,11 +519,9 @@ export const apiForumPaths: Pick<
             return {
                 content: {
                     spaceId,
-                    mention: {
-                        target: {
-                            type: "Post",
-                            id: pathParameters.id,
-                        },
+                    reference: {
+                        type: "Post",
+                        id: pathParameters.id,
                         title,
                     },
                 },
@@ -333,13 +542,17 @@ export const apiForumPaths: Pick<
                     spaceId: message.spaceId,
                     message: await intoApiMessage(context, {
                         spaceId: message.spaceId,
+                        entityId: `PostComment:${pathParameters.id}-${pathParameters.index}`,
+                        fileAuthorizer: FilePostAuthorizer.bind({
+                            type: "PostComments",
+                            postId: pathParameters.id,
+                        }),
                         message,
                         intoContentPayloadParent: createIntoApiPostCommentContentPayloadParent(
                             context,
                             message.spaceId,
                             pathParameters.id,
                         ),
-                        entityId: `PostComment:${pathParameters.id}-${pathParameters.index}`,
                     }),
                 },
             };
@@ -349,7 +562,7 @@ export const apiForumPaths: Pick<
     "/posts/{id}/messages": {
         get: async (context, {pathParameters, queryParameters}) => {
             const {spaceId, commentCount, comments} =
-                queryParameters.from === "end"
+                queryParameters.from === "End"
                     ? await getPostCommentPayloadsFromEnd(context, {
                           postId: pathParameters.id,
                           limit: queryParameters.limit ?? 10,
@@ -370,7 +583,7 @@ export const apiForumPaths: Pick<
             if (comments.length === 0) {
                 nextCursor = null;
             } else {
-                if (queryParameters.from === "end") {
+                if (queryParameters.from === "End") {
                     const firstComment = comments[0]!;
                     if (firstComment.index > 0) {
                         nextCursor = firstComment.index;
@@ -396,6 +609,11 @@ export const apiForumPaths: Pick<
                         comments.map(message =>
                             intoApiMessage(context, {
                                 spaceId,
+                                entityId: `PostComment:${pathParameters.id}-${message.index}`,
+                                fileAuthorizer: FilePostAuthorizer.bind({
+                                    type: "PostComments",
+                                    postId: pathParameters.id,
+                                }),
                                 message,
                                 intoContentPayloadParent:
                                     createIntoApiPostCommentContentPayloadParent(
@@ -403,7 +621,6 @@ export const apiForumPaths: Pick<
                                         spaceId,
                                         pathParameters.id,
                                     ),
-                                entityId: `PostComment:${pathParameters.id}-${message.index}`,
                             }),
                         ),
                     ),
@@ -418,7 +635,9 @@ export const apiForumPaths: Pick<
             );
 
             const createdTimeZone = requestBody.createdTimeZone ?? defaultTimeZone;
-            const fileIds = (requestBody.files ?? []).map(parseFileIdFromApiFileElement);
+            const fileIds = (requestBody.files ?? []).map(
+                getFileIdOrFileEntityIdFromApiMessageContentPayloadFile,
+            );
             const attachmentFileIds = fileIds.filter((id): id is FileId => isId(id));
 
             // Attach files before creating the message, matching the app client flow. The
@@ -497,6 +716,11 @@ export const apiForumPaths: Pick<
                     spaceId,
                     message: await intoApiMessage(context, {
                         spaceId,
+                        entityId: `PostComment:${pathParameters.id}-${index}`,
+                        fileAuthorizer: FilePostAuthorizer.bind({
+                            type: "PostComments",
+                            postId: pathParameters.id,
+                        }),
                         message: {
                             index,
                             version: 0,
@@ -513,7 +737,6 @@ export const apiForumPaths: Pick<
                             spaceId,
                             pathParameters.id,
                         ),
-                        entityId: `PostComment:${pathParameters.id}-${index}`,
                     }),
                 },
             };
@@ -560,7 +783,7 @@ export const apiForumPaths: Pick<
         post: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putPostCommentStreamPart(context, {
+            const {spaceId} = await putPostCommentStreamPartAndBroadcastEvent(context, {
                 postId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: "Create",
@@ -576,7 +799,7 @@ export const apiForumPaths: Pick<
         put: async (context, {pathParameters, requestBody}) => {
             const payload = fromApiMessageStreamPartPayload(requestBody.payload);
 
-            const {spaceId} = await putPostCommentStreamPart(context, {
+            const {spaceId} = await putPostCommentStreamPartAndBroadcastEvent(context, {
                 postId: pathParameters.id,
                 commentIndex: pathParameters.index,
                 partIndex: pathParameters.partIndex,
@@ -653,3 +876,29 @@ export const apiForumPaths: Pick<
         },
     },
 };
+
+async function intoApiChannelResponse(
+    context: ApiServiceBotActionContext,
+    channelId: ChannelId,
+): Promise<ApiGetChannelResponse> {
+    const channel = await getChannelNameAndDescriptionContent(context, channelId, {
+        consistency: "StrongWithinCache",
+    });
+
+    return {
+        spaceId: channel.spaceId,
+        channel: {
+            id: channelId,
+            name: channel.name,
+            description: await intoApiMessageContentWithReferences(context, {
+                spaceId: channel.spaceId,
+                content: channel.description,
+                contentKeyEncoder: new ApiContentKeyEncoder({
+                    entityId: `Channel:${channelId}`,
+                    // We don't track channel versions like we do for messages/posts.
+                    version: 0,
+                }),
+            }),
+        },
+    };
+}

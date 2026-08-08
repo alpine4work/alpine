@@ -1,6 +1,6 @@
 import type {DatabaseServer} from "~/server/databases/database_server.js";
 import {noTruncates} from "~/server/databases/test_helpers/no_truncates.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Write `pages` for a single table through {@link DatabaseServer.writePages} with

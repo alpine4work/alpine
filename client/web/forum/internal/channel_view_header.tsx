@@ -41,9 +41,9 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.js";
+import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 
 export function ChannelViewHeader({
     header,

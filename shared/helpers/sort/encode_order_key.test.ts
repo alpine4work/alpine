@@ -1,6 +1,6 @@
 import {compareArrays} from "~/shared/helpers/array/compare_arrays.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 import {
     decodeOrderKey,
     encodeOrderKey,
@@ -13,9 +13,9 @@ import {
     maxOrderKey,
     minOrderKey,
     orderKeyDigits,
-} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {quote} from "~/shared/helpers/string/quote.js";
+} from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 function serializeBytes(orderKey: string) {
     return Array.from(encodeOrderKey(assertOrderKey(orderKey)));

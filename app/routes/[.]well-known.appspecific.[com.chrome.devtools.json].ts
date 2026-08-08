@@ -1,8 +1,8 @@
 import {getWorkspacePath} from "~/server/helpers/node/workspace_path.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 
 // Chrome has started asking for a new `devtools.json` file to enable certain
 // features in developer tools. Provide an implementation of this route for Chrome.

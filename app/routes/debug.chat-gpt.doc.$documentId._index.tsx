@@ -4,7 +4,7 @@ import {
     deserializeDocumentIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 
 export async function loader({request, params}: LoaderArgs) {
     const url = new URL(request.url);

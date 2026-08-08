@@ -3,9 +3,9 @@ import {
     compareHybridLogicalTimes,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -17,9 +17,9 @@ import {
     SiteId,
     TaskCollectionId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     compareSearchChatEntityVersion,
     compareSearchPostEntityVersions,
@@ -332,6 +332,32 @@ export class SearchEntityModel {
         if (data === otherEntity.initialData) return otherEntity;
         return new SearchEntityModel(data);
         /* eslint-enable cyberworlds/no-model-initial-data */
+    }
+}
+
+/**
+ * Returns true if the search entity is a deleted entity. Messages and comments are
+ * never considered deleted even though their titles are always null.
+ */
+export function isDeletedSearchEntity(entityData: SearchEntityModelData): boolean {
+    switch (entityData.type) {
+        case "DatabaseTable":
+        case "Document":
+        case "Task":
+        case "TaskCollection":
+            return entityData.title === null;
+        case "Channel":
+        case "Chat":
+        case "DocumentComment":
+        case "ChatMessage":
+        case "TaskComment":
+        case "PostComment":
+        case "Static":
+        case "Post":
+        case "Site":
+            return false;
+        default:
+            throw exhaustive(entityData);
     }
 }
 

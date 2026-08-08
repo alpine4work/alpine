@@ -7,9 +7,9 @@ import {AccessLevel} from "~/shared/access/access_policy.js";
 import {reduceAccessPolicy} from "~/shared/access/access_policy_action.js";
 import {ShareNotification} from "~/shared/access/share_notification.js";
 import {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {ChannelContributorsModel, ChannelModel} from "~/shared/forum/channel_model.js";
-import {AccountId, ChannelId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteEntryModel, SitePreviewModel} from "~/shared/sites/site_model.js";
 
 /**

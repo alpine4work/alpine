@@ -33,9 +33,12 @@ import {ImporterServiceSystemActionContext} from "~/server/importer/importer_ser
 import {NotionImporterProgressState} from "~/server/importer/notion/internal/notion_importer_progress_state.js";
 import {NotionImportMappedReferencesResult} from "~/server/importer/notion/internal/parse_notion_import_and_map_references.js";
 import {uploadFileForNotionImport} from "~/server/importer/notion/internal/upload_file_for_notion_import.js";
-import {FileContentType, getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    FileContentType,
+    getPathFileContentTypeIfExists,
+} from "~/shared/files/file_content_type.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Maximum number of light files to upload concurrently.
@@ -127,7 +130,6 @@ export async function uploadNotionImportFiles(
             const {jobType} = routeFileToProcessor({
                 contentType,
                 contentLength: sizeInBytes,
-                spaceId,
             });
             if (jobType === "ProcessFileHeavy") {
                 heavyFiles.push(file);

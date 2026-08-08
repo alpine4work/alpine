@@ -17,7 +17,7 @@ operating cost.
    it runs and whether it is on an interactive request path, background job, migration, batch task,
    realtime path, or hot loop.
 6. Check existing utilities before recommending changes, especially
-   `shared/helpers/async/run_all_promises.ts`.
+   `shared/helpers/async/run_all_promises.open_source.ts`.
 
 ## What to analyze
 

@@ -3,7 +3,7 @@ import {
     ScheduleDateTime,
     assertScheduleDateTime,
 } from "~/server/notifications/core/schedule_date_time.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {DigestNotificationsSchedule} from "~/shared/notifications/notifications_schedule_schema.js";
 
 /**

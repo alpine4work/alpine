@@ -2,13 +2,13 @@ import {Node} from "prosemirror-model";
 import {FileEntityId, FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel, FileEntityModelResultSchema} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.js";
-import {AccountId, FileId} from "~/shared/id/types/id_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
 import {
     SearchMentionEntityId,
     SearchMentionEntityIdSchema,

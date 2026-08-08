@@ -1,6 +1,6 @@
 import {useMemo} from "react";
 import {useRootLocation} from "~/client/web/remix/root_location_context.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {parseSearchEntityIdFromUrl} from "~/shared/search/parse_search_entity_id_from_url.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 

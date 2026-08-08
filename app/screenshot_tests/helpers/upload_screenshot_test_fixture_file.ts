@@ -9,10 +9,13 @@ import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,
 } from "~/shared/files/file_attachment_target.js";
-import {FileContentType, getPathFileContentTypeIfExists} from "~/shared/files/file_content_type.js";
+import {
+    FileContentType,
+    getPathFileContentTypeIfExists,
+} from "~/shared/files/file_content_type.open_source.js";
 import {UploadFileResponseSchema} from "~/shared/files/upload_file_protocol.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 const scenarioFixturesRoot = joinPath(runfilesPath, "cyberworlds/admin/scenarios/fixtures");
 

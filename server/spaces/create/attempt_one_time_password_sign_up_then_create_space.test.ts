@@ -32,17 +32,17 @@ import {
     FailedPreconditionError,
     InternalError,
     PermissionDeniedError,
-} from "~/shared/error/error.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {omitObject} from "~/shared/helpers/object/omit_object.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {isEmailAddressValid, validateEmailAddress} from "~/shared/helpers/string/email_address.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 

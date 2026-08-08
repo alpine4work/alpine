@@ -1,4 +1,4 @@
-import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.js";
+import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.open_source.js";
 
 describe("default separator", () => {
     const cases = [
@@ -10,7 +10,7 @@ describe("default separator", () => {
         {input: "Task 123 Version 2", output: "task-123-version-2"},
         {input: "already-a-slug", output: "already-a-slug"},
         {input: "foo_bar/baz", output: "foo-bar-baz"},
-        {input: "!@#$%^&*()", output: ""},
+        {input: "!@#$%^&*()", output: "and"},
         {input: "東京", output: ""},
         {input: "", output: ""},
     ];
@@ -34,6 +34,20 @@ describe("custom separator", () => {
             expect(convertToUrlPathnameSlug(input, separator)).toBe(output);
         },
     );
+});
+
+describe("apostrophe s", () => {
+    const cases = [
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {input: "Rose's document", output: "roses-document"},
+        {input: "Rose\u2019s document", output: "roses-document"},
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {input: "it's ready", output: "its-ready"},
+    ];
+
+    test.each(cases)("converts `$input` to `$output`", ({input, output}) => {
+        expect(convertToUrlPathnameSlug(input)).toBe(output);
+    });
 });
 
 describe("allowed characters", () => {

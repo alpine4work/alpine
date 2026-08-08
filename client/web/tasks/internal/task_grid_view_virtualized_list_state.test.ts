@@ -5,15 +5,15 @@ import {
     TaskGridViewVirtualizedListState,
     TaskGridViewVirtualizedListStateItem,
 } from "~/client/web/tasks/internal/task_grid_view_virtualized_list_state.js";
-import {InternalError} from "~/shared/error/error.js";
-import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {shuffleArray} from "~/shared/helpers/array/shuffle_array.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {createTestAccountModel} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 import {StoreMap} from "~/shared/store/store_map.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";

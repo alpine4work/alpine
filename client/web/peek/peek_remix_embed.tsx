@@ -10,8 +10,9 @@ import {PeekRemixEmbedRouter} from "~/client/web/peek/peek_remix_embed_router.js
 import {PeekContextDefinition} from "~/client/web/remix/internal/peek_context_definition.js";
 import {PeekContext} from "~/client/web/remix/peek_context_types.js";
 import {UpdateMetaTitleContextProvider} from "~/client/web/remix/use_update_meta_title.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
-import {PeekId} from "~/shared/id/types/id_types.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {PeekId} from "~/shared/id/types/id_types.open_source.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
  * Embeds an instance of Remix with in-memory navigation that only renders peek
@@ -25,6 +26,7 @@ export function PeekRemixEmbed({
     withoutSearchAffinityViewEntityInteraction = false,
     router: originalRouter,
     onGoBackOverflow,
+    onBeforeEntityDelete = null,
 }: {
     peekId: PeekId;
     layout: RouteLayout;
@@ -32,6 +34,7 @@ export function PeekRemixEmbed({
     withoutSearchAffinityViewEntityInteraction?: boolean;
     router: PeekRemixEmbedRouter;
     onGoBackOverflow?: () => void;
+    onBeforeEntityDelete?: ((entityId: SearchEntityId) => void) | null;
 }) {
     const onGoBackOverflowRef = useRef(onGoBackOverflow);
 
@@ -93,8 +96,15 @@ export function PeekRemixEmbed({
                         layout,
                         stack,
                         withoutSearchAffinityViewEntityInteraction,
+                        onBeforeEntityDelete,
                     }),
-                    [layout, peekId, stack, withoutSearchAffinityViewEntityInteraction],
+                    [
+                        layout,
+                        onBeforeEntityDelete,
+                        peekId,
+                        stack,
+                        withoutSearchAffinityViewEntityInteraction,
+                    ],
                 )}
             >
                 <UpdateMetaTitleContextProvider

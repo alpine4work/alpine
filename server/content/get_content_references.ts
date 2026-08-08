@@ -16,19 +16,19 @@ import {
 } from "~/shared/content/content_referenced_ids.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {FileModel, getFileModelDataAttachReadiness} from "~/shared/files/file_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
-import {isObject} from "~/shared/helpers/object/is_object.js";
-import {FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export function getContentReferencesForNode(
     context: ServerActionContext,
@@ -278,6 +278,27 @@ export async function getContentFileReference(
     fileId: FileId,
     fileAuthorizer: FileAuthorizer,
 ): Promise<{type: "File"; signedUrlSearch: string; file: FileModel} | null> {
+    const file = await getContentFileReferenceWithoutSignedUrlSearch(
+        context,
+        fileId,
+        fileAuthorizer,
+    );
+
+    if (!file) return null;
+
+    const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
+        spaceId,
+        fileId,
+    );
+
+    return {type: "File", signedUrlSearch: signedUrl.search, file};
+}
+
+export async function getContentFileReferenceWithoutSignedUrlSearch(
+    context: ServerActionContext,
+    fileId: FileId,
+    fileAuthorizer: FileAuthorizer,
+): Promise<FileModel | null> {
     let file = await getFileIfExistsFromAttachment(context, fileId, fileAuthorizer, {
         consistency: "Eventual",
     });
@@ -298,12 +319,5 @@ export async function getContentFileReference(
         });
     }
 
-    if (!file) return null;
-
-    const signedUrl = await context.files.dangerouslySignFileUrlWithoutAuthorization(
-        spaceId,
-        fileId,
-    );
-
-    return {type: "File", signedUrlSearch: signedUrl.search, file};
+    return file;
 }

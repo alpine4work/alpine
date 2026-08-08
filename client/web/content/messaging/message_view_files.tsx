@@ -38,23 +38,24 @@ import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_re
 import {useSiteRegistry} from "~/client/web/sites/context/site_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {ContentFileLayout, fileRowMaxFileCount} from "~/shared/content/compute_file_row_widths.js";
+import {ContentFileLayout, fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
 import {ContentReferences, emptyContentReferences} from "~/shared/content/content_references.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModelResult} from "~/shared/files/file_entity_model.js";
 import {FileModel} from "~/shared/files/file_model.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {
     HtmlElementGenerator,
     HtmlFragmentGenerator,
     HtmlGenerator,
 } from "~/shared/helpers/html/html_generator.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {FileId} from "~/shared/id/types/id_types.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadModelFile} from "~/shared/messaging/message_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
@@ -161,11 +162,11 @@ export function MessageViewFiles({
                     fileRowHtml.setAttribute(
                         "style",
                         [
-                            `height: ${Math.max(...fileLayouts.map(({height}) => height))}px`,
+                            `height: ${toFixedWithoutTrailingZeros(Math.max(...fileLayouts.map(({height}) => height)), 3)}px`,
                             "display: grid",
                             "grid-template-rows: 1fr",
                             `grid-template-columns: ${fileLayouts
-                                .map(({widthFr}) => `${widthFr}fr`)
+                                .map(({widthFr}) => `${toFixedWithoutTrailingZeros(widthFr, 6)}fr`)
                                 .join(" ")}`,
                             // Left align message files instead of center aligning message files. This matches
                             // the more conversational format of messages as opposed to the carefully edited

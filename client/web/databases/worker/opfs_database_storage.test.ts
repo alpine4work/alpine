@@ -2,7 +2,7 @@ import {createInMemoryOpfsDirectoryHandle} from "~/client/web/databases/test_hel
 import {OpfsDatabaseStorage} from "~/client/web/databases/worker/opfs_database_storage.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
+import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 const tableA = "tableA" as DatabaseTableId;
 const tableB = "tableB" as DatabaseTableId;

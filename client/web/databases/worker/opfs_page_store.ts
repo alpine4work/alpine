@@ -4,8 +4,8 @@ import type {
     OpfsSyncAccessHandle,
 } from "~/client/web/databases/worker/opfs.js";
 import {sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {Schema, type SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 /**
  * On-disk shape of `index.json`. The persisted file size is the canonical SQLite

@@ -45,7 +45,7 @@ import {
 } from "~/client/web/remix/spacing_scale_context.js";
 import {navigationBarStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
-import {Platform} from "~/shared/design/core/platform.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
 import {
     RemLength,
     Spacing,
@@ -54,12 +54,12 @@ import {
     parseRemLength,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {clamp} from "~/shared/helpers/number/clamp.js";
-import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
+import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 
 /**
  * After the user has stopped scrolling then this timeout elapses, we will fully

@@ -4,13 +4,13 @@ import {authorizeChannelAccessIfPossible} from "~/server/forum/data/authorize_ch
 import {ForumRealtimeTable} from "~/server/forum/data/internal/forum_realtime_table.js";
 import {getPostItemWithContentForAuthorization} from "~/server/forum/data/internal/get_post_item_for_authorization.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {ErrorBase} from "~/shared/error/error.js";
+import {ErrorBase} from "~/shared/error/error.open_source.js";
 import {PostModel} from "~/shared/forum/post_model.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {unwrapResult} from "~/shared/helpers/control/capture_result.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {Result} from "~/shared/helpers/control/result.js";
-import {PostId} from "~/shared/id/types/id_types.js";
+import {Result} from "~/shared/helpers/control/result.open_source.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Gets the post with the provided `PostId`.

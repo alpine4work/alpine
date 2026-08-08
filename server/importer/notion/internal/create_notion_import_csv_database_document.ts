@@ -6,18 +6,18 @@ import {notionImportCsvToApiContent} from "~/server/importer/notion/internal/not
 import {parseNotionImportFileName} from "~/server/importer/notion/internal/parse_notion_import_file_name.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {extractFileIdsFromApiContent} from "~/shared/api/content/extract_file_ids_from_api_content.js";
-import {fromApiContent} from "~/shared/api/content/from_api_content.js";
+import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
+import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {
     ApiContent,
     ApiContentBlockElement,
-} from "~/shared/api/specification/types/api_specification_convenience_types.js";
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {AccountId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {AccountId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export interface CreateNotionImportCsvDatabaseDocumentOptions {
     spaceId: SpaceId;
@@ -82,7 +82,7 @@ export async function createNotionImportCsvDatabaseDocument(
         type: "Paragraph",
         elements: [
             {type: "Text", text: "Parent document: "},
-            {type: "Mention", target: {type: "Document", id: parentId}},
+            {type: "Mention", reference: {type: "Document", id: parentId}},
         ],
     });
 

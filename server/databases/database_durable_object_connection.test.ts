@@ -14,15 +14,15 @@ import {
     sqlitePageSize,
 } from "~/shared/databases/sqlite_constants.js";
 import type {RynamoEvent, RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
-import {PermissionDeniedError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.js";
-import {generateId} from "~/shared/id/id.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     DatabaseGroupId,
     DatabaseMutationId,
     DatabaseTableId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 let server: DatabaseServer;
 // A per-test table id standing in for one per-db file. Bootstrap writes real pages

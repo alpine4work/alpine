@@ -1,4 +1,4 @@
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 export function getTaskPriorityName(priority: TaskPriority | "Null" | null): string {

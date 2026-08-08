@@ -4,9 +4,9 @@ import {SqsSendMessage} from "aws-cdk-lib/aws-scheduler-targets";
 import {Construct} from "constructs";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {cronJobs} from "~/admin/cron/cron_jobs.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export class AwsCronJobs extends Construct {
     constructor(parentConstruct: Construct, sqs: AwsSqs) {

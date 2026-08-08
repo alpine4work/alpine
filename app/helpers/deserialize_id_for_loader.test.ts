@@ -7,9 +7,9 @@ import {
     deserializeSpaceIdForLoader,
     deserializeTaskIdForLoader,
 } from "~/app/helpers/deserialize_id_for_loader.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
-import {generateId} from "~/shared/id/id.js";
+import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     ChannelId,
@@ -18,7 +18,7 @@ import {
     PostId,
     SpaceId,
     TaskId,
-} from "~/shared/id/types/id_types.js";
+} from "~/shared/id/types/id_types.open_source.js";
 
 // These assignments would fail at compile time if types were incorrect We use a
 // valid ID here so the code doesn't throw at module initialization

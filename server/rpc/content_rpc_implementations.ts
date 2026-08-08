@@ -1,6 +1,6 @@
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import * as definitions from "~/shared/rpc/content_rpc_definitions.js";
 
 export default implementRpcs(definitions, {

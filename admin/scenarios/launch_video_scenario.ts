@@ -24,7 +24,7 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {MockAgentRecordingAction} from "~/shared/agents/mock_agent_recording.js";
-import {parseApiContentFromMarkdown} from "~/shared/api/markdown/parse_api_content_from_markdown.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
@@ -32,15 +32,18 @@ import {
     PostContentProsemirrorSchema,
     assertPostContent,
 } from "~/shared/forum/post_content_schema.js";
-import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.js";
-import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {UrlPath} from "~/shared/helpers/http/url_path.js";
-import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.js";
+import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
+import {
+    runAllPromiseThunks,
+    runAllPromises,
+} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
+import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {JsonObjectValue} from "~/shared/helpers/types/json_value.open_source.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 
 export async function createLaunchVideoScenario(
     context: TestContext,
@@ -562,7 +565,7 @@ field when they receive them. Comment on ideas you like!
                     type: "ToolCall",
                     call: {
                         type: "Read",
-                        target: {type: "Document", id: brainstormDocument.id},
+                        reference: {type: "Document", id: brainstormDocument.id},
                     },
                 },
             });
@@ -660,7 +663,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask1.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask1.id}#mention)`,
                     ),
                 },
             });
@@ -676,7 +679,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask2.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask2.id}#mention)`,
                     ),
                 },
             });
@@ -692,7 +695,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask3.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask3.id}#mention)`,
                     ),
                 },
             });
@@ -708,7 +711,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask4.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask4.id}#mention)`,
                     ),
                 },
             });
@@ -724,7 +727,7 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "Content",
                     content: parseApiContentFromMarkdown(
-                        `- [](https://alpine.inc/task/${followupTask5.id}?mention)`,
+                        `- [](https://alpine.inc/task/${followupTask5.id}#mention)`,
                     ),
                 },
             });
@@ -892,11 +895,11 @@ Below are the first five pilot programs we\u2019re mapping, plus owners and key 
 
 | Program                               | Launch Tier | Owner                                                              | Key Deadline |
 | ------------------------------------- | ----------- | ------------------------------------------------------------------ | ------------ |
-| EQIP 382 (Fence)                      | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}?short)     | June 12      |
-| CSP (Conservation Stewardship)        | Pilot       | [Elle](https://alpine.inc/mention/{{elleKappaTanAccountId}}?short) | June 20      |
-| REAP (Energy)                         | Beta        | [Mason](https://alpine.inc/mention/{{masonClayAccountId}}?short)   | June 26      |
-| CA State Soil Health Grant            | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}?short)     | June 22      |
-| Utility Energy Rebate (Midwest Co-op) | Beta        | [Matt](https://alpine.inc/mention/{{mattRHornAccountId}}?short)    | June 29      |
+| EQIP 382 (Fence)                      | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}#short)     | June 12      |
+| CSP (Conservation Stewardship)        | Pilot       | [Elle](https://alpine.inc/mention/{{elleKappaTanAccountId}}#short) | June 20      |
+| REAP (Energy)                         | Beta        | [Mason](https://alpine.inc/mention/{{masonClayAccountId}}#short)   | June 26      |
+| CA State Soil Health Grant            | Pilot       | [Cass](https://alpine.inc/mention/{{cassCadeAccountId}}#short)     | June 22      |
+| Utility Energy Rebate (Midwest Co-op) | Beta        | [Matt](https://alpine.inc/mention/{{mattRHornAccountId}}#short)    | June 29      |
 
 Feedback needed
 
@@ -964,7 +967,7 @@ Nice work, team!
             Mustache.render(
                 markdown`
 Remember we're meeting with Audacious Ventures in _five minutes_. Make sure you're ready
-[Rose](https://alpine.inc/mention/{{roseCompasAccountId}}?short). This is the big one! You got this!
+[Rose](https://alpine.inc/mention/{{roseCompasAccountId}}#short). This is the big one! You got this!
                 `,
                 {
                     spaceId: space.id,

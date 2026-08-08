@@ -3,11 +3,12 @@ import {lockIconSvg} from "~/client/web/icons/lock_icon_svg.js";
 import {trashIconSvg} from "~/client/web/icons/trash_icon_svg.js";
 import {warningIconSvg} from "~/client/web/icons/warning_icon_svg.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
-import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
+import {toFixedWithoutTrailingZeros} from "~/shared/helpers/number/to_fixed_without_trailing_zeros.open_source.js";
 
 export function renderContentFileErrorPreview({
     layout,
@@ -49,9 +50,9 @@ export function renderContentFileErrorPreview({
 
     errorHtml.setAttribute(
         "style",
-        `min-width: ${thirdOfBlockMaxWidth}px; transform: scale(${Math.min(
-            1,
-            layout.width / thirdOfBlockMaxWidth,
+        `min-width: ${thirdOfBlockMaxWidth}px; transform: scale(${toFixedWithoutTrailingZeros(
+            Math.min(1, layout.width / thirdOfBlockMaxWidth),
+            6,
         )})`,
     );
 

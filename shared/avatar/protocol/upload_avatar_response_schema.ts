@@ -1,7 +1,7 @@
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {BotSchema} from "~/shared/bots/bot_schema.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.open_source.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 const UploadAvatarSuccessResponseSchema = Schema.union({

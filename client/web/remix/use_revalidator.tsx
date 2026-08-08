@@ -2,7 +2,10 @@ import {useCallback, useRef} from "react";
 // eslint-disable-next-line no-restricted-imports
 import {useRevalidator as useOriginalRevalidator} from "react-router";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {
+    PromiseResolver,
+    createPromiseResolver,
+} from "~/shared/helpers/async/promise_resolver.open_source.js";
 
 /**
  * Same as `useRevalidator()` from `react-router` but the `revalidate()` function

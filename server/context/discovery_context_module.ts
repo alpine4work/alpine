@@ -1,9 +1,9 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
-import {InternalError} from "~/shared/error/error.js";
-import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
+import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Discovering a request's `SpaceId` is a state machine with two paths:

@@ -1,6 +1,6 @@
 import {RawColor, parseRawColor, printRawColor} from "~/shared/design/core/helpers/raw_color.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {lerp} from "~/shared/helpers/number/lerp.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {lerp} from "~/shared/helpers/number/lerp.open_source.js";
 
 /**
  * Return a translucent color that when rendered on top of `backgroundColor`

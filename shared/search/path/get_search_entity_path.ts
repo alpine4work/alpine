@@ -1,16 +1,16 @@
 import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel, FileEntityModelResult} from "~/shared/files/file_entity_model.js";
 import {FileChannelEntityModelSchema} from "~/shared/forum/file_channel_entity_model_schema.js";
 import {FilePostEntityModelSchema} from "~/shared/forum/file_post_entity_model_schema.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {StableRandom} from "~/shared/helpers/number/stable_random.js";
-import {unsafelyGenerateStableChronologicalId} from "~/shared/id/chronological_id.js";
-import {unsafelyGenerateStableId} from "~/shared/id/id.js";
-import {SiteId, SpaceId} from "~/shared/id/types/id_types.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
+import {unsafelyGenerateStableChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
+import {SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     SearchDynamicEntityIdObject,
     SearchDynamicEntityType,

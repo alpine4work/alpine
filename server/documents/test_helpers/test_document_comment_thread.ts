@@ -10,7 +10,7 @@ import {
     getDocumentComment,
     getDocumentCommentThread,
     getResolvedDocumentCommentThreadRanges,
-    putDocumentCommentStreamPart,
+    putDocumentCommentStreamPartAndBroadcastEvent,
     setDocumentCommentReaction,
     updateDocumentCommentContent,
 } from "~/server/documents/data/documents_actions.js";
@@ -33,9 +33,10 @@ import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {MessageContent, assertMessageContent} from "~/shared/content/message_content_schema.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {encodeDocumentCommentRoomKey} from "~/shared/documents/document_model.js";
-import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.js";
-import {generateId} from "~/shared/id/id.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.js";
+import {FileEntityId} from "~/shared/files/file_entity_id.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
+import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,
@@ -163,7 +164,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
         }: {
             parent: MessageContentPayloadParent | null;
             content: MessageContent;
-            fileIds: ReadonlyArray<FileId>;
+            fileIds: ReadonlyArray<FileId | FileEntityId>;
             createdTimeZone?: TimeZone;
             overrideCreatedTime?: Date;
             isStream?: boolean;
@@ -225,7 +226,7 @@ export class TestDocumentCommentThread extends TestCommentRoomBase {
             payload: MessageStreamPartPayload;
         },
     ) {
-        await putDocumentCommentStreamPart(context, {
+        await putDocumentCommentStreamPartAndBroadcastEvent(context, {
             documentId: this.document.id,
             commentThreadId: this.id,
             commentIndex: messageIndex,

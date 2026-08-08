@@ -5,7 +5,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 
 const {context, services} = createTestServices();
 
