@@ -148,8 +148,12 @@ class DatabaseGroupDurableObject {
             DatabaseTableMetadataBroadcastRealtimeEventsSchema.deserialize(await request.json());
 
         this.server.transactionSync(() => {
-            for (const [tableId, accessPolicy] of resolvedAccessPolicyByTableId) {
-                this.server.setDatabaseTableAccessPolicy(tableId, accessPolicy);
+            for (const [tableId, replica] of resolvedAccessPolicyByTableId) {
+                this.server.setDatabaseTableAccessPolicy(
+                    tableId,
+                    replica.accessPolicy,
+                    replica.revision,
+                );
             }
         });
 

@@ -188,6 +188,7 @@ async function buildSchemaSeed(name: string): Promise<{
                 tableId: generateChronologicalId<DatabaseTableId>(),
                 name,
                 accessPolicy: databaseTableAccessPolicyForCreator(creatorId),
+                policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
             },
         },
         {currentAccountId: creatorId, getTableAccessLevel: allowAllTableAccess},

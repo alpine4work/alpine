@@ -1528,7 +1528,9 @@ async function getDatabaseTableSearchEntity(
     assert(table.spaceId === spaceId);
     const id: SearchDynamicEntityId = `DatabaseTable:${tableId}`;
 
-    if (table.isDeleted || table.name === null) return {...searchDeletedMessageEntity, id};
+    if (table.isDeleted || table.name === null) {
+        return {...searchDeletedMessageEntity, id};
+    }
 
     const {name, accessPolicy} = table;
     const accessPolicyModel = await state.getAccessPolicy(accessPolicy);
@@ -1538,6 +1540,7 @@ async function getDatabaseTableSearchEntity(
             tableId,
             name,
             accessPolicy,
+            tableMetadataVersion: table.version,
         }),
     );
 

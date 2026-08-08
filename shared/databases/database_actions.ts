@@ -8,6 +8,7 @@ import type {
     DatabaseActionServerContext,
 } from "~/shared/databases/database_action_context.js";
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
+import {DatabaseTableAccessPolicyRevisionSchema} from "~/shared/databases/database_table_access_policy_revision.js";
 import {executeSqliteTransaction} from "~/shared/databases/execute_sqlite_transaction.js";
 import {
     DatabaseFieldConfigSchema,
@@ -208,6 +209,7 @@ export const databaseActions = {
             tableId: Schema.id<DatabaseTableId>(),
             name: LabelStringSchema,
             accessPolicy: LocalAccessPolicySchema,
+            policyRevision: DatabaseTableAccessPolicyRevisionSchema,
         }),
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
@@ -216,13 +218,14 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         internalOnly: true,
-        run({db, server, model}, {tableId, name, accessPolicy}) {
+        run({db, server, model}, {tableId, name, accessPolicy, policyRevision}) {
             // Resolve the unique SQLite table name before registering the new table.
             const tableName = formatUniqueTableName({model, name});
 
             // Register the table, then attach + migrate its per-db file before writing any of
             // the table's data or metadata into it. `attach` is a no-op if already attached.
             model.registerTable(tableId, {kind: "table", tableName, accessPolicy});
+            server().tables.setTableAccessPolicy(tableId, accessPolicy, policyRevision);
             server().attach(tableId);
             runTableMigrations(db, tableId);
 
@@ -237,6 +240,7 @@ export const databaseActions = {
             tableId: Schema.id<DatabaseTableId>(),
             name: LabelStringSchema,
             accessPolicy: LocalAccessPolicySchema,
+            policyRevision: DatabaseTableAccessPolicyRevisionSchema,
         }),
         output: Schema.object({
             tableName: Schema.string,
@@ -244,8 +248,19 @@ export const databaseActions = {
         }),
         writeLevel: "schema+data",
         internalOnly: true,
-        run({server, model}, {tableId, name, accessPolicy}) {
-            server().tables.setTableAccessPolicy(tableId, accessPolicy);
+        run({server, model}, {tableId, name, accessPolicy, policyRevision}) {
+            const applied = server().tables.setTableAccessPolicy(
+                tableId,
+                accessPolicy,
+                policyRevision,
+            );
+            const existingTable = model.getTable(tableId);
+            if (!applied) {
+                return {
+                    tableName: existingTable.tableName,
+                    viewId: existingTable.getFirstView().id,
+                };
+            }
             // Resolve the unique SQLite table name before renaming, excluding this table so a
             // rename to a slug variant of its current name resolves to that name.
             const tableName = formatUniqueTableName({
@@ -253,7 +268,7 @@ export const databaseActions = {
                 name,
                 excludeTableId: tableId,
             });
-            const table = model.getTable(tableId).updateName(name, {tableName});
+            const table = existingTable.updateName(name, {tableName});
             return {tableName: model.getTable(tableId).tableName, viewId: table.getFirstView().id};
         },
     }),

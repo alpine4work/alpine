@@ -60,6 +60,7 @@ function createTableInputForTest(name: string) {
         tableId: generateChronologicalId<DatabaseTableId>(),
         name,
         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+        policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
     };
 }
 
@@ -1080,6 +1081,7 @@ describe("DatabaseServer", () => {
                         tableId: generateChronologicalId<DatabaseTableId>(),
                         name: "Tasks",
                         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+                        policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
                     },
                 }),
             ).toThrow("Database action syncTableMetadata is internal-only");
@@ -1127,6 +1129,7 @@ describe("DatabaseServer", () => {
                     tableId,
                     name: "Tasks",
                     accessPolicy: databaseTableAccessPolicyForCreator(creator),
+                    policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
                 },
             });
 
@@ -1374,7 +1377,12 @@ describe("DatabaseServer — per-table access", () => {
         const tableId = generateChronologicalId<DatabaseTableId>();
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
-            input: {tableId, name, accessPolicy},
+            input: {
+                tableId,
+                name,
+                accessPolicy,
+                policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
+            },
         });
         return {tableId, tableName: result.tableName};
     }
@@ -1492,12 +1500,52 @@ describe("DatabaseServer — per-table access", () => {
 
         server.executeAction<"syncTableMetadata">(testContext, {
             name: "syncTableMetadata",
-            input: {tableId, name: "Tasks", accessPolicy: localPolicyWithGrants([])},
+            input: {
+                tableId,
+                name: "Tasks",
+                accessPolicy: localPolicyWithGrants([]),
+                policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 0},
+            },
         });
 
         expect(() =>
             server.executeAction(createSessionContext(viewer), selectAllFromTable(tableName)),
         ).toThrow(`Permission denied for read on database table ${tableId}`);
+    });
+
+    test("a stale metadata sync cannot restore a policy or table name", async () => {
+        const server = await createServer();
+        const viewer = generateId<AccountId>();
+        const {tableId} = createTableWithPolicy(
+            server,
+            "Tasks",
+            localPolicyWithGrants([[viewer, "View"]]),
+        );
+        const currentPolicy = localPolicyWithGrants([]);
+
+        server.executeAction<"syncTableMetadata">(testContext, {
+            name: "syncTableMetadata",
+            input: {
+                tableId,
+                name: "Current",
+                accessPolicy: currentPolicy,
+                policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 5},
+            },
+        });
+        const staleResult = server.executeAction<"syncTableMetadata">(testContext, {
+            name: "syncTableMetadata",
+            input: {
+                tableId,
+                name: "Stale",
+                accessPolicy: localPolicyWithGrants([[viewer, "View"]]),
+                policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 4},
+            },
+        }).result;
+
+        expect({
+            policy: server.getDatabaseTableAccessPolicy(tableId),
+            tableName: staleResult.tableName,
+        }).toEqual({policy: currentPolicy, tableName: "current"});
     });
 
     // Linked-records scenario: Tasks и People joined by an "Assignee" relation.
@@ -1796,6 +1844,7 @@ describe("DatabaseServer — table access levels", () => {
                     defaultGrant: null,
                     urlGrant: null,
                 },
+                policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
             },
         }).result;
         const hidden = server1.executeAction<"createTable">(testContext, {
@@ -1804,6 +1853,7 @@ describe("DatabaseServer — table access levels", () => {
                 tableId: generateChronologicalId<DatabaseTableId>(),
                 name: "Hidden",
                 accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+                policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
             },
         }).result;
         server1.close();
@@ -1864,7 +1914,10 @@ describe("DatabaseServer — built-in SQLite migrations", () => {
         runDatabaseDurableObjectSqlMigrations(storage);
         runDatabaseDurableObjectSqlMigrations(storage);
 
-        expect([...storage.sql.exec("SELECT version FROM _migrations")]).toEqual([{version: 1}]);
+        expect([...storage.sql.exec("SELECT version FROM _migrations")]).toEqual([
+            {version: 1},
+            {version: 2},
+        ]);
     });
 });
 
@@ -1890,15 +1943,54 @@ describe("DatabaseServer — durable page storage", () => {
         };
         const secondPolicy = {...firstPolicy, defaultGrant: {level: "Edit" as const}};
 
-        server.setDatabaseTableAccessPolicy(tableId, firstPolicy);
-        server.setDatabaseTableAccessPolicy(tableId, secondPolicy);
+        server.setDatabaseTableAccessPolicy(tableId, firstPolicy, {
+            tableMetadataVersion: 1,
+            sourcePolicyVersion: 0,
+        });
+        server.setDatabaseTableAccessPolicy(tableId, secondPolicy, {
+            tableMetadataVersion: 2,
+            sourcePolicyVersion: 0,
+        });
         const storedPolicy = server.getDatabaseTableAccessPolicy(tableId);
-        server.setDatabaseTableAccessPolicy(tableId, null);
+        server.setDatabaseTableAccessPolicy(tableId, null, {
+            tableMetadataVersion: 3,
+            sourcePolicyVersion: 0,
+        });
 
         expect({
             storedPolicy,
             removedPolicy: server.getDatabaseTableAccessPolicy(tableId),
         }).toEqual({storedPolicy: secondPolicy, removedPolicy: null});
+    });
+
+    test("rejects access-policy replicas with an older composite revision", async () => {
+        const server = await createServer();
+        const tableId = generateChronologicalId<DatabaseTableId>();
+        const newerPolicy = databaseTableAccessPolicyForCreator(testAccountId);
+        const stalePolicy = {...newerPolicy, defaultGrant: {level: "View" as const}};
+
+        server.setDatabaseTableAccessPolicy(tableId, newerPolicy, {
+            tableMetadataVersion: 2,
+            sourcePolicyVersion: 3,
+        });
+        const staleSourceApplied = server.setDatabaseTableAccessPolicy(tableId, stalePolicy, {
+            tableMetadataVersion: 2,
+            sourcePolicyVersion: 2,
+        });
+        const staleTableApplied = server.setDatabaseTableAccessPolicy(tableId, stalePolicy, {
+            tableMetadataVersion: 1,
+            sourcePolicyVersion: 100,
+        });
+
+        expect({
+            staleSourceApplied,
+            staleTableApplied,
+            storedPolicy: server.getDatabaseTableAccessPolicy(tableId),
+        }).toEqual({
+            staleSourceApplied: false,
+            staleTableApplied: false,
+            storedPolicy: newerPolicy,
+        });
     });
 
     test("write pages, read them back", async () => {

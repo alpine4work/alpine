@@ -65,6 +65,16 @@ export const databaseDurableObjectSqlMigrations: ReadonlyArray<DatabaseDurableOb
                 CREATE INDEX database_table_pages_by_version ON database_table_pages (sqlite_id, version)
             `.exec(db);
         },
+        db => {
+            sql`
+                ALTER TABLE database_tables
+                ADD COLUMN access_policy_table_version INTEGER NOT NULL DEFAULT -1
+            `.exec(db);
+            sql`
+                ALTER TABLE database_tables
+                ADD COLUMN access_policy_source_version INTEGER NOT NULL DEFAULT -1
+            `.exec(db);
+        },
     ];
 
 export function runDatabaseDurableObjectSqlMigrations(storage: DurableObjectStorage): void {

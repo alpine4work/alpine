@@ -1,8 +1,9 @@
-import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
+import {resolveDatabaseTableAccessPolicyReplica} from "~/server/databases/data/resolve_database_table_access_policy_replica.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {RynamoTableItemType, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {AccessPolicySchema, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseTableMetadataBroadcastRealtimeEventsSchema} from "~/shared/databases/database_realtime_protocol.js";
+import type {DatabaseTableAccessPolicyRevision} from "~/shared/databases/database_table_access_policy_revision.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -61,7 +62,13 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
             DatabaseGroupId,
             {
                 events: Array<RynamoEventStub>;
-                resolvedAccessPolicyByTableId: Map<DatabaseTableId, LocalAccessPolicy | null>;
+                resolvedAccessPolicyByTableId: Map<
+                    DatabaseTableId,
+                    {
+                        accessPolicy: LocalAccessPolicy | null;
+                        revision: DatabaseTableAccessPolicyRevision;
+                    }
+                >;
             }
         >();
 
@@ -74,10 +81,11 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                     event.type === "PutItem",
                     "Database table metadata deletion is not supported",
                 );
-                const {databaseGroupId, accessPolicy} = event.item.model;
-                const resolvedAccessPolicy: LocalAccessPolicy = await intoEffectiveAccessPolicy(
+                const {databaseGroupId, accessPolicy, version} = event.item.model;
+                const resolvedAccessPolicy = await resolveDatabaseTableAccessPolicyReplica(
                     context,
                     accessPolicy,
+                    version,
                     {consistency: "StrongWithinCache"},
                 );
 
