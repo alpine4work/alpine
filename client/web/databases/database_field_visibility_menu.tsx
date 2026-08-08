@@ -17,6 +17,7 @@ import {IconButton} from "~/client/web/design/icon_button.js";
 import {Overlay} from "~/client/web/design/overlay.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import type {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import type {DatabaseFieldId} from "~/shared/id/types/id_types.js";
@@ -252,29 +253,28 @@ function computeDropPosition(
     sectionHeaderId: string,
 ): OrderKey {
     if (overId === sectionHeaderId) {
-        const first = targetFields.length > 0 ? targetFields[0]!.position : null;
+        const first = targetFields.at(0)?.position ?? null;
         return generateOrderKeyBetween(null, first);
     }
 
     const overIndex = targetFields.findIndex(f => f.id === overId);
     if (overIndex === -1) {
         // Fallback: place at end of target section.
-        const last =
-            targetFields.length > 0 ? targetFields[targetFields.length - 1]!.position : null;
+        const last = targetFields.at(-1)?.position ?? null;
         return generateOrderKeyBetween(last, null);
     }
 
     const activeGlobalIndex = allIds.indexOf(activeId);
     const overGlobalIndex = allIds.indexOf(overId);
     const movingDown = activeGlobalIndex < overGlobalIndex;
+    const overField = assertExists(targetFields[overIndex]);
 
     if (movingDown) {
-        const next =
-            overIndex < targetFields.length - 1 ? targetFields[overIndex + 1]!.position : null;
-        return generateOrderKeyBetween(targetFields[overIndex]!.position, next);
+        const next = targetFields[overIndex + 1]?.position ?? null;
+        return generateOrderKeyBetween(overField.position, next);
     } else {
-        const prev = overIndex > 0 ? targetFields[overIndex - 1]!.position : null;
-        return generateOrderKeyBetween(prev, targetFields[overIndex]!.position);
+        const prev = targetFields[overIndex - 1]?.position ?? null;
+        return generateOrderKeyBetween(prev, overField.position);
     }
 }
 

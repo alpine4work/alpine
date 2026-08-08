@@ -1,6 +1,7 @@
 import {type Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -168,7 +169,7 @@ export function runMainMigrations(db: Database, migrationLimitForTest?: number):
         `main user_version (${version}) is ahead of known migrations (${migrationLimit})`,
     );
     for (let i = version; i < migrationLimit; i++) {
-        const migration = mainSqliteMigrations[i]!;
+        const migration = assertExists(mainSqliteMigrations[i]);
         if (migration instanceof SqlQuery) {
             migration.exec(db);
         } else {
@@ -238,7 +239,7 @@ function runSchemaMigrations(
     );
 
     for (let i = version; i < migrationLimit; i++) {
-        const migration = migrations[i]!;
+        const migration = assertExists(migrations[i]);
         if (migration instanceof SqlQuery) {
             migration.exec(db);
         } else {

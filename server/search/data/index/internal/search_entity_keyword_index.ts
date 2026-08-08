@@ -8,6 +8,7 @@ import {SearchEntityKeywordIndexDocType} from "~/server/search/data/index/intern
 import {searchEntityKeywordIndexRefreshIntervalMs} from "~/server/search/data/table/search_entity_actions.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertNotAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
@@ -46,7 +47,7 @@ export function fromSearchEntityIdForKeywordIndex(
     entityId: SearchEntityIdForKeywordIndex,
 ): SearchDynamicEntityId {
     if (entityId.startsWith("Account:")) {
-        return entityId.split("~")[0]! as `Account:${AccountId}`;
+        return assertExists(entityId.split("~")[0]) as `Account:${AccountId}`;
     } else {
         return entityId as Exclude<SearchDynamicEntityId, `Account:${AccountId}`>;
     }

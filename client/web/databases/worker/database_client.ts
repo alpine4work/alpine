@@ -32,6 +32,7 @@ import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attach
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -979,7 +980,9 @@ export class DatabaseClient {
                 for (const [pageIndex, data] of pages) {
                     store.unsafeWritePageForTests(pageIndex, version, new Uint8Array(data));
                 }
-                store.setServerFileSizeInPages(buffered.fileSizesInPages.get(tableId)!);
+                store.setServerFileSizeInPages(
+                    assertExists(buffered.fileSizesInPages.get(tableId)),
+                );
                 store.sync();
                 this.registeredTables.add(tableId);
             }

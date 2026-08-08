@@ -33,6 +33,7 @@ import {
 } from "~/shared/databases/sqlite_migrations.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -154,7 +155,7 @@ export type DatabaseServerTableAccessEntry =
 export class DatabaseServer {
     // Assigned in `create` right after construction: `Database.create` reads pages
     // through this instance, so the instance must exist before the database does.
-    private database!: Database;
+    private database: Database | null = null;
     private readonly storage: DurableObjectStorage;
     private readonly sql: SqlStorage;
     // Committed in-memory mirrors of the `database_tables.sqlite_id` and
@@ -181,6 +182,10 @@ export class DatabaseServer {
         this.sql = storage.sql;
     }
 
+    private getDatabase(): Database {
+        return assertExists(this.database);
+    }
+
     static async create(storage: DurableObjectStorage): Promise<DatabaseServer> {
         runDatabaseDurableObjectSqlMigrations(storage);
         const server = new DatabaseServer(storage);
@@ -192,7 +197,7 @@ export class DatabaseServer {
                     // the same action (and the same storage transaction), so the mirror is correct the
                     // moment the action commits.
                     registerTable: (tableId, registration) =>
-                        server._registerDatabaseTable(tableId, {
+                        server.registerDatabaseTable(tableId, {
                             ...registration,
                             schemaVersion:
                                 registration.kind === "table"
@@ -200,15 +205,15 @@ export class DatabaseServer {
                                     : joinTableSqliteMigrations(tableId).length,
                         }),
                     setTableName: (tableId, tableName) =>
-                        server._setDatabaseTableName(tableId, tableName),
+                        server.setDatabaseTableName(tableId, tableName),
                     setTableAccessPolicy: (tableId, accessPolicy) =>
                         server.setDatabaseTableAccessPolicy(tableId, accessPolicy),
                     isTableNameTaken: (tableName, excludeTableId) =>
-                        server._isDatabaseTableNameTaken(tableName, excludeTableId),
+                        server.isDatabaseTableNameTaken(tableName, excludeTableId),
                 },
             },
         });
-        server._bootstrap();
+        server.bootstrap();
         return server;
     }
 
@@ -224,12 +229,12 @@ export class DatabaseServer {
         options: {allowWrites: SqliteWriteLevel},
     ): DatabaseServerResult {
         assert(import.meta.jest, "executeForTests is test-only");
-        const {result, readPages, changedPages, snapshotVersion} = this._runAndPersist(
+        const {result, readPages, changedPages, snapshotVersion} = this.runAndPersist(
             context,
             () => {
-                const {rows, readPages} = this.database.executeSql(query, {
+                const {rows, readPages} = this.getDatabase().executeSql(query, {
                     ...options,
-                    getTableAccessLevel: this._getTableAccessLevelForContext(context),
+                    getTableAccessLevel: this.getTableAccessLevelForContext(context),
                 });
                 return {result: rows, readPages};
             },
@@ -257,12 +262,12 @@ export class DatabaseServer {
         // policy, which the authorizer can only permit by skipping the per-table layer.
         // Being `internalOnly` _is_ the signal that an action is a system operation with
         // no per-account scope. Everything else is enforced against the acting account
-        // (see {@link \_getTableAccessLevelForContext}).
+        // (see {@link \getTableAccessLevelForContext}).
         const getTableAccessLevel = action.internalOnly
             ? allowAllTableAccess
-            : this._getTableAccessLevelForContext(context);
-        return this._runAndPersist(context, () =>
-            this.database.executeAction(actionObject, {
+            : this.getTableAccessLevelForContext(context);
+        return this.runAndPersist(context, () =>
+            this.getDatabase().executeAction(actionObject, {
                 currentAccountId,
                 getTableAccessLevel,
             }),
@@ -291,8 +296,8 @@ export class DatabaseServer {
             case "table":
                 return accessLevelForPolicy(entry.accessPolicy, accountId);
             case "join": {
-                const sourceLevel = this._getSideTableAccessLevel(entry.sourceTableId, accountId);
-                const targetLevel = this._getSideTableAccessLevel(entry.targetTableId, accountId);
+                const sourceLevel = this.getSideTableAccessLevel(entry.sourceTableId, accountId);
+                const targetLevel = this.getSideTableAccessLevel(entry.targetTableId, accountId);
                 return maxAccessLevel(sourceLevel, targetLevel);
             }
             default:
@@ -309,7 +314,7 @@ export class DatabaseServer {
      * browser/session never reaches here as `System` — the websocket `Main` route
      * requires `authorizeSession()`.
      */
-    private _getTableAccessLevelForContext(
+    private getTableAccessLevelForContext(
         context: WorkerActionContext,
     ): (tableId: DatabaseTableId) => AccessLevel | null {
         if (context.actor.type === "System") return allowAllTableAccess;
@@ -318,13 +323,13 @@ export class DatabaseServer {
     }
 
     close(): void {
-        this.database.close();
+        this.getDatabase().close();
     }
 
     /** Test-only: raw SQLite handle. */
     unsafeGetDbForTests(): SqliteDatabase {
         assert(import.meta.jest);
-        return this.database.unsafeGetDbForTests();
+        return this.getDatabase().unsafeGetDbForTests();
     }
 
     /**
@@ -336,7 +341,7 @@ export class DatabaseServer {
      */
     commitBufferForTests(): void {
         assert(import.meta.jest);
-        this._persistBuffer();
+        this.persistBuffer();
     }
 
     // -- Durable storage ------------------------------------------------------
@@ -360,7 +365,7 @@ export class DatabaseServer {
             try {
                 result = this.storage.transactionSync(fn);
             } catch (error) {
-                // `_nextSnapshotVersion` advances before writes so every row in a batch receives
+                // `nextSnapshotVersion` advances before writes so every row in a batch receives
                 // one stamp. A rolled-back stamp must not escape through `snapshotVersion`: after
                 // a restart, storage could otherwise reuse it.
                 this.lastSnapshotVersion = lastSnapshotVersion;
@@ -475,7 +480,7 @@ export class DatabaseServer {
         databaseTableId: DatabaseTableId,
         index: number,
     ): {data: Uint8Array; version: number} | null {
-        const sqliteId = this._lookupSqliteId(databaseTableId);
+        const sqliteId = this.lookupSqliteId(databaseTableId);
         if (sqliteId === undefined) {
             return null;
         }
@@ -520,7 +525,7 @@ export class DatabaseServer {
             return this.transactionSync(() => this.writePages(pages, truncates));
         }
 
-        const version = this._nextSnapshotVersion();
+        const version = this.nextSnapshotVersion();
 
         const finalPagesByTable = new Map<DatabaseTableId, Map<number, Uint8Array | null>>();
         const finalFileSizeByTable = new Map<DatabaseTableId, number>();
@@ -529,7 +534,7 @@ export class DatabaseServer {
         // rewrite later in this batch replaces a truncate tombstone for the same primary
         // key rather than attempting two writes at one version.
         for (const [databaseTableId, size] of truncates) {
-            const sqliteId = this._getOrCreateSqliteId(databaseTableId);
+            const sqliteId = this.getOrCreateSqliteId(databaseTableId);
             const maxPageIndex = Math.floor(size / sqlitePageSize);
             // This range scan is deliberate: tombstones must be retained for every known page
             // removed by the truncate. The `(sqlite_id, page_index)` primary key serves the
@@ -565,7 +570,7 @@ export class DatabaseServer {
         }
 
         for (const [databaseTableId, finalFileSize] of finalFileSizeByTable) {
-            const sqliteId = this._getOrCreateSqliteId(databaseTableId);
+            const sqliteId = this.getOrCreateSqliteId(databaseTableId);
             const finalPages = finalPagesByTable.get(databaseTableId);
             assert(finalPages !== undefined, `missing final pages for table ${databaseTableId}`);
             assert(
@@ -693,7 +698,7 @@ export class DatabaseServer {
      * Record a newly created table's registration. Upserts: the row may already exist
      * from an earlier page write or policy push.
      */
-    private _registerDatabaseTable(
+    private registerDatabaseTable(
         tableId: DatabaseTableId,
         registration: DatabaseServerTableRegistration & {schemaVersion: number},
     ): void {
@@ -732,7 +737,7 @@ export class DatabaseServer {
     }
 
     /** Record a rename's resolved SQLite `table_name`. */
-    private _setDatabaseTableName(tableId: DatabaseTableId, tableName: string): void {
+    private setDatabaseTableName(tableId: DatabaseTableId, tableName: string): void {
         const updated = sql`
             UPDATE database_tables
             SET
@@ -749,10 +754,7 @@ export class DatabaseServer {
      * Whether any table's `table_name` equals `tableName`, optionally excluding one
      * id.
      */
-    private _isDatabaseTableNameTaken(
-        tableName: string,
-        excludeTableId?: DatabaseTableId,
-    ): boolean {
+    private isDatabaseTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean {
         const excludeClause =
             excludeTableId === undefined ? sql`` : sql` AND table_id != ${excludeTableId} `;
         return (
@@ -767,7 +769,7 @@ export class DatabaseServer {
         );
     }
 
-    private _nextSnapshotVersion(): number {
+    private nextSnapshotVersion(): number {
         const nextSnapshotVersion = this.getSnapshotVersion() + 1;
         this.lastSnapshotVersion = nextSnapshotVersion;
         return nextSnapshotVersion;
@@ -778,7 +780,7 @@ export class DatabaseServer {
      * no row exists yet. Used by read paths so an unwritten table doesn't silently
      * register a `sqlite_id`.
      */
-    private _lookupSqliteId(databaseTableId: DatabaseTableId): number | undefined {
+    private lookupSqliteId(databaseTableId: DatabaseTableId): number | undefined {
         const cached =
             this.currentTransaction?.sqliteIds.get(databaseTableId) ??
             this.sqliteIds.get(databaseTableId);
@@ -804,8 +806,8 @@ export class DatabaseServer {
      * Resolve `databaseTableId` to its internal `sqlite_id`, inserting a fresh row in
      * `database_tables` on first write.
      */
-    private _getOrCreateSqliteId(databaseTableId: DatabaseTableId): number {
-        const existing = this._lookupSqliteId(databaseTableId);
+    private getOrCreateSqliteId(databaseTableId: DatabaseTableId): number {
+        const existing = this.lookupSqliteId(databaseTableId);
         if (existing !== undefined) {
             return existing;
         }
@@ -824,7 +826,7 @@ export class DatabaseServer {
     /**
      * A joined table's access level for `accountId`, `null` when denied/unknown.
      */
-    private _getSideTableAccessLevel(
+    private getSideTableAccessLevel(
         tableId: DatabaseTableId,
         accountId: AccountId | null,
     ): AccessLevel | null {
@@ -833,13 +835,13 @@ export class DatabaseServer {
         return accessLevelForPolicy(entry.accessPolicy, accountId);
     }
 
-    private _bootstrap(): void {
+    private bootstrap(): void {
         // Bootstrap writes flow through the buffer like any other execute; each batch
         // drains to storage right after. Migration runners open no transaction of their
         // own, so wrap each run in one here — a failed migration then rolls back
         // atomically with its `user_version` bump instead of leaving the pager
         // half-migrated.
-        this.database.execute(
+        this.getDatabase().execute(
             db => {
                 db.exec("PRAGMA quick_check");
                 executeSqliteTransaction(db, () => runMainMigrations(db));
@@ -849,7 +851,7 @@ export class DatabaseServer {
                 getTableAccessLevel: allowAllTableAccess,
             },
         );
-        this._persistBuffer();
+        this.persistBuffer();
 
         // Migrate stale per-table files, one execute + persist per table. The table
         // store's schema_version mirrors each file's user_version, so a current table is
@@ -866,9 +868,9 @@ export class DatabaseServer {
                     ? tableSqliteMigrations(table.tableId).length
                     : joinTableSqliteMigrations(table.tableId).length;
             if (table.schemaVersion === migrationCount) continue;
-            this.database.execute(
+            this.getDatabase().execute(
                 db => {
-                    this.database.attachIfNeeded(table.tableId);
+                    this.getDatabase().attachIfNeeded(table.tableId);
                     executeSqliteTransaction(db, () => {
                         switch (table.kind) {
                             case "table":
@@ -887,7 +889,7 @@ export class DatabaseServer {
                     getTableAccessLevel: allowAllTableAccess,
                 },
             );
-            this._persistBuffer();
+            this.persistBuffer();
             // Repair the mirror only after the migrated pages are durable — a crash in between
             // re-runs an already-applied (no-op) migration next boot rather than skipping a
             // stale file.
@@ -895,7 +897,7 @@ export class DatabaseServer {
         }
     }
 
-    private _runAndPersist<T>(
+    private runAndPersist<T>(
         context: WorkerActionContext,
         run: () => {result: T; readPages: ReadonlyDatabasePageSet},
     ): {
@@ -907,11 +909,11 @@ export class DatabaseServer {
         // The error path below clears the buffer to recover from a partial write; assert
         // up front that we're not silently throwing away pre-existing buffered writes
         // belonging to a prior (forgotten) drain.
-        this.database.assertBufferIsEmpty("_runAndPersist");
+        this.getDatabase().assertBufferIsEmpty("runAndPersist");
         try {
             return this.transactionSync(() => {
                 const {result, readPages} = run();
-                return this._persistAndBuildResult(result, readPages);
+                return this.persistAndBuildResult(result, readPages);
             });
         } catch (error) {
             // Drop any partial buffered writes — whether the tracked execute or the drain
@@ -919,12 +921,12 @@ export class DatabaseServer {
             // starts from an empty buffer. `discardBuffer` is a safe no-op if the drain
             // already committed. Table-store writes the failed action issued roll back with
             // the storage transaction.
-            this.database.discardBuffer();
+            this.getDatabase().discardBuffer();
             throw error;
         }
     }
 
-    private _persistAndBuildResult<T>(
+    private persistAndBuildResult<T>(
         result: T,
         readPagesSet: ReadonlyDatabasePageSet,
     ): {
@@ -933,7 +935,7 @@ export class DatabaseServer {
         changedPages: DatabaseServerChangedPages;
         snapshotVersion: number;
     } {
-        const buffered = this.database.getBufferedWrites();
+        const buffered = this.getDatabase().getBufferedWrites();
 
         // Capture the pre-mutation `before` image for every buffered page from storage
         // _before_ draining.
@@ -976,7 +978,7 @@ export class DatabaseServer {
             }
         }
 
-        const postWriteVersion = this._persistBuffer();
+        const postWriteVersion = this.persistBuffer();
 
         // Build the readPages map with full page data + version per table. For pages that
         // were just written, use the after-image plus the freshly- assigned write version;
@@ -1056,11 +1058,11 @@ export class DatabaseServer {
      * Drain the buffer's truncates and page writes into durable storage and clear it.
      * Returns the version stamped on the batch (0 if the buffer was empty).
      */
-    private _persistBuffer(): number {
-        const buffered = this.database.getBufferedWrites();
+    private persistBuffer(): number {
+        const buffered = this.getDatabase().getBufferedWrites();
         if (buffered === null) return 0;
         const version = this.writePages(buffered.pages, buffered.truncates);
-        this.database.markCommitted();
+        this.getDatabase().markCommitted();
         return version;
     }
 }
@@ -1068,11 +1070,10 @@ export class DatabaseServer {
 /**
  * Evaluate a table policy copy for an account. The table store only ever holds
  * `Local` policies (the RPC layer resolves `Site` policies before issuing
- * `createTable`/`syncTableMetadata` — see
- * `resolveDatabaseTableAccessPolicyForDurableObject`); a missing policy fails
- * closed. Space membership was authorized at the connection/request boundary,
- * which is exactly the assumption `getAccountAccessLevelAssumingSpaceAccess`
- * requires.
+ * `createTable`/`syncTableMetadata` — see `intoEffectiveAccessPolicy`); a missing
+ * policy fails closed. Space membership was authorized at the connection/request
+ * boundary, which is exactly the assumption
+ * `getAccountAccessLevelAssumingSpaceAccess` requires.
  */
 function accessLevelForPolicy(
     accessPolicy: LocalAccessPolicy | null,

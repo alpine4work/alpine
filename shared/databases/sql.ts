@@ -1,6 +1,7 @@
 import type {BindableValue} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.js";
 import {
     JsonStringifiableUint8Array,
@@ -8,6 +9,7 @@ import {
     type ObjectSchemaConfigBase,
     type ObjectSchemaConfigType,
     Schema,
+    type SchemaSerializedObjectValue,
     type SchemaSerializedValue,
 } from "~/shared/schema/schema.js";
 
@@ -76,7 +78,7 @@ class SqlQuery {
         db: SqliteDatabase | SqlStorageLike,
         config: ObjectSchemaConfigBase | Schema<unknown>,
     ): Array<any> {
-        return this._selectAll(db, config);
+        return this.selectAllWithConfig(db, config);
     }
 
     /** Execute and return exactly one row (asserts). */
@@ -89,9 +91,11 @@ class SqlQuery {
         db: SqliteDatabase | SqlStorageLike,
         config: ObjectSchemaConfigBase | Schema<unknown>,
     ): any {
-        const rows = this._selectAll(db, config);
+        const rows = this.selectAllWithConfig(db, config);
         assert(rows.length === 1, `Expected 1 row, got ${rows.length}`);
-        return rows[0]!;
+        const row = rows[0];
+        assert(row !== undefined);
+        return row;
     }
 
     /**
@@ -109,7 +113,7 @@ class SqlQuery {
         db: SqliteDatabase | SqlStorageLike,
         config: ObjectSchemaConfigBase | Schema<unknown>,
     ): any {
-        const rows = this._selectAll(db, config);
+        const rows = this.selectAllWithConfig(db, config);
         assert(rows.length <= 1, `Expected at most 1 row, got ${rows.length}`);
         return rows[0] ?? null;
     }
@@ -117,7 +121,7 @@ class SqlQuery {
     /**
      * See {@link selectAll} — shared row-reading core behind its two config shapes.
      */
-    private _selectAll(
+    private selectAllWithConfig(
         db: SqliteDatabase | SqlStorageLike,
         config: ObjectSchemaConfigBase | Schema<unknown>,
     ): Array<any> {
@@ -176,7 +180,9 @@ class SqlQuery {
         if (isSqlStorage(db)) {
             const values = this.selectValues(db, schema);
             assert(values.length === 1, `Expected 1 row, got ${values.length}`);
-            return values[0]!;
+            const value = values[0];
+            assert(value !== undefined);
+            return value;
         }
         const stmt = db.prepare(this.query);
         try {
@@ -227,7 +233,7 @@ class SqlQuery {
             const cursor = this.execCursor(db);
             const columnCount = cursor.columnNames.length;
             assert(columnCount === 1, `Expected 1 column, got ${columnCount}`);
-            const columnName = cursor.columnNames[0]!;
+            const columnName = assertExists(cursor.columnNames[0]);
             const values: Array<Value> = [];
             for (const row of cursor) {
                 values.push(schema.deserialize(cursorValue(row[columnName])));
@@ -252,11 +258,11 @@ class SqlQuery {
      * Execute and return all rows as untyped objects. Use when the result schema is
      * not known statically (e.g. user-provided SQL).
      */
-    selectAllUnknown(db: SqliteDatabase | SqlStorageLike): Array<Record<string, unknown>> {
+    selectAllUnknown(db: SqliteDatabase | SqlStorageLike): Array<SchemaSerializedObjectValue> {
         if (isSqlStorage(db)) {
-            const rows: Array<Record<string, unknown>> = [];
+            const rows: Array<SchemaSerializedObjectValue> = [];
             for (const cursorRow of this.execCursor(db)) {
-                const row: Record<string, unknown> = {};
+                const row: {[key: string]: SchemaSerializedValue} = {};
                 for (const [columnName, value] of Object.entries(cursorRow)) {
                     row[columnName] = cursorValue(value);
                 }
@@ -267,9 +273,14 @@ class SqlQuery {
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
-            const rows: Array<Record<string, unknown>> = [];
+            const rows: Array<SchemaSerializedObjectValue> = [];
             while (stmt.step()) {
-                rows.push(stmt.get({}) as Record<string, unknown>);
+                const sqliteRow = stmt.get({});
+                const row: {[key: string]: SchemaSerializedValue} = {};
+                for (const [columnName, value] of Object.entries(sqliteRow)) {
+                    row[columnName] = cursorValue(value);
+                }
+                rows.push(row);
             }
             return rows;
         } finally {
@@ -287,17 +298,18 @@ class SqlQuery {
      */
     selectAllArrays(
         db: SqliteDatabase | SqlStorageLike,
-        schemas: ReadonlyArray<Schema<unknown>>,
-    ): Array<Array<unknown>> {
+        schemas: ReadonlyArray<Pick<Schema<SchemaSerializedValue>, "deserialize">>,
+    ): Array<Array<SchemaSerializedValue>> {
         if (isSqlStorage(db)) {
             const cursor = this.execCursor(db);
-            const rows: Array<Array<unknown>> = [];
+            const rows: Array<Array<SchemaSerializedValue>> = [];
             for (const cursorRow of cursor) {
-                const row: Array<unknown> = [];
+                const row: Array<SchemaSerializedValue> = [];
                 for (let i = 0; i < schemas.length; i++) {
-                    row.push(
-                        schemas[i]!.deserialize(cursorValue(cursorRow[cursor.columnNames[i]!])),
-                    );
+                    const schema = assertExists(schemas[i]);
+                    const columnName = assertExists(cursor.columnNames[i]);
+                    const value = schema.deserialize(cursorValue(cursorRow[columnName]));
+                    row.push(value);
                 }
                 rows.push(row);
             }
@@ -306,11 +318,13 @@ class SqlQuery {
         const stmt = db.prepare(this.query);
         try {
             if (this.bind.length > 0) stmt.bind(this.bind as Array<BindableValue>);
-            const rows: Array<Array<unknown>> = [];
+            const rows: Array<Array<SchemaSerializedValue>> = [];
             while (stmt.step()) {
-                const row: Array<unknown> = [];
+                const row: Array<SchemaSerializedValue> = [];
                 for (let i = 0; i < schemas.length; i++) {
-                    row.push(schemas[i]!.deserialize(stmt.get(i) as SchemaSerializedValue));
+                    const schema = assertExists(schemas[i]);
+                    const value = schema.deserialize(cursorValue(stmt.get(i)));
+                    row.push(value);
                 }
                 rows.push(row);
             }

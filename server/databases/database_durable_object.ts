@@ -38,11 +38,11 @@ type DatabaseGroupDurableObjectRoute =
 class DatabaseGroupDurableObject {
     public static readonly serviceName = "DatabaseGroupService";
 
-    private readonly _server: DatabaseServer;
-    private readonly _processContext: WorkerProcessContext;
-    private readonly _databaseGroupId: DatabaseGroupId;
+    private readonly server: DatabaseServer;
+    private readonly processContext: WorkerProcessContext;
+    private readonly databaseGroupId: DatabaseGroupId;
 
-    private readonly _webSocketServer: WebSocketServer<
+    private readonly webSocketServer: WebSocketServer<
         WorkerProcessContextModules,
         WorkerSessionActionContextModules,
         typeof DatabaseRealtimeProtocol,
@@ -79,23 +79,23 @@ class DatabaseGroupDurableObject {
         databaseGroupId: DatabaseGroupId;
         server: DatabaseServer;
     }) {
-        this._processContext = processContext;
-        this._databaseGroupId = databaseGroupId;
-        this._server = server;
+        this.processContext = processContext;
+        this.databaseGroupId = databaseGroupId;
+        this.server = server;
 
-        this._webSocketServer = new WebSocketServer<
+        this.webSocketServer = new WebSocketServer<
             WorkerProcessContextModules,
             WorkerSessionActionContextModules,
             typeof DatabaseRealtimeProtocol,
             DatabaseRealtimeEventStub,
             DatabaseDurableObjectConnection
-        >(this._processContext, DatabaseRealtimeProtocol, ({sendEvent}) => {
+        >(this.processContext, DatabaseRealtimeProtocol, ({sendEvent}) => {
             return new DatabaseDurableObjectConnection({
-                server: this._server,
+                server: this.server,
                 sendEventToAll: event =>
-                    this._webSocketServer.sendEventToAll(this._processContext, event),
-                sendEventToSelf: event => void sendEvent(this._processContext, event),
-                databaseGroupId: this._databaseGroupId,
+                    this.webSocketServer.sendEventToAll(this.processContext, event),
+                sendEventToSelf: event => void sendEvent(this.processContext, event),
+                databaseGroupId: this.databaseGroupId,
             });
         });
     }
@@ -119,14 +119,14 @@ class DatabaseGroupDurableObject {
     ): Promise<Response> {
         switch (route) {
             case "Main":
-                return await this._webSocketServer.upgrade(
+                return await this.webSocketServer.upgrade(
                     context.actor.authorizeSession(),
                     request,
                 );
             case "Action":
-                return await this._handleAction(context, request);
+                return await this.handleAction(context, request);
             case "BroadcastTableMetadataRealtimeEvents":
-                return await this._handleBroadcastTableMetadataRealtimeEvents(context, request);
+                return await this.handleBroadcastTableMetadataRealtimeEvents(context, request);
             case "NotFound":
                 throw new NotFoundError("Route not found");
             default:
@@ -134,7 +134,7 @@ class DatabaseGroupDurableObject {
         }
     }
 
-    private async _handleBroadcastTableMetadataRealtimeEvents(
+    private async handleBroadcastTableMetadataRealtimeEvents(
         context: WorkerActionContext,
         request: Request,
     ): Promise<Response> {
@@ -147,13 +147,13 @@ class DatabaseGroupDurableObject {
         const {events, resolvedAccessPolicyByTableId} =
             DatabaseTableMetadataBroadcastRealtimeEventsSchema.deserialize(await request.json());
 
-        this._server.transactionSync(() => {
+        this.server.transactionSync(() => {
             for (const [tableId, accessPolicy] of resolvedAccessPolicyByTableId) {
-                this._server.setDatabaseTableAccessPolicy(tableId, accessPolicy);
+                this.server.setDatabaseTableAccessPolicy(tableId, accessPolicy);
             }
         });
 
-        this._webSocketServer.sendEventToAll(context, {
+        this.webSocketServer.sendEventToAll(context, {
             type: "TableMetadataChanged",
             events,
         });
@@ -161,7 +161,7 @@ class DatabaseGroupDurableObject {
         return new Response();
     }
 
-    private async _handleAction(context: WorkerActionContext, request: Request): Promise<Response> {
+    private async handleAction(context: WorkerActionContext, request: Request): Promise<Response> {
         // This route is for server code only (`fetchDatabaseGroupAction`). Browser traffic
         // reaches the durable object with EdgeService-issued tokens — the edge forwards
         // any subpath — and must use the WebSocket protocol, whose connection-level
@@ -179,14 +179,14 @@ class DatabaseGroupDurableObject {
         // intentionally use `getAccountAccessLevelAssumingSpaceAccess`, so they must never
         // be evaluated until this prerequisite has been established.
         await authorizeDatabaseGroupAccess(context, {
-            databaseGroupId: this._databaseGroupId,
+            databaseGroupId: this.databaseGroupId,
         });
 
         const actionObject = DatabaseActionObjectSchema.deserialize(
             (await request.json()) as SchemaSerializedValue,
         );
 
-        const actionResult = this._server.executeAction(context, actionObject);
+        const actionResult = this.server.executeAction(context, actionObject);
         const returnPages = new URL(request.url).searchParams.get("returnPages") !== "false";
 
         // Mutations through this route must reach realtime subscribers just like websocket
@@ -199,7 +199,7 @@ class DatabaseGroupDurableObject {
             actionResult.snapshotVersion,
         );
         if (pageDiffs.size > 0) {
-            this._webSocketServer.sendEventToAll(this._processContext, {
+            this.webSocketServer.sendEventToAll(this.processContext, {
                 type: "PagesChanged",
                 pageDiffs,
                 mutationId: generateId<DatabaseMutationId>(),
@@ -224,7 +224,7 @@ class DatabaseGroupDurableObject {
         context: WorkerSessionActionContext,
         options?: {searchParams?: URLSearchParams},
     ) {
-        return this._webSocketServer.connectForTest(context, options);
+        return this.webSocketServer.connectForTest(context, options);
     }
 }
 

@@ -5,6 +5,7 @@ import type {
     WasmPointer,
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
  * Registers an eponymous virtual table module that acts as a table-valued
@@ -49,7 +50,7 @@ export function registerSqliteTableFunction(
                 _argv: WasmPointer,
                 ppVtab: WasmPointer,
             ) {
-                const rc = capi.sqlite3_declare_vtab(db.pointer!, schemaSql);
+                const rc = capi.sqlite3_declare_vtab(assertExists(db.pointer), schemaSql);
                 if (rc !== capi.SQLITE_OK) return rc;
                 vtab.xVtab.create(ppVtab);
                 return capi.SQLITE_OK;
@@ -157,7 +158,7 @@ export function registerSqliteTableFunction(
 
             xColumn(pCursor: WasmPointer, pCtx: WasmPointer, i: number) {
                 const cursor = cursors.get(pCursor)!;
-                const value = cursor.rows[cursor.index]![i];
+                const value = assertExists(cursor.rows[cursor.index])[i];
                 capi.sqlite3_result_js(pCtx, value as any);
                 return capi.SQLITE_OK;
             },
@@ -171,6 +172,6 @@ export function registerSqliteTableFunction(
     });
 
     assert(typeof capi.sqlite3_create_module === "function", "sqlite3_create_module not available");
-    const rc = capi.sqlite3_create_module(db.pointer!, name, mod, 0);
+    const rc = capi.sqlite3_create_module(assertExists(db.pointer), name, mod, 0);
     assert(rc === capi.SQLITE_OK, `sqlite3_create_module failed: rc=${rc}`);
 }

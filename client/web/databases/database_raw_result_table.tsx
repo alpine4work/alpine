@@ -9,7 +9,8 @@ const defaultFieldWidth = 200;
 export function DatabaseRawResultTable({rows: rawRows}: {rows: ReadonlyArray<unknown>}) {
     const rows = rawRows as ReadonlyArray<Record<string, unknown>>;
 
-    if (rows.length === 0) {
+    const firstRow = rows[0];
+    if (firstRow === undefined) {
         return (
             <Box fontSize="75" fontStyle="code" color="grey-50" padding="2">
                 No rows returned.
@@ -17,7 +18,7 @@ export function DatabaseRawResultTable({rows: rawRows}: {rows: ReadonlyArray<unk
         );
     }
 
-    const columns = Object.keys(rows[0]!);
+    const columns = Object.keys(firstRow);
 
     return (
         <Box overflow="auto">

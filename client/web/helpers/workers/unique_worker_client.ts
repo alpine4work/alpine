@@ -9,6 +9,7 @@ import {
     UnknownError,
 } from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SchemaType} from "~/shared/schema/schema.js";
 
@@ -174,7 +175,7 @@ export class UniqueWorkerClient<
     WorkerDef extends WebWorkerRpcMethodDefinitions,
     TabDef extends WebWorkerRpcMethodDefinitions,
 > {
-    private state!: UniqueWorkerClientState<WorkerDef, TabDef>;
+    private state: UniqueWorkerClientState<WorkerDef, TabDef> | null = null;
     private readonly callQueue: Array<UniqueWorkerClientQueuedCall> = [];
     private readonly firstConnection: PromiseResolver<void> = createPromiseResolver();
     private readonly shutdownAbort = new AbortController();
@@ -228,7 +229,7 @@ export class UniqueWorkerClient<
 
     /** Current state, exposed for tests and debugging. */
     get status(): UniqueWorkerClientStatus {
-        return this.state.type;
+        return assertExists(this.state).type;
     }
 
     /**
@@ -243,7 +244,7 @@ export class UniqueWorkerClient<
         method: K,
         input: SchemaType<WorkerDef[K]["inputSchema"]>,
     ): Promise<SchemaType<WorkerDef[K]["outputSchema"]>> {
-        const state = this.state;
+        const state = assertExists(this.state);
         switch (state.type) {
             case "connecting-follower":
             case "starting-leader":
@@ -263,7 +264,7 @@ export class UniqueWorkerClient<
     }
 
     close(): void {
-        const state = this.state;
+        const state = assertExists(this.state);
         switch (state.type) {
             case "connecting-follower":
                 state.attempt.rpcPort.close();
@@ -309,7 +310,7 @@ export class UniqueWorkerClient<
     // re-enters through another `handle*` method.
 
     private handleLockAcquired(lockHold: UniqueWorkerLockHold): void {
-        const state = this.state;
+        const state = assertExists(this.state);
         switch (state.type) {
             case "connecting-follower":
                 state.attempt.rpcPort.close();
@@ -339,7 +340,7 @@ export class UniqueWorkerClient<
     }
 
     private handleReady(attempt: UniqueWorkerClientAttempt): void {
-        const state = this.state;
+        const state = assertExists(this.state);
         switch (state.type) {
             case "starting-leader": {
                 if (state.attempt !== attempt) {
@@ -385,7 +386,7 @@ export class UniqueWorkerClient<
     }
 
     private handleLeaderLost(): void {
-        const state = this.state;
+        const state = assertExists(this.state);
         switch (state.type) {
             case "follower":
                 rejectUniqueWorkerInflightCalls(
@@ -415,7 +416,7 @@ export class UniqueWorkerClient<
     }
 
     private handleWorkerError(error: Error): void {
-        const state = this.state;
+        const state = assertExists(this.state);
         switch (state.type) {
             case "starting-leader":
                 // The worker never came up (e.g. the script failed to load). Treat as
@@ -438,7 +439,7 @@ export class UniqueWorkerClient<
     }
 
     private handleConnectRequest(transferPort: MessagePort): void {
-        const state = this.state;
+        const state = assertExists(this.state);
         switch (state.type) {
             case "leader":
                 state.worker.postMessage({type: "unique-worker:connect-port"}, [transferPort]);
@@ -543,7 +544,7 @@ export class UniqueWorkerClient<
     }
 
     private fail(error: Error): void {
-        const state = this.state;
+        const state = assertExists(this.state);
         switch (state.type) {
             case "closed":
             case "failed":

@@ -45,7 +45,7 @@ export type DatabaseFieldValue<Type extends DatabaseFieldType = DatabaseFieldTyp
 >;
 export type UnknownDatabaseFieldProvider = DatabaseFieldProviderBase<
     DatabaseFieldType,
-    unknown,
+    SchemaSerializedValue,
     {type: DatabaseFieldType}
 >;
 

@@ -368,7 +368,7 @@ export function CreateWidgetSecondaryMenuBar({
         ...(canRenderDatabaseButton
             ? [
                   {
-                      ref: menuItemRefs[menuItemRefs.length - 1]!,
+                      ref: assertExists(menuItemRefs.at(-1)),
                       name: "database",
                       icon: <Table />,
                       description:

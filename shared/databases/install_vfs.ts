@@ -1,4 +1,5 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 /**
  * Per-file VFS operations. Returned by {@link VfsMethods.open}.
@@ -234,7 +235,7 @@ export function installVfs(
                         files.set(filePtr, file);
 
                         const structFile = new capi.sqlite3_file(filePtr);
-                        structFile.$pMethods = ioMethods.pointer!;
+                        structFile.$pMethods = assertExists(ioMethods.pointer);
 
                         if (pOutputFlags) {
                             const view = new DataView(wasm.heap8u().buffer, pOutputFlags, 4);

@@ -51,12 +51,12 @@ export type DatabaseRealtimeEventStub =
       };
 
 export class DatabaseDurableObjectConnection {
-    private readonly _server: DatabaseServer;
-    private readonly _sendEventToAll: (event: DatabaseRealtimeEventStub) => void;
-    private readonly _sendEventToSelf: (event: DatabaseRealtimeEventStub) => void;
-    private readonly _databaseGroupId: DatabaseGroupId;
-    private readonly _subscriptions = new Map<DatabaseTableId, TypedFastBitSet>();
-    private readonly _originatedMutationIds = new Set<DatabaseMutationId>();
+    private readonly server: DatabaseServer;
+    private readonly sendEventToAll: (event: DatabaseRealtimeEventStub) => void;
+    private readonly sendEventToSelf: (event: DatabaseRealtimeEventStub) => void;
+    private readonly databaseGroupId: DatabaseGroupId;
+    private readonly subscriptions = new Map<DatabaseTableId, TypedFastBitSet>();
+    private readonly originatedMutationIds = new Set<DatabaseMutationId>();
 
     constructor({
         server,
@@ -69,10 +69,10 @@ export class DatabaseDurableObjectConnection {
         sendEventToSelf: (event: DatabaseRealtimeEventStub) => void;
         databaseGroupId: DatabaseGroupId;
     }) {
-        this._server = server;
-        this._sendEventToAll = sendEventToAll;
-        this._sendEventToSelf = sendEventToSelf;
-        this._databaseGroupId = databaseGroupId;
+        this.server = server;
+        this.sendEventToAll = sendEventToAll;
+        this.sendEventToSelf = sendEventToSelf;
+        this.databaseGroupId = databaseGroupId;
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -86,8 +86,8 @@ export class DatabaseDurableObjectConnection {
                 );
             }
 
-            const result = this._server.executeAction(context, input.action);
-            const registeredTables = this._registerTables(context, input.registerTables);
+            const result = this.server.executeAction(context, input.action);
+            const registeredTables = this.registerTables(context, input.registerTables);
 
             let filteredReadPages: Map<DatabaseTableId, DatabaseTablePages> | null = null;
             if (input.returnPages) {
@@ -118,8 +118,8 @@ export class DatabaseDurableObjectConnection {
             // replaced its held-page set above; pages actually returned are then added to that
             // set. Tables omitted from the registration payload are deliberately unfiltered.
             for (const [tableId] of result.readPages) {
-                const heldPages = this._subscriptions.get(tableId) ?? new TypedFastBitSet();
-                this._subscriptions.set(tableId, heldPages);
+                const heldPages = this.subscriptions.get(tableId) ?? new TypedFastBitSet();
+                this.subscriptions.set(tableId, heldPages);
                 for (const pageIndex of filteredReadPages?.get(tableId)?.keys() ?? []) {
                     heldPages.add(pageIndex);
                 }
@@ -131,8 +131,8 @@ export class DatabaseDurableObjectConnection {
                 result.snapshotVersion,
             );
             if (pageDiffs.size > 0) {
-                this._originatedMutationIds.add(input.mutationId);
-                this._sendEventToAll({
+                this.originatedMutationIds.add(input.mutationId);
+                this.sendEventToAll({
                     type: "PagesChanged",
                     pageDiffs,
                     mutationId: input.mutationId,
@@ -145,7 +145,7 @@ export class DatabaseDurableObjectConnection {
                 // diffs, so confirm it to the originator explicitly with an empty event.
                 // Foreground calls (`returnPages: true`) consume the response directly and need no
                 // confirmation.
-                this._sendEventToSelf({
+                this.sendEventToSelf({
                     type: "PagesChanged",
                     pageDiffs: new Map(),
                     mutationId: input.mutationId,
@@ -162,7 +162,7 @@ export class DatabaseDurableObjectConnection {
                 for (const tableId of filteredReadPages.keys()) {
                     fileSizesInPages.set(
                         tableId,
-                        this._server.getFileSize(tableId) / sqlitePageSize,
+                        this.server.getFileSize(tableId) / sqlitePageSize,
                     );
                     readPagesSnapshotVersion.set(tableId, result.snapshotVersion);
                 }
@@ -179,7 +179,7 @@ export class DatabaseDurableObjectConnection {
             };
         },
         registerTables: async (context, input) => {
-            return this._registerTables(context, input.tables);
+            return this.registerTables(context, input.tables);
         },
     };
 
@@ -191,41 +191,41 @@ export class DatabaseDurableObjectConnection {
         // minutes, so a revoked space membership closes the socket within that bound (plus
         // the ~15s server-side membership cache) — the same staleness Alpine accepts for
         // documents and chat.
-        await authorizeDatabaseGroupAccess(context, {databaseGroupId: this._databaseGroupId});
+        await authorizeDatabaseGroupAccess(context, {databaseGroupId: this.databaseGroupId});
     }
 
-    private _registerTables(
+    private registerTables(
         context: WorkerSessionActionContext,
         registrations: DatabaseTableRegistrations,
     ): DatabaseRegisterTablesResult {
         const accountId = context.actor.getPossiblyBotAccountIdIfExists();
         const tableAccess = new Map<DatabaseTableId, AccessLevel | null>();
         const tables = new Map<DatabaseTableId, DatabaseTableRegistrationResult>();
-        const snapshotVersion = this._server.getSnapshotVersion();
+        const snapshotVersion = this.server.getSnapshotVersion();
 
         for (const [tableId, registration] of registrations) {
             const accessLevel =
                 tableId === databaseMainTableId
                     ? "Manage"
-                    : this._server.getTableAccessLevelForAccount(tableId, accountId);
+                    : this.server.getTableAccessLevelForAccount(tableId, accountId);
             tableAccess.set(tableId, accessLevel);
 
-            const entry = this._server.getDatabaseTableAccessEntry(tableId);
+            const entry = this.server.getDatabaseTableAccessEntry(tableId);
             if (entry !== null && entry.kind === "join") {
                 for (const sideTableId of [entry.sourceTableId, entry.targetTableId]) {
                     tableAccess.set(
                         sideTableId,
-                        this._server.getTableAccessLevelForAccount(sideTableId, accountId),
+                        this.server.getTableAccessLevelForAccount(sideTableId, accountId),
                     );
                 }
             }
 
             if (accessLevel === null) {
-                this._subscriptions.delete(tableId);
+                this.subscriptions.delete(tableId);
                 continue;
             }
 
-            const {changedPageIndexes, tombstonedPageIndexes} = this._server.changedPagesSince(
+            const {changedPageIndexes, tombstonedPageIndexes} = this.server.changedPagesSince(
                 tableId,
                 registration.watermark,
             );
@@ -251,17 +251,17 @@ export class DatabaseDurableObjectConnection {
             } else {
                 const pages = new Map<number, {version: number; data: Uint8Array}>();
                 for (const pageIndex of heldChangedPageIndexes) {
-                    const page = this._server.readPage(tableId, pageIndex);
+                    const page = this.server.readPage(tableId, pageIndex);
                     assert(page !== null, `changed page ${pageIndex} is missing from ${tableId}`);
                     pages.set(pageIndex, page);
                 }
                 catchUp = {type: "pages", pages};
             }
 
-            this._subscriptions.set(tableId, registration.heldPages.clone());
+            this.subscriptions.set(tableId, registration.heldPages.clone());
             tables.set(tableId, {
                 watermark: snapshotVersion,
-                fileSizeInPages: this._server.getFileSize(tableId) / sqlitePageSize,
+                fileSizeInPages: this.server.getFileSize(tableId) / sqlitePageSize,
                 catchUp,
             });
         }
@@ -275,19 +275,19 @@ export class DatabaseDurableObjectConnection {
     ): Promise<DatabaseRealtimeEvent> {
         switch (eventStub.type) {
             case "PagesChanged": {
-                const originatedHere = this._originatedMutationIds.delete(eventStub.mutationId);
+                const originatedHere = this.originatedMutationIds.delete(eventStub.mutationId);
                 const accountId = context.actor.getPossiblyBotAccountIdIfExists();
                 const pageDiffs = new Map<DatabaseTableId, DatabaseTablePageDiffs>();
                 for (const [tableId, diffs] of eventStub.pageDiffs) {
                     const hasAccess =
                         tableId === databaseMainTableId ||
-                        this._server.getTableAccessLevelForAccount(tableId, accountId) !== null;
+                        this.server.getTableAccessLevelForAccount(tableId, accountId) !== null;
                     if (!hasAccess) {
-                        this._subscriptions.delete(tableId);
+                        this.subscriptions.delete(tableId);
                         continue;
                     }
 
-                    const heldPages = this._subscriptions.get(tableId);
+                    const heldPages = this.subscriptions.get(tableId);
                     if (heldPages === undefined) {
                         continue;
                     }
@@ -315,7 +315,7 @@ export class DatabaseDurableObjectConnection {
                 const {events, deniedTableIds} = await getDatabaseTableMetadataRealtimeEvent(
                     context,
                     {
-                        databaseGroupId: this._databaseGroupId,
+                        databaseGroupId: this.databaseGroupId,
                         events: eventStub.events,
                     },
                 );
@@ -329,7 +329,7 @@ export class DatabaseDurableObjectConnection {
                     const tableId = event.item.model.tableId;
                     tableAccess.set(
                         tableId,
-                        this._server.getTableAccessLevelForAccount(tableId, accountId),
+                        this.server.getTableAccessLevelForAccount(tableId, accountId),
                     );
                 }
                 for (const tableId of deniedTableIds ?? []) {
@@ -337,7 +337,7 @@ export class DatabaseDurableObjectConnection {
                 }
                 for (const [tableId, accessLevel] of tableAccess) {
                     if (accessLevel === null) {
-                        this._subscriptions.delete(tableId);
+                        this.subscriptions.delete(tableId);
                     }
                 }
                 return {

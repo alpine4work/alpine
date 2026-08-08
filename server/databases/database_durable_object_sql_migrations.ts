@@ -1,5 +1,6 @@
 import {sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 type DatabaseDurableObjectSqlMigration = (db: SqlStorage) => void;
@@ -82,7 +83,7 @@ export function runDatabaseDurableObjectSqlMigrations(storage: DurableObjectStor
         );
 
         for (let i = version; i < databaseDurableObjectSqlMigrations.length; i++) {
-            databaseDurableObjectSqlMigrations[i]!(storage.sql);
+            assertExists(databaseDurableObjectSqlMigrations[i])(storage.sql);
             sql`
                 INSERT INTO
                     _migrations (version)
