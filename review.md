@@ -8,14 +8,11 @@ realtime changes are not ready to merge: optimistic mutations can be reported as
 server commits them, policy replicas can preserve or restore stale grants, and the storage rewrite
 has both an unbounded-growth problem and a deterministic truncate/re-extend collision.
 
-The rollout is also unsafe for existing data and old clients. The new Durable Object page tables do
-not migrate the legacy store, existing tables are absent from both new metadata stores, and old
-clients reject new action shapes, realtime events, and search variants. Reactive queries can also
-miss invalidations that arrive during an in-flight refresh, while the action-definition helper
-discards its declared output contract through `any`. Structurally, `shared/databases/database.ts` is
-already 1,377 lines and owns several independent subsystems. Alternative framing: treat this as a
-versioned storage/security protocol migration, stage tolerant readers and data backfills first, and
-separate the storage and authorization boundaries before layering the linked-record UI on top.
+Reactive queries can also miss invalidations that arrive during an in-flight refresh, while the
+action-definition helper discards its declared output contract through `any`. Structurally,
+`shared/databases/database.ts` is already 1,377 lines and owns several independent subsystems.
+Alternative framing: separate the storage and authorization boundaries before layering the
+linked-record UI on top.
 
 ---
 
