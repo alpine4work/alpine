@@ -813,42 +813,43 @@ export class DatabaseClient {
                 store !== undefined,
                 `registration response references unknown table ${tableId}`,
             );
-            if (result.watermark >= store.getWatermark()) {
-                switch (result.catchUp.type) {
-                    case "current":
-                        break;
-                    case "pages":
-                        for (const [pageIndex, {version, data}] of result.catchUp.pages) {
-                            if (store.writePageIfNewer(pageIndex, version, data)) {
-                                this.addPageToInvalidate(tableId, pageIndex);
-                                anyChanged = true;
-                            }
-                        }
-                        break;
-                    case "stale": {
-                        const pages = new Map<number, number>();
-                        for (const pageIndex of result.catchUp.pageIndexes) {
-                            const page = store.readPage(pageIndex);
-                            if (page !== null) {
-                                // `stale` only names pages the registration said it held. The next canonical image
-                                // must be newer than that held version, but can legitimately be older than the
-                                // table's global watermark.
-                                pages.set(pageIndex, page.version + 1);
-                            }
+            switch (result.catchUp.type) {
+                case "current":
+                    break;
+                case "pages":
+                    for (const [pageIndex, {version, data}] of result.catchUp.pages) {
+                        if (store.writePageIfNewer(pageIndex, version, data)) {
                             this.addPageToInvalidate(tableId, pageIndex);
-                        }
-                        if (pages.size > 0) {
-                            store.tombstonePages(pages);
                             anyChanged = true;
                         }
-                        break;
                     }
-                    default:
-                        throw exhaustive(result.catchUp);
+                    break;
+                case "stale": {
+                    // Unlike inline pages, stale page indexes have no versions with which to resolve a
+                    // race against a newer realtime event.
+                    if (result.watermark < store.getWatermark()) break;
+                    const pages = new Map<number, number>();
+                    for (const pageIndex of result.catchUp.pageIndexes) {
+                        const page = store.readPage(pageIndex);
+                        if (page !== null) {
+                            // `stale` only names pages the registration said it held. The next canonical image
+                            // must be newer than that held version, but can legitimately be older than the
+                            // table's global watermark.
+                            pages.set(pageIndex, page.version + 1);
+                        }
+                        this.addPageToInvalidate(tableId, pageIndex);
+                    }
+                    if (pages.size > 0) {
+                        store.tombstonePages(pages);
+                        anyChanged = true;
+                    }
+                    break;
                 }
-                this.advanceStoreSnapshot(store, result.watermark, result.fileSizeInPages);
-                store.sync();
+                default:
+                    throw exhaustive(result.catchUp);
             }
+            this.advanceStoreSnapshot(store, result.watermark, result.fileSizeInPages);
+            store.sync();
             this.registeredTables.add(tableId);
             this.attachRegisteredTableIfPossible(tableId, store);
         }

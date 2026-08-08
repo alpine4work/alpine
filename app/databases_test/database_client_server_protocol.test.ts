@@ -909,13 +909,11 @@ test("a mutation through the HTTP action route reaches realtime subscribers", as
 });
 
 // ---------------------------------------------------------------------------
-// Known desync issues
+// Desync regressions
 // ---
 //
-// Regression tests that pin down ways the realtime protocol can let a client fall
-// out of sync with the canonical database without healing on its own. Each test
-// asserts the _correct_ behavior and is marked `test.failing()` until the
-// underlying bug is fixed.
+// Regression tests that pin down ways the realtime protocol could let a client
+// fall out of sync with the canonical database without healing on its own.
 //
 // ---
 
@@ -937,162 +935,156 @@ test("a mutation through the HTTP action route reaches realtime subscribers", as
 // action-response application opens new stores), so an event delivered behind the
 // response on the socket can be processed in between. The test widens the window
 // deterministically by holding the response.
-test.failing(
-    "registration catch-up is not discarded when a realtime event races the response",
-    async () => {
-        const databaseGroupId = generateId<DatabaseGroupId>();
-        const table = await executeInternalAction(
-            databaseGroupId,
-            "createTable",
-            createTableInputForTest("Projects"),
-        );
-        const fieldId = generateChronologicalId<DatabaseFieldId>();
-        await executeInternalAction(databaseGroupId, "createField", {
-            fieldId,
-            tableId: table.tableId,
-            name: "Notes",
-            config: {type: "plainText"},
-        });
-        const {fields} = await executeInternalAction(databaseGroupId, "getViewSchema", {
-            tableOrViewId: table.tableId,
-        });
-        const columnName = fields.find(field => field.id === fieldId)!.columnName;
-        const tableRef = sql.tableRef(table.tableId, table.tableName);
-        // Seed 12 rows with ~1.5 KB values so consecutive rows land on different 4 KB leaf
-        // pages (about two rows per leaf). The value is built inline from `zeroblob`
-        // because `.query` drops bound parameters.
-        await executeInternalAction(databaseGroupId, "rawSql", {
-            sql: sql`
-                WITH RECURSIVE
-                    sequence (n) AS (
-                        VALUES
-                            (1)
-                        UNION ALL
-                        SELECT
-                            n + 1
-                        FROM
-                            sequence
-                        WHERE
-                            n < 12
-                    )
-                INSERT INTO
-                    ${tableRef} (_id, ${sql.identifier(columnName)})
-                SELECT
-                    generate_id (),
-                    'seed:' || REPLACE(HEX(ZEROBLOB(747)), '00', 'xy')
-                FROM
-                    sequence
-            `.query,
-        });
-        await settle();
-        const seededRowIds = (
-            await executeInternalAction(databaseGroupId, "readonlyRawSql", {
-                sql: selectRowIdsQuery(table),
-            })
-        ).rows.map(row => (row as {_id: DatabaseRowId})._id);
-        const firstRowId = seededRowIds[0]!;
-        const lastRowId = seededRowIds[seededRowIds.length - 1]!;
-        const scanSql = sql`
+test("registration catch-up is not discarded when a realtime event races the response", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await executeInternalAction(
+        databaseGroupId,
+        "createTable",
+        createTableInputForTest("Projects"),
+    );
+    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    await executeInternalAction(databaseGroupId, "createField", {
+        fieldId,
+        tableId: table.tableId,
+        name: "Notes",
+        config: {type: "plainText"},
+    });
+    const {fields} = await executeInternalAction(databaseGroupId, "getViewSchema", {
+        tableOrViewId: table.tableId,
+    });
+    const columnName = fields.find(field => field.id === fieldId)!.columnName;
+    const tableRef = sql.tableRef(table.tableId, table.tableName);
+    // Seed 12 rows with ~1.5 KB values so consecutive rows land on different 4 KB leaf
+    // pages (about two rows per leaf). The value is built inline from `zeroblob`
+    // because `.query` drops bound parameters.
+    await executeInternalAction(databaseGroupId, "rawSql", {
+        sql: sql`
+            WITH RECURSIVE
+                sequence (n) AS (
+                    VALUES
+                        (1)
+                    UNION ALL
+                    SELECT
+                        n + 1
+                    FROM
+                        sequence
+                    WHERE
+                        n < 12
+                )
+            INSERT INTO
+                ${tableRef} (_id, ${sql.identifier(columnName)})
             SELECT
-                _id,
+                generate_id (),
+                'seed:' || REPLACE(HEX(ZEROBLOB(747)), '00', 'xy')
+            FROM
+                sequence
+        `.query,
+    });
+    await settle();
+    const seededRowIds = (
+        await executeInternalAction(databaseGroupId, "readonlyRawSql", {
+            sql: selectRowIdsQuery(table),
+        })
+    ).rows.map(row => (row as {_id: DatabaseRowId})._id);
+    const firstRowId = seededRowIds[0]!;
+    const lastRowId = seededRowIds[seededRowIds.length - 1]!;
+    const scanSql = sql`
+        SELECT
+            _id,
+            ${sql.identifier(columnName)} AS value
+        FROM
+            ${tableRef}
+        ORDER BY
+            _id
+    `.query;
+
+    // Warm the reader with a full value scan: the fallback response caches every page
+    // of the table (header, interiors, index, and all row leaves) and registers the
+    // table.
+    const reader = await createTestClient(databaseGroupId);
+    await executeAction(reader, "readonlyRawSql", {sql: scanSql});
+
+    // Two updates on different leaves are missed while disconnected. Their catch-up is
+    // what the registration response will carry.
+    reader.goOffline();
+    await executeInternalAction(databaseGroupId, "updateCellValue", {
+        tableId: table.tableId,
+        fieldId,
+        rowId: firstRowId,
+        value: largeCellValue("b1"),
+    });
+    await executeInternalAction(databaseGroupId, "updateCellValue", {
+        tableId: table.tableId,
+        fieldId,
+        rowId: lastRowId,
+        value: largeCellValue("b2"),
+    });
+    await settle();
+
+    // Reconnect. The server processes the registration (computing catch-up for the
+    // header page and both changed leaves), but the response is held in flight.
+    let serverProcessedRegistration = false;
+    let releaseRegistrationResponse!: () => void;
+    const registrationResponseGate = new Promise<void>(resolve => {
+        releaseRegistrationResponse = resolve;
+    });
+    reader.gates.holdRegisterTablesResponse = () => {
+        serverProcessedRegistration = true;
+        return registrationResponseGate;
+    };
+    reader.goOnline();
+    await settle();
+    assert(serverProcessedRegistration, "reconnect registration should have reached the server");
+
+    // While the response is in flight, a third update touches the first row again. Its
+    // realtime event tombstones the header page and the first leaf (their bases
+    // mismatch) and advances the table watermark past the registration snapshot.
+    await executeInternalAction(databaseGroupId, "updateCellValue", {
+        tableId: table.tableId,
+        fieldId,
+        rowId: firstRowId,
+        value: largeCellValue("b3"),
+    });
+    await settle();
+    reader.gates.holdRegisterTablesResponse = undefined;
+    releaseRegistrationResponse();
+    await settle();
+
+    // A narrow point read of the first row falls back (the header page is tombstoned)
+    // and heals exactly the pages that query touches — not the last row's leaf, whose
+    // only update was in the discarded catch-up.
+    await executeAction(reader, "readonlyRawSql", {
+        sql: sql`
+            SELECT
                 ${sql.identifier(columnName)} AS value
             FROM
                 ${tableRef}
-            ORDER BY
-                _id
-        `.query;
+            WHERE
+                _id = (
+                    SELECT
+                        MIN(_id)
+                    FROM
+                        ${tableRef}
+                )
+        `.query,
+    });
+    await settle();
 
-        // Warm the reader with a full value scan: the fallback response caches every page
-        // of the table (header, interiors, index, and all row leaves) and registers the
-        // table.
-        const reader = await createTestClient(databaseGroupId);
-        await executeAction(reader, "readonlyRawSql", {sql: scanSql});
-
-        // Two updates on different leaves are missed while disconnected. Their catch-up is
-        // what the registration response will carry.
-        reader.goOffline();
-        await executeInternalAction(databaseGroupId, "updateCellValue", {
-            tableId: table.tableId,
-            fieldId,
-            rowId: firstRowId,
-            value: largeCellValue("b1"),
-        });
-        await executeInternalAction(databaseGroupId, "updateCellValue", {
-            tableId: table.tableId,
-            fieldId,
-            rowId: lastRowId,
-            value: largeCellValue("b2"),
-        });
-        await settle();
-
-        // Reconnect. The server processes the registration (computing catch-up for the
-        // header page and both changed leaves), but the response is held in flight.
-        let serverProcessedRegistration = false;
-        let releaseRegistrationResponse!: () => void;
-        const registrationResponseGate = new Promise<void>(resolve => {
-            releaseRegistrationResponse = resolve;
-        });
-        reader.gates.holdRegisterTablesResponse = () => {
-            serverProcessedRegistration = true;
-            return registrationResponseGate;
-        };
-        reader.goOnline();
-        await settle();
-        assert(
-            serverProcessedRegistration,
-            "reconnect registration should have reached the server",
-        );
-
-        // While the response is in flight, a third update touches the first row again. Its
-        // realtime event tombstones the header page and the first leaf (their bases
-        // mismatch) and advances the table watermark past the registration snapshot.
-        await executeInternalAction(databaseGroupId, "updateCellValue", {
-            tableId: table.tableId,
-            fieldId,
-            rowId: firstRowId,
-            value: largeCellValue("b3"),
-        });
-        await settle();
-        reader.gates.holdRegisterTablesResponse = undefined;
-        releaseRegistrationResponse();
-        await settle();
-
-        // A narrow point read of the first row falls back (the header page is tombstoned)
-        // and heals exactly the pages that query touches — not the last row's leaf, whose
-        // only update was in the discarded catch-up.
-        await executeAction(reader, "readonlyRawSql", {
-            sql: sql`
-                SELECT
-                    ${sql.identifier(columnName)} AS value
-                FROM
-                    ${tableRef}
-                WHERE
-                    _id = (
-                        SELECT
-                            MIN(_id)
-                        FROM
-                            ${tableRef}
-                    )
-            `.query,
-        });
-        await settle();
-
-        // The full scan is now served locally. The last row must show the update made
-        // while disconnected; with the catch-up discarded it still shows the seed value,
-        // and nothing ever re-fetches the page.
-        const finalRows = (await executeAction(reader, "readonlyRawSql", {sql: scanSql}))
-            .rows as Array<{_id: DatabaseRowId; value: string}>;
-        expect({
-            firstRowValue: finalRows[0]!.value,
-            lastRowValue: finalRows[finalRows.length - 1]!.value,
-            reportedErrors: reader.reportedErrors,
-        }).toEqual({
-            firstRowValue: largeCellValue("b3"),
-            lastRowValue: largeCellValue("b2"),
-            reportedErrors: [],
-        });
-    },
-);
+    // The full scan is now served locally. The last row must show the update made
+    // while disconnected; with the catch-up discarded it still shows the seed value,
+    // and nothing ever re-fetches the page.
+    const finalRows = (await executeAction(reader, "readonlyRawSql", {sql: scanSql}))
+        .rows as Array<{_id: DatabaseRowId; value: string}>;
+    expect({
+        firstRowValue: finalRows[0]!.value,
+        lastRowValue: finalRows[finalRows.length - 1]!.value,
+        reportedErrors: reader.reportedErrors,
+    }).toEqual({
+        firstRowValue: largeCellValue("b3"),
+        lastRowValue: largeCellValue("b2"),
+        reportedErrors: [],
+    });
+});
 
 // When the fire-and-forget send of an optimistic mutation fails (a transient
 // network error, or a server-side rejection), `removeOptimisticMutation` discards

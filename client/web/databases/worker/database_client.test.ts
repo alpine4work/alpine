@@ -920,6 +920,78 @@ describe("connection epochs", () => {
         });
     });
 
+    test("merges inline catch-up after a newer realtime watermark", async () => {
+        const dir = createInMemoryOpfsDirectoryHandle();
+        const client = await DatabaseClient.create(dir);
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
+        client.commitOptimisticPagesForTests();
+        client.registerTableForTests(databaseMainTableId);
+        const before = await extractOpfsPages(dir);
+        const page = before.pages.at(-1)!;
+        const replacement = makePage(0x7a);
+        let releaseRegistration!: (result: DatabaseRegisterTablesResult) => void;
+        let markRegistrationStarted!: () => void;
+        const registrationStarted = new Promise<void>(resolve => {
+            markRegistrationStarted = resolve;
+        });
+
+        client.beginDisconnectedConnectionEpoch();
+        const registration = client.ensureCachedTablesRegistered(
+            makeDatabaseClientConnection({
+                registerTables() {
+                    markRegistrationStarted();
+                    return new Promise(resolve => {
+                        releaseRegistration = resolve;
+                    });
+                },
+            }),
+        );
+        await registrationStarted;
+        client.writePageDiffsFromRealtime(
+            new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        version: 13,
+                        diffs: new Map(),
+                        fileSizeInPages: before.fileSizeInPages + 1,
+                    },
+                ],
+            ]),
+            generateId<DatabaseMutationId>(),
+        );
+        releaseRegistration({
+            tables: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        watermark: 12,
+                        fileSizeInPages: before.fileSizeInPages,
+                        catchUp: {
+                            type: "pages",
+                            pages: new Map([
+                                [page.pageIndex, {version: page.version + 1, data: replacement}],
+                            ]),
+                        },
+                    },
+                ],
+            ]),
+            tableAccess: new Map(),
+        });
+        await registration;
+
+        const after = await extractOpfsPages(dir);
+        expect({
+            page: after.pages.find(entry => entry.pageIndex === page.pageIndex),
+            fileSizeInPages: after.fileSizeInPages,
+            watermark: after.watermark,
+        }).toEqual({
+            page: {pageIndex: page.pageIndex, version: page.version + 1, data: replacement},
+            fileSizeInPages: before.fileSizeInPages + 1,
+            watermark: 13,
+        });
+    });
+
     test("tombstones stale pages and applies a smaller file size on reconnect", async () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
