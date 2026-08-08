@@ -39,6 +39,14 @@ export async function createDatabaseTable(
     const tableId = generateChronologicalId<DatabaseTableId>();
     const accessPolicy = databaseTableAccessPolicyForCreator(sessionContext.actor.getAccountId());
 
+    // Create the backing table before publishing its metadata. These stores cannot share a
+    // transaction, so prefer an unreachable Durable Object table if the Dynamo write fails over
+    // metadata that can surface in the UI and search without a backing table.
+    const {result} = await fetchDatabaseGroupAction(context, databaseGroupId, {
+        name: "createTable",
+        input: {tableId, name, accessPolicy},
+    });
+
     await DatabaseTablesTable.updateItem(
         context,
         {partitionType: "Table", sortRangeType: "Attributes", tableId},
@@ -54,11 +62,6 @@ export async function createDatabaseTable(
                 accessPolicy,
             }),
     );
-
-    const {result} = await fetchDatabaseGroupAction(context, databaseGroupId, {
-        name: "createTable",
-        input: {tableId, name, accessPolicy},
-    });
 
     context.process.waitUntil(
         context.jobs.sendAndWait({

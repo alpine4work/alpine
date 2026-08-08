@@ -183,39 +183,6 @@ result objects in parallel, then build arrays and maps synchronously in original
 `getDatabaseTableMetadataRealtimeEvent()` at `server/databases/data/database_table_metadata.ts:228`
 repeats the unordered-push pattern for `visibleEvents`/`deniedTableIds` and should be fixed with it.
 
-### [ ] Table creation can permanently commit only half of the table
-
-`server/databases/data/database_table_metadata.ts:39`
-
-```ts
-await DatabaseTablesTable.updateItem(
-    context,
-    {partitionType: "Table", sortRangeType: "Attributes", tableId},
-    item =>
-        DynamoItem.createOrUpdate(item, {
-            /* ... */
-        }),
-);
-
-//////////////
-// Database-group assignment is now atomic, but the Dynamo metadata record (and its
-// realtime broadcast) still commits before the durable object's SQLite table/file
-// is created. If the second step fails, the metadata stays visible but the
-// generated id is lost to the caller; because the RPC is explicitly
-// non-idempotent, retrying creates a second id instead of repairing the first
-// table.
-//
-// Model creation as a retryable saga with an idempotency key / persisted creation
-// state, or add explicit compensation and reconciliation. Whichever store commits
-// first can fail independently, so merely reversing these calls moves rather than
-// fixes the partial-state bug.
-//////////////
-const {result} = await fetchDatabaseGroupAction(context, databaseGroupId, {
-    name: "createTable",
-    input: {tableId, name, accessPolicy},
-});
-```
-
 ## Performance Issues
 
 # Performance Review
