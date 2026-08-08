@@ -24,6 +24,8 @@ import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import type {SqliteWriteLevel} from "~/shared/databases/sqlite_authorizer.js";
 import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
     DatabaseFieldId,
@@ -33,7 +35,12 @@ import type {
 } from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {type ObjectSchema, Schema, type SchemaType} from "~/shared/schema/schema.js";
+import {
+    type ObjectSchema,
+    Schema,
+    type SchemaSerializedValue,
+    type SchemaType,
+} from "~/shared/schema/schema.js";
 
 export function createDatabaseActionContext(
     db: SqliteDatabase,
@@ -55,7 +62,7 @@ function defineDatabaseAction<Input, Output>(def: {
     output: ObjectSchema<Output>;
     writeLevel: SqliteWriteLevel;
     internalOnly?: boolean;
-    run: (ctx: DatabaseActionContext, input: Input) => any;
+    run: (ctx: DatabaseActionContext, input: Input) => Output;
 }): {
     input: ObjectSchema<Input>;
     output: ObjectSchema<Output>;
@@ -79,14 +86,18 @@ function now() {
 export function executeDatabaseAction<N extends DatabaseActionName>(
     actionObject: DatabaseActionObject<N>,
     ctx: DatabaseActionContext,
-): DatabaseActionOutput<N> {
+): DatabaseActionOutput<N>;
+export function executeDatabaseAction(
+    actionObject: DatabaseActionObject,
+    ctx: DatabaseActionContext,
+): DatabaseActionOutput<DatabaseActionName> {
     const action = databaseActions[actionObject.name];
 
     const start = now();
     try {
         // eslint-disable-next-line no-console
         console.group(`[executeDatabaseAction] ${actionObject.name}`);
-        const run = () => action.run(ctx, actionObject.input as any) as DatabaseActionOutput<N>;
+        const run = () => runDatabaseAction(actionObject, ctx);
         // Read-only actions run bare — each statement is its own implicit transaction.
         // Write actions commit atomically. Anything an action calls mid-run (`ATTACH`,
         // migrations) must therefore not open a transaction of its own.
@@ -110,6 +121,64 @@ export function executeDatabaseAction<N extends DatabaseActionName>(
         console.log(`[executeDatabaseAction] Time: ${(now() - start).toFixed(2)}ms`);
         // eslint-disable-next-line no-console
         console.groupEnd();
+    }
+}
+
+function runDatabaseAction(
+    actionObject: DatabaseActionObject,
+    ctx: DatabaseActionContext,
+): DatabaseActionOutput<DatabaseActionName> {
+    switch (actionObject.name) {
+        case "rawSql":
+            return databaseActions.rawSql.run(ctx, actionObject.input);
+        case "readonlyRawSql":
+            return databaseActions.readonlyRawSql.run(ctx, actionObject.input);
+        case "createTable":
+            return databaseActions.createTable.run(ctx, actionObject.input);
+        case "syncTableMetadata":
+            return databaseActions.syncTableMetadata.run(ctx, actionObject.input);
+        case "listTableIds":
+            return databaseActions.listTableIds.run(ctx, actionObject.input);
+        case "listTables":
+            return databaseActions.listTables.run(ctx, actionObject.input);
+        case "getTableMetadata":
+            return databaseActions.getTableMetadata.run(ctx, actionObject.input);
+        case "getViewSchema":
+            return databaseActions.getViewSchema.run(ctx, actionObject.input);
+        case "getViewRowsPageCursor":
+            return databaseActions.getViewRowsPageCursor.run(ctx, actionObject.input);
+        case "getViewRowsPage":
+            return databaseActions.getViewRowsPage.run(ctx, actionObject.input);
+        case "updateCellValue":
+            return databaseActions.updateCellValue.run(ctx, actionObject.input);
+        case "createRow":
+            return databaseActions.createRow.run(ctx, actionObject.input);
+        case "createField":
+            return databaseActions.createField.run(ctx, actionObject.input);
+        case "createRelationField":
+            return databaseActions.createRelationField.run(ctx, actionObject.input);
+        case "addLink":
+            return databaseActions.addLink.run(ctx, actionObject.input);
+        case "removeLink":
+            return databaseActions.removeLink.run(ctx, actionObject.input);
+        case "listLinkableRows":
+            return databaseActions.listLinkableRows.run(ctx, actionObject.input);
+        case "listLinkedRows":
+            return databaseActions.listLinkedRows.run(ctx, actionObject.input);
+        case "moveLink":
+            return databaseActions.moveLink.run(ctx, actionObject.input);
+        case "createAndLinkRow":
+            return databaseActions.createAndLinkRow.run(ctx, actionObject.input);
+        case "updateFieldConfig":
+            return databaseActions.updateFieldConfig.run(ctx, actionObject.input);
+        case "resizeField":
+            return databaseActions.resizeField.run(ctx, actionObject.input);
+        case "updateFieldViewVisibility":
+            return databaseActions.updateFieldViewVisibility.run(ctx, actionObject.input);
+        case "renameField":
+            return databaseActions.renameField.run(ctx, actionObject.input);
+        default:
+            throw exhaustive(actionObject);
     }
 }
 
@@ -346,14 +415,16 @@ export const databaseActions = {
 
             // \_id is always at index 0; view fields start at 1.
             const selectColumns = [sql.identifier("_alpine_data_row", "_id")];
-            const columnSchemas: Array<Schema<any>> = [Schema.id<DatabaseRowId>()];
+            const columnSchemas: Array<Pick<Schema<SchemaSerializedValue>, "deserialize">> = [
+                Schema.id<DatabaseRowId>(),
+            ];
             const fieldIndexes = new Map<DatabaseFieldId, number>();
             const dataRow = sql.identifier("_alpine_data_row");
 
             for (let i = 0; i < fields.length; i++) {
                 const fieldIndex = i + 1;
-                fieldIndexes.set(fields[i]!.id, fieldIndex);
-                const field = fields[i]!;
+                const field = assertExists(fields[i]);
+                fieldIndexes.set(field.id, fieldIndex);
 
                 const provider = getDatabaseFieldProvider(field.config.type);
                 selectColumns.push(provider.selectColumn(field, dataRow));

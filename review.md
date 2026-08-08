@@ -81,45 +81,6 @@ Make the event callbacks return promises and await `sendEventToAllAndWait()`/`se
 returning the procedure response. The empty self-confirmation path needs the same ordering
 guarantee.
 
-### [x] Do not insert a tombstone and replacement page under the same primary key
-
-`server/databases/database_server.ts:445`
-
-```ts
-for (const [databaseTableId, size] of truncates) {
-    // ...collect every existing page at or past the truncate boundary...
-    for (const pageIndex of pageIndexes) {
-        sql`
-            INSERT INTO
-                database_table_pages (sqlite_id, page_index, version, data)
-            VALUES
-                (
-                    ${sqliteId},
-                    ${pageIndex},
-                    ${version},
-                    NULL
-                )
-        `.exec(this.sql);
-    }
-}
-
-// The following loop can insert a replacement page with the same (sqlite_id,
-// page_index, version) key.
-for (const [databaseTableId, tablePages] of pages) {
-    for (const [index, data] of tablePages) {
-        sql`
-            INSERT INTO
-                database_table_pages /* ... */
-        `;
-    }
-}
-```
-
-If one batch truncates and re-extends a previously existing page, the tombstone and replacement use
-the same primary key and the mutation fails with a uniqueness violation. Exclude page indexes
-present in `pages` from tombstoning, or upsert the final state once per page. Add a regression test
-with an existing high page that is truncated and rewritten in one `writePages()` call.
-
 ### [ ] Recompute access deltas for join tables when either side's policy changes
 
 `server/databases/database_durable_object_connection.ts:341`
@@ -140,27 +101,6 @@ includes only the user table whose Dynamo metadata changed. When both sides are 
 `purgeRevokedTables()` never receives the join ID, so its linked-row data remains in OPFS until a
 later reconnect. Query joins touching each changed table and include their newly derived levels in
 the delta.
-
-### [x] Merge loader page seeds instead of replacing earlier route data
-
-`client/web/databases/worker/database_connection_manager.ts:108`
-
-```ts
-if (input.pages.size > 0) {
-    if (state.clientPromise !== undefined) {
-        const client = await state.clientPromise;
-        await client.writeLoaderPages(input.pages);
-    } else {
-        // Each pre-client seed replaces all earlier route data.
-        state.initialPages = input.pages;
-    }
-}
-```
-
-The layout seeds table-ID pages, the reactive action seeds schema pages, and the query seeds row
-pages before the first watch creates the client. Each callback replaces `initialPages`, so only the
-last seed survives. Merge by table/page while keeping the highest version in this path and
-`writeInitialPages()`.
 
 ### [ ] Preserve metadata event order while resolving policies in parallel
 
@@ -233,138 +173,7 @@ synchronously rewrites and flushes the full OPFS page index. Reconnect validatio
 record picker also have work proportional to all cached pages or all rows. These costs compound: a
 write creates permanent storage, log, broadcast, OPFS, and revalidation work.
 
-## Async Orchestration
-
-### [x] Open independent per-table OPFS stores in parallel
-
-`client/web/databases/worker/database_client.ts:110`
-
-**Callers affected:** Database worker cold-open through
-`DatabaseConnectionManager.getOrCreateClient`, loader-page seeding through `writeLoaderPages`, and
-server fallbacks that return pages for several tables. **Time impact:** Cold-open and fallback
-latency grow linearly with the number of cached/returned tables. `OpfsPageStore.create` performs
-multiple asynchronous OPFS handle opens per table, but the stores are in distinct directories and do
-not depend on one another. **Cost impact:** Longer dedicated-worker occupancy and slower interactive
-database startup; no direct RCU/WCU impact.
-
-```ts
-await storage.create(databaseMainTableId);
-for await (const name of groupDir.keys()) {
-    const tableId = name as DatabaseTableId;
-    if (storage.get(tableId) === undefined) {
-        // Every independent table waits for all OPFS opens for the prior table. The same
-        // pattern appears at lines 759-760 and 833-835.
-        await storage.create(tableId);
-    }
-}
-```
-
-**Recommendation:** Collect the table IDs, then open distinct stores with `runAllPromises()`. Apply
-the same pattern to `writeLoaderPages` and `executeActionViaServer` using the existing deduplicating
-`openStore()` helper. Keep the main store creation ordered before `Database.create`, but do not
-serialize the remaining independent table opens.
-
-## Call-Site Impact
-
-### [x] Filter realtime page diffs by the pages each browser can actually hold
-
-`server/databases/database_durable_object_connection.ts:317`
-
-**Callers affected:** Every connected browser on the database-group Durable Object for every
-WebSocket or server-originated mutation. **Time impact:** `transformEvent` serializes and sends
-every changed page diff to every connection with table access. Clients that never fetched the page
-still deserialize and dispatch the event; if they have the table store open, they also run the OPFS
-sync path even though `readPage` returns no base to patch. **Cost impact:** WebSocket egress and
-Durable Object CPU scale as `connections × changed pages`. A diff can approach the full 4 KiB SQLite
-page, and one SQL mutation can dirty several pages.
-
-```ts
-for (const [tableId, diffs] of eventStub.pageDiffs) {
-    if (
-        tableId === databaseMainTableId ||
-        this._server.getTableAccessLevelForAccount(tableId, accountId) !== null
-    ) {
-        // Access is checked, but page ownership is not.
-        pageDiffs.set(tableId, diffs);
-    }
-}
-```
-
-`BrowserPageTracker.clientMightHavePage()` already exists specifically for this decision, and its
-class comment currently labels realtime filtering as future work.
-
-**Recommendation:** Filter each table's diff map through
-`clientMightHavePage(browserId, tableId, pageIndex)`. Continue sending an empty confirmation to the
-originating connection so its optimistic mutation dequeues. Also cache table-access entries as
-described below so the remaining per-connection filter does not query `database_tables` repeatedly.
-Resolve each changed table's access once per account for the broadcast and reuse it across that
-account's connections, so access fan-out scales with accounts rather than tabs/connections.
-
-### [x] Replace per-page reconnect validation with a bounded/batched protocol
-
-`server/databases/database_durable_object_connection.ts:228`
-
-**Callers affected:** Every database worker cold-open and every WebSocket reconnect
-(`DatabaseConnectionManager.revalidateCacheAfterReconnect`). **Time impact:** The client serializes
-every cached `(table, page, version)` entry, then the Durable Object performs one synchronous SQL
-lookup per page. The `cacheUpdateStalePageLimit` does not bound those reads: `readPage()` runs
-before the `overLimit` check, so the loop continues querying every remaining page after the response
-has switched to stale-index mode. **Cost impact:** Request bytes, Durable Object CPU, and transient
-memory are all O(total cached pages). The Durable Object also copies the valid page indexes into its
-per-browser tracker, creating O(connections × cached pages) resident state.
-
-```ts
-for (const [pageIndex, clientVersion] of tableVersions) {
-    // Still executes for every page after overLimit becomes true.
-    const page = this._server.readPage(tableId, pageIndex);
-
-    if (page !== null && page.version === clientVersion) continue;
-    if (overLimit || page === null) {
-        stalePageIndexes.push(pageIndex);
-        continue;
-    }
-    // ...
-}
-```
-
-**Recommendation:** First, move the over-limit branch ahead of `readPage` so it actually bounds the
-current implementation. Then replace N point reads with a batched current-version query per table.
-Prefer a table/group generation or change-log cursor in OPFS so an unchanged table can validate with
-O(1) data and a changed table requests only versions since its last generation; chunk a full
-version-map fallback when necessary.
-
 ## Runtime Cost
-
-### [x] Store only the latest page image, or garbage-collect superseded versions
-
-`server/databases/database_server.ts:473`
-
-**Time impact:** Every page read searches the versioned primary key for the newest row. Cold
-`getFileSize` uses a correlated `MAX(version)` query over the history, and truncation scans distinct
-page indexes across all retained versions. These operations slow as mutation history grows, not
-merely as the live database grows. **Cost impact:** Every write permanently inserts a full 4 KiB
-page image (or a tombstone) for every dirty page. There is no production deletion/compaction path,
-so Durable Object SQLite storage grows without bound under routine cell edits.
-
-```ts
-CREATE TABLE database_table_pages (
-    sqlite_id INTEGER NOT NULL,
-    page_index INTEGER NOT NULL,
-    version INTEGER NOT NULL,
-    data BLOB,
-    PRIMARY KEY (sqlite_id, page_index, version)
-) WITHOUT ROWID;
-
-// Every mutation appends another full image.
-INSERT INTO database_table_pages (sqlite_id, page_index, version, data)
-VALUES (${sqliteId}, ${index}, ${version}, ${data});
-```
-
-**Recommendation:** If historical page images are not a product requirement, make
-`(sqlite_id, page_index)` the key and upsert `{version, data}` in the same transaction. The diff
-builder already captures `before` and `beforeVersion` before persistence, so realtime delivery only
-needs the previous image in memory. If history is required, define a bounded retention window and
-compact old versions after every write/checkpoint; add storage-growth tests.
 
 ### [ ] Cache database-table access entries instead of querying SQLite per authorizer callback
 
@@ -580,28 +389,6 @@ inheritance, and the client factory already demonstrates that model for the same
 Replace the shared abstract hierarchy with an object/factory provider definition. Keep invariant
 checks in the public factory/wrapper rather than protected underscore methods so shared and client
 provider registries follow the same composition pattern.
-
-### [ ] Distinguish SQLite row accessors from schema-backed `*Model` types
-
-`shared/databases/model/database_field_model.ts:12`
-
-Established `*Model` types such as `ChatModel`, `PostModel`, `SpaceModel`, and `InboxModel` extend
-the `Model(schema)` mixin and provide schema-backed serialization. `DatabaseFieldModel`,
-`DatabaseTableModel`, `DatabaseViewModel`, and `DatabaseJoinTableModel` instead wrap live SQLite
-rows and extend custom scoped base classes. That is a legitimate implementation, but the common
-suffix implies the wrong contract.
-
-Use a distinct suffix such as `Record`, `Handle`, or `Node` for the row-backed database types, and
-rename the scoped base types consistently.
-
-```ts
-// Existing RPC convention
-process.env.NODE_ENV === "test" && context.actor.serviceName === "Test"
-
-// New database convention
-case "Test":
-    return true;
-```
 
 ---
 

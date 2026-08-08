@@ -5,9 +5,10 @@ import type {
 import {DatabaseQueryPage, DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {VirtualizedTree} from "~/client/web/virtualized/helpers/virtualized_tree.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
-import {PromiseQueue} from "~/shared/helpers/async/promise_queue.js";
+import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {DatabaseFieldId, DatabaseRowId} from "~/shared/id/types/id_types.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import type {Store} from "~/shared/store/store.js";
@@ -34,19 +35,19 @@ type PageWatch = {
  */
 export class DatabaseQuery {
     private readonly tableOrViewId: string;
-    private readonly _initialEndCursor: DatabaseRowId | null;
-    private readonly _targetRowsPerPage: number;
-    private readonly _splitThreshold: number;
-    private readonly _mergeThreshold: number;
-    private readonly _scheduleRebalance: (cb: () => void) => void;
-    private readonly _watches = new Map<number, PageWatch>();
-    private readonly _queue = new PromiseQueue();
+    private readonly initialEndCursor: DatabaseRowId | null;
+    private readonly targetRowsPerPage: number;
+    private readonly splitThreshold: number;
+    private readonly mergeThreshold: number;
+    private readonly scheduleRebalance: (cb: () => void) => void;
+    private readonly watches = new Map<number, PageWatch>();
+    private readonly mutex = new Mutex();
     private conn: DatabaseWorkerConnection | null = null;
-    private _disposed = false;
-    private _nextPageId = 0;
-    private readonly _hasInitialPage: boolean;
-    private _initialPageId: number | null = null;
-    private _rebalanceScheduled = false;
+    private disposed = false;
+    private nextPageId = 0;
+    private readonly hasInitialPage: boolean;
+    private initialPageId: number | null = null;
+    private rebalanceScheduled = false;
 
     readonly treeStore: ValueStore<VirtualizedTree<number, DatabaseQueryPage, DatabaseQueryRow>>;
     readonly needsMoreStore: Store<boolean>;
@@ -59,17 +60,17 @@ export class DatabaseQuery {
             fieldIndexes: ReadonlyMap<DatabaseFieldId, number>;
             rows: ReadonlyArray<ReadonlyArray<unknown>>;
         };
-        _targetRowsPerPage?: number;
-        _scheduleRebalance?: (cb: () => void) => void;
+        targetRowsPerPageForTest?: number;
+        scheduleRebalanceForTest?: (cb: () => void) => void;
     }) {
         this.tableOrViewId = options.tableOrViewId;
-        this._targetRowsPerPage = options._targetRowsPerPage ?? databaseViewTargetRowsPerPage;
-        this._splitThreshold = Math.floor(1.5 * this._targetRowsPerPage);
-        this._mergeThreshold = Math.floor(0.5 * this._targetRowsPerPage);
-        this._scheduleRebalance = options._scheduleRebalance ?? defaultScheduleRebalance;
+        this.targetRowsPerPage = options.targetRowsPerPageForTest ?? databaseViewTargetRowsPerPage;
+        this.splitThreshold = Math.floor(1.5 * this.targetRowsPerPage);
+        this.mergeThreshold = Math.floor(0.5 * this.targetRowsPerPage);
+        this.scheduleRebalance = options.scheduleRebalanceForTest ?? defaultScheduleRebalance;
         this.treeStore = new ValueStore(newEmptyTree());
-        this._hasInitialPage = options.initialPage !== undefined;
-        this._initialEndCursor = options.initialPage?.endCursor ?? null;
+        this.hasInitialPage = options.initialPage !== undefined;
+        this.initialEndCursor = options.initialPage?.endCursor ?? null;
         this.isLoadingMoreStore = new ValueStore(false);
 
         // Derived: true when the last node has a bounded endCursor, meaning more pages can
@@ -82,7 +83,7 @@ export class DatabaseQuery {
 
         if (options.initialPage && options.initialPage.rows.length > 0) {
             const pageId = this.allocatePageId();
-            this._initialPageId = pageId;
+            this.initialPageId = pageId;
             const page = new DatabaseQueryPage({
                 pageId,
                 afterCursor: null,
@@ -95,7 +96,7 @@ export class DatabaseQuery {
     }
 
     private allocatePageId(): number {
-        return this._nextPageId++;
+        return this.nextPageId++;
     }
 
     /**
@@ -104,17 +105,17 @@ export class DatabaseQuery {
      */
     listen(connection: DatabaseWorkerConnection): void {
         this.conn = connection;
-        this._disposed = false;
+        this.disposed = false;
 
         // If an initial page was provided, start watching the first page reactively. Reuse
         // the constructor's pageId so the watch's onUpdate updates the existing tree node
         // in-place. When the initial page had no rows there's no node to reuse, but we
         // still need the watch so newly created rows appear without a remount. Without an
         // initial page the caller drives `loadInitialPage()`.
-        if (this._hasInitialPage) {
-            const reusePageId = this._initialPageId;
-            this._initialPageId = null;
-            void this.startWatch(null, this._initialEndCursor, reusePageId ?? undefined);
+        if (this.hasInitialPage) {
+            const reusePageId = this.initialPageId;
+            this.initialPageId = null;
+            void this.startWatch(null, this.initialEndCursor, reusePageId ?? undefined);
         }
     }
 
@@ -123,14 +124,14 @@ export class DatabaseQuery {
      * cursor then watches the page.
      */
     async loadInitialPage(): Promise<void> {
-        if (this._disposed || this.conn == null || this._watches.size > 0) return;
+        if (this.disposed || this.conn == null || this.watches.size > 0) return;
 
         const cursor = await this.conn.executeAction("getViewRowsPageCursor", {
             tableOrViewId: this.tableOrViewId,
             afterCursor: null,
-            limit: this._targetRowsPerPage,
+            limit: this.targetRowsPerPage,
         });
-        if (this._disposed) return;
+        if (this.disposed) return;
 
         await this.startWatch(null, cursor.endCursor);
     }
@@ -140,8 +141,8 @@ export class DatabaseQuery {
      * stable when we read them.
      */
     async loadMore(): Promise<void> {
-        await this._queue.enqueue(async () => {
-            if (this._disposed || this.conn == null) return;
+        await this.mutex.withLock(async () => {
+            if (this.disposed || this.conn == null) return;
             if (!this.needsMoreStore.getSnapshot()) return;
 
             const lastNode = this.treeStore.getSnapshot().getLastNodeIfExists();
@@ -153,9 +154,9 @@ export class DatabaseQuery {
                 const cursor = await this.conn.executeAction("getViewRowsPageCursor", {
                     tableOrViewId: this.tableOrViewId,
                     afterCursor: lastNode.endCursor,
-                    limit: this._targetRowsPerPage,
+                    limit: this.targetRowsPerPage,
                 });
-                if (this._disposed) return;
+                if (this.disposed) return;
 
                 await this.startWatch(lastNode.endCursor, cursor.endCursor);
             } finally {
@@ -169,14 +170,14 @@ export class DatabaseQuery {
      * be followed by another `listen()` call with a new connection.
      */
     dispose(): void {
-        this._disposed = true;
-        for (const watch of this._watches.values()) {
+        this.disposed = true;
+        for (const watch of this.watches.values()) {
             watch.removeListener();
             watch.handle.unwatch();
         }
-        this._watches.clear();
+        this.watches.clear();
         this.conn = null;
-        this._rebalanceScheduled = false;
+        this.rebalanceScheduled = false;
         this.isLoadingMoreStore.set(false);
     }
 
@@ -194,13 +195,14 @@ export class DatabaseQuery {
     ): Promise<number | null> {
         const pageId = reusePageId ?? this.allocatePageId();
 
-        const handle = await this.conn!.watchAction("getViewRowsPage", {
+        const conn = assertExists(this.conn);
+        const handle = await conn.watchAction("getViewRowsPage", {
             tableOrViewId: this.tableOrViewId,
             afterCursor,
             endCursor,
         });
 
-        if (this._disposed) {
+        if (this.disposed) {
             handle.unwatch();
             return null;
         }
@@ -226,8 +228,8 @@ export class DatabaseQuery {
 
             // Check rebalance thresholds.
             if (
-                result.value.rows.length >= this._splitThreshold ||
-                result.value.rows.length <= this._mergeThreshold
+                result.value.rows.length >= this.splitThreshold ||
+                result.value.rows.length <= this.mergeThreshold
             ) {
                 this.maybeScheduleRebalance();
             }
@@ -241,7 +243,7 @@ export class DatabaseQuery {
         const removeListener = () => {
             handle.store.removeListener(onUpdate);
         };
-        this._watches.set(pageId, {handle, removeListener});
+        this.watches.set(pageId, {handle, removeListener});
 
         return pageId;
     }
@@ -249,16 +251,16 @@ export class DatabaseQuery {
     // -- Rebalancing ---------------------------------------------------------
 
     private maybeScheduleRebalance(): void {
-        if (this._rebalanceScheduled) return;
-        this._rebalanceScheduled = true;
-        this._scheduleRebalance(() => {
-            void this._queue.enqueue(() => this.rebalance());
+        if (this.rebalanceScheduled) return;
+        this.rebalanceScheduled = true;
+        this.scheduleRebalance(() => {
+            void this.mutex.withLock(() => this.rebalance());
         });
     }
 
     private async rebalance(): Promise<void> {
-        this._rebalanceScheduled = false;
-        if (this._disposed || this.conn == null) return;
+        this.rebalanceScheduled = false;
+        if (this.disposed || this.conn == null) return;
 
         const pagesToMerge: Array<DatabaseQueryPage> = [];
         let mergeRowCount = 0;
@@ -269,8 +271,8 @@ export class DatabaseQuery {
                 mergeRowCount = 0;
                 return;
             }
-            const afterCursor = pagesToMerge[0]!.afterCursor;
-            const endCursor = pagesToMerge[pagesToMerge.length - 1]!.endCursor;
+            const afterCursor = assertExists(pagesToMerge.at(0)).afterCursor;
+            const endCursor = assertExists(pagesToMerge.at(-1)).endCursor;
             for (const p of pagesToMerge) {
                 this.tearDownWatch(p.pageId);
             }
@@ -287,11 +289,11 @@ export class DatabaseQuery {
         };
 
         for (const node of this.treeStore.getSnapshot().iterateNodes()) {
-            if (this._disposed) return;
+            if (this.disposed) return;
 
             // Accumulating a merge run?
             if (pagesToMerge.length > 0) {
-                if (mergeRowCount <= this._mergeThreshold) {
+                if (mergeRowCount <= this.mergeThreshold) {
                     // Still too small — consume this page.
                     pagesToMerge.push(node);
                     mergeRowCount += node.rowCount;
@@ -299,10 +301,10 @@ export class DatabaseQuery {
                 }
                 // Run is big enough — flush before processing the current node.
                 await flushMerge();
-                if (this._disposed) return;
+                if (this.disposed) return;
             }
 
-            if (node.rowCount >= this._splitThreshold) {
+            if (node.rowCount >= this.splitThreshold) {
                 // Split in half.
                 const midpoint = Math.ceil(node.rowCount / 2);
                 const midCursor = node.getRow(midpoint - 1).getId();
@@ -314,8 +316,8 @@ export class DatabaseQuery {
                     this.startWatch(node.afterCursor, midCursor),
                     this.startWatch(midCursor, node.endCursor),
                 ]);
-                if (this._disposed) return;
-            } else if (node.rowCount <= this._mergeThreshold) {
+                if (this.disposed) return;
+            } else if (node.rowCount <= this.mergeThreshold) {
                 // Start a merge run.
                 pagesToMerge.push(node);
                 mergeRowCount = node.rowCount;
@@ -349,11 +351,11 @@ export class DatabaseQuery {
     }
 
     private tearDownWatch(pageId: number): void {
-        const watch = this._watches.get(pageId);
+        const watch = this.watches.get(pageId);
         if (watch) {
             watch.removeListener();
             watch.handle.unwatch();
-            this._watches.delete(pageId);
+            this.watches.delete(pageId);
         }
     }
 }

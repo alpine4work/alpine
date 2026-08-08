@@ -1,6 +1,7 @@
 import {readUniqueWorkerMessage} from "~/client/web/helpers/workers/unique_worker_message.js";
 import {WebWorkerRpc, WebWorkerRpcHandlers} from "~/client/web/helpers/workers/web_worker_rpc.js";
 import {WebWorkerRpcMethodDefinitions} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -140,7 +141,7 @@ export class UniqueWorkerHost<
     ): WebWorkerRpcHandlers<WorkerDef> {
         const handlers: Record<string, (input: any) => Promise<any>> = {};
         for (const name of Object.keys(this.options.workerMethods)) {
-            const handler = this.options.handlers[name]!;
+            const handler = assertExists(this.options.handlers[name]);
             handlers[name] = async input => await handler(input, getConnection());
         }
         return handlers as WebWorkerRpcHandlers<WorkerDef>;

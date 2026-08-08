@@ -49,6 +49,7 @@ import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attach
 import {VfsTempFile} from "~/shared/databases/vfs_temp_file.js";
 import {InternalError, PermissionDeniedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_result.js";
 import type {Result} from "~/shared/helpers/control/result.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -324,7 +325,7 @@ export class Database {
         this.installAttachOnMiss();
 
         capi.sqlite3_set_authorizer(
-            this.db.pointer!,
+            assertExists(this.db.pointer),
             (
                 _cbArg: WasmPointer,
                 actionCode: number,
@@ -495,7 +496,7 @@ export class Database {
                 currentAccountId: options.currentAccountId ?? null,
             },
         );
-        return {result: result as DatabaseActionOutput<N>, readPages, writtenPages};
+        return {result, readPages, writtenPages};
     }
 
     /**
@@ -576,7 +577,7 @@ export class Database {
                 pages.set(tableId, state.bufferedPages);
             }
             if (hasTruncate) {
-                truncates.set(tableId, state.bufferedTruncate!);
+                truncates.set(tableId, assertExists(state.bufferedTruncate));
             }
             if (hasPages || hasTruncate) {
                 const sizeInBytes = this.getFileSizeForTable(tableId, state);
@@ -1304,7 +1305,7 @@ class DatabaseTrackedExecutionImpl<Value> implements DatabaseTrackedExecution<Va
             this.recordReadPages(this.readPages);
         }
 
-        return unwrapResult(this.valueResult!);
+        return unwrapResult(assertExists(this.valueResult));
     }
 
     getCachedSnapshot(): Result<Value> | null {

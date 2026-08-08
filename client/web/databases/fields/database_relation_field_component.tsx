@@ -43,6 +43,7 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {type OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
@@ -264,7 +265,9 @@ function DatabaseRelationGridViewCellEditorOverlay({
         selectedItem: collection.getItem(
             selectionManager.focusedKey as Key,
         ) as Node<DatabaseRelationCandidateRow>,
-        setSelectedKey: key => selectionManager.select(key!),
+        setSelectedKey: key => {
+            if (key != null) selectionManager.select(key);
+        },
 
         collection,
         selectionManager,
@@ -493,13 +496,14 @@ function computeReorderPosition(
     const activeIndex = linkedRows.findIndex(row => row.id === activeId);
     const overIndex = linkedRows.findIndex(row => row.id === overId);
     const movingDown = activeIndex < overIndex;
+    const overRow = assertExists(linkedRows[overIndex]);
 
     if (movingDown) {
-        const next = overIndex < linkedRows.length - 1 ? linkedRows[overIndex + 1]!.position : null;
-        return generateOrderKeyBetween(linkedRows[overIndex]!.position, next);
+        const next = linkedRows[overIndex + 1]?.position ?? null;
+        return generateOrderKeyBetween(overRow.position, next);
     } else {
-        const prev = overIndex > 0 ? linkedRows[overIndex - 1]!.position : null;
-        return generateOrderKeyBetween(prev, linkedRows[overIndex]!.position);
+        const prev = linkedRows[overIndex - 1]?.position ?? null;
+        return generateOrderKeyBetween(prev, overRow.position);
     }
 }
 

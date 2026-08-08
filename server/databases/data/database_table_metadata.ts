@@ -1,9 +1,9 @@
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
+import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
-import {resolveDatabaseTableAccessPolicyForDurableObject} from "~/server/databases/data/resolve_database_table_access_policy_for_durable_object.js";
 import type {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
@@ -17,6 +17,7 @@ import type {RynamoEvent, RynamoEventStub, RynamoItem} from "~/shared/dynamo/ryn
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
 import type {
@@ -229,6 +230,7 @@ export async function getDatabaseTableMetadataRealtimeEvent(
 
     await runAllPromises(
         actualEvents.map(async (event, index) => {
+            const eventStub = assertExists(eventStubs[index]);
             let isAuthorized = false;
             switch (event.type) {
                 case "PutItem": {
@@ -257,7 +259,7 @@ export async function getDatabaseTableMetadataRealtimeEvent(
             if (isAuthorized) {
                 visibleEvents.push(event);
             } else {
-                deniedTableIds.push(eventStubs[index]!.itemKey.tableId);
+                deniedTableIds.push(eventStub.itemKey.tableId);
             }
         }),
     );
@@ -288,10 +290,9 @@ export async function syncDatabaseTableMetadataToDurableObject(
         accessPolicy: AccessPolicy;
     },
 ): Promise<void> {
-    const localAccessPolicy = await resolveDatabaseTableAccessPolicyForDurableObject(
-        context,
-        accessPolicy,
-    );
+    const localAccessPolicy = await intoEffectiveAccessPolicy(context, accessPolicy, {
+        consistency: "StrongWithinCache",
+    });
 
     await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "syncTableMetadata",

@@ -24,6 +24,7 @@ import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_meta
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import type {DatabaseGroupId, DatabaseRowId, SiteId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getDatabaseTableMetadataItem} from "~/shared/rpc/database_tables_rpc_definitions.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.js";
@@ -46,7 +47,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
     const spaceId = deserializeSpaceIdForLoader(params.spaceId);
     const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
 
-    const tableOrViewId = params.tableOrViewId!;
+    const tableOrViewId = assertExists(params.tableOrViewId);
 
     // Fetch schema first — needed for the redirect check.
     const schemaResult = await fetchDatabaseGroupAction(context, databaseGroupId, {

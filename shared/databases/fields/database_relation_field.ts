@@ -209,7 +209,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
     resolveRelation(field: DatabaseFieldModelOfType<"relation">) {
         const joinTable = field.root.getJoinTable(field.config.joinTableId);
 
-        let linkedTableId!: DatabaseTableId;
+        let linkedTableId: DatabaseTableId | null = null;
         switch (field.config.side) {
             case "source":
                 assert(
@@ -230,6 +230,7 @@ export class DatabaseRelationFieldProvider extends DatabaseFieldProviderBase<
             default:
                 exhaustive(field.config.side);
         }
+        assert(linkedTableId !== null, "relation linked table is missing");
         assert(field.config.linkedTableId === linkedTableId, "relation linked table mismatch");
 
         const sourceColumnNames = {

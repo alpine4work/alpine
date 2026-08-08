@@ -6,6 +6,7 @@ import createTree, {
 import {Key} from "react";
 import {InternalError, OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {OrderKey, generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.js";
 
 /**
@@ -424,7 +425,9 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
         assert(afterOrderKey, "Node with key does not exist in the tree");
 
         const successorIterator = this._nodeByOrderKey.gt(afterOrderKey);
-        const successorOrderKey = successorIterator.valid ? successorIterator.key! : null;
+        const successorOrderKey = successorIterator.valid
+            ? assertExists(successorIterator.key)
+            : null;
 
         const orderKeys = generateOrderKeysBetween(afterOrderKey, successorOrderKey, nodes.length);
 
@@ -432,9 +435,9 @@ export class VirtualizedTree<NodeKey extends Key, Node, Item> extends Virtualize
         let orderKeyByNodeKey = this._orderKeyByNodeKey;
 
         for (let i = 0; i < nodes.length; i++) {
-            const node = nodes[i]!;
+            const node = assertExists(nodes[i]);
             const nodeKey = this._getNodeKey(node);
-            const orderKey = orderKeys[i]!;
+            const orderKey = assertExists(orderKeys[i]);
 
             nodeByOrderKey = nodeByOrderKey.insert(orderKey, node);
 

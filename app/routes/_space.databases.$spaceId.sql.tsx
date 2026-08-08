@@ -42,8 +42,6 @@ function WatchedQuery(props: {sql: string; onClose: () => void}) {
         return () => clearTimeout(timer);
     }, [result]);
 
-    const rows = result?.ok ? result.value.rows : null;
-
     return (
         <Box
             borderRadius="1"
@@ -77,7 +75,7 @@ function WatchedQuery(props: {sql: string; onClose: () => void}) {
                     Loading...
                 </Box>
             ) : result.ok ? (
-                <DatabaseRawResultTable rows={rows!} />
+                <DatabaseRawResultTable rows={result.value.rows} />
             ) : (
                 <pre
                     className={sprinkles({

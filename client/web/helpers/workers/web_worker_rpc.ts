@@ -5,6 +5,7 @@ import {
 import {WebWorkerRpcMethodDefinitions} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
 import {UnknownError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {ObjectSchema, SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -66,7 +67,7 @@ export class WebWorkerRpc<
 
         this.callMethodSchemas = new Map();
         for (const name of Object.keys(config.callMethods)) {
-            const method = config.callMethods[name]!;
+            const method = assertExists(config.callMethods[name]);
             this.callMethodSchemas.set(name, {
                 inputSchema: method.inputSchema,
                 outputSchema: method.outputSchema,
@@ -76,15 +77,15 @@ export class WebWorkerRpc<
         this.handlers = new Map();
         this.handleMethodSchemas = new Map();
         for (const name of Object.keys(config.handleMethods)) {
-            const method = config.handleMethods[name]!;
+            const method = assertExists(config.handleMethods[name]);
             this.handleMethodSchemas.set(name, {
                 inputSchema: method.inputSchema,
                 outputSchema: method.outputSchema,
             });
-            this.handlers.set(
-                name,
-                (config.handlers as Record<string, (input: any) => Promise<any>>)[name]!,
+            const handler = assertExists(
+                (config.handlers as Record<string, (input: any) => Promise<any>>)[name],
             );
+            this.handlers.set(name, handler);
         }
     }
 

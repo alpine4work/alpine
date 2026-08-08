@@ -1,3 +1,4 @@
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     ObjectSchema,
     ObjectSchemaConfigBase,
@@ -55,7 +56,7 @@ export function defineWebWorkerRpcMethods<
 } {
     const methods: any = {};
     for (const name of Object.keys(config)) {
-        const {input, output} = config[name]!;
+        const {input, output} = assertExists(config[name]);
         methods[name] = {
             inputSchema: Schema.object(input),
             outputSchema: Schema.object(output),

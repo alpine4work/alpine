@@ -1,4 +1,4 @@
-import {resolveDatabaseTableAccessPolicyForDurableObject} from "~/server/databases/data/resolve_database_table_access_policy_for_durable_object.js";
+import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {RynamoTableItemType, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {AccessPolicySchema, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
@@ -71,8 +71,11 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                     "Database table metadata deletion is not supported",
                 );
                 const {databaseGroupId, accessPolicy} = event.item.model;
-                const resolvedAccessPolicy: LocalAccessPolicy =
-                    await resolveDatabaseTableAccessPolicyForDurableObject(context, accessPolicy);
+                const resolvedAccessPolicy: LocalAccessPolicy = await intoEffectiveAccessPolicy(
+                    context,
+                    accessPolicy,
+                    {consistency: "StrongWithinCache"},
+                );
 
                 const broadcast = getOrSetDefaultMapValue(
                     broadcastsByDatabaseGroupId,

@@ -218,10 +218,11 @@ export function DatabaseGridView({
         }
 
         const nextRow = tree.getItem(nextRowIndex);
+        const nextField = assertExists(gridFields.fields[nextFieldIndex]);
         dispatch({
             type: "select",
             rowId: nextRow.getId(),
-            fieldId: gridFields.fields[nextFieldIndex]!.id,
+            fieldId: nextField.id,
         });
     });
 
@@ -651,8 +652,9 @@ function DatabaseGridViewDataRow({
                     selection != null &&
                     selection.rowId === rowId &&
                     selection.fieldId === field.id;
-                const isEditing = isSelected && selection!.isEditing;
-                const initialEditValue = isSelected ? selection!.initialEditValue : null;
+                const selected = isSelected ? selection : null;
+                const isEditing = selected?.isEditing ?? false;
+                const initialEditValue = selected?.initialEditValue ?? null;
 
                 return (
                     <DatabaseGridViewCell

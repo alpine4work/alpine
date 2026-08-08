@@ -506,7 +506,7 @@ describe("DatabaseQuery reactive updates", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -539,7 +539,7 @@ describe("DatabaseQuery reactive updates", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -576,7 +576,7 @@ describe("DatabaseQuery reactive updates", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -716,7 +716,7 @@ describe("DatabaseQuery rebalance — split", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -751,7 +751,7 @@ describe("DatabaseQuery rebalance — split", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -784,7 +784,7 @@ describe("DatabaseQuery rebalance — merge", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -822,7 +822,7 @@ describe("DatabaseQuery rebalance — merge", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -846,7 +846,7 @@ describe("DatabaseQuery rebalance — merge forward", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -884,7 +884,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -909,7 +909,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
@@ -940,7 +940,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
-            _targetRowsPerPage: 10,
+            targetRowsPerPageForTest: 10,
         });
         query.listen(conn);
         await query.loadInitialPage();
