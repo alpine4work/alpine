@@ -39,9 +39,10 @@ export async function createDatabaseTable(
     const tableId = generateChronologicalId<DatabaseTableId>();
     const accessPolicy = databaseTableAccessPolicyForCreator(sessionContext.actor.getAccountId());
 
-    // Create the backing table before publishing its metadata. These stores cannot share a
-    // transaction, so prefer an unreachable Durable Object table if the Dynamo write fails over
-    // metadata that can surface in the UI and search without a backing table.
+    // Create the backing table before publishing metadata. These stores cannot share a
+    // transaction, so prefer an unreachable Durable Object table if the Dynamo write
+    // fails over metadata that can surface in the UI and search without a backing
+    // table.
     const {result} = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "createTable",
         input: {tableId, name, accessPolicy},

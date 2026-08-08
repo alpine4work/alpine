@@ -12,6 +12,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import type {LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseActionFetchResponseSchema} from "~/shared/databases/database_action_fetch_schema.js";
 import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.js";
@@ -27,7 +28,7 @@ const context = createTestContext({
         assert(action.name === "createTable");
         if (action.input.name === failedBackingTableName) {
             failedCreationTableId = action.input.tableId;
-            return Promise.reject(new Error("Failed to create backing table"));
+            return Promise.reject(new InternalError("Failed to create backing table"));
         }
         return Promise.resolve(
             DatabaseActionFetchResponseSchema.serialize({
