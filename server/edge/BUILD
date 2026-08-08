@@ -84,7 +84,7 @@ esbuild(
     external = [
         "node:*",
     ],
-    output = "edge_service_bundle.js",
+    output_dir = True,
 )
 
 js_binary(

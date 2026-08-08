@@ -3,11 +3,16 @@
 # This service will keep just the edge service piece and we'll create new
 # Cloudflare Workers.
 name = "edge-service"
-main = "edge_service_bundle.js"
+main = "edge_service_bundle_file/edge_service_bundle.js"
 no_bundle = true
 compatibility_date = "2022-07-12"
 compatibility_flags = ["streams_enable_constructors"]
 workers_dev = false
+
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
+fallthrough = false
 
 [vars]
 COOKIE_NAME_SUFFIX = ""

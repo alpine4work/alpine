@@ -2,9 +2,14 @@ diff --git a/dist/src/index.js b/dist/src/index.js
 index c00291872e726bff20952668b0846cf936900b7a..a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0 100644
 --- a/dist/src/index.js
 +++ b/dist/src/index.js
-@@ -303,7 +303,7 @@ var VMScriptRunner = class {
+@@ -303,7 +303,12 @@ var VMScriptRunner = class {
        Object.assign(context, globalScope);
      } else {
++      // Cloudflare allows instantiating a statically imported, precompiled WASM
++      // module, but Node's VM uses this flag to block that operation as well as
++      // dynamic compilation. Miniflare 2 therefore needs the broader permission
++      // so our production-compatible WebAssembly.instantiate(module, imports)
++      // call works locally. Worker code must still never compile WASM from bytes.
        context = import_vm3.default.createContext(globalScope, {
 -        codeGeneration: { strings: false, wasm: false }
 +        codeGeneration: { strings: false, wasm: true }
