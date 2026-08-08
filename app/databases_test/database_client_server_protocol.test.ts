@@ -1144,53 +1144,46 @@ test("a reactive query reverts when an optimistic mutation fails to send", async
 });
 
 // Reconnect catch-up is the only mechanism that revalidates cached tables after
-// missed realtime events, but `ensureCachedTablesRegistered` is primed exactly
-// once per reconnect and its failure is only reported, never retried. After a
-// transient registration failure the client is stuck: reactive queries' pages
-// never change locally, so they keep serving the pre-disconnect state indefinitely
-// — until the user happens to trigger a read that falls back to the server.
-test.failing(
-    "a reactive query catches up after a transient reconnect registration failure",
-    async () => {
-        const databaseGroupId = generateId<DatabaseGroupId>();
-        const table = await createTableOnServer(databaseGroupId);
-        const watcher = await createWarmClient(databaseGroupId, table);
+// missed realtime events. A transient registration failure must be retried even
+// when no foreground action occurs; otherwise reactive queries' pages never change
+// locally and they keep serving the pre-disconnect state indefinitely.
+test("a reactive query catches up after a transient reconnect registration failure", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const watcher = await createWarmClient(databaseGroupId, table);
 
-        await watcher.manager.registerReactiveAction(
-            {
-                databaseGroupId,
-                id: generateId<DatabaseReactiveActionId>(),
-                action: {
-                    name: "readonlyRawSql",
-                    input: {sql: selectRowIdsQuery(table)},
-                },
+    await watcher.manager.registerReactiveAction(
+        {
+            databaseGroupId,
+            id: generateId<DatabaseReactiveActionId>(),
+            action: {
+                name: "readonlyRawSql",
+                input: {sql: selectRowIdsQuery(table)},
             },
-            watcher.tabConnection,
-        );
+        },
+        watcher.tabConnection,
+    );
 
-        watcher.goOffline();
-        const rowId = generateChronologicalId<DatabaseRowId>();
-        await executeInternalAction(databaseGroupId, "createRow", {tableId: table.tableId, rowId});
-        await settle();
+    watcher.goOffline();
+    const rowId = generateChronologicalId<DatabaseRowId>();
+    await executeInternalAction(databaseGroupId, "createRow", {tableId: table.tableId, rowId});
+    await settle();
 
-        // The reconnect registration fails once — a transient network error right after
-        // the socket came back. Nothing retries it.
-        watcher.gates.failNextRegisterTables = new UnavailableError(
-            "synthetic registration failure",
-        );
-        watcher.goOnline();
-        await settle();
-        await settle();
+    // The first reconnect registration attempt fails with a transient network error.
+    // The connection retries the idempotent registration procedure.
+    watcher.gates.failNextRegisterTables = new UnavailableError("synthetic registration failure");
+    watcher.goOnline();
+    await settle();
+    await settle();
 
-        expect({
-            reactiveUpdates: watcher.reactiveUpdates,
-            reportedErrors: watcher.reportedErrors,
-        }).toEqual({
-            reactiveUpdates: [{name: "readonlyRawSql", output: {rows: [{_id: rowId}]}}],
-            reportedErrors: [expect.stringContaining("synthetic registration failure")],
-        });
-    },
-);
+    expect({
+        reactiveUpdates: watcher.reactiveUpdates,
+        reportedErrors: watcher.reportedErrors,
+    }).toEqual({
+        reactiveUpdates: [{name: "readonlyRawSql", output: {rows: [{_id: rowId}]}}],
+        reportedErrors: [expect.stringContaining("synthetic registration failure")],
+    });
+});
 
 /**
  * A ~1.5 KB cell value with a distinguishing prefix, sized to match the seeded

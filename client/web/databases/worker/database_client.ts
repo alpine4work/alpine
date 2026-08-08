@@ -196,10 +196,11 @@ export class DatabaseClient {
      * connection manager primes it on every (re)connect and every action execution
      * awaits the same promise, so a burst of cold reads collapses into a single
      * registration round trip instead of each racing ahead into its own server
-     * fallback. Best-effort — a failed registration is reported and swallowed so the
-     * promise never rejects; the tables stay unregistered and the next action's server
-     * fallback re-registers them alongside the action. Callers await this to close the
-     * connect race, not to gate on its success.
+     * fallback. The connection retries transient transport failures. A terminal
+     * registration failure is reported and swallowed so the promise never rejects; the
+     * tables stay unregistered and the next action's server fallback re-registers them
+     * alongside the action. Callers await this to close the connect race, not to gate
+     * on its success.
      */
     ensureCachedTablesRegistered(conn: DatabaseClientConnection): Promise<void> {
         return (this.pendingRegistration ??= this.registerCachedTables(conn).catch(error => {
