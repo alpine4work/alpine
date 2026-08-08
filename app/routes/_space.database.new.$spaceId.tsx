@@ -1,10 +1,21 @@
 import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {useEffect, useState} from "react";
+import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {DatabaseCreator} from "~/client/web/databases/database_creator.js";
+import {Box} from "~/client/web/design/box.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
+import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 
 export function meta() {
     return [{title: `New database${metaTitlePostfix}`}];
+}
+
+export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
+    const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
+    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
+    await authorizeSpaceAccess(context, spaceId, "Member");
+    return null;
 }
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
@@ -45,5 +56,9 @@ export default function NewDatabaseRoute() {
         }
     }, [searchParams, setSearchParams]);
 
-    return <DatabaseCreator initiallyFocus={initiallyFocus} />;
+    return (
+        <Box flexGrow="1" width="full" height="full" overflow="hidden" padding="4">
+            <DatabaseCreator initiallyFocus={initiallyFocus} />
+        </Box>
+    );
 }

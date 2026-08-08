@@ -1,13 +1,14 @@
-import {redirect} from "@remix-run/node";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {deserializeSpaceIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
+import {deserializeDatabaseTableIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
+import {DatabaseGroupConnectionProvider} from "~/client/web/databases/database_group_connection_provider.js";
 import {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import {DatabaseGridView} from "~/client/web/databases/grid_view/database_grid_view.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {useRynamoItem} from "~/client/web/dynamo/use_rynamo_item.js";
+import {createMetaFunction} from "~/client/web/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
@@ -17,26 +18,22 @@ import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_a
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getSitePreview} from "~/server/sites/data/get_site_preview.js";
-import {getDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 import {LoaderDatabaseActionResultSchemas} from "~/shared/databases/database_protocol_schemas.js";
 import {DatabaseRealtimeProtocol} from "~/shared/databases/database_realtime_protocol.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import type {
     DatabaseGroupId,
     DatabaseRowId,
     SiteId,
-    SpaceId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {getDatabaseTableMetadataItem} from "~/shared/rpc/database_tables_rpc_definitions.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 const LoaderSchema = Schema.object({
-    spaceId: Schema.id<SpaceId>(),
     databaseGroupId: Schema.id<DatabaseGroupId>(),
     schema: LoaderDatabaseActionResultSchemas.getViewSchema,
     tableMetadataItem: createRynamoItemSchema(DatabaseTableMetadataModel.schema()),
@@ -47,76 +44,64 @@ const LoaderSchema = Schema.object({
     }),
 });
 
-export async function loader({request, params, context: unauthenticatedContext}: LoaderArgs) {
+export const meta = createMetaFunction(LoaderSchema, ({data}) => [
+    {title: data.tableMetadataItem.model.name ?? "Database"},
+]);
+
+export async function loader({params, context: unauthenticatedContext}: LoaderArgs) {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
-    const spaceId = deserializeSpaceIdForLoader(params.spaceId);
-    const databaseGroupId = await getDatabaseGroupIdForSpace(context, spaceId);
+    // Views are not first-class metadata models yet, so this route currently accepts
+    // only table IDs despite reserving a parameter name that can support both.
+    const tableId = deserializeDatabaseTableIdForLoader(params.tableOrViewId);
+    const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(context, tableId, {
+        consistency: "StrongWithinCache",
+    });
+    const {databaseGroupId} = tableMetadataItem.model;
 
-    const tableOrViewId = assertExists(params.tableOrViewId);
-
-    // Fetch schema first — needed for the redirect check.
     const schemaResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "getViewSchema",
-        input: {tableOrViewId},
+        input: {tableOrViewId: tableId},
     });
 
-    // If the user navigated with a table ID, redirect to the resolved view ID for a
-    // canonical URL. Uses a relative redirect so peek routes work correctly.
-    if (schemaResult.result.viewId !== tableOrViewId) {
-        const url = new URL(request.url);
-        url.pathname = url.pathname.replace(/\/[^/]+$/, `/${schemaResult.result.viewId}`);
-        return redirect(url.pathname + url.search);
-    }
+    const [{cursorResult, pageResult}, accessPolicySiteById] = await runAllPromises([
+        // The page boundary depends on the cursor, so keep these requests ordered.
+        (async () => {
+            const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
+                name: "getViewRowsPageCursor",
+                input: {
+                    tableOrViewId: tableId,
+                    afterCursor: null,
+                    limit: databaseViewTargetRowsPerPage,
+                },
+            });
 
-    const [{cursorResult, pageResult}, {tableMetadataItem, accessPolicySiteById}] =
-        await runAllPromises([
-            // The page boundary depends on the cursor, so keep these requests ordered.
-            (async () => {
-                const cursorResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-                    name: "getViewRowsPageCursor",
-                    input: {
-                        tableOrViewId,
-                        afterCursor: null,
-                        limit: databaseViewTargetRowsPerPage,
-                    },
-                });
-
-                const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
-                    name: "getViewRowsPage",
-                    input: {
-                        tableOrViewId,
-                        afterCursor: null,
-                        endCursor: cursorResult.result.endCursor,
-                    },
-                });
-                return {cursorResult, pageResult};
-            })(),
-            (async () => {
-                const tableMetadataItem = await getDatabaseTableMetadataItemForLoader(
-                    context,
-                    schemaResult.result.tableId,
-                    {consistency: "StrongWithinCache"},
-                );
-                const accessPolicy = tableMetadataItem.model.accessPolicy;
-                const accessPolicySiteById =
-                    accessPolicy.type === "Site"
-                        ? new Map([
-                              [
-                                  accessPolicy.siteId,
-                                  await getSitePreview(context, accessPolicy.siteId),
-                              ],
-                          ])
-                        : new Map<SiteId, SitePreviewModel>();
-                return {tableMetadataItem, accessPolicySiteById};
-            })(),
-        ]);
+            const pageResult = await fetchDatabaseGroupAction(context, databaseGroupId, {
+                name: "getViewRowsPage",
+                input: {
+                    tableOrViewId: tableId,
+                    afterCursor: null,
+                    endCursor: cursorResult.result.endCursor,
+                },
+            });
+            return {cursorResult, pageResult};
+        })(),
+        (async () => {
+            const accessPolicy = tableMetadataItem.model.accessPolicy;
+            const accessPolicySiteById =
+                accessPolicy.type === "Site"
+                    ? new Map([
+                          [accessPolicy.siteId, await getSitePreview(context, accessPolicy.siteId)],
+                      ])
+                    : new Map<SiteId, SitePreviewModel>();
+            return accessPolicySiteById;
+        })(),
+    ]);
 
     return jsonWithSchema(LoaderSchema, {
-        spaceId,
         databaseGroupId,
         schema: {
             name: "getViewSchema",
-            input: {tableOrViewId},
+            input: {tableOrViewId: tableId},
             output: schemaResult.result,
         },
         tableMetadataItem,
@@ -126,7 +111,7 @@ export async function loader({request, params, context: unauthenticatedContext}:
             pageResult: {
                 name: "getViewRowsPage",
                 input: {
-                    tableOrViewId,
+                    tableOrViewId: tableId,
                     afterCursor: null,
                     endCursor: cursorResult.result.endCursor,
                 },
@@ -137,6 +122,16 @@ export async function loader({request, params, context: unauthenticatedContext}:
 }
 
 export default function DatabaseViewRoute() {
+    const loaderData = useLoaderDataWithSchema(LoaderSchema);
+
+    return (
+        <DatabaseGroupConnectionProvider databaseGroupId={loaderData.databaseGroupId}>
+            <DatabaseViewRouteContent />
+        </DatabaseGroupConnectionProvider>
+    );
+}
+
+function DatabaseViewRouteContent() {
     const context = useAppContext();
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
     const {tableOrViewId} = loaderData.schema.input;
@@ -204,7 +199,6 @@ export default function DatabaseViewRoute() {
     }
     return (
         <DatabaseGridView
-            spaceId={loaderData.spaceId}
             tableId={schemaResult.value.tableId}
             viewId={schemaResult.value.viewId}
             tableName={schemaResult.value.tableName}

@@ -17,6 +17,7 @@ import {
     BotId,
     ChannelId,
     ChatId,
+    DatabaseTableId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -66,6 +67,16 @@ export function deserializeChannelIdForLoader(id: string | null | undefined): Ch
 export function deserializeChatIdForLoader(id: string | null | undefined): ChatId {
     if (!id || !isId<ChatId>(id)) {
         throw createChatNotFoundError(id ?? undefined);
+    }
+
+    return id;
+}
+
+export function deserializeDatabaseTableIdForLoader(
+    id: string | null | undefined,
+): DatabaseTableId {
+    if (!id || !isId<DatabaseTableId>(id)) {
+        throw new NotFoundError(`Database table ${id ?? ""} not found`);
     }
 
     return id;

@@ -71,7 +71,7 @@ export function getSearchDynamicEntityPath(
         );
     }
     if (entityData.type === "DatabaseTable") {
-        return `/databases/${spaceId}/${entityData.table.id}`;
+        return `/database/${entityData.table.id}`;
     }
 
     return getSearchDynamicEntityPathFromEntityIdObject(
@@ -103,7 +103,7 @@ export function getSearchDynamicEntityPathFromEntityIdObject(
         return `/chat/with/${entityId.accountId}/${spaceId}?focus`;
     }
     if (entityId.type === "DatabaseTable") {
-        return `/databases/${spaceId}/${entityId.tableId}`;
+        return `/database/${entityId.tableId}`;
     }
 
     return getSearchDynamicEntityPathFromEntityIdObjectWithoutAccount(entityId, _routeLayout);

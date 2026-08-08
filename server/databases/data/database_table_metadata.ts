@@ -108,7 +108,6 @@ export async function updateDatabaseTableAccessPolicy(
             {partitionType: "Table", sortRangeType: "Attributes", tableId},
             {consistency: "Strong"},
         );
-
         if (item === null || item.name === null) {
             throw new NotFoundError(`Database table ${tableId} not found`);
         }
