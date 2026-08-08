@@ -6,30 +6,28 @@ import {DatabaseTableMetadataBroadcastRealtimeEventsSchema} from "~/shared/datab
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import type {DatabaseGroupId, DatabaseTableId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export const DatabaseTablesTable = RynamoTableSchema.new({
-    name: "DatabaseTables",
+    name: "DatabaseTableMetadata",
     partitions: [
         {
-            name: "DatabaseGroup",
+            name: "Table",
             partitionKeyAttributes: {
-                databaseGroupId: DynamoKeyAttributeSchema.id<DatabaseGroupId>(),
+                tableId: DynamoKeyAttributeSchema.id<DatabaseTableId>(),
             },
             sortRanges: [
                 {
-                    name: "Table",
-                    sortKeyAttributes: {
-                        tableId: DynamoKeyAttributeSchema.id<DatabaseTableId>(),
-                    },
+                    name: "Attributes",
+                    sortKeyAttributes: {},
                     attributes: Schema.object({
+                        databaseGroupId: Schema.id<DatabaseGroupId>(),
                         name: Schema.string.nullable(),
-                        spaceId: Schema.id<SpaceId>().nullable(),
+                        spaceId: Schema.id<SpaceId>(),
                         isDeleted: Schema.boolean,
                         accessPolicy: AccessPolicySchema,
                     }),
@@ -39,13 +37,13 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
     ],
     modelSchema: DatabaseTableMetadataModel.schema(),
     models: {
-        DatabaseGroup: {
-            Table: {
+        Table: {
+            Attributes: {
                 build: async (_context, item) =>
                     new DatabaseTableMetadataModel({
                         databaseGroupId: item.databaseGroupId,
                         tableId: item.tableId,
-                        spaceId: assertExists(item.spaceId),
+                        spaceId: item.spaceId,
                         name: item.name,
                         isDeleted: item.isDeleted,
                         accessPolicy: item.accessPolicy,
@@ -65,28 +63,20 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
 
         await runAllPromises(
             events.map(async ({itemKey, eventStub, getEvent}) => {
-                if (itemKey.partitionType !== "DatabaseGroup") return;
+                if (itemKey.partitionType !== "Table") return;
 
                 const event = await getEvent(context);
-                let resolvedAccessPolicy: LocalAccessPolicy | null;
-                switch (event.type) {
-                    case "PutItem":
-                        resolvedAccessPolicy =
-                            await resolveDatabaseTableAccessPolicyForDurableObject(
-                                context,
-                                event.item.model.accessPolicy,
-                            );
-                        break;
-                    case "DeleteItem":
-                        resolvedAccessPolicy = null;
-                        break;
-                    default:
-                        throw exhaustive(event);
-                }
+                assert(
+                    event.type === "PutItem",
+                    "Database table metadata deletion is not supported",
+                );
+                const {databaseGroupId, accessPolicy} = event.item.model;
+                const resolvedAccessPolicy: LocalAccessPolicy =
+                    await resolveDatabaseTableAccessPolicyForDurableObject(context, accessPolicy);
 
                 const broadcast = getOrSetDefaultMapValue(
                     broadcastsByDatabaseGroupId,
-                    itemKey.databaseGroupId,
+                    databaseGroupId,
                     () => ({events: [], resolvedAccessPolicyByTableId: new Map()}),
                 );
                 broadcast.events.push(eventStub);
@@ -114,6 +104,6 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
 
 export type DatabaseTableItem = RynamoTableItemType<
     typeof DatabaseTablesTable,
-    "DatabaseGroup",
-    "Table"
+    "Table",
+    "Attributes"
 >;
