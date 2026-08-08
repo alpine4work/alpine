@@ -19,6 +19,7 @@ import {
     databaseActions,
 } from "~/shared/databases/database_actions.js";
 import type {ReadonlyDatabasePageSet} from "~/shared/databases/database_protocol_schemas.js";
+import type {DatabaseTableAccessPolicyRevision} from "~/shared/databases/database_table_access_policy_revision.js";
 import {executeSqliteTransaction} from "~/shared/databases/execute_sqlite_transaction.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
@@ -206,8 +207,8 @@ export class DatabaseServer {
                         }),
                     setTableName: (tableId, tableName) =>
                         server.setDatabaseTableName(tableId, tableName),
-                    setTableAccessPolicy: (tableId, accessPolicy) =>
-                        server.setDatabaseTableAccessPolicy(tableId, accessPolicy),
+                    setTableAccessPolicy: (tableId, accessPolicy, revision) =>
+                        server.setDatabaseTableAccessPolicy(tableId, accessPolicy, revision),
                     isTableNameTaken: (tableName, excludeTableId) =>
                         server.isDatabaseTableNameTaken(tableName, excludeTableId),
                 },
@@ -448,19 +449,38 @@ export class DatabaseServer {
     setDatabaseTableAccessPolicy(
         tableId: DatabaseTableId,
         accessPolicy: LocalAccessPolicy | null,
-    ): void {
-        sql`
+        revision: DatabaseTableAccessPolicyRevision,
+    ): boolean {
+        const applied = sql`
             INSERT INTO
-                database_tables (table_id, access_policy)
+                database_tables (
+                    table_id,
+                    access_policy,
+                    access_policy_table_version,
+                    access_policy_source_version
+                )
             VALUES
                 (
                     ${tableId},
-                    ${accessPolicyColumnSchema.serialize(accessPolicy)}
+                    ${accessPolicyColumnSchema.serialize(accessPolicy)},
+                    ${revision.tableMetadataVersion},
+                    ${revision.sourcePolicyVersion}
                 )
             ON CONFLICT (table_id) DO UPDATE
             SET
-                access_policy = excluded.access_policy
-        `.exec(this.sql);
+                access_policy = excluded.access_policy,
+                access_policy_table_version = excluded.access_policy_table_version,
+                access_policy_source_version = excluded.access_policy_source_version
+            WHERE
+                excluded.access_policy_table_version > database_tables.access_policy_table_version
+                OR (
+                    excluded.access_policy_table_version = database_tables.access_policy_table_version
+                    AND excluded.access_policy_source_version > database_tables.access_policy_source_version
+                )
+            RETURNING
+                1
+        `.selectValueIfExists(this.sql, Schema.integer);
+        return applied !== null;
     }
 
     /**

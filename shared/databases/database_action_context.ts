@@ -1,4 +1,5 @@
 import type {AccessLevel, LocalAccessPolicy} from "~/shared/access/access_policy.js";
+import type {DatabaseTableAccessPolicyRevision} from "~/shared/databases/database_table_access_policy_revision.js";
 import type {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import type {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -38,7 +39,11 @@ export interface DatabaseServerTableStore {
      */
     setTableName(tableId: DatabaseTableId, tableName: string): void;
     /** Overwrite a user table's resolved policy copy (see `syncTableMetadata`). */
-    setTableAccessPolicy(tableId: DatabaseTableId, accessPolicy: LocalAccessPolicy): void;
+    setTableAccessPolicy(
+        tableId: DatabaseTableId,
+        accessPolicy: LocalAccessPolicy,
+        revision: DatabaseTableAccessPolicyRevision,
+    ): boolean;
     /**
      * Whether any registered table's SQLite `table_name` equals `tableName`. Backs
      * `formatUniqueTableName`'s uniqueness probe; pass `excludeTableId` when renaming

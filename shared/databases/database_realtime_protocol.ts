@@ -7,6 +7,7 @@ import {
     DatabaseTableAccessLevelsSchema,
     DatabaseTableRegistrationsSchema,
 } from "~/shared/databases/database_protocol_schemas.js";
+import {DatabaseTableAccessPolicyRevisionSchema} from "~/shared/databases/database_table_access_policy_revision.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {RynamoEventStubSchema, createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.js";
@@ -61,6 +62,9 @@ export const DatabaseTableMetadataBroadcastRealtimeEventsSchema = Schema.object(
     events: Schema.array(RynamoEventStubSchema),
     resolvedAccessPolicyByTableId: Schema.map(
         Schema.id<DatabaseTableId>(),
-        LocalAccessPolicySchema.nullable(),
+        Schema.object({
+            accessPolicy: LocalAccessPolicySchema.nullable(),
+            revision: DatabaseTableAccessPolicyRevisionSchema,
+        }),
     ),
 });

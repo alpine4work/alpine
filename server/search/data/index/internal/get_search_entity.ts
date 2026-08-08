@@ -1544,6 +1544,7 @@ async function getDatabaseTableSearchEntity(
             tableId,
             name,
             accessPolicy,
+            tableMetadataVersion: table.version,
         }),
     );
 

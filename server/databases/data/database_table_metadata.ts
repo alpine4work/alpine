@@ -1,9 +1,9 @@
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
-import {intoEffectiveAccessPolicy} from "~/server/access/into_effective_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
+import {resolveDatabaseTableAccessPolicyReplica} from "~/server/databases/data/resolve_database_table_access_policy_replica.js";
 import type {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
@@ -40,7 +40,7 @@ export async function createDatabaseTable(
     const tableId = generateChronologicalId<DatabaseTableId>();
     const accessPolicy = databaseTableAccessPolicyForCreator(sessionContext.actor.getAccountId());
 
-    await DatabaseTablesTable.updateItem(
+    const {getEvent} = await DatabaseTablesTable.updateItem(
         context,
         {partitionType: "Table", sortRangeType: "Attributes", tableId},
         item =>
@@ -55,10 +55,19 @@ export async function createDatabaseTable(
                 accessPolicy,
             }),
     );
+    const tableMetadataVersion = (await getEvent(context)).item.model.version;
 
     const {result} = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "createTable",
-        input: {tableId, name, accessPolicy},
+        input: {
+            tableId,
+            name,
+            accessPolicy,
+            policyRevision: {
+                tableMetadataVersion,
+                sourcePolicyVersion: 0,
+            },
+        },
     });
 
     context.process.waitUntil(
@@ -283,20 +292,30 @@ export async function syncDatabaseTableMetadataToDurableObject(
         tableId,
         name,
         accessPolicy,
+        tableMetadataVersion,
     }: {
         databaseGroupId: DatabaseGroupId;
         tableId: DatabaseTableId;
         name: string;
         accessPolicy: AccessPolicy;
+        tableMetadataVersion: number;
     },
 ): Promise<void> {
-    const localAccessPolicy = await intoEffectiveAccessPolicy(context, accessPolicy, {
-        consistency: "StrongWithinCache",
-    });
+    const replica = await resolveDatabaseTableAccessPolicyReplica(
+        context,
+        accessPolicy,
+        tableMetadataVersion,
+        {consistency: "StrongWithinCache"},
+    );
 
     await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "syncTableMetadata",
-        input: {tableId, name, accessPolicy: localAccessPolicy},
+        input: {
+            tableId,
+            name,
+            accessPolicy: replica.accessPolicy,
+            policyRevision: replica.revision,
+        },
     });
 }
 

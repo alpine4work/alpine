@@ -22,7 +22,9 @@ export class InMemoryDatabaseServerTableStore implements DatabaseServerTableStor
         this.tableNames.set(tableId, tableName);
     }
 
-    setTableAccessPolicy(): void {}
+    setTableAccessPolicy(): boolean {
+        return true;
+    }
 
     isTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean {
         for (const [tableId, existingName] of this.tableNames) {

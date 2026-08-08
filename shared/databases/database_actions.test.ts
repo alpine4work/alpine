@@ -95,6 +95,7 @@ function createTableForTest(db: Database, name: string): DatabaseActionOutput<"c
         tableId: generateChronologicalId<DatabaseTableId>(),
         name,
         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+        policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
     });
 }
 
@@ -1524,6 +1525,7 @@ function renameTableForTest(
         tableId,
         name,
         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
+        policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 0},
     });
 }
 
