@@ -21,7 +21,7 @@ linked-record UI on top.
 Authorization findings that also appeared in the general pass are preserved in the more detailed
 Security section below.
 
-### [ ] Preserve invalidations that arrive during reactive re-execution
+### [x] Preserve invalidations that arrive during reactive re-execution
 
 `client/web/databases/worker/database_client.ts:486`
 
@@ -55,7 +55,7 @@ Track a “dirtied while running” flag and schedule another execution in `fina
 providing both leading- and trailing-edge refreshes. Add a test where two overlapping writes land on
 opposite sides of an awaited re-execution.
 
-### [ ] Wait for the realtime confirmation before returning the mutation procedure response
+### [x] Wait for the realtime confirmation before returning the mutation procedure response
 
 `server/databases/database_durable_object_connection.ts:117`
 
@@ -78,7 +78,7 @@ Make the event callbacks return promises and await `sendEventToAllAndWait()`/`se
 returning the procedure response. The empty self-confirmation path needs the same ordering
 guarantee.
 
-### [ ] Recompute access deltas for join tables when either side's policy changes
+### [x] Recompute access deltas for join tables when either side's policy changes
 
 `server/databases/database_durable_object_connection.ts:341`
 

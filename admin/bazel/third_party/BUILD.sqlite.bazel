@@ -108,6 +108,7 @@ EMSCRIPTEN_ROOT = emsdk_path + '/upstream/emscripten'
 NODE_JS = '$$bazel_sandbox/$(location @//:node)'
 EOF
 
+export EM_CONFIG="$$bazel_sandbox/$(RULEDIR)/emsdk/.emscripten"
 export PATH="$$(dirname "$$bazel_sandbox/$(location @tcl//:build_tclsh)"):$$bazel_sandbox/external/$$wabt_external_name/bin:$$PATH"
 which wasm-strip || (echo "Could not find wasm-strip" && exit 1)
 
