@@ -16806,7 +16806,7 @@ export const dynamoGeneratedSchemaDescription: {
                                     "events": {
                                         "valueSchema": {
                                             "type": "Reference",
-                                            "reuseReferenceId": "9171272b"
+                                            "reuseReferenceId": "baf94167"
                                         },
                                         "optional": false
                                     },
