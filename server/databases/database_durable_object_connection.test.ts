@@ -15,6 +15,7 @@ import {
 } from "~/shared/databases/sqlite_constants.js";
 import type {RynamoEvent, RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -53,15 +54,15 @@ const sessionTestContext = {
 } as any;
 
 function createConnection({
-    sendEventToAll = () => {},
-    sendEventToSelf = () => {},
+    sendEventToAllAndWaitForOne = async () => {},
+    sendEventToSelf = async () => {},
 }: {
-    sendEventToAll?: DatabaseDurableObjectConnectionConstructorOptions["sendEventToAll"];
+    sendEventToAllAndWaitForOne?: DatabaseDurableObjectConnectionConstructorOptions["sendEventToAllAndWaitForOne"];
     sendEventToSelf?: DatabaseDurableObjectConnectionConstructorOptions["sendEventToSelf"];
 } = {}) {
     return new DatabaseDurableObjectConnection({
         server,
-        sendEventToAll,
+        sendEventToAllAndWaitForOne,
         sendEventToSelf,
         databaseGroupId: generateId<DatabaseGroupId>(),
     });
@@ -110,6 +111,92 @@ async function registerHeldPages(
 }
 
 describe("executeAction", () => {
+    test("waits for a changed-pages confirmation before returning", async () => {
+        const confirmation = createPromiseResolver();
+        const conn = createConnection({
+            sendEventToAllAndWaitForOne: async () => await confirmation.promise,
+        });
+        const after = makePage(0xaa);
+        jest.spyOn(server, "executeAction").mockReturnValue({
+            result: {rows: []},
+            readPages: new Map([[databaseMainTableId, new Map([[0, {data: after, version: 2}]])]]),
+            changedPages: new Map([
+                [
+                    databaseMainTableId,
+                    {
+                        pages: new Map([
+                            [
+                                0,
+                                {
+                                    before: new Uint8Array(sqlitePageSize),
+                                    after,
+                                    beforeVersion: 1,
+                                },
+                            ],
+                        ]),
+                        fileSizeInPages: 1,
+                    },
+                ],
+            ]),
+            snapshotVersion: 2,
+        } as any);
+
+        let responseReturned = false;
+        const response = conn.procedures
+            .executeAction(
+                sessionTestContext,
+                {
+                    action: {name: "rawSql", input: {sql: "SELECT 1"}},
+                    mutationId: generateId(),
+                    returnResult: false,
+                    returnPages: false,
+                    registerTables: new Map(),
+                },
+                null as any,
+            )
+            .then(() => {
+                responseReturned = true;
+            });
+
+        await Promise.resolve();
+        expect(responseReturned).toBe(false);
+
+        confirmation.resolve();
+        await response;
+        expect(responseReturned).toBe(true);
+    });
+
+    test("waits for an empty self-confirmation before returning", async () => {
+        const confirmation = createPromiseResolver();
+        const conn = createConnection({
+            sendEventToSelf: async () => await confirmation.promise,
+        });
+
+        let responseReturned = false;
+        const response = conn.procedures
+            .executeAction(
+                sessionTestContext,
+                {
+                    action: {name: "rawSql", input: {sql: "SELECT 1"}},
+                    mutationId: generateId(),
+                    returnResult: false,
+                    returnPages: false,
+                    registerTables: new Map(),
+                },
+                null as any,
+            )
+            .then(() => {
+                responseReturned = true;
+            });
+
+        await Promise.resolve();
+        expect(responseReturned).toBe(false);
+
+        confirmation.resolve();
+        await response;
+        expect(responseReturned).toBe(true);
+    });
+
     test("read-only pages carry the current snapshot version", async () => {
         const storedVersion = server.readPage(databaseMainTableId, 0)!.version;
 
@@ -403,8 +490,8 @@ describe("connection authorization and metadata", () => {
         const databaseGroupId = generateId<DatabaseGroupId>();
         const conn = new DatabaseDurableObjectConnection({
             server,
-            sendEventToAll: () => {},
-            sendEventToSelf: () => {},
+            sendEventToAllAndWaitForOne: async () => {},
+            sendEventToSelf: async () => {},
             databaseGroupId,
         });
         const eventStub: RynamoEventStub = {
@@ -458,8 +545,8 @@ describe("connection authorization and metadata", () => {
         const databaseGroupId = generateId<DatabaseGroupId>();
         const conn = new DatabaseDurableObjectConnection({
             server,
-            sendEventToAll: () => {},
-            sendEventToSelf: () => {},
+            sendEventToAllAndWaitForOne: async () => {},
+            sendEventToSelf: async () => {},
             databaseGroupId,
         });
         const authorizedInputs: Array<unknown> = [];
@@ -539,8 +626,8 @@ describe("per-table realtime filtering", () => {
         );
         return new DatabaseDurableObjectConnection({
             server,
-            sendEventToAll: () => {},
-            sendEventToSelf: () => {},
+            sendEventToAllAndWaitForOne: async () => {},
+            sendEventToSelf: async () => {},
             databaseGroupId: generateId<DatabaseGroupId>(),
         });
     }
@@ -637,10 +724,12 @@ describe("per-table realtime filtering", () => {
 
     test("originator receives its full write set and adds it to the subscription", async () => {
         const eventStubs: Array<
-            Parameters<DatabaseDurableObjectConnectionConstructorOptions["sendEventToAll"]>[0]
+            Parameters<
+                DatabaseDurableObjectConnectionConstructorOptions["sendEventToAllAndWaitForOne"]
+            >[0]
         > = [];
         const conn = createConnection({
-            sendEventToAll: event => {
+            sendEventToAllAndWaitForOne: async event => {
                 eventStubs.push(event);
             },
         });
