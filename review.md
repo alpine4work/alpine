@@ -21,7 +21,7 @@ linked-record UI on top.
 Authorization findings that also appeared in the general pass are preserved in the more detailed
 Security section below.
 
-### [ ] Preserve invalidations that arrive during reactive re-execution
+### [x] Preserve invalidations that arrive during reactive re-execution
 
 `client/web/databases/worker/database_client.ts:486`
 
