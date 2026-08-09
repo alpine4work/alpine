@@ -23,6 +23,7 @@ import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
     SessionId,
+    WebSocketConnectionId,
     WebSocketProcedureRequestId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {Schema} from "~/shared/schema/schema.open_source.js";
@@ -141,6 +142,64 @@ test("authorizes on connection", async () => {
     expect(authorizationCount).toEqual(1);
 
     assert(response.webSocket);
+});
+
+test("sendEventToAllAndWaitForOne does not wait for other connections", async () => {
+    type TestEvent = WebSocketProtocolEventType<typeof TestProtocol>;
+    type TestEventStub = {readonly type: "TestStub"};
+
+    const TestProtocol = defineWebSocketProtocol({
+        procedures: {},
+        events: {Test: Schema.object({type: Schema.value("Test")})},
+    });
+    const transformByAccountId = new DefaultMap<
+        AccountId,
+        ReturnType<typeof createPromiseResolver>
+    >(createPromiseResolver);
+    const connectionIdByAccountId = new Map<AccountId, WebSocketConnectionId>();
+
+    class TestConnection {
+        public readonly procedures = {};
+
+        public constructor(private readonly accountId: AccountId) {}
+
+        public async authorize() {}
+
+        public async transformEvent(_context: {}, event: TestEventStub): Promise<TestEvent> {
+            assert(event.type === "TestStub");
+            await transformByAccountId.getOrSetDefault(this.accountId).promise;
+            return {type: "Test"};
+        }
+    }
+
+    const server = new WebSocketServer<
+        TestProcessContextModules,
+        TestSessionActionContextModules,
+        typeof TestProtocol,
+        TestEventStub,
+        TestConnection
+    >(processContext, TestProtocol, ({accountId, connectionId}) => {
+        connectionIdByAccountId.set(accountId, connectionId);
+        return new TestConnection(accountId);
+    });
+    afterNextCallbacks.push(() => server.closeAll(processContext));
+
+    const selectedConnection = await server.connectForTest(action(account1Id));
+    const otherConnection = await server.connectForTest(action(account2Id));
+    const selectedConnectionId = assertExists(connectionIdByAccountId.get(account1Id));
+
+    const send = server.sendEventToAllAndWaitForOne(
+        processContext,
+        {type: "TestStub"},
+        selectedConnectionId,
+    );
+    transformByAccountId.getOrSetDefault(account1Id).resolve(undefined);
+    await send;
+
+    expect(selectedConnection.peekEvents()).toEqual([{type: "Test"}]);
+    expect(otherConnection.peekEvents()).toEqual([]);
+
+    transformByAccountId.getOrSetDefault(account2Id).resolve(undefined);
 });
 
 test("if authorization fails then connection closes", async () => {

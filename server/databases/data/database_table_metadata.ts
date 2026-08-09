@@ -241,10 +241,9 @@ export async function getDatabaseTableMetadataRealtimeEvent(
     const visibleEvents: Array<RynamoEvent<DatabaseTableMetadataModel>> = [];
     const deniedTableIds: Array<DatabaseTableId> = [];
 
-    await runAllPromises(
+    const resolvedEvents = await runAllPromises(
         actualEvents.map(async (event, index) => {
             const eventStub = assertExists(eventStubs[index]);
-            let isAuthorized = false;
             switch (event.type) {
                 case "PutItem": {
                     if (event.item.model.databaseGroupId !== databaseGroupId) {
@@ -252,14 +251,14 @@ export async function getDatabaseTableMetadataRealtimeEvent(
                             "Can\u2019t get realtime event for a table outside the designated database group",
                         );
                     }
-                    isAuthorized = await evaluateAccessPolicy(
+                    const isAuthorized = await evaluateAccessPolicy(
                         context,
                         event.item.model.spaceId,
                         event.item.model.accessPolicy,
                         "View",
                         {consistency: "StrongWithinCache"},
                     );
-                    break;
+                    return {event, eventStub, isAuthorized};
                 }
                 case "DeleteItem":
                     throw new PermissionDeniedError(
@@ -268,14 +267,16 @@ export async function getDatabaseTableMetadataRealtimeEvent(
                 default:
                     throw exhaustive(event);
             }
-
-            if (isAuthorized) {
-                visibleEvents.push(event);
-            } else {
-                deniedTableIds.push(eventStub.itemKey.tableId);
-            }
         }),
     );
+
+    for (const {event, eventStub, isAuthorized} of resolvedEvents) {
+        if (isAuthorized) {
+            visibleEvents.push(event);
+        } else {
+            deniedTableIds.push(eventStub.itemKey.tableId);
+        }
+    }
 
     return {events: visibleEvents, deniedTableIds};
 }
