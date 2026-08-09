@@ -1,0 +1,24 @@
+--- sqlite3.d.mts
++++ sqlite3.d.mts
+@@ -1240,3 +1240,21 @@
+   /** Instance method version of {@link checkRc()}. */
+   checkRc: (resultCode: number) => this;
++
++  /**
++   * Registers a callback that is invoked whenever a database page is read or
++   * written, on every database currently attached to this connection (main,
++   * temp, and any ATTACH-ed schemas). The callback receives the firing schema's
++   * name, the 1-based page number, and a flag indicating the access type: `1`
++   * for read, `2` for write. Pass a falsy value to disable the hook.
++   *
++   * Note: pagers created by ATTACH after this call do not inherit the hook;
++   * re-call `pageAccessHook()` after each ATTACH.
++   */
++  pageAccessHook(
++    callback:
++      | ((schemaName: string, pgno: number, flags: number) => void)
++      | null
++      | false
++      | 0,
++  ): this;
+ }

@@ -44,7 +44,7 @@ export async function createDatabaseTable(
     // transaction, so prefer an unreachable Durable Object table if the Dynamo write
     // fails over metadata that can surface in the UI and search without a backing
     // table.
-    const initialTableMetadataVersion = 1;
+    const initialTableMetadataVersion = 0;
     const {result} = await fetchDatabaseGroupAction(context, databaseGroupId, {
         name: "createTable",
         input: {

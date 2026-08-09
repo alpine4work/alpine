@@ -968,9 +968,9 @@ Resources:
                           Type: double
                         - Name: dynamodb__consumed_capacity__chat__write_capacity_units
                           Type: double
-                        - Name: dynamodb__consumed_capacity__database_tables__read_capacity_units
+                        - Name: dynamodb__consumed_capacity__database_table_metadata__read_capacity_units
                           Type: double
-                        - Name: dynamodb__consumed_capacity__database_tables__write_capacity_units
+                        - Name: dynamodb__consumed_capacity__database_table_metadata__write_capacity_units
                           Type: double
                         - Name: dynamodb__consumed_capacity__deploy__read_capacity_units
                           Type: double
@@ -1136,13 +1136,13 @@ Resources:
                           Type: string
                         - Name: dynamodb__table__chat__partition__chat__sort_range_type
                           Type: string
-                        - Name: dynamodb__table__database_tables__partition_type
+                        - Name: dynamodb__table__database_table_metadata__partition_type
                           Type: string
-                        - Name: dynamodb__table__database_tables__partition__database_group__sort_range_type
+                        - Name: dynamodb__table__database_table_metadata__partition__table__sort_range_type
                           Type: string
-                        - Name: dynamodb__table__database_tables__partition__realtime__sort_range_type
+                        - Name: dynamodb__table__database_table_metadata__partition__realtime__sort_range_type
                           Type: string
-                        - Name: dynamodb__table__database_tables__partition__graveyard__sort_range_type
+                        - Name: dynamodb__table__database_table_metadata__partition__graveyard__sort_range_type
                           Type: string
                         - Name: dynamodb__table__deploy__partition_type
                           Type: string
