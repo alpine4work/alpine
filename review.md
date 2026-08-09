@@ -99,7 +99,7 @@ includes only the user table whose Dynamo metadata changed. When both sides are 
 later reconnect. Query joins touching each changed table and include their newly derived levels in
 the delta.
 
-### [ ] Preserve metadata event order while resolving policies in parallel
+### [x] Preserve metadata event order while resolving policies in parallel
 
 `server/databases/data/internal/database_tables_table.ts:64`
 
