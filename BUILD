@@ -230,8 +230,8 @@ alias(
     actual = select({
         "@bazel_tools//src/conditions:darwin_arm64": "@emscripten_bin_mac_arm64//:all",
         "@bazel_tools//src/conditions:darwin_x86_64": "@emscripten_bin_mac//:all",
-        "@bazel_tools//src/conditions:linux_aarch64": "@emscripten_bin_linux//:all",
-        "@bazel_tools//src/conditions:linux_x86_64": "@emscripten_bin_linux_arm64//:all",
+        "@bazel_tools//src/conditions:linux_aarch64": "@emscripten_bin_linux_arm64//:all",
+        "@bazel_tools//src/conditions:linux_x86_64": "@emscripten_bin_linux//:all",
     }),
     visibility = ["//visibility:public"],
 )
