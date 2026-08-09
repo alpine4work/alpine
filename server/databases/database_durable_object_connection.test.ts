@@ -799,4 +799,65 @@ describe("per-table realtime filtering", () => {
             ]),
         });
     });
+
+    test("TableMetadataChanged recomputes subscribed joins touching a changed table", async () => {
+        const changedTableId = generateChronologicalId<DatabaseTableId>();
+        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        const joinTableId = generateChronologicalId<DatabaseTableId>();
+        const unrelatedJoinTableId = generateChronologicalId<DatabaseTableId>();
+        const unrelatedSourceTableId = generateChronologicalId<DatabaseTableId>();
+        const unrelatedTargetTableId = generateChronologicalId<DatabaseTableId>();
+        const accessLevelByTableId = new Map<DatabaseTableId, AccessLevel | null>([
+            [changedTableId, "View"],
+            [otherTableId, null],
+            [joinTableId, "View"],
+            [unrelatedJoinTableId, "View"],
+        ]);
+        const conn = createFilteringConnection(accessLevelByTableId);
+        jest.spyOn(server, "getDatabaseTableAccessEntry").mockImplementation(lookupTableId => {
+            if (lookupTableId === joinTableId) {
+                return {
+                    kind: "join",
+                    sourceTableId: changedTableId,
+                    targetTableId: otherTableId,
+                };
+            }
+            if (lookupTableId === unrelatedJoinTableId) {
+                return {
+                    kind: "join",
+                    sourceTableId: unrelatedSourceTableId,
+                    targetTableId: unrelatedTargetTableId,
+                };
+            }
+            return {kind: "table", accessPolicy: null};
+        });
+        await registerHeldPages(
+            conn,
+            new Map([
+                [joinTableId, []],
+                [unrelatedJoinTableId, []],
+            ]),
+        );
+        accessLevelByTableId.set(changedTableId, null);
+        accessLevelByTableId.set(joinTableId, null);
+        const context = {
+            ...createUntrustedContext(),
+            rpc: {
+                execute: async () => ({events: [], deniedTableIds: [changedTableId]}),
+            },
+        };
+
+        const event = await conn.transformEvent(context, {
+            type: "TableMetadataChanged",
+            events: [{type: "PutItem", item: {key: "table-key" as any, version: 1}}],
+        });
+
+        assert(event.type === "TableMetadataChanged");
+        expect(event.tableAccess).toEqual(
+            new Map([
+                [changedTableId, null],
+                [joinTableId, null],
+            ]),
+        );
+    });
 });

@@ -335,6 +335,22 @@ export class DatabaseDurableObjectConnection {
                 for (const tableId of deniedTableIds ?? []) {
                     tableAccess.set(tableId, null);
                 }
+                const changedTableIds = new Set(tableAccess.keys());
+                for (const joinTableId of this.subscriptions.keys()) {
+                    const entry = this.server.getDatabaseTableAccessEntry(joinTableId);
+                    if (
+                        entry === null ||
+                        entry.kind !== "join" ||
+                        (!changedTableIds.has(entry.sourceTableId) &&
+                            !changedTableIds.has(entry.targetTableId))
+                    ) {
+                        continue;
+                    }
+                    tableAccess.set(
+                        joinTableId,
+                        this.server.getTableAccessLevelForAccount(joinTableId, accountId),
+                    );
+                }
                 for (const [tableId, accessLevel] of tableAccess) {
                     if (accessLevel === null) {
                         this.subscriptions.delete(tableId);
