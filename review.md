@@ -99,7 +99,7 @@ includes only the user table whose Dynamo metadata changed. When both sides are 
 later reconnect. Query joins touching each changed table and include their newly derived levels in
 the delta.
 
-### [ ] Preserve metadata event order while resolving policies in parallel
+### [x] Preserve metadata event order while resolving policies in parallel
 
 `server/databases/data/internal/database_tables_table.ts:64`
 
@@ -171,105 +171,6 @@ methods. At minimum, memoize the resolved access level for the duration of one `
 Reuse the cached entry in `ensureCacheIsUpToDate` instead of separately loading the entry after
 resolving the access level.
 
-## Code Style
-
-### [ ] Preserve the database action output contract in `defineDatabaseAction`
-
-`shared/databases/database_actions.ts:53`
-
-```ts
-function defineDatabaseAction<Input, Output>(def: {
-    input: ObjectSchema<Input>;
-    output: ObjectSchema<Output>;
-    writeLevel: SqliteWriteLevel;
-    internalOnly?: boolean;
-    // The returned type advertises Output, but implementations are unchecked.
-    run: (ctx: DatabaseActionContext, input: Input) => any;
-}): {
-    // ...
-    run: (ctx: DatabaseActionContext, input: Input) => Output;
-} {
-    return {internalOnly: false, ...def};
-}
-```
-
-The helper's public return type claims every action returns `Output`, but `any` allows each
-implementation to return an incompatible value without a TypeScript error. The dispatcher compounds
-this with `actionObject.input as any` and a result cast, making the schema-backed action pipeline
-soft at both ends.
-
-Type the definition callback as `(ctx, input: Input) => Output` and preserve each map entry's
-input/output relationship through dispatch so the input and result casts can be removed. Keep
-runtime schema validation at transport boundaries, but do not use it as a substitute for checking
-action implementations at compile time.
-
-### [ ] Remove underscore prefixes from TypeScript-private database members
-
-`server/databases/database_server.ts:261`
-
-```ts
-private _getTableAccessLevelForContext(
-    context: WorkerActionContext,
-): (tableId: DatabaseTableId) => AccessLevel | null {
-    // ...
-}
-```
-
-Roughly 45 private members across the new server/client database code use leading underscores
-(`_runAndPersist`, `_persistBuffer`, `_registerDatabaseTable`, `DatabaseQuery._watches`, and
-others), while established TypeScript code relies on `private` alone. The new code is internally
-inconsistent too: `database_server.ts` mixes underscore-private methods with
-`getTableAccessLevelForAccount`.
-
-Drop the underscores from TypeScript-private members. If a member is intentionally public despite
-the prefix, make its intended API status explicit instead.
-
-### [ ] Replace every added production non-null assertion with an explicit invariant
-
-`shared/databases/database.ts:575`
-
-```ts
-if (hasTruncate) {
-    // Use `assertExists()` or restructure so TypeScript narrows instead of silently
-    // erasing the nullable type with `!`.
-    truncates.set(tableId, state.bufferedTruncate!);
-}
-```
-
-Occurrences to change:
-
-- `app/routes/_space.databases.$spaceId.$tableOrViewId.tsx:49`
-- `app/routes/_space.databases.$spaceId.sql.tsx:70`
-- `client/web/databases/database_field_visibility_menu.tsx:255,263,273-277`
-- `client/web/databases/database_query.ts:202,277-278`
-- `client/web/databases/database_query_row.ts:39`
-- `client/web/databases/database_raw_result_table.tsx:20`
-- `client/web/databases/fields/database_relation_field_component.tsx:267,498-502`
-- `client/web/databases/grid_view/database_grid_view.tsx:224,655-656`
-- `client/web/databases/use_grid_view_fields.ts:257`
-- `client/web/databases/worker/database_client.ts:766,868`
-- `client/web/helpers/workers/unique_worker_broker.ts:12`
-- `client/web/helpers/workers/unique_worker_client.ts:177`
-- `client/web/helpers/workers/unique_worker_host.ts:143`
-- `client/web/helpers/workers/web_worker_rpc.ts:69,79,86`
-- `client/web/helpers/workers/web_worker_rpc_method.ts:58`
-- `client/web/spaces/layout/create_widget_secondary_menu_bar.tsx:371`
-- `client/web/virtualized/helpers/virtualized_tree.ts:427,435,437`
-- `server/databases/build_database_page_diffs.ts:38` (both assertions)
-- `server/databases/data/database_table_metadata.ts:210`
-- `server/databases/database_durable_object_sql_migrations.ts:80`
-- `server/databases/database_server.ts:131`
-- `server/search/data/index/internal/search_entity_keyword_index.ts:49`
-- `shared/databases/database.ts:324,575,1304`
-- `shared/databases/database_actions.ts:325,355-356`
-- `shared/databases/fields/database_relation_field.ts:212`
-- `shared/databases/install_vfs.ts:237`
-- `shared/databases/sql.ts:94,179,230,299,313`
-- `shared/databases/sqlite_migrations.ts:171,241`
-- `shared/databases/sqlite_table_function.ts:52,160,174`
-
----
-
 ## Historical Patterns
 
 # Historical Review
@@ -281,62 +182,6 @@ review focused on reusable utilities and conventions in the database implementat
 `calebmer/databases` changes now align the public metadata mutation/read paths with the mature
 access-policy patterns. The remaining findings below concern duplicated abstractions, inconsistent
 modeling patterns, and stale branch artifacts.
-
-## Existing Utilities
-
-### [ ] Reuse `Mutex.withLock` instead of introducing `PromiseQueue`
-
-`client/web/databases/database_query.ts:44`
-
-`DatabaseQuery` uses the new `shared/helpers/async/promise_queue.ts` solely to serialize
-asynchronous loads and rebalancing. The established `Mutex.withLock()` already serializes async
-work, releases in `finally`, lets later callers continue after a rejection, and is widely used
-across the codebase. `PromiseQueue` has one production caller.
-
-```ts
-// New one-caller abstraction
-private readonly _queue = new PromiseQueue();
-await this._queue.enqueue(async () => {
-    // ...
-});
-
-// Existing convention
-private readonly mutex = new Mutex();
-await this.mutex.withLock(async () => {
-    // ...
-});
-```
-
-Reuse `Mutex`, or document and test a semantic requirement that it cannot satisfy. Both current
-queue callbacks are async, so the queue's allowance for synchronous callbacks is not such a
-requirement.
-
-### [ ] Reuse the existing effective-access-policy resolver
-
-`server/databases/data/resolve_database_table_access_policy_for_durable_object.ts:5`
-
-`server/access/into_effective_access_policy.ts:14` already performs the same `Local`/`Site`
-resolution and accepts the required consistency option. The branch itself uses it for database-table
-search indexing while Durable Object paths add a second exhaustive switch. A future policy variant
-can therefore be supported by one resolver and rejected by the other.
-
-Strengthen `intoEffectiveAccessPolicy`'s return type to `LocalAccessPolicy`, call it with
-`{consistency: "StrongWithinCache"}`, and delete the database-specific resolver.
-
-```ts
-// Existing utility
-return await intoEffectiveAccessPolicy(context, accessPolicy, {
-    consistency: "StrongWithinCache",
-});
-
-// Duplicated by the diff
-switch (accessPolicy.type) {
-    case "Local":
-        return accessPolicy;
-    case "Site":
-        return await context.sitesInjection.dangerouslyGetSiteAccessPolicyWithoutAuthorization(/* ... */);
-}
-```
 
 ## Pattern Consistency
 
@@ -371,7 +216,7 @@ rather than table data. Overall residual risk is **High**.
 
 ## Authorization & Permissions
 
-### [ ] Authorize loader-only database-group lookups
+### [x] Authorize loader-only database-group lookups
 
 `app/routes/_space.databases.$spaceId.tsx:28` **Severity: Low**
 
