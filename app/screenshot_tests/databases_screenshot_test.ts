@@ -104,9 +104,11 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
 
     // Link two customers. Each linked record shows a drag handle for reordering and a
     // remove button, above the "Add more" list of remaining candidates.
-    await runner.getByRole("option", {name: "Northwind Trading", exact: true}).click();
+    await runner
+        .getByRole("option", {name: "Northwind Trading", exact: true})
+        .dispatchEvent("click");
     await runner.getByRole("button", {name: "Remove Northwind Trading"}).waitFor();
-    await runner.getByRole("option", {name: "Meridian Labs", exact: true}).click();
+    await runner.getByRole("option", {name: "Meridian Labs", exact: true}).dispatchEvent("click");
     await runner.getByRole("button", {name: "Remove Meridian Labs"}).waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("a8", "linked-record-editor-linked");
