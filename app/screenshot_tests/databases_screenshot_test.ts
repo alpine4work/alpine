@@ -93,10 +93,10 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     // linked table's name in the header, with the linkable Customers records below.
     await gotoDatabasesPath(runner, dealsUrl);
     await runner.getByText("New row", {exact: true}).waitFor();
-    await runner.page
+    const customersCell = runner.page
         .locator("[data-testid=DatabaseGridViewCell][data-field-name=Customers]")
-        .first()
-        .click();
+        .first();
+    await customersCell.click();
     await runner.getByLabel("Search records").waitFor();
     await runner.getByRole("option", {name: "Acme Corp", exact: true}).waitFor();
     await runner.mouse.move(0, 0);
@@ -107,8 +107,14 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner
         .getByRole("option", {name: "Northwind Trading", exact: true})
         .dispatchEvent("click");
-    await runner.getByRole("button", {name: "Remove Northwind Trading"}).waitFor();
+    await runner.page.keyboard.press("Escape");
+    await customersCell.click();
+    await runner.getByLabel("Search records").waitFor();
     await runner.getByRole("option", {name: "Meridian Labs", exact: true}).dispatchEvent("click");
+    await runner.page.keyboard.press("Escape");
+    await customersCell.click();
+    await runner.getByLabel("Search records").waitFor();
+    await runner.getByRole("button", {name: "Remove Northwind Trading"}).waitFor();
     await runner.getByRole("button", {name: "Remove Meridian Labs"}).waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("a8", "linked-record-editor-linked");
