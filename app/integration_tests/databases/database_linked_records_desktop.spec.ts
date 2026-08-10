@@ -29,6 +29,9 @@ test("can create and update linked records", async ({page, context: browserConte
 
     await expect(page.getByLabel("Search records")).toHaveValue("");
     await expect(page.getByRole("button", {name: "Remove Acme"})).toBeVisible();
+    await page.getByLabel("Search records").fill("co");
+    await expect(page.getByRole("button", {name: "Create co"})).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
 
     await expect(companyCell).toContainText("Acme");

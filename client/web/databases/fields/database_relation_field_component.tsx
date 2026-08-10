@@ -237,7 +237,6 @@ function DatabaseRelationGridViewCellEditorOverlay({
     const listScrollRef = useRef<HTMLDivElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
-    const listContainerRef = useMergedRefs(listScrollRef, popoverRef);
 
     const comboBoxState: ComboBoxState<DatabaseRelationCandidateRow> = {
         inputValue: search,
@@ -309,7 +308,11 @@ function DatabaseRelationGridViewCellEditorOverlay({
 
     // Close the picker when the account presses (or moves focus) outside of it, merged
     // with the positioning ref the `Overlay` provides.
-    const rootRef = useMergedRefs(ref as React.Ref<HTMLDivElement>, useOutsideInteraction(onClose));
+    const rootRef = useMergedRefs(
+        ref as React.Ref<HTMLDivElement>,
+        popoverRef,
+        useOutsideInteraction(onClose),
+    );
 
     return (
         <Box
@@ -394,11 +397,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                 ) : null}
             </Box>
 
-            <Box
-                borderTop="grey-5"
-                ref={listContainerRef}
-                style={{maxHeight: 320, overflowY: "auto"}}
-            >
+            <Box borderTop="grey-5" ref={listScrollRef} style={{maxHeight: 320, overflowY: "auto"}}>
                 {!isSearching && linkedRows.length > 0 ? (
                     <DatabaseRelationLinkedList
                         linkedRows={linkedRows}
