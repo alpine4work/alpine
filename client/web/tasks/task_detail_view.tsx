@@ -85,7 +85,10 @@ import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {postContentViewCommentMargin} from "~/client/web/styles/forum_shared_styles.js";
-import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
+import {
+    messageInputMinHeightPx,
+    messageViewTimestampDividerMarginY,
+} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskDetailViewCommentSectionHeaderHeightPx,
@@ -2563,6 +2566,8 @@ export function TaskDetailView({
                             />
                         </Box>
                     ) : null;
+                const isFirstCommentPrecededByActivity =
+                    commentItemIndex === 0 && commentActivityNode !== null;
 
                 const renderedItem = renderMessageListItem<TaskId, TaskCommentModel>({
                     spacingScale,
@@ -2609,7 +2614,11 @@ export function TaskDetailView({
                     onPutMessageApprovalDecisions: handlePutCommentApprovalDecisions,
                     approvalSessionNoun: "task",
                     shouldAddMarginTop:
-                        commentItemIndex === 0 ? postContentViewCommentMargin : false,
+                        commentItemIndex !== 0
+                            ? false
+                            : isFirstCommentPrecededByActivity
+                              ? messageViewTimestampDividerMarginY
+                              : postContentViewCommentMargin,
                     shouldAddMarginBottom: commentItemIndex === comments.getItemCount() - 1,
                     render: node => (
                         <div
@@ -2624,6 +2633,9 @@ export function TaskDetailView({
                                     maxWidth: contentStyles.contentMaxWidth,
                                 })}
                             >
+                                {isFirstCommentPrecededByActivity && (
+                                    <Spacer space={postContentViewCommentMargin} />
+                                )}
                                 {commentActivityNode}
                                 {node}
                             </div>
