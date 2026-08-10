@@ -73,7 +73,7 @@ workspace_typescript_test = rule(
     test = True,
     attrs = {
         "_executable": attr.label(executable = True, cfg = "exec", default = "//admin/typescript/workspace:workspace_test_bin"),
-        "_config": attr.label_list(allow_files = True, default = ["//:package_light_json_file", "//:tsconfig_files", "//:eslint_config_files"]),
+        "_config": attr.label_list(allow_files = True, default = ["//:package_light_json_file", "//:tsconfig_files", "//:eslint_config_files", "//admin/external_types:sqlite/ext/wasm/jswasm/sqlite3.d.mts"]),
         "_workspace_typescript_projects": attr.label_list(default = WORKSPACE_TYPESCRIPT_PROJECTS),
     },
 )

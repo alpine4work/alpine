@@ -1,6 +1,11 @@
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 
+exports_files(
+    ["sqlite/ext/wasm/jswasm/sqlite3.d.mts"],
+    visibility = ["//visibility:public"],
+)
+
 genrule(
     name = "sqlite_types_with_alpine_extensions",
     srcs = [

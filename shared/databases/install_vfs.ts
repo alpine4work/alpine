@@ -49,7 +49,7 @@ export interface VfsMethods {
  */
 export interface InstalledVfs {
     /** Returns and clears the stashed error, or `null`. */
-    takeError(): unknown | null;
+    takeError(): unknown;
 }
 
 /**
@@ -82,7 +82,7 @@ export function installVfs(
 
     const files = new Map<WasmPointer, VfsFile>();
 
-    let stashedError: unknown | null = null;
+    let stashedError: unknown = null;
 
     function stash(error: unknown): void {
         if (stashedError === null) {
@@ -327,7 +327,7 @@ export function installVfs(
     });
 
     return {
-        takeError(): unknown | null {
+        takeError(): unknown {
             const error = stashedError;
             stashedError = null;
             return error;

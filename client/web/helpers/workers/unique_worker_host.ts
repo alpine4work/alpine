@@ -93,8 +93,7 @@ export class UniqueWorkerHost<
     /** Attach to the real worker global scope. */
     listen(): void {
         globalThis.addEventListener("message", event => {
-            const messageEvent = event as MessageEvent;
-            this.handleMessage(messageEvent.data, [...messageEvent.ports]);
+            this.handleMessage(event.data, [...event.ports]);
         });
     }
 

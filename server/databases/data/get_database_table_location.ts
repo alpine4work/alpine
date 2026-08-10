@@ -1,6 +1,6 @@
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
-import {NotFoundError} from "~/shared/error/error.open_source.js";
+import {createDatabaseTableNotFoundError} from "~/shared/databases/database_error_messages.js";
 import type {
     DatabaseGroupId,
     DatabaseTableId,
@@ -27,7 +27,7 @@ export async function getDatabaseTableLocation(
         );
 
         if (item === null) {
-            throw new NotFoundError(`Database table ${tableId} not found`);
+            throw createDatabaseTableNotFoundError(tableId);
         }
     }
 

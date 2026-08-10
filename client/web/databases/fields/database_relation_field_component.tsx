@@ -14,7 +14,6 @@ import {setInteractionModality} from "@react-aria/interactions";
 import type {Node} from "@react-types/shared";
 import {DotsSixVertical, LinkSimple, MagnifyingGlass, Plus, X, XCircle} from "phosphor-react";
 import {
-    type Key,
     type RefObject,
     startTransition,
     useCallback,
@@ -264,9 +263,9 @@ function DatabaseRelationGridViewCellEditorOverlay({
         // Activation adds a link rather than persisting a selection, so there is never a
         // real selection — `react-aria` only reads these when a value is actually
         // selected, so mirror the currently focused option.
-        selectedKey: selectionManager.focusedKey as Key,
+        selectedKey: selectionManager.focusedKey,
         selectedItem: collection.getItem(
-            selectionManager.focusedKey as Key,
+            selectionManager.focusedKey,
         ) as Node<DatabaseRelationCandidateRow>,
         setSelectedKey: key => {
             if (key != null) selectionManager.select(key);

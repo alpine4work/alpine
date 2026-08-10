@@ -9,7 +9,6 @@ import {
 } from "~/shared/databases/database_actions.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import type {DatabaseGroupId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
-import type {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Executes a database action against a database group's durable object via HTTP
@@ -38,9 +37,7 @@ export async function fetchDatabaseGroupAction<N extends DatabaseActionName>(
             body,
         },
     );
-    const {result, readPages} = DatabaseActionFetchResponseSchema.deserialize(
-        response as SchemaSerializedValue,
-    );
+    const {result, readPages} = DatabaseActionFetchResponseSchema.deserialize(response);
     assert(result.name === actionObject.name);
     return {
         result: result.output as DatabaseActionOutput<N>,

@@ -1,6 +1,7 @@
 import {createAccountNotFoundError} from "~/shared/accounts/account_error_messages.js";
 import {createBotNotFoundError} from "~/shared/bots/bot_error_messages.js";
 import {createChatNotFoundError} from "~/shared/chat/chat_error_messages.js";
+import {createDatabaseTableNotFoundError} from "~/shared/databases/database_error_messages.js";
 import {
     createDocumentCommentThreadNotFoundError,
     createDocumentNotFoundError,
@@ -76,7 +77,7 @@ export function deserializeDatabaseTableIdForLoader(
     id: string | null | undefined,
 ): DatabaseTableId {
     if (!id || !isId<DatabaseTableId>(id)) {
-        throw new NotFoundError(`Database table ${id ?? ""} not found`);
+        throw createDatabaseTableNotFoundError(id ?? undefined);
     }
 
     return id;

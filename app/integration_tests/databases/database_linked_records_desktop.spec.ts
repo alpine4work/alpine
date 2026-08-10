@@ -22,7 +22,7 @@ test("can create and update linked records", async ({page, context: browserConte
 
     await page.bringToFront();
     const companyCell = databaseGridViewCell(page, "Company");
-    const acmeOption = await openRelationOption(page, companyCell, "Link Acme");
+    const acmeOption = await openRelationOption(page, companyCell, "Acme");
     await acmeOption.dispatchEvent("click");
     await page.keyboard.press("Escape");
 
@@ -86,7 +86,7 @@ function databaseGridViewCell(page: Page, fieldName: string): Locator {
 }
 
 async function openRelationOption(page: Page, cell: Locator, optionName: string): Promise<Locator> {
-    const option = page.getByRole("button", {name: optionName});
+    const option = page.getByRole("option", {name: optionName, exact: true});
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
         await cell.click();

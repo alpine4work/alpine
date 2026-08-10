@@ -125,7 +125,7 @@ export function registerSqliteTableFunction(
                     } else if (type === capi.SQLITE_FLOAT) {
                         args.push(capi.sqlite3_value_double(pValue) as number);
                     } else {
-                        args.push(capi.sqlite3_value_text(pValue) as string);
+                        args.push(capi.sqlite3_value_text(pValue));
                     }
                 }
 
@@ -139,9 +139,9 @@ export function registerSqliteTableFunction(
                     // Set zErrMsg on the sqlite3_vtab so SQLite propagates it via sqlite3_errmsg().
                     // The cursor's first field is pVtab, and zErrMsg is at offset +8 in the vtab
                     // struct (after pModule and nRef, both 4 bytes on wasm32).
-                    const pVtab = wasm.peekPtr(pCursor) as WasmPointer;
+                    const pVtab = wasm.peekPtr(pCursor);
                     const msg = error instanceof Error ? error.message : String(error);
-                    wasm.pokePtr((pVtab + 8) as WasmPointer, wasm.allocCString(msg, false));
+                    wasm.pokePtr(pVtab + 8, wasm.allocCString(msg, false));
                     return capi.SQLITE_ERROR;
                 }
             },

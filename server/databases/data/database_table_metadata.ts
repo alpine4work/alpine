@@ -11,10 +11,11 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {assignDatabaseGroupIdForSpace} from "~/server/spaces/get_database_group_id_for_space.js";
 import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import type {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
+import {createDatabaseTableNotFoundError} from "~/shared/databases/database_error_messages.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import type {RynamoEvent, RynamoEventStub, RynamoItem} from "~/shared/dynamo/rynamo_types.js";
-import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
@@ -109,7 +110,7 @@ export async function updateDatabaseTableAccessPolicy(
             {consistency: "Strong"},
         );
         if (item === null || item.name === null) {
-            throw new NotFoundError(`Database table ${tableId} not found`);
+            throw createDatabaseTableNotFoundError(tableId);
         }
         const {spaceId} = item;
         await authorizeSpaceAccess(context, spaceId, "Member");
@@ -183,7 +184,7 @@ export async function getDatabaseTableMetadataItem(
     );
 
     if (item === null) {
-        throw new NotFoundError(`Database table ${tableId} not found`);
+        throw createDatabaseTableNotFoundError(tableId);
     }
     const {spaceId} = item.model;
     await authorizeSpaceAccess(context, spaceId);

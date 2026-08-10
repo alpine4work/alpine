@@ -62,10 +62,11 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
     const tables = tablesResult?.ok ? tablesResult.value.tables : null;
 
     // The collection is controlled (we pass `items`), so filter it ourselves.
-    const {contains} = useFilter({sensitivity: "base"});
+    const filter = useFilter({sensitivity: "base"});
     const filteredTables = useMemo(
-        () => tables?.filter(table => contains(table.name, filterValue.trim())) ?? emptyTables,
-        [tables, filterValue, contains],
+        () =>
+            tables?.filter(table => filter.contains(table.name, filterValue.trim())) ?? emptyTables,
+        [tables, filterValue, filter],
     );
 
     const commitTable = useEvent((table: DatabaseGridViewLinkedTable) => {
