@@ -108,14 +108,12 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.getByRole("option", {name: "Northwind Trading", exact: true}).waitFor();
     await runner.page.keyboard.press("ArrowDown");
     await runner.page.keyboard.press("Enter");
-    await runner.page.keyboard.press("Escape");
-    await customersCell.click();
-    await runner.getByLabel("Search records").waitFor();
     await runner.getByLabel("Search records").fill("Meridian Labs");
     await runner.getByRole("option", {name: "Meridian Labs", exact: true}).waitFor();
     await runner.page.keyboard.press("ArrowDown");
     await runner.page.keyboard.press("Enter");
-    await runner.page.keyboard.press("Escape");
+    await gotoDatabasesPath(runner, dealsUrl);
+    await runner.getByText("New row", {exact: true}).waitFor();
     await customersCell.click();
     await runner.getByLabel("Search records").waitFor();
     await runner.getByRole("button", {name: "Remove Northwind Trading"}).waitFor();
