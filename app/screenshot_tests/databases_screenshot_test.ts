@@ -108,15 +108,11 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await runner.getByRole("option", {name: "Northwind Trading", exact: true}).waitFor();
     await runner.page.keyboard.press("ArrowDown");
     await runner.page.keyboard.press("Enter");
+    await runner.getByRole("button", {name: "Remove Northwind Trading"}).waitFor();
     await runner.getByLabel("Search records").fill("Meridian Labs");
     await runner.getByRole("option", {name: "Meridian Labs", exact: true}).waitFor();
     await runner.page.keyboard.press("ArrowDown");
     await runner.page.keyboard.press("Enter");
-    await gotoDatabasesPath(runner, dealsUrl);
-    await runner.getByText("New row", {exact: true}).waitFor();
-    await customersCell.click();
-    await runner.getByLabel("Search records").waitFor();
-    await runner.getByRole("button", {name: "Remove Northwind Trading"}).waitFor();
     await runner.getByRole("button", {name: "Remove Meridian Labs"}).waitFor();
     await runner.mouse.move(0, 0);
     await runner.screenshot("a8", "linked-record-editor-linked");
