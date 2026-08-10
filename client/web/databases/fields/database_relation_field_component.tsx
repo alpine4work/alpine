@@ -237,6 +237,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
     const listScrollRef = useRef<HTMLDivElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
+    const listContainerRef = useMergedRefs(listScrollRef, popoverRef);
 
     const comboBoxState: ComboBoxState<DatabaseRelationCandidateRow> = {
         inputValue: search,
@@ -393,7 +394,11 @@ function DatabaseRelationGridViewCellEditorOverlay({
                 ) : null}
             </Box>
 
-            <Box borderTop="grey-5" ref={listScrollRef} style={{maxHeight: 320, overflowY: "auto"}}>
+            <Box
+                borderTop="grey-5"
+                ref={listContainerRef}
+                style={{maxHeight: 320, overflowY: "auto"}}
+            >
                 {!isSearching && linkedRows.length > 0 ? (
                     <DatabaseRelationLinkedList
                         linkedRows={linkedRows}
@@ -419,7 +424,6 @@ function DatabaseRelationGridViewCellEditorOverlay({
                 <DatabaseRelationCandidateListBox
                     listState={listState}
                     listBoxRef={listBoxRef}
-                    popoverRef={popoverRef}
                     scrollRef={listScrollRef}
                     listBoxProps={listBoxProps}
                     showEmptyState={isSearching}
@@ -660,14 +664,12 @@ function DatabaseRelationChip({name, noAccess}: {name: string | null; noAccess?:
 function DatabaseRelationCandidateListBox({
     listState,
     listBoxRef,
-    popoverRef,
     scrollRef,
     listBoxProps: ariaListBoxProps,
     showEmptyState,
 }: {
     listState: ListState<DatabaseRelationCandidateRow>;
     listBoxRef: RefObject<HTMLUListElement | null>;
-    popoverRef: RefObject<HTMLDivElement | null>;
     scrollRef: RefObject<HTMLDivElement | null>;
     listBoxProps: AriaListBoxOptions<DatabaseRelationCandidateRow>;
     showEmptyState: boolean;
@@ -685,7 +687,7 @@ function DatabaseRelationCandidateListBox({
     );
 
     return (
-        <Box ref={popoverRef}>
+        <Box>
             <ul {...listBoxProps} ref={listBoxRef}>
                 {listState.collection.size === 0
                     ? showEmptyState && (
