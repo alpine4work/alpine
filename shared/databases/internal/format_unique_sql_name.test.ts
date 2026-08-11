@@ -9,6 +9,16 @@ describe("formatUniqueSqlName", () => {
         expect(formatUniqueSqlName("My Table", empty)).toBe("my_table");
     });
 
+    test("uses URL slug accent normalization", () => {
+        expect(formatUniqueSqlName("Crème brûlée", empty)).toBe("creme_brulee");
+    });
+
+    test("uses URL slug ampersand normalization", () => {
+        expect(formatUniqueSqlName("Research & Development", empty)).toBe(
+            "research_and_development",
+        );
+    });
+
     test("collapses runs of underscores", () => {
         expect(formatUniqueSqlName("a---b___c", empty)).toBe("a_b_c");
     });

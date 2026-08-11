@@ -1,30 +1,29 @@
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_pathname_slug.open_source.js";
 
 /**
- * Slugify a human-readable name into a SQL-safe identifier: lowercase, `_`-
- * separated, never starting with `_`, a digit, or the reserved `sqlite_` prefix.
+ * Use {@link convertToUrlPathnameSlug} to make a lowercase, `_`-separated name.
+ * Then, make the result a SQL-safe identifier that does not start with `_`, a
+ * digit, or the reserved `sqlite_` prefix.
  *
  * Deduplication against existing names is the caller's job — see
  * `formatUniqueSqlName` (in-memory set) and `formatUniqueTableName` (registry hash
  * probe).
  */
 export function slugifySqlName(name: string): string {
-    let slug = name
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "_")
-        .replace(/_+/g, "_");
-
-    slug = slug.replace(/^_+/, "");
+    let slug = convertToUrlPathnameSlug(name, "_");
 
     if (slug.startsWith("sqlite_")) {
         slug = "x_" + slug;
     }
 
-    if (slug === "" || /^[0-9]/.test(slug)) {
+    if (/^[0-9]/.test(slug)) {
         slug = "x_" + slug;
     }
 
-    slug = slug.replace(/_+$/, "");
+    if (slug === "") {
+        slug = "x";
+    }
 
     assert(!slug.startsWith("_"), "slugified SQL name should never start with _");
 
