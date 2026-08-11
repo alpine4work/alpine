@@ -20,6 +20,7 @@ ts_project(
         "//:node_modules/date-fns",
         "//:node_modules/env-paths",
         "//:node_modules/lmdb",
+        "//:node_modules/ordered-binary",
         "//:node_modules/prettier",
         "//:node_modules/strip-ansi",
         "//server/agents/api",

@@ -1,3 +1,4 @@
+import nlp from "compromise";
 import {useMemo, useRef} from "react";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
@@ -23,7 +24,8 @@ import {
 import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
-import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
+import {cutContent} from "~/shared/content/cut_content.js";
+import {getContentSnippetPos} from "~/shared/content/get_content_snippet.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
@@ -75,7 +77,12 @@ function renderMessageStreamNonContentPart(
         case "Reasoning": {
             // Get only the first line of the reasoning content. 0 gets no lines after the
             // start so only the single line of text at the start.
-            const contentSnippet = getContentSnippet(part.content.resolve(0), 0);
+            const {from, to} = getContentSnippetPos(part.content.resolve(0), 0, {
+                // Keep the title short! ~1.8 lines of text in practice it seems
+                maxLineGraphemeCount: 144,
+            });
+
+            const contentSnippet = cutContent(part.content, from, to);
 
             const contentSnippetText = printContentSingleLineTextSnippetForClient(
                 get,
@@ -83,8 +90,22 @@ function renderMessageStreamNonContentPart(
                 {accountRegistry, searchEntityRegistry, fileRegistry},
             );
 
+            // If the first line of text contains multiple sentences, then truncate after the
+            // first sentence.
+            let contentSnippetTextFirstSentence = nlp(contentSnippetText)
+                .fullSentences()
+                .first()
+                .text()
+                .trim();
+
+            // If the title ends in a period or comma then remove it. The natural break between
+            // reasoning title and the content afterwards should be sufficient pause.
+            if (/[.,]$/.test(contentSnippetTextFirstSentence)) {
+                contentSnippetTextFirstSentence = contentSnippetTextFirstSentence.slice(0, -1);
+            }
+
             const html = new HtmlElementGenerator("span");
-            html.appendChild(new HtmlTextGenerator(contentSnippetText));
+            html.appendChild(new HtmlTextGenerator(contentSnippetTextFirstSentence));
             return html;
         }
         case "ToolCall": {

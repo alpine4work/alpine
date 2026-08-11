@@ -3,8 +3,8 @@ import {createApiTaskMock} from "~/server/agents/api/test_helpers/create_api_tas
 import {mockApiGetTask} from "~/server/agents/api/test_helpers/mock_api_get_task.js";
 import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
-import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
+import {callAgentWebCreateTool as actuallyCallAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
+import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -18,6 +18,18 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebCreateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebCreateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebCreateTool(...callArguments)).response;
+}
+
+async function callAgentWebUpdateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebUpdateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebUpdateTool(...callArguments)).response;
+}
 
 const spaceId = generateId<SpaceId>();
 const launchTaskId = generateId<TaskId>();
@@ -40,18 +52,41 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: generateId<AccountId>(),
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: generateId<BotId>()},
-        pathname: "/bot/chatgpt",
     },
 };
 
+function mockAgentWebBotAccountReferenceForTest(
+    api: ApiClientMock,
+    botAccount: AgentWebContext["botAccount"],
+): void {
+    api.mockGet("/accounts/{id}-reference", {
+        params: {path: {id: botAccount.id}},
+        data: {
+            reference: {
+                type: "Account",
+                id: botAccount.id,
+                title: "ChatGPT",
+                shortName: "ChatGPT",
+                bot: botAccount.bot,
+            },
+        },
+    });
+}
+
 beforeEach(async () => {
     await storage.deleteAll();
-    await storeAgentWebPageLinkForTest(storage, [context.botAccount, launchTaskReference]);
+    await storeAgentWebPageLinkForTest(storage, [
+        {
+            type: "Account",
+            id: context.botAccount.id,
+            title: "ChatGPT",
+            shortName: "ChatGPT",
+            bot: context.botAccount.bot,
+        },
+        launchTaskReference,
+    ]);
 });
 
 function getApiPostTaskCollectionsRequestHistory() {
@@ -720,6 +755,8 @@ test("validates a new task\u2019s subtask counts before creating a collection", 
 });
 
 test("validates a new active task\u2019s assignee before creating a collection", async () => {
+    mockAgentWebBotAccountReferenceForTest(api, context.botAccount);
+
     const result = await callAgentWebCreateTool(context, {
         type: "task-collection",
         content: `\
@@ -728,7 +765,7 @@ test("validates a new active task\u2019s assignee before creating a collection",
 - Draft launch plan (Open, active)`,
     });
 
-    expect({result, requests: api.getRequestHistory()}).toEqual({
+    expect({result, requests: api.getRequestHistory()}).toMatchObject({
         result:
             "Error: Couldn\u2019t create task collection. " +
             ("Can\u2019t create the task \u201CDraft launch plan\u201D as active if there\u2019s no assignee. We " +
@@ -736,7 +773,13 @@ test("validates a new active task\u2019s assignee before creating a collection",
                 "task or you know someone else is currently working on the task. Try again and " +
                 "either create the task as open but inactive (e.g. \u201C(Open)\u201D) or set an assignee " +
                 "(e.g. `- Assignee: [ChatGPT](/bot/chatgpt)`)."),
-        requests: [],
+        requests: [
+            {
+                method: "GET",
+                path: "/accounts/{id}-reference",
+                params: {path: {id: context.botAccount.id}},
+            },
+        ],
     });
 });
 

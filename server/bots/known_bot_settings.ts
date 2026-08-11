@@ -1,5 +1,6 @@
 import {
     chatGptKnownBotId,
+    claudeKnownBotId,
     cursorKnownBotId,
 } from "~/server/bots/settings_default_known_bot_account_model_data.js";
 import {parseSimpleContentFromMarkdown} from "~/shared/api/content/closed_source/parse_simple_content_from_markdown.js";
@@ -31,6 +32,62 @@ working on in Alpine.
 Want to use your own OpenAI API key? Let us know: [feedback@alpine.inc](mailto:feedback@alpine.inc)
 `),
             schema: {properties: emptyMap},
+        },
+        [claudeKnownBotId]: {
+            description: parseSimpleContentFromMarkdown(`\
+Claude is an AI assistant created by Anthropic. Claude can help you with whatever you\u2019re
+working on in Alpine.
+`),
+            schema: {
+                properties: new Map([
+                    [
+                        "apiKey",
+                        {
+                            type: "String",
+                            level: "Space",
+                            label: "API key",
+                            hint: "Get a key from Anthropic\u2019s Claude Console",
+                            placeholder:
+                                "sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                            isCode: true,
+                            isSecret: true,
+                        },
+                    ],
+                    [
+                        "model",
+                        {
+                            type: "Select",
+                            level: "Space",
+                            label: "Model",
+                            hint: "The Claude model used for responses",
+                            defaultValue: "claude-sonnet-5",
+                            options: [
+                                {label: "Fable 5", value: "claude-fable-5"},
+                                {label: "Opus 5", value: "claude-opus-5"},
+                                {label: "Sonnet 5", value: "claude-sonnet-5"},
+                                {label: "Haiku 4.5", value: "claude-haiku-4-5"},
+                            ],
+                        },
+                    ],
+                    [
+                        "effort",
+                        {
+                            type: "Select",
+                            level: "Space",
+                            label: "Effort",
+                            hint: "Higher means more thorough, but takes longer",
+                            defaultValue: "high",
+                            options: [
+                                {label: "Low", value: "low"},
+                                {label: "Medium", value: "medium"},
+                                {label: "High", value: "high"},
+                                {label: "Extra", value: "xhigh"},
+                                {label: "Max", value: "max"},
+                            ],
+                        },
+                    ],
+                ]),
+            },
         },
         [cursorKnownBotId]: {
             description: parseSimpleContentFromMarkdown(`\

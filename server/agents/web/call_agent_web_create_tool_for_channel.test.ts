@@ -1,6 +1,6 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
+import {callAgentWebCreateTool as actuallyCallAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
@@ -9,6 +9,12 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebCreateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebCreateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebCreateTool(...callArguments)).response;
+}
 
 const spaceId = generateId<SpaceId>();
 const {span} = testTracer.startSpan("call_agent_web_create_tool_for_channel.test.ts");
@@ -22,18 +28,20 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: generateId<AccountId>(),
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: generateId<BotId>()},
-        pathname: "/bot/chatgpt",
     },
 };
 
 beforeEach(async () => {
     await storage.deleteAll();
-    await storeAgentWebPageLinkForTest(storage, context.botAccount);
+    await storeAgentWebPageLinkForTest(storage, {
+        type: "Account",
+        id: context.botAccount.id,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: context.botAccount.bot,
+    });
 });
 
 function channelContentFromText(text: string): ApiContentResponseWithoutKeys {

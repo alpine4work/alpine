@@ -1,4 +1,5 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
+import nlp from "compromise";
 import {BookOpen, CheckCircle, IconProps, MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {ComponentType, Ref, useMemo} from "react";
@@ -23,6 +24,7 @@ import {cutContent} from "~/shared/content/cut_content.js";
 import {getContentSnippetPos} from "~/shared/content/get_content_snippet.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {listItemIndentationVar} from "~/shared/design/core/constant_class_names.js";
+import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
 import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
 import {computeStore} from "~/shared/store/compute_store.js";
@@ -129,6 +131,14 @@ function MessageStreamViewThinkingExpandedItem({
         }
     }
 
+    const lineHeight = 1.3;
+
+    const bulletTop =
+        (fontSizesBySpacingScale[contentStyles.paragraphActualFontSize][spacingScale].fontSize *
+            lineHeight -
+            convertRemLengthToPx(contentStyles.unorderedListItemBulletSize, spacingScale)) /
+        2;
+
     return (
         <div className={sprinkles({display: "flex"})}>
             <div
@@ -186,7 +196,7 @@ function MessageStreamViewThinkingExpandedItem({
                             borderRadius: "full",
                         })}
                         style={{
-                            top: contentStyles.unorderedListItemBulletTop[spacingScale],
+                            top: bulletTop,
                             left: contentStyles.unorderedListItemBulletLeft,
                             backgroundColor: backgroundColorVar,
                             boxShadow: `0 0 0 calc(2px - 0.0625rem) ${backgroundColorVar}`,
@@ -213,7 +223,7 @@ function MessageStreamViewThinkingExpandedItem({
                     })}
                     style={{
                         top: isFirstItem
-                            ? contentStyles.unorderedListItemBulletTop[spacingScale] +
+                            ? bulletTop +
                               convertRemLengthToPx(
                                   contentStyles.unorderedListItemBulletSize,
                                   spacingScale,
@@ -221,7 +231,7 @@ function MessageStreamViewThinkingExpandedItem({
                                   2
                             : 0,
                         bottom: isLastItem
-                            ? contentStyles.unorderedListItemBulletTop[spacingScale] +
+                            ? bulletTop +
                               convertRemLengthToPx(
                                   contentStyles.unorderedListItemBulletSize,
                                   spacingScale,
@@ -247,13 +257,15 @@ function MessageStreamViewThinkingExpandedItem({
                 })}
             >
                 {part.type === "Done" ? (
-                    <div>Done</div>
+                    <div style={{lineHeight}}>Done</div>
                 ) : part.type === "Thinking" ? (
-                    <div className={pulseAnimationClassName}>
+                    <div className={pulseAnimationClassName} style={{lineHeight}}>
                         <MessageStreamViewThinkingProgressDefaultSummary />
                     </div>
                 ) : (
-                    <MessageStreamViewNonContentPart references={references} part={part} />
+                    <div style={{lineHeight}}>
+                        <MessageStreamViewNonContentPart references={references} part={part} />
+                    </div>
                 )}
                 {part.type === "Reasoning" && (
                     <MessageStreamSectionThinkingExpandedItemReasoningContent
@@ -285,7 +297,26 @@ function MessageStreamSectionThinkingExpandedItemReasoningContent({
                 //
                 // Same cut used by `renderMessageStreamNonContentPart()`. We want to get the
                 // remaining content after the first line here in this component.
-                const {to} = getContentSnippetPos(content.resolve(0), 0);
+                const {from, to} = getContentSnippetPos(content.resolve(0), 0, {
+                    // Keep the title short! ~1.8 lines of text in practice it seems
+                    maxLineGraphemeCount: 144,
+                });
+
+                const contentSnippet = cutContent(content, from, to);
+
+                const contentSnippetText = printContentSingleLineTextSnippetForClient(
+                    get,
+                    {doc: contentSnippet, references},
+                    {accountRegistry, searchEntityRegistry, fileRegistry},
+                );
+
+                // The reasoning title truncates after the first sentence, so include any remaining
+                // content from the `getContentSnippetPos()` call in the remaining content body.
+                const contentSnippetTextAfterFirstSentence = nlp(contentSnippetText)
+                    .fullSentences()
+                    .slice(1)
+                    .text()
+                    .trim();
 
                 const remainingContentSnippet = cutContent(content, to);
 
@@ -295,7 +326,7 @@ function MessageStreamSectionThinkingExpandedItemReasoningContent({
                     {accountRegistry, searchEntityRegistry, fileRegistry},
                 );
 
-                return remainingContentSnippetText;
+                return contentSnippetTextAfterFirstSentence + remainingContentSnippetText;
             });
         }, [accountRegistry, content, fileRegistry, references, searchEntityRegistry]),
     );

@@ -289,7 +289,7 @@ export async function createAgentWebChatPage(
 }
 
 export async function updateAgentWebChatPage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     pathname: MaybeThunk<MaybePromise<string>>,
     oldPageMetadata: MaybeThunk<MaybePromise<AgentWebChatPageMetadata>>,
     oldPage: AgentWebChatPage,

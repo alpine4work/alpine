@@ -311,8 +311,10 @@ async function loadModels({
 
     let asr: ProbeModels["asr"] = null;
     if (needsAsr) {
-        asr = await measureStage(stages, "Load Whisper ASR model", async () =>
-            createAsrPipeline({cacheDirectoryPath, whisperModel}),
+        asr = await measureStage(
+            stages,
+            "Load Whisper ASR model",
+            async () => await createAsrPipeline({cacheDirectoryPath, whisperModel}),
         );
     }
 
@@ -358,16 +360,21 @@ async function runRoute({
 }): Promise<ProbeRouteResult> {
     switch (route) {
         case "Image": {
-            const imagePayload = await measureStage(stages, "Prepare image for Bedrock", async () =>
-                loadResizedImagePayload(filePath),
+            const imagePayload = await measureStage(
+                stages,
+                "Prepare image for Bedrock",
+                async () => await loadResizedImagePayload(filePath),
             );
-            const response = await measureStage(stages, "Analyze image with Gemma 3", async () =>
-                analyzeImageWithGemma({
-                    bedrockClient: models.bedrockClient,
-                    imagePayload,
-                    modelId,
-                    region,
-                }),
+            const response = await measureStage(
+                stages,
+                "Analyze image with Gemma 3",
+                async () =>
+                    await analyzeImageWithGemma({
+                        bedrockClient: models.bedrockClient,
+                        imagePayload,
+                        modelId,
+                        region,
+                    }),
             );
             return {
                 estimatedCostUsd: estimateCostUsd({region, usage: response.usage}),
@@ -379,21 +386,23 @@ async function runRoute({
         }
         case "Audio": {
             assert(models.asr !== null);
-            const audio = await measureStage(stages, "Decode audio to mono 16k float32", async () =>
-                decodeAudioToFloat32({filePath}),
+            const audio = await measureStage(
+                stages,
+                "Decode audio to mono 16k float32",
+                async () => await decodeAudioToFloat32({filePath}),
             );
             const asr = models.asr;
             assert(asr !== null);
             const transcript = await measureStage(
                 stages,
                 "Transcribe audio with Whisper",
-                async () => transcribeAudio(asr, audio),
+                async () => await transcribeAudio(asr, audio),
             );
             const response = await measureStage(
                 stages,
                 "Summarize audio transcript with Gemma 3",
                 async () =>
-                    analyzeTranscriptWithGemma({
+                    await analyzeTranscriptWithGemma({
                         bedrockClient: models.bedrockClient,
                         kind: "audio transcript",
                         modelId,
@@ -410,13 +419,15 @@ async function runRoute({
             };
         }
         case "Video": {
-            const durationSeconds = await measureStage(stages, "Probe video duration", async () =>
-                probeMediaDurationSeconds({filePath}),
+            const durationSeconds = await measureStage(
+                stages,
+                "Probe video duration",
+                async () => await probeMediaDurationSeconds({filePath}),
             );
             const hasAudioStream = await measureStage(
                 stages,
                 "Probe video audio stream",
-                async () => probeMediaHasAudioStream({filePath}),
+                async () => await probeMediaHasAudioStream({filePath}),
             );
             const frameTimestampsSeconds = getVideoFrameTimestampsSeconds(durationSeconds);
             const frameCount = frameTimestampsSeconds.length;
@@ -435,7 +446,7 @@ async function runRoute({
                         stages,
                         `Extract frame ${index + 1} of ${frameCount}`,
                         async () =>
-                            extractVideoFrame({
+                            await extractVideoFrame({
                                 filePath,
                                 outputPath: framePath,
                                 timeSeconds: frameTimestampSeconds,
@@ -444,7 +455,7 @@ async function runRoute({
                     const framePayload = await measureStage(
                         stages,
                         `Prepare frame ${index + 1} for Bedrock`,
-                        async () => loadResizedImagePayload(framePath),
+                        async () => await loadResizedImagePayload(framePath),
                     );
                     framePayloads.push(framePayload);
                 }
@@ -455,14 +466,14 @@ async function runRoute({
                     const audio = await measureStage(
                         stages,
                         "Decode video audio to mono 16k float32",
-                        async () => decodeAudioToFloat32({filePath}),
+                        async () => await decodeAudioToFloat32({filePath}),
                     );
                     const asr = models.asr;
                     assert(asr !== null);
                     transcript = await measureStage(
                         stages,
                         "Transcribe video audio with Whisper",
-                        async () => transcribeAudio(asr, audio),
+                        async () => await transcribeAudio(asr, audio),
                     );
                 }
 
@@ -470,7 +481,7 @@ async function runRoute({
                     stages,
                     "Analyze video frames and transcript with Gemma 3",
                     async () =>
-                        analyzeVideoWithGemma({
+                        await analyzeVideoWithGemma({
                             bedrockClient: models.bedrockClient,
                             framePayloads,
                             modelId,
@@ -514,7 +525,7 @@ async function analyzeImageWithGemma({
     modelId: string;
     region: PricingRegion;
 }): Promise<{text: string; usage: ProbeUsage}> {
-    return invokeBedrockJson({
+    return await invokeBedrockJson({
         bedrockClient,
         contentBlocks: [
             {
@@ -550,7 +561,7 @@ async function analyzeTranscriptWithGemma({
     region: PricingRegion;
     transcript: string;
 }): Promise<{text: string; usage: ProbeUsage}> {
-    return invokeBedrockJson({
+    return await invokeBedrockJson({
         bedrockClient,
         contentBlocks: [
             {
@@ -613,7 +624,7 @@ async function analyzeVideoWithGemma({
             "Do not include markdown, commentary, or extra keys.",
     });
 
-    return invokeBedrockJson({bedrockClient, contentBlocks, modelId, region});
+    return await invokeBedrockJson({bedrockClient, contentBlocks, modelId, region});
 }
 
 async function invokeBedrockJson({

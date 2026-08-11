@@ -8,6 +8,7 @@ ts_project(
         "//app/dev:__pkg__",
         "//app/integration_tests:__pkg__",
         "//app/screenshot_tests:__subpackages__",
+        "//server/agents/bots_v2/dev:__pkg__",
         "//server/dynamo/test_helpers:__subpackages__",
     ],
     deps = [

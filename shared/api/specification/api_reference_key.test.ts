@@ -1,4 +1,5 @@
 import {
+    convertApiReferenceKeyToLowercase,
     parseApiReferenceKey,
     printApiReferenceKey,
 } from "~/shared/api/specification/api_reference_key.open_source.js";
@@ -24,7 +25,7 @@ const postId = generateId<PostId>();
 const taskId = generateId<TaskId>();
 const taskCollectionId = generateId<TaskCollectionId>();
 
-const ApiReferences: ReadonlyArray<ApiReference> = [
+const references: ReadonlyArray<ApiReference> = [
     {type: "Account", id: accountId},
     {type: "Channel", id: channelId},
     {type: "Chat", id: chatId},
@@ -32,10 +33,11 @@ const ApiReferences: ReadonlyArray<ApiReference> = [
     {type: "Document", id: documentId},
     {
         type: "DocumentMessage",
-        id: documentId,
-        threadId: documentCommentThreadId,
+        document: {id: documentId},
+        id: documentCommentThreadId,
         index: 2,
     },
+    {type: "DocumentThread", document: {id: documentId}, id: documentCommentThreadId},
     {type: "Post", id: postId},
     {type: "PostMessage", id: postId, index: 3},
     {type: "Task", id: taskId},
@@ -43,8 +45,11 @@ const ApiReferences: ReadonlyArray<ApiReference> = [
     {type: "TaskCollection", id: taskCollectionId},
 ];
 
-describe("parseApiReferenceKey", () => {
-    test.each(ApiReferences)("parses $type target keys", ApiReference => {
-        expect(parseApiReferenceKey(printApiReferenceKey(ApiReference))).toEqual(ApiReference);
-    });
+test.each(references)("parses $type target keys", reference => {
+    expect(parseApiReferenceKey(printApiReferenceKey(reference))).toEqual(reference);
+});
+
+test.each(references)("converts $type target keys to lowercase", reference => {
+    const key = convertApiReferenceKeyToLowercase(printApiReferenceKey(reference));
+    expect(key).toEqual(key.toLowerCase());
 });

@@ -1,6 +1,7 @@
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
+import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {fetchAppStaticFile} from "~/server/resources/fetch_app_static_file.js";
 import {fetchAvatar} from "~/server/resources/fetch_avatar.js";
 import {fetchUploadedFile} from "~/server/resources/fetch_uploaded_file.js";
@@ -491,10 +492,7 @@ async function actuallyHandleFetch(
             break;
         }
         case "HealthCheck": {
-            response = new Response("200 OK", {
-                status: 200,
-                headers: {"content-type": "text/plain"},
-            });
+            response = createSimpleOkResponse();
             break;
         }
         case "NotFound": {

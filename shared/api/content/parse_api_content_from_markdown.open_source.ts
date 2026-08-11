@@ -23,7 +23,6 @@ import {math} from "micromark-extension-math";
 import {
     normalizeApiContentBlockElement,
     normalizeApiContentInlineElementMarks,
-    normalizeApiReference,
 } from "~/shared/api/content/normalize_api_content.open_source.js";
 import {
     ApiContentFileOrPreviewBlockElement,
@@ -31,6 +30,7 @@ import {
     parseApiMentionReferenceFromMarkdownUrlIfPossible,
 } from "~/shared/api/content/parse_api_content_from_markdown_url_if_possible.open_source.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.open_source.js";
+import {printApiReferenceKey} from "~/shared/api/specification/api_reference_key.open_source.js";
 import {
     ApiContent,
     ApiContentBlockElement,
@@ -133,6 +133,12 @@ function actuallyParseApiContentFromMarkdown(
     options?: ApiContentMarkdownParserOptions,
 ): ApiContent {
     const root = parseMarkdownTree(markdown);
+
+    // IMPORTANT: Do not call `normalizeApiContent()` on this return! The parser must
+    // return normalized markdown on its own without needing to call
+    // `normalizeApiContent()`. If the parser doesn't return content in normalized form
+    // then that's a deeper bug in the parser you should fix instead of calling
+    // `normalizeApiContent()` at the top level (which is lazy).
     return parseApiContentFromMarkdown(root, options);
 }
 
@@ -221,6 +227,11 @@ function parseApiContentFromMarkdown(
         ),
     );
 
+    // IMPORTANT: Do not call `normalizeApiContent()` on this return! The parser must
+    // return normalized markdown on its own without needing to call
+    // `normalizeApiContent()`. If the parser doesn't return content in normalized form
+    // then that's a deeper bug in the parser you should fix instead of calling
+    // `normalizeApiContent()` at the top level (which is lazy).
     return {
         elements: elements.length === 0 ? [{type: "Paragraph", elements: []}] : elements,
     };
@@ -2354,10 +2365,8 @@ function* parseApiContentInlineElementFromMarkdown(
                 // may be a response specialization and contain additional properties like `title`.
                 if (content.data?.mentionReference) {
                     assert(
-                        isDeepEqual(
-                            mentionReference,
-                            normalizeApiReference(content.data.mentionReference),
-                        ),
+                        printApiReferenceKey(mentionReference) ===
+                            printApiReferenceKey(content.data.mentionReference),
                     );
 
                     mentionReference = content.data.mentionReference;

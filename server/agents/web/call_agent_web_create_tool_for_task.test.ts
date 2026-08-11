@@ -3,7 +3,7 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {createApiTaskMock} from "~/server/agents/api/test_helpers/create_api_task_mock.js";
 import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
+import {callAgentWebCreateTool as actuallyCallAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
@@ -21,6 +21,12 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebCreateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebCreateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebCreateTool(...callArguments)).response;
+}
 
 const {span} = testTracer.startSpan("call_agent_web_create_tool_for_task.test.ts");
 const api = new ApiClientMock();
@@ -57,14 +63,28 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
+
+function mockAgentWebBotAccountReferenceForTest(
+    api: ApiClientMock,
+    botAccount: AgentWebContext["botAccount"],
+): void {
+    api.mockGet("/accounts/{id}-reference", {
+        params: {path: {id: botAccount.id}},
+        data: {
+            reference: {
+                type: "Account",
+                id: botAccount.id,
+                title: "ChatGPT",
+                shortName: "ChatGPT",
+                bot: botAccount.bot,
+            },
+        },
+    });
+}
 
 beforeEach(async () => {
     await storeAgentWebPageLinkForTest(storage, [
@@ -862,7 +882,9 @@ test("rejects invalid task priority without calling the API", async () => {
     expect(getCreateTaskRequests()).toHaveLength(0);
 });
 
-test("rejects active task without assignee on create without calling the API", async () => {
+test("rejects active task without assignee on create", async () => {
+    mockAgentWebBotAccountReferenceForTest(api, context.botAccount);
+
     await expect(
         callAgentWebCreateTool(context, {
             type: "task",

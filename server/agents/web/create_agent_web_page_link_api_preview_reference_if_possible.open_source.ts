@@ -26,6 +26,7 @@ export function createAgentWebPageLinkApiPreviewReferenceIfPossible(
         case "File":
         case "Inbox":
         case "Skill":
+        case "MyAccount":
             return null;
         default:
             throw exhaustive(link);

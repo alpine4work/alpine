@@ -2,9 +2,9 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {printAgentWebPageStoredLinkPathname} from "~/server/agents/web/agent_web_page_stored_link.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
-import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
-import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebScrollTool as actuallyCallAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
+import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
@@ -24,6 +24,24 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
+async function callAgentWebScrollTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebScrollTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebScrollTool(...callArguments)).response;
+}
+
+async function callAgentWebUpdateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebUpdateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebUpdateTool(...callArguments)).response;
+}
+
 const {span} = testTracer.startSpan("call_agent_web_update_tool_document.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
@@ -39,12 +57,8 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
 

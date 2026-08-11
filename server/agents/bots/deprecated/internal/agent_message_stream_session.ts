@@ -7,8 +7,8 @@ import {
 } from "~/server/agents/api/api_client.open_source.js";
 import {AgentMessageStream} from "~/server/agents/bots/deprecated/internal/agent_message_stream.js";
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
-import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
-import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
+import {messageStreamPingIntervalMs} from "~/shared/agents/message_stream_ping_interval_ms.js";
+import {convertApiContentToProperQuotes} from "~/shared/api/content/convert_api_content_to_proper_quotes.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
     ApiMessageResponse,
@@ -444,7 +444,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
                     this._newMessageIndex,
                 );
             });
-        }, agentMessageStreamPingIntervalMs);
+        }, messageStreamPingIntervalMs);
     }
 
     private _clearPingInterval() {

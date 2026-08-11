@@ -1,4 +1,4 @@
-import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {InvalidArgumentError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 
 /**
  * HTTP header carrying the signature of a bot webhook request. The value has the
@@ -46,10 +46,9 @@ export async function verifyBotWebhookRequestSignature({
     signature: string | null;
     secret: string;
 }): Promise<void> {
-    // If the request was not signed, then we don't need to verify the signature. Just
-    // because we are able to verify signed requests doesn't mean that every request
-    // _must_ be signed
-    if (signature === null) return;
+    if (signature === null) {
+        throw new InvalidArgumentError("Missing bot webhook signature");
+    }
 
     const expectedSignature = await signBotWebhookRequest({requestBodyString, secret});
 

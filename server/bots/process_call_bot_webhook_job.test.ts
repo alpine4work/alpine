@@ -21,6 +21,7 @@ import {
 } from "~/shared/api/specification/sign_bot_webhook_request.js";
 import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {
     PromiseResolver,
     createPromiseResolver,
@@ -333,13 +334,13 @@ test("webhook requests are not signed when the bot has no webhook secret", async
 
     const unsignedRequestBody = assertExists<string>(requestBody);
 
-    // Unsigned requests pass verification. Just because we are able to verify signed
-    // requests doesn't mean that every request _must_ be signed.
-    await verifyBotWebhookRequestSignature({
-        requestBodyString: unsignedRequestBody,
-        signature: requestSignature,
-        secret: "test-secret",
-    });
+    await expect(
+        verifyBotWebhookRequestSignature({
+            requestBodyString: unsignedRequestBody,
+            signature: requestSignature,
+            secret: "test-secret",
+        }),
+    ).rejects.toThrow(InvalidArgumentError);
 
     expect(requestSignature).toBeNull();
 });

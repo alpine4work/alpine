@@ -171,7 +171,7 @@ async function printScreenshotTestPreviewHtml(
         )
         .join("\n");
 
-    return prettier.format(
+    return await prettier.format(
         html`
             <!doctype html>
             <html lang="en" data-color-scheme="light" style="--columns: 3">

@@ -3,6 +3,7 @@ import {Readable as ReadableStream} from "stream";
 import {isCloudflareR2NoSuchKeyError} from "~/server/cloudflare/r2/cloudflare_r2_client.js";
 import {FileProcessorProcessContext} from "~/server/files/data/file_processor_context.js";
 import {resizeFile} from "~/server/files/processor/resize_file.js";
+import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {createStandardizedServer} from "~/server/node/create_standardized_server.js";
 import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {createActorContextModuleFromAuthorizationHeader} from "~/server/spaces/create_actor_context_module_from_authorization_header.js";
@@ -121,10 +122,7 @@ export function createFileProcessorServiceServer(
     ): Promise<Response> {
         switch (route.type) {
             case "HealthCheck": {
-                return new Response("200 OK", {
-                    status: 200,
-                    headers: {"content-type": "text/plain"},
-                });
+                return createSimpleOkResponse();
             }
             case "NotFound": {
                 return new Response("404 Not Found", {

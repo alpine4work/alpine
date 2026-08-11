@@ -3538,10 +3538,8 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "DocumentThread";
+                readonly document: components["schemas"]["DocumentReference"];
                 readonly id: components["schemas"]["DocumentThreadId"];
-                readonly document: {
-                    readonly id: components["schemas"]["DocumentId"];
-                };
             };
             readonly PostReference: {
                 /**
@@ -5892,14 +5890,12 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "CreatedPost";
-                readonly post: {
-                    readonly id: components["schemas"]["PostId"];
-                };
+                readonly room: components["schemas"]["PostReference"];
                 readonly author: {
                     readonly id: components["schemas"]["AccountId"];
                 };
                 readonly createdTimeZone: components["schemas"]["TimeZone"];
-                readonly wasMentioned?: boolean;
+                readonly wasMentioned: boolean;
             };
             readonly BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent: {
                 /**
@@ -6021,8 +6017,10 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "DocumentMessage";
-                readonly id: components["schemas"]["DocumentId"];
-                readonly threadId: components["schemas"]["DocumentThreadId"];
+                readonly document: {
+                    readonly id: components["schemas"]["DocumentId"];
+                };
+                readonly id: components["schemas"]["DocumentThreadId"];
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
@@ -6476,8 +6474,10 @@ export namespace ApiSpecification {
                  * {string}
                  */
                 readonly type: "DocumentMessage";
-                readonly id: components["schemas"]["DocumentId"];
-                readonly threadId: components["schemas"]["DocumentThreadId"];
+                readonly document: {
+                    readonly id: components["schemas"]["DocumentId"];
+                };
+                readonly id: components["schemas"]["DocumentThreadId"];
                 readonly index: number;
                 /** @constant */
                 readonly title: null;
@@ -6547,6 +6547,19 @@ export namespace ApiSpecification {
                  */
                 readonly type: "SetParent";
                 readonly parent: components["schemas"]["TaskParent_Response"] | null;
+            };
+            readonly BotWebhookCreatedPostEvent_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "CreatedPost";
+                readonly room: components["schemas"]["PostReference_Response"];
+                readonly author: {
+                    readonly id: components["schemas"]["AccountId"];
+                };
+                readonly createdTimeZone: components["schemas"]["TimeZone"];
+                readonly wasMentioned: boolean;
             };
             readonly DirectChat_Response: {
                 /**
@@ -6631,7 +6644,7 @@ export namespace ApiSpecification {
             };
             readonly MessageRoomReference_Response:
                 | components["schemas"]["ChatReference_Response"]
-                | components["schemas"]["DocumentThreadReference"]
+                | components["schemas"]["DocumentThreadReference_Response"]
                 | components["schemas"]["PostReference_Response"]
                 | components["schemas"]["TaskReference_Response"];
             readonly MentionReference_Response:
@@ -6699,6 +6712,15 @@ export namespace ApiSpecification {
                  */
                 readonly type: "ExcludesAllOf";
                 readonly collections: readonly components["schemas"]["TaskCollectionPreview_Response"][];
+            };
+            readonly DocumentThreadReference_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "DocumentThread";
+                readonly document: components["schemas"]["DocumentReference_Response"];
+                readonly id: components["schemas"]["DocumentThreadId"];
             };
             readonly MessageStreamToolCallPartCreateCallReference_Response:
                 | components["schemas"]["DocumentReference_Response"]
@@ -6867,6 +6889,10 @@ export namespace ApiSpecification {
                 readonly cursor: components["schemas"]["TaskQueryCursor"];
                 readonly task: components["schemas"]["Task_Response"];
             };
+            readonly BotWebhookEvent_Response:
+                | components["schemas"]["BotWebhookCreatedMessageEvent_Response"]
+                | components["schemas"]["BotWebhookCreatedPostEvent_Response"]
+                | components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent_Response"];
             readonly Chat_Response:
                 | components["schemas"]["DirectChat_Response"]
                 | components["schemas"]["RoomChat"];
@@ -7076,10 +7102,6 @@ export namespace ApiSpecification {
             readonly TaskBatchPatch_Response:
                 | components["schemas"]["TaskBatchCreatePatch_Response"]
                 | components["schemas"]["TaskBatchUpdatePatch_Response"];
-            readonly BotWebhookEvent_Response:
-                | components["schemas"]["BotWebhookCreatedMessageEvent_Response"]
-                | components["schemas"]["BotWebhookCreatedPostEvent"]
-                | components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent_Response"];
             readonly Channel_Response: {
                 readonly id: components["schemas"]["ChannelId"];
                 readonly name: components["schemas"]["LabelString"];

@@ -1,10 +1,13 @@
 import {DurableObjectStorage} from "@miniflare/durable-objects";
 import {MemoryStorage} from "@miniflare/storage-memory";
+import {shouldAgentRespondToApiBotWebhookRequest} from "~/server/agents/api/should_agent_respond_to_bot_webhook_request.js";
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
-import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
-import {shouldAgentRespondToRequest} from "~/server/agents/bots/internal/should_agent_respond_to_request.js";
-import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
+import {
+    ApiBotWebhookEvent,
+    ApiChatResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId, ChatId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -13,6 +16,8 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 const {span} = testTracer.getRoot().startSpan("test-span");
 
 const apiClient = new ApiClientMock();
+
+const ApiChatCollection = new DurableObjectStorageCollection<ChatId, ApiChatResponse>("a0");
 
 // Have to case as any here since Miniflare's DurableObjectStorage type is not
 // assignable to the global DurableObjectStorage type we use in the
@@ -27,9 +32,29 @@ afterEach(async () => {
     await storage.deleteAll();
 });
 
-type TestEvent = AgentWebhookRequest & {
-    event: Exclude<ApiBotWebhookEvent, {type: "UpdatedMessageStreamExperimentalApprovalsPart"}>;
+type TestEvent = {
+    readonly apiClient: ApiClientMock;
+    readonly storage: DurableObjectStorage;
+    readonly botAccountId: AccountId;
+    readonly event: Extract<ApiBotWebhookEvent, {type: "CreatedMessage" | "CreatedPost"}>;
+    readonly [key: string]: unknown;
 };
+
+async function shouldAgentRespondToRequest(
+    tracer: typeof span,
+    request: TestEvent,
+): Promise<boolean> {
+    return await shouldAgentRespondToApiBotWebhookRequest(
+        tracer,
+        request.apiClient,
+        request.botAccountId,
+        request.event,
+        {
+            withChatCache: async (chatId, action) =>
+                await ApiChatCollection.getOrPutDefault(request.storage, chatId, action),
+        },
+    );
+}
 
 describe("shouldAgentRespondToRequest", () => {
     test("returns true when agent is mentioned", async () => {

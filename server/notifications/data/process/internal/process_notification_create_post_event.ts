@@ -195,7 +195,7 @@ export const processNotificationCreatePostEvent = createNotificationEventProcess
 
         return {
             type: "CreatedPost",
-            post: {id: event.postId},
+            room: {type: "Post", id: event.postId},
             author: {id: event.authorId},
             createdTimeZone: event.createdTimeZone,
             wasMentioned: wasMentionedInPost,

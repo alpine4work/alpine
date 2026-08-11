@@ -772,7 +772,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                     elements: [
                                         {
                                             type: "Text",
-                                            text: "Hello!I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                            text: "Hello!I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let us know at ",
                                         },
                                         {
                                             type: "Text",
@@ -1248,6 +1248,11 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                         call: {type: "Search", query: "AI document"},
                     },
                 },
+            }),
+            expect.objectContaining({
+                method: "PUT",
+                path: "/chats/{id}/messages/{index}/stream/ping",
+                params: {path: {id: chatId, index: 1}},
             }),
             // Document API called by second tool
             expect.objectContaining({
@@ -2303,6 +2308,11 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 }),
                 expect.objectContaining({
                     method: "PUT",
+                    path: "/chats/{id}/messages/{index}/stream/ping",
+                    params: {path: {id: chatId, index: 1}},
+                }),
+                expect.objectContaining({
+                    method: "PUT",
                     path: "/chats/{id}/messages/{index}/stream/parts/{partIndex}",
                     params: {path: {id: chatId, index: 1, partIndex: 2}},
                     body: {
@@ -2506,7 +2516,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         elements: [
                                             {
                                                 type: "Text",
-                                                text: "I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                                text: "I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let us know at ",
                                             },
                                             {
                                                 type: "Text",
@@ -2657,7 +2667,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                         elements: [
                                             {
                                                 type: "Text",
-                                                text: "I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                                text: "I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let us know at ",
                                             },
                                             {
                                                 type: "Text",
@@ -2931,7 +2941,7 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                                                 // TODO(ifitzsimmons, 2026-01-21): This is a super edge case, where the agent
                                                 // throws an error in the same request where it downgrades the model. We should
                                                 // change this so that there's a break between the two "system" messages.
-                                                text: ".)I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let Alpine know at ",
+                                                text: ".)I couldn\u2019t generate a response. An unexpected error occurred, please try again. If the problem continues, let us know at ",
                                             },
                                             {
                                                 type: "Text",

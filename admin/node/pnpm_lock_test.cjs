@@ -169,12 +169,42 @@ const allowedDuplicatePackageVersionsByName = new Map([
     // NOTE(calebmer, 2026-04-02): Duplicate packages after installing `concurrently`
     // and `serve`.
     ["bytes", ["3.0.0", "3.1.2"]],
-    ["content-disposition", ["0.5.2", "0.5.4"]],
     ["is-port-reachable", ["3.1.0", "4.0.0"]],
     ["mime-db", ["1.33.0", "1.52.0", "1.54.0"]],
     ["mime-types", ["2.1.18", "2.1.35", "3.0.2"]],
     ["negotiator", ["0.6.3", "0.6.4", "1.0.0"]],
     ["range-parser", ["1.2.0", "1.2.1"]],
+
+    // NOTE(calebmer, 2026-08-10): The Claude Agent SDK depends on the Model Context
+    // Protocol SDK, which uses Express 5 alongside our existing Express 4 stack.
+    ["accepts", ["1.3.8", "2.0.0"]],
+    ["body-parser", ["1.20.1", "2.3.0"]],
+    ["content-disposition", ["0.5.2", "0.5.4", "1.1.0"]],
+    ["content-type", ["1.0.5", "2.0.0"]],
+    ["encodeurl", ["1.0.2", "2.0.0"]],
+    ["express", ["4.18.2", "5.2.1"]],
+    ["finalhandler", ["1.2.0", "2.1.1"]],
+    ["fresh", ["0.5.2", "2.0.0"]],
+    ["http-errors", ["2.0.0", "2.0.1"]],
+    ["iconv-lite", ["0.4.24", "0.6.3", "0.7.3"]],
+    ["ip-address", ["9.0.5", "10.4.0"]],
+    ["is-promise", ["2.2.2", "4.0.0"]],
+    ["jose", ["4.10.4", "6.2.8"]],
+    ["media-typer", ["0.3.0", "1.1.1"]],
+    ["merge-descriptors", ["1.0.1", "2.0.0"]],
+    ["path-to-regexp", ["0.1.7", "3.3.0", "6.3.0", "8.4.2"]],
+    ["raw-body", ["2.5.1", "3.0.2"]],
+    ["send", ["0.18.0", "1.2.1"]],
+    ["serve-static", ["1.15.0", "2.2.1"]],
+    ["statuses", ["2.0.1", "2.0.2"]],
+    ["type-is", ["1.6.18", "2.1.0"]],
+
+    // The Cloudflare sandbox dependency brings a newer `aws4fetch`.
+    ["aws4fetch", ["1.0.17", "1.0.20"]],
+
+    // We directly use the newest UUID version, while older dependencies still require
+    // previous major versions.
+    ["uuid", ["8.0.0", "8.3.2", "9.0.1", "11.1.0", "14.0.1"]],
 
     // NOTE(calebmer, 2024-08-08): List of packages from when we added this test. We
     // did a quick skim to see if there were any packages we use where duplicate
@@ -226,7 +256,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["htmlparser2", ["8.0.2", "10.0.0"]],
     ["http-proxy-agent", ["4.0.1", "5.0.0", "7.0.2"]],
     ["human-signals", ["2.1.0", "3.0.1"]],
-    ["iconv-lite", ["0.4.24", "0.6.3"]],
     ["ieee754", ["1.1.13", "1.2.1"]],
     ["is-arrayish", ["0.2.1", "0.3.2"]],
     ["is-plain-obj", ["3.0.0", "4.1.0"]],
@@ -273,7 +302,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["p-limit", ["2.3.0", "3.1.0"]],
     ["p-locate", ["4.1.0", "5.0.0"]],
     ["path-key", ["3.1.1", "4.0.0"]],
-    ["path-to-regexp", ["0.1.7", "3.3.0", "6.3.0"]],
     ["pretty-format", ["27.5.1", "29.6.3"]],
     ["pump", ["2.0.1", "3.0.0"]],
     ["punycode", ["1.3.2", "2.3.1"]],
@@ -306,7 +334,6 @@ const allowedDuplicatePackageVersionsByName = new Map([
     ["unist-util-visit-parents", ["5.1.1", "6.0.1"]],
     ["unist-util-visit", ["4.1.1", "5.0.0"]],
     ["universalify", ["0.1.2", "0.2.0", "2.0.0"]],
-    ["uuid", ["8.0.0", "8.3.2", "9.0.1", "11.1.0"]],
     ["validate-npm-package-name", ["4.0.0", "5.0.1"]],
     ["which", ["2.0.2", "3.0.1"]],
     ["wrap-ansi", ["6.2.0", "7.0.0", "8.1.0"]],

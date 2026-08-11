@@ -268,10 +268,11 @@ function finishSpanAndFlushHoneycombEvents(
     finishSpan?.();
     // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Fire and forget
     // request that flushes the batch of honeycomb events.
-    promiseWaiter.waitUntil(async () => {
-        await honeycombTracerClient?.flushScheduledEventBatch();
+    void promiseWaiter.wait({
+        flush: async () => {
+            await honeycombTracerClient?.flushScheduledEventBatch();
+        },
     });
-    void promiseWaiter.wait();
 }
 
 function getSpanForRequest(tracer: TracerRoot, request: Request, route: string) {

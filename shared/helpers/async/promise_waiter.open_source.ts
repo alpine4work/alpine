@@ -16,8 +16,8 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
  */
 export class PromiseWaiter {
     private _promises = new Set<PromiseLike<unknown>>();
-    private _errors: Array<unknown> | null = null;
     private _waitPromise: Promise<void> | null = null;
+    private _errors: Array<unknown> | null = null;
 
     /**
      * When `wait()` is called it won't resolve until the provided promise resolves.
@@ -45,9 +45,16 @@ export class PromiseWaiter {
 
     /**
      * Wait for all promises added with `waitUntil()` to resolve. If any of the
-     * promises passed into `waitUntil()` reject then this rejects as well.
+     * promises passed into `waitUntil()` before or during this call reject then this
+     * rejects as well.
+     *
+     * If `flush()` is provided then every time we have a batch of promises to await,
+     * we call the function and add it to the batch. That way, if there are any
+     * promises in the batch with some kind of delay (e.g. tracer events) the flush
+     * function should cause them to run immediately. Helping our `wait()` complete
+     * faster.
      */
-    public wait(): Promise<void> {
+    public wait(options?: {flush?: () => Promise<unknown>}): Promise<void> {
         // Must early return when there are no promises since otherwise
         // `this._waitForTestTasksPromise` won't get cleared since the `finally` which
         // clears `this._waitForTestTasksPromise` will run before the promise is assigned.
@@ -58,20 +65,23 @@ export class PromiseWaiter {
 
             this._waitPromise = (async () => {
                 try {
+                    // Any previous `waitUntil()` promises that erred will be added to the rejection of
+                    // this `wait()` call. So the rejections aren't lost forever.
+                    const errors: Array<unknown> = this._errors ?? [];
+                    this._errors = null;
+
                     while (this._promises.size > 0) {
                         try {
                             const promises = this._promises;
                             this._promises = new Set();
+                            if (options?.flush) promises.add(options.flush());
                             await runAllPromises(promises);
                         } catch (error) {
-                            this._errors ??= [];
-                            this._errors.push(error);
+                            errors.push(error);
                         }
                     }
 
-                    if (this._errors !== null) {
-                        const errors = this._errors;
-                        this._errors = null;
+                    if (errors.length > 0) {
                         throw createAggregateError(errors);
                     }
                 } finally {

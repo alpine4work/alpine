@@ -310,8 +310,8 @@ function createLinkForSearchResultMessage(
         case "DocumentMessage": {
             return createAgentLink(transaction, {
                 type: "DocumentComment",
-                documentId: result.id,
-                commentThreadId: result.threadId,
+                documentId: result.document.id,
+                commentThreadId: result.id,
                 commentIndex: result.index,
                 preview: plainTextPreview,
             });
@@ -425,8 +425,8 @@ function intoApiMessageRoomPathFromPathIfPossible(
         case "DocumentMessage":
             return {
                 type: "DocumentThread",
-                id: apiPath.threadId,
-                document: {id: apiPath.id},
+                id: apiPath.id,
+                document: {type: "Document", id: apiPath.document.id},
             };
         case "TaskMessage":
             return {type: "Task", id: apiPath.id};

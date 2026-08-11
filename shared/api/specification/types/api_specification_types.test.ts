@@ -14,6 +14,7 @@ import {
     ApiMessageContentPayloadParentResponse,
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageExperimentalApprovalDecisionValue,
+    ApiMessageRoomReference,
     ApiMessageStreamToolCallPartCreateCallReference,
     ApiSearchResult,
     ApiSearchResultMatch,
@@ -60,6 +61,15 @@ test("all search results are assignable to `ApiReference`", () => {
     // the client which can be "Site" or "Local"? Do we expose all of the grants? Lots
     // of open questions...
     assertAssignableTypes<Exclude<ApiSearchResult, {type: "Site"}>, ApiReference>();
+});
+
+test("all mention references are assignable to `ApiReference`", () => {
+    assertAssignableTypes<ApiMentionReference, ApiReference>();
+    assertAssignableTypes<ApiMentionReferenceResponse, ApiReferenceResponse>();
+});
+
+test("all message room references are assignable to `ApiReference`", () => {
+    assertAssignableTypes<ApiMessageRoomReference, ApiReference>();
 });
 
 test("create tool call target is assignable to ApiMentionReference", () => {

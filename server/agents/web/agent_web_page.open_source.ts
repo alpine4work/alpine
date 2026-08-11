@@ -63,11 +63,17 @@ export type AgentWebPageWithMetadata =
     | AgentWebTaskCollectionPageWithMetadata
     | AgentWebTaskMessageListPageWithMetadata
     | AgentWebTaskSubtasksPageWithMetadata
-    | AgentWebSkillPageWithMetadata;
+    | AgentWebSkillPageWithMetadata
+    | AgentWebMyAccountPageWithMetadata;
 
 export type AgentWebSkillPageWithMetadata = {
     readonly type: "Skill";
     readonly metadata: {type: "Skill"};
+};
+
+export type AgentWebMyAccountPageWithMetadata = {
+    readonly type: "MyAccount";
+    readonly metadata: {type: "MyAccount"};
 };
 
 // This checks that at the type system level `page.metadata.type === page.type`.

@@ -12,7 +12,7 @@ import {SimpleContentWithReferences} from "~/shared/content/simple_content_schem
 import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
@@ -94,31 +94,55 @@ export async function getBotSpaceAndSpaceAccountSettingsValues(
         });
     }
 
+    const spaceValues = new Map<string, SchemaSerializedValue>();
     const spaceSecretPropertyKeysWithValues = new Set<string>();
 
     // We expose which secret space properties have values to non-admin accounts.
-    if (spaceSettingsItem) {
-        for (const [propertyKey, propertySchema] of settings.schema.properties) {
-            if ((propertySchema.level ?? "Space") !== "Space") continue;
-            if (!propertySchema.isSecret) continue;
+    for (const [propertyKey, propertySchema] of settings.schema.properties) {
+        if (propertySchema.level !== "Space") continue;
 
-            const value = spaceSettingsItem.values.get(propertyKey);
-            if (!isBotSpaceSettingsPropertyValueEmptySecret(value)) {
-                spaceSecretPropertyKeysWithValues.add(propertyKey);
+        switch (propertySchema.type) {
+            case "String": {
+                const value = spaceSettingsItem?.values.get(propertyKey);
+
+                spaceValues.set(propertyKey, value ?? "");
+
+                if (propertySchema.isSecret && !isBotSpaceSettingsPropertyValueEmptySecret(value)) {
+                    spaceSecretPropertyKeysWithValues.add(propertyKey);
+                }
+                break;
             }
+            case "Select": {
+                const value = spaceSettingsItem?.values.get(propertyKey);
+
+                spaceValues.set(propertyKey, value ?? propertySchema.defaultValue);
+                break;
+            }
+            default:
+                throw exhaustive(propertySchema);
         }
     }
 
     const accountValues = new Map<string, SchemaSerializedValue>();
 
-    if (accountSettingsItem) {
-        for (const [propertyKey, propertySchema] of settings.schema.properties) {
-            if ((propertySchema.level ?? "Space") !== "SpaceAccount") continue;
+    for (const [propertyKey, propertySchema] of settings.schema.properties) {
+        if (propertySchema.level !== "SpaceAccount") continue;
 
-            const value = accountSettingsItem.values.get(propertyKey);
-            if (value !== undefined) {
-                accountValues.set(propertyKey, value);
+        switch (propertySchema.type) {
+            case "String": {
+                const value = accountSettingsItem?.values.get(propertyKey);
+
+                accountValues.set(propertyKey, value ?? "");
+                break;
             }
+            case "Select": {
+                const value = accountSettingsItem?.values.get(propertyKey);
+
+                accountValues.set(propertyKey, value ?? propertySchema.defaultValue);
+                break;
+            }
+            default:
+                throw exhaustive(propertySchema);
         }
     }
 
@@ -126,7 +150,7 @@ export async function getBotSpaceAndSpaceAccountSettingsValues(
         return {
             ...settings,
             spaceValuesVersion: spaceSettingsItem?.updateLockVersion ?? 0,
-            spaceValues: spaceSettingsItem?.values ?? emptyMap,
+            spaceValues,
             spaceSecretPropertyKeysWithValues,
             accountValuesVersion: accountSettingsItem?.updateLockVersion ?? 0,
             accountValues,
@@ -141,15 +165,13 @@ export async function getBotSpaceAndSpaceAccountSettingsValues(
     // - Are not secret
     //
     // They can see which secret properties have values, however.
-    if (spaceSettingsItem) {
-        for (const [propertyKey, propertySchema] of settings.schema.properties) {
-            if ((propertySchema.level ?? "Space") !== "Space") continue;
-            if (propertySchema.isSecret) continue;
+    for (const [propertyKey, propertySchema] of settings.schema.properties) {
+        if (propertySchema.level !== "Space") continue;
+        if (propertySchema.type === "String" && propertySchema.isSecret) continue;
 
-            const value = spaceSettingsItem.values.get(propertyKey);
-            if (value !== undefined) {
-                spaceValuesForMember.set(propertyKey, value);
-            }
+        const value = spaceValues.get(propertyKey);
+        if (value !== undefined) {
+            spaceValuesForMember.set(propertyKey, value);
         }
     }
 

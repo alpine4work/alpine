@@ -14,6 +14,7 @@ import {
 import {getScrollToNewMessagesMargin} from "~/client/web/messaging/use_scroll_to_new_messages.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {actuallyComputeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
+import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {convertRemLengthToPx} from "~/shared/design/core/spacing.js";
@@ -256,6 +257,8 @@ export function MessageStreamView({
         break;
     }
 
+    let previousSectionLastBlockNodeTypeName: ContentBlockNodeTypeName | null = null;
+
     for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
         const section = sections[sectionIndex]!;
 
@@ -271,7 +274,9 @@ export function MessageStreamView({
                 orderedListItemNumberByNode={orderedListItemNumberByNode}
                 section={section}
                 isFirstSection={sectionIndex === 0}
+                isLastSection={sectionIndex === sections.length - 1}
                 isLastContentSection={sectionIndex === lastContentSectionIndex}
+                previousSectionLastBlockNodeTypeName={previousSectionLastBlockNodeTypeName}
                 expandedRef={expandedRefBySectionIndex.get(sectionIndex)}
                 isExpanded={expandedSectionIndexes.has(sectionIndex)}
                 onToggleIsExpanded={() => {
@@ -295,6 +300,12 @@ export function MessageStreamView({
                 onPressSeeReactions={onPressSeeReactions}
             />,
         );
+
+        previousSectionLastBlockNodeTypeName =
+            section.contentParts.length > 0
+                ? (section.contentParts[section.contentParts.length - 1]!.content.lastChild!.type
+                      .name as ContentBlockNodeTypeName)
+                : null;
     }
 
     const containerRef = useRef<HTMLDivElement>(null);

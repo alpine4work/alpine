@@ -1,4 +1,5 @@
-import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
+import {messageStreamPingIntervalMs} from "~/shared/agents/message_stream_ping_interval_ms.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 
 /**
@@ -7,7 +8,9 @@ import {isDateDefinitelyLessThanWithUncertaintyWindow} from "~/shared/helpers/da
  * 10 seconds, we consider the stream to be "dead" and we don't allow any more
  * writes to the stream.
  */
-export const messageStreamTimeoutMs = agentMessageStreamPingIntervalMs * 2;
+export const messageStreamTimeoutMs = 10 * 1000;
+
+assert(messageStreamPingIntervalMs * 2 + 1000 <= messageStreamTimeoutMs);
 
 /**
  * While performing server-side stream operations, we check to see if the stream

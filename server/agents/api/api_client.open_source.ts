@@ -136,12 +136,15 @@ export function createApiClient({
                                 const errorCode = getErrorCodeForHttpStatusCode(response.status);
                                 const ErrorConstructor = getErrorConstructorForCode(errorCode);
 
-                                const error = new ErrorConstructor("API request failed", {
-                                    // The error message might contain sensitive user data. So treat the whole error
-                                    // message as sensitive text.
-                                    displayMessage: errorDisplayMessage`${responseBody.error.message}`,
-                                    cause: {status: response.status, ...responseBody},
-                                });
+                                const error = new ErrorConstructor(
+                                    `API request to \`${schemaPath}\` failed`,
+                                    {
+                                        // The error message might contain sensitive user data. So treat the whole error
+                                        // message as sensitive text.
+                                        displayMessage: errorDisplayMessage`${responseBody.error.message}`,
+                                        cause: {status: response.status, ...responseBody},
+                                    },
+                                );
 
                                 if (responseBody.error.retry.able) {
                                     throw retry(error);

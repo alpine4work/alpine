@@ -567,3 +567,144 @@ test("FileGallery normalizes Preview title inside items", () => {
         ],
     });
 });
+
+test("leading phantom list item after another list becomes nested content", () => {
+    const content: ApiContent = {
+        elements: [
+            {
+                type: "CheckList",
+                items: [{checked: false, elements: [{type: "Paragraph", elements: []}]}],
+            },
+            {
+                type: "UnorderedList",
+                items: [
+                    {
+                        elements: [],
+                        nestedListElements: [
+                            {
+                                type: "UnorderedList",
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
+                            },
+                        ],
+                    },
+                    {elements: [{type: "Paragraph", elements: []}]},
+                ],
+            },
+        ],
+    };
+
+    expect(normalizeApiContent(content)).toEqual({
+        elements: [
+            {
+                type: "CheckList",
+                items: [
+                    {
+                        checked: false,
+                        elements: [{type: "Paragraph", elements: []}],
+                        nestedListElements: [
+                            {
+                                type: "UnorderedList",
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                type: "UnorderedList",
+                items: [{elements: [{type: "Paragraph", elements: []}]}],
+            },
+        ],
+    });
+});
+
+test("leading phantom list item is canonicalized before adjacent lists merge", () => {
+    const content: ApiContent = {
+        elements: [
+            {
+                type: "UnorderedList",
+                items: [{elements: [{type: "Paragraph", elements: []}]}],
+            },
+            {
+                type: "UnorderedList",
+                items: [
+                    {
+                        elements: [],
+                        nestedListElements: [
+                            {
+                                type: "OrderedList",
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
+                            },
+                        ],
+                    },
+                    {elements: [{type: "Paragraph", elements: []}]},
+                ],
+            },
+        ],
+    };
+
+    expect(normalizeApiContent(content)).toEqual({
+        elements: [
+            {
+                type: "UnorderedList",
+                items: [
+                    {
+                        elements: [{type: "Paragraph", elements: []}],
+                        nestedListElements: [
+                            {
+                                type: "OrderedList",
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
+                            },
+                        ],
+                    },
+                    {elements: [{type: "Paragraph", elements: []}]},
+                ],
+            },
+        ],
+    });
+});
+
+test("empty lists don\u2019t block leading phantom list item canonicalization", () => {
+    const content: ApiContent = {
+        elements: [
+            {
+                type: "OrderedList",
+                items: [{elements: [{type: "Paragraph", elements: []}]}],
+            },
+            {type: "OrderedList", items: []},
+            {
+                type: "UnorderedList",
+                items: [
+                    {
+                        elements: [],
+                        nestedListElements: [
+                            {
+                                type: "UnorderedList",
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    expect(normalizeApiContent(content)).toEqual({
+        elements: [
+            {
+                type: "OrderedList",
+                items: [
+                    {
+                        elements: [{type: "Paragraph", elements: []}],
+                        nestedListElements: [
+                            {
+                                type: "UnorderedList",
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});

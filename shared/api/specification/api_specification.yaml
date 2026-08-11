@@ -983,7 +983,6 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetChannel"}
         patch:
-            patch:
             requestBody:
                 required: true
                 content:
@@ -2828,20 +2827,15 @@ components:
 
         DocumentThreadReference:
             type: object
-            required: [type, id, document]
+            required: [type, document, id]
             additionalProperties: false
             properties:
                 type:
                     const: DocumentThread
+                document:
+                    $ref: "#/components/schemas/DocumentReference"
                 id:
                     $ref: "#/components/schemas/DocumentThreadId"
-                document:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/DocumentId"
 
         PostReference:
             type: object
@@ -3635,8 +3629,6 @@ components:
                     const: Text
                 text:
                     type: string
-                    minLength: 1
-                    pattern: ^[^\n\r]*$
                 # TODO(calebmer, #public-api): Document that marks are an unordered set. Mark
                 # order doesn't matter and duplicates aren't allowed.
                 marks:
@@ -3780,8 +3772,6 @@ components:
                     const: Text
                 text:
                     type: string
-                    minLength: 1
-                    pattern: ^[^\n\r]*$
                 marks:
                     type: array
                     items:
@@ -3844,7 +3834,6 @@ components:
                     const: Text
                 text:
                     type: string
-                    minLength: 1
                 # TODO(calebmer, #public-api): Document that marks are an unordered set. Mark
                 # order doesn't matter and duplicates aren't allowed.
                 marks:
@@ -6784,18 +6773,13 @@ components:
 
         BotWebhookCreatedPostEvent:
             type: object
-            required: [type, post, author, createdTimeZone]
+            required: [type, room, author, createdTimeZone, wasMentioned]
             additionalProperties: false
             properties:
                 type:
                     const: CreatedPost
-                post:
-                    type: object
-                    required: [id]
-                    additionalProperties: false
-                    properties:
-                        id:
-                            $ref: "#/components/schemas/PostId"
+                room:
+                    $ref: "#/components/schemas/PostReference"
                 author:
                     type: object
                     required: [id]
@@ -7071,14 +7055,19 @@ components:
 
         SearchDocumentMessageResult:
             type: object
-            required: [type, id, threadId, index, title, bodySnippet, matches, author]
+            required: [type, document, id, index, title, bodySnippet, matches, author]
             additionalProperties: false
             properties:
                 type:
                     const: DocumentMessage
+                document:
+                    type: object
+                    required: [id]
+                    additionalProperties: false
+                    properties:
+                        id:
+                            $ref: "#/components/schemas/DocumentId"
                 id:
-                    $ref: "#/components/schemas/DocumentId"
-                threadId:
                     $ref: "#/components/schemas/DocumentThreadId"
                 index:
                     type: integer

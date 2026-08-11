@@ -73,6 +73,8 @@ export type TracerServiceName =
     | "ChatGptAgentService"
     | "CursorAgentService"
     | "MockAgentService"
+    | "AgentV2Service"
+    | "ClaudeAgentService"
     | "ResourceService"
     | "LocalRedirectService"
     | "ImporterService"

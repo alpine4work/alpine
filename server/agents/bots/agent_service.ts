@@ -1,24 +1,36 @@
+import {createApiClient, createApiMessage} from "~/server/agents/api/api_client.open_source.js";
+import {shouldAgentRespondToApiBotWebhookRequest} from "~/server/agents/api/should_agent_respond_to_bot_webhook_request.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
 import {AgentUsageDatabase} from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 import {refreshAccountEntitlements} from "~/server/agents/bots/internal/refresh_account_entitlements.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
+import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
+import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
 import {
-    ApiMessageRoomPath,
-    printApiMessageRoomPath,
-} from "~/shared/api/specification/parse_api_path.js";
-import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
-import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
+    ApiBotWebhookRequestBody,
+    ApiMessageRoomReference,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {
+    InternalError,
+    InvalidArgumentError,
+    UnimplementedError,
+} from "~/shared/error/error.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {markdown} from "~/shared/helpers/string/markdown.js";
+import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type AgentServiceRoute =
     | {type: "ChatGptWebhook"}
     | {type: "ChatGptConversationState"}
+    | {type: "ClaudeWebhook"}
     | {type: "CursorWebhook"}
     | {type: "CursorCloudAgentsWebhook"; durableObjectId: string; agentId: string}
     | {type: "MockWebhook"; bot: "ChatGpt" | "Cursor"}
@@ -60,6 +72,11 @@ async function handleFetch(
             case "/chat-gpt/conversation-state": {
                 routeString = "/chat-gpt/conversation-state";
                 route = {type: "ChatGptConversationState"};
+                break;
+            }
+            case "/claude/webhook": {
+                routeString = "/claude/webhook";
+                route = {type: "ClaudeWebhook"};
                 break;
             }
             case "/cursor/webhook": {
@@ -175,6 +192,102 @@ async function handleFetch(
                         }),
                     );
                 }
+                case "ClaudeWebhook": {
+                    if (request.method !== "POST") {
+                        return new Response("405 Method Not Allowed", {
+                            status: 405,
+                            headers: {"content-type": "text/plain"},
+                        });
+                    }
+
+                    if (process.env.NODE_ENV === "production") {
+                        throw new UnimplementedError(
+                            quote`We only proxy ${routeString} requests from \`AgentService\` to \`AgentV2Service\` in development`,
+                        );
+                    }
+
+                    // In development we proxy `/claude/webhook` requests from `AgentService` to
+                    // `AgentV2Service`. That's because `AgentService` is always running but sometimes
+                    // `AgentV2Service` isn't running. So if `AgentV2Service` isn't running then we'd
+                    // like to respond to the webhook with an error message here in `AgentService`.
+
+                    const agentV2ServiceUrl = assertExists(env.AGENT_V2_SERVICE_URL);
+
+                    const requestBodyText = await request.text();
+
+                    try {
+                        const response = await fetchWithTracer(
+                            span,
+                            new URL("/claude/webhook", agentV2ServiceUrl),
+                            {
+                                serviceName: "AgentV2Service",
+                                route: "/claude/webhook",
+                                method: request.method,
+                                headers: request.headers,
+                                body: requestBodyText,
+                            },
+                            async response => response,
+                        );
+
+                        return response;
+                    } catch (error) {
+                        span.logException("AgentV2Service isn\u2019t available", error);
+                    }
+
+                    const requestBody: ApiBotWebhookRequestBody = JSON.parse(requestBodyText);
+
+                    const apiClient = createApiClient({
+                        baseUrl: env.API_SERVICE_URL,
+                        apiKey: assertExists(env.CLAUDE_API_SERVICE_KEY),
+                        accessToken: requestBody.accessToken,
+                    });
+
+                    let shouldRespondToRoom: ApiMessageRoomReference | null = null;
+
+                    switch (requestBody.event.type) {
+                        case "CreatedMessage": {
+                            const shouldRespond = await shouldAgentRespondToApiBotWebhookRequest(
+                                span,
+                                apiClient,
+                                requestBody.botAccount.id,
+                                requestBody.event,
+                            );
+
+                            if (shouldRespond) {
+                                shouldRespondToRoom = requestBody.event.room;
+                            }
+                            break;
+                        }
+                        case "CreatedPost": {
+                            if (requestBody.event.wasMentioned) {
+                                shouldRespondToRoom = {type: "Post", id: requestBody.event.room.id};
+                            }
+                            break;
+                        }
+                        case "UpdatedMessageStreamExperimentalApprovalsPart": {
+                            break;
+                        }
+                        default:
+                            throw exhaustive(requestBody.event);
+                    }
+
+                    if (shouldRespondToRoom !== null) {
+                        await createApiMessage(span, apiClient, shouldRespondToRoom, {
+                            content: parseApiContentFromMarkdown(markdown`
+### Dev error: \`AgentV2Service\` isn\u2019t running
+
+Can only message Claude in dev if \`AgentV2Service\` is running (it isn\u2019t run by \`dev\`). To
+message Claude, please run:
+
+~~~sh
+bazel run //server/agents/bots_v2/dev
+~~~
+                            `),
+                        });
+                    }
+
+                    return createSimpleOkResponse();
+                }
                 case "CursorWebhook": {
                     // TODO: Re-enable `@typescript-eslint/return-await` after deciding
                     // whether this `try`/`catch` should handle durable object failures.
@@ -284,10 +397,7 @@ async function handleFetch(
                         accountId,
                     );
 
-                    return new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    });
+                    return createSimpleOkResponse();
                 }
                 default:
                     throw exhaustive(route);
@@ -363,17 +473,7 @@ async function fetchFromDurableObjectWithId(
 }
 
 function getDurableObjectIdFromApiBotWebhookEvent(request: ApiBotWebhookRequestBody) {
-    switch (request.event.type) {
-        case "UpdatedMessageStreamExperimentalApprovalsPart":
-        case "CreatedMessage":
-            return `${request.botAccount.id}:${printApiMessageRoomPath(request.event.room)}`;
-        case "CreatedPost": {
-            const messageRoomPath: ApiMessageRoomPath = `/posts/${request.event.post.id}`;
-            return `${request.botAccount.id}:${messageRoomPath}`;
-        }
-        default:
-            throw exhaustive(request.event);
-    }
+    return `${request.botAccount.id}:${printApiMessageRoomPath(request.event.room)}`;
 }
 
 // eslint-disable-next-line import/no-default-export

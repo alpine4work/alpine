@@ -7,7 +7,7 @@ import {
 } from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {createAgentWebTaskQueryCursorHash} from "~/server/agents/web/agent_web_task_query_cursor_hash.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {ApiTaskQueryDefaultsResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
@@ -21,6 +21,12 @@ import {
     TaskCollectionId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
 
 const spaceId = generateId<SpaceId>();
 const collectionId = generateId<TaskCollectionId>();
@@ -36,19 +42,21 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: generateId<AccountId>(),
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: generateId<BotId>()},
-        pathname: "/bot/chatgpt",
     },
 };
 
 beforeEach(async () => {
     await storage.deleteAll();
     await storeAgentWebPageLinkForTest(storage, [
-        context.botAccount,
+        {
+            type: "Account",
+            id: context.botAccount.id,
+            title: "ChatGPT",
+            shortName: "ChatGPT",
+            bot: context.botAccount.bot,
+        },
         {
             type: "TaskCollection",
             id: collectionId,

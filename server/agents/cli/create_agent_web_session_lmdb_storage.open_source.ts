@@ -1,23 +1,17 @@
 import {Database} from "lmdb";
-import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
+import {MAXIMUM_KEY} from "ordered-binary";
+import {
+    AgentWebSessionStorage,
+    AgentWebSessionStorageCollection,
+} from "~/server/agents/web/agent_web_session_storage.open_source.js";
+import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
 import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {OrderKey, assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
+import {JsonStringifiableValue} from "~/shared/helpers/types/json_value.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
-export type AgentWebSessionLmdbStorageKey = [OrderKey, string];
-
-const pageStoredLinkByPathnameOrderKey = assertOrderKey("a0");
-const latestPageStoredLinkPathnameByKeyOrderKey = assertOrderKey("a1");
-const urlByTruncatedUrlOrderKey = assertOrderKey("a2");
-const dedupeNumberByTruncatedUrlAndUrlOrderKey = assertOrderKey("a3");
-const documentCommentThreadNumberByIdOrderKey = assertOrderKey("a4");
-const documentCommentThreadIdByNumberOrderKey = assertOrderKey("a5");
-const taskQueryCursorByHashOrderKey = assertOrderKey("a6");
-const tableWidthByTruncatedWidthOrderKey = assertOrderKey("a7");
-const tableColumnWidthsByTruncatedColumnWidthsOrderKey = assertOrderKey("a8");
-const readResponseByPathOrderKey = assertOrderKey("a9");
-const endOrderKey = assertOrderKey("aA");
+export type AgentWebSessionLmdbStorageKey = [OrderKey, ...NonEmptyReadonlyArray<string>];
 
 /**
  * Creates agent web session storage backed by an open LMDB database.
@@ -32,103 +26,64 @@ export function createAgentWebSessionLmdbStorage(
     return {
         spaceId,
         mutex: new Mutex(),
-        pageStoredLinkByPathname: createLmdbCollection(
-            database,
-            pageStoredLinkByPathnameOrderKey,
-            latestPageStoredLinkPathnameByKeyOrderKey,
-        ),
-        latestPageStoredLinkPathnameByKey: createLmdbCollection(
-            database,
-            latestPageStoredLinkPathnameByKeyOrderKey,
-            urlByTruncatedUrlOrderKey,
-        ),
-        urlByTruncatedUrl: createLmdbCollection(
-            database,
-            urlByTruncatedUrlOrderKey,
-            dedupeNumberByTruncatedUrlAndUrlOrderKey,
-        ),
-        dedupeNumberByTruncatedUrlAndUrl: createLmdbCollection(
-            database,
-            dedupeNumberByTruncatedUrlAndUrlOrderKey,
-            documentCommentThreadNumberByIdOrderKey,
-        ),
-        documentCommentThreadNumberById: createLmdbCollection(
-            database,
-            documentCommentThreadNumberByIdOrderKey,
-            documentCommentThreadIdByNumberOrderKey,
-        ),
-        documentCommentThreadIdByNumber: createLmdbCollection(
-            database,
-            documentCommentThreadIdByNumberOrderKey,
-            taskQueryCursorByHashOrderKey,
-        ),
-        taskQueryCursorByHash: createLmdbCollection(
-            database,
-            taskQueryCursorByHashOrderKey,
-            tableWidthByTruncatedWidthOrderKey,
-        ),
-        tableWidthByTruncatedWidth: createLmdbCollection(
-            database,
-            tableWidthByTruncatedWidthOrderKey,
-            tableColumnWidthsByTruncatedColumnWidthsOrderKey,
-        ),
+        pageStoredLinkByPathname: createLmdbCollection(database, assertOrderKey("a0")),
+        latestPageStoredLinkPathnameByKey: createLmdbCollection(database, assertOrderKey("a1")),
+        urlByTruncatedUrl: createLmdbCollection(database, assertOrderKey("a2")),
+        dedupeNumberByTruncatedUrlAndUrl: createLmdbCollection(database, assertOrderKey("a3")),
+        documentCommentThreadNumberById: createLmdbCollection(database, assertOrderKey("a4")),
+        documentCommentThreadIdByNumber: createLmdbCollection(database, assertOrderKey("a5")),
+        taskQueryCursorByHash: createLmdbCollection(database, assertOrderKey("a6")),
+        tableWidthByTruncatedWidth: createLmdbCollection(database, assertOrderKey("a7")),
         tableColumnWidthsByTruncatedColumnWidths: createLmdbCollection(
             database,
-            tableColumnWidthsByTruncatedColumnWidthsOrderKey,
-            readResponseByPathOrderKey,
+            assertOrderKey("a8"),
         ),
         // TODO: Add a background process that sweeps `readResponseByPath` and deletes
         // expired responses.
-        readResponseByPath: createLmdbCollection(database, readResponseByPathOrderKey, endOrderKey),
+        readResponseByPath: createLmdbCollection(database, assertOrderKey("a9")),
         readResponseMutexByPath: new Map(),
     };
 }
 
-function createLmdbCollection(
+function createLmdbCollection<
+    Key extends string | readonly [string, string],
+    Value extends JsonStringifiableValue,
+>(
     database: Database<any, AgentWebSessionLmdbStorageKey>,
     orderKey: OrderKey,
-    nextOrderKey: OrderKey,
-) {
-    return {
-        get: async (key: any): Promise<any> => {
-            const value = database.get([orderKey, key]);
-            return value === undefined ? undefined : value;
-        },
-        put: async (key: any, value: any): Promise<void> => {
-            await database.put([orderKey, key], value);
-        },
-        delete: async (key: any): Promise<boolean> => {
-            return await database.remove([orderKey, key]);
-        },
-        list: async ({prefix}: {prefix?: string} = {}): Promise<Map<any, any>> => {
-            const endPrefix = prefix === undefined ? undefined : getStringPrefixEnd(prefix);
-            const end: AgentWebSessionLmdbStorageKey =
-                endPrefix === undefined ? [nextOrderKey, ""] : [orderKey, endPrefix];
-            const valueByKey = new Map<any, any>();
-
-            for (const {key: storedKey, value} of database.getRange({
-                start: [orderKey, prefix ?? ""],
-                end,
-            })) {
-                assert(storedKey[0] === orderKey);
-                valueByKey.set(storedKey[1], value);
-            }
-
-            return valueByKey;
-        },
-    };
-}
-
-function getStringPrefixEnd(prefix: string): string | undefined {
-    const characters = Array.from(prefix);
-
-    for (let index = characters.length - 1; index >= 0; index--) {
-        const codePoint = characters[index]!.codePointAt(0)!;
-        if (codePoint === 0x10ffff) continue;
-
-        const nextCodePoint = codePoint === 0xd7ff ? 0xe000 : codePoint + 1;
-        return characters.slice(0, index).join("") + String.fromCodePoint(nextCodePoint);
+): AgentWebSessionStorageCollection<Key, Value> {
+    function createFullKey(key: Key): AgentWebSessionLmdbStorageKey {
+        return typeof key === "string"
+            ? [orderKey, key]
+            : ([orderKey, ...key] as AgentWebSessionLmdbStorageKey);
     }
 
-    return undefined;
+    return {
+        get: async key => {
+            const value = database.get(createFullKey(key)) as Value | undefined;
+            return value === undefined ? undefined : value;
+        },
+        put: async (key, value) => {
+            await database.put(createFullKey(key), value);
+        },
+        delete: async key => {
+            return await database.remove(createFullKey(key));
+        },
+        list: async (keyFirst): Promise<Map<any, any>> => {
+            const valueByKeySecond = new Map<any, any>();
+
+            for (const {key: storedKey, value} of database.getRange({
+                start: [orderKey, keyFirst],
+                // From the `ordered-binary` package which `lmdb` uses internally for encoding
+                // keys.
+                end: [orderKey, keyFirst, MAXIMUM_KEY],
+            })) {
+                assert(storedKey[0] === orderKey);
+                assert(storedKey[1] === keyFirst);
+                valueByKeySecond.set(storedKey[2], value);
+            }
+
+            return valueByKeySecond;
+        },
+    };
 }

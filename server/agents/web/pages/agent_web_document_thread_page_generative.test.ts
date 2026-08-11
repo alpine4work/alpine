@@ -86,7 +86,7 @@ runAgentWebPageGenerativeTests({
     normalize: normalizeAgentWebDocumentThreadPage,
     pageLink: fc.record({
         document: fc.record({id: createIdArbitrary<DocumentId>()}),
-        threadId: createIdArbitrary<DocumentCommentThreadId>(),
+        id: createIdArbitrary<DocumentCommentThreadId>(),
     }),
     page: AgentWebDocumentThreadPageArbitrary,
 });

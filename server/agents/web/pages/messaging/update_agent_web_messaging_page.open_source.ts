@@ -1,7 +1,8 @@
 import escapeHtml from "escape-html";
 import {Link} from "mdast";
 import {createApiMessage} from "~/server/agents/api/api_client.open_source.js";
-import {AgentWebContextWithoutStorage} from "~/server/agents/web/agent_web_context.open_source.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
+import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.open_source.js";
 import {
     AgentWebMessagingPage,
@@ -56,7 +57,7 @@ export async function updateAgentWebMessagingPage<
     Preamble,
     CustomBlock extends AgentWebMessagingPageCustomBlockBase,
 >(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     {
         messageNouns,
         pathname,
@@ -115,7 +116,7 @@ export async function updateAgentWebMessagingPage<
                         return {
                             type: "DocumentThread",
                             document: normalizeApiReference(pagination.pageLink.document),
-                            threadId: pagination.pageLink.threadId,
+                            threadId: pagination.pageLink.id,
                         };
                     }
                     case "TaskMessageList": {
@@ -271,7 +272,7 @@ export async function updateAgentWebMessagingPage<
                     throw new InvalidArgumentError(
                         "Can\u2019t update message created by someone else",
                         {
-                            displayMessage: errorDisplayMessage`You can only update your ${quote(`<${messageNouns.noun}>`)}s. You can\u2019t update a ${quote(`<${messageNouns.noun}>`)} created by ${oldBlock.author?.shortName ?? context.botAccount.shortName}. ${quote(`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""} from="${escapeHtml(oldBlock.author?.shortName ?? context.botAccount.shortName)}">`)} was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
+                            displayMessage: errorDisplayMessage`You can only update your ${quote(`<${messageNouns.noun}>`)}s. You can\u2019t update a ${quote(`<${messageNouns.noun}>`)} created by ${assertExists(oldBlock.author).shortName}. ${quote(`<${messageNouns.noun}${normalizedOldBlock.idAttribute ? ` id="${printAgentWebMessagingPageMessageIndexRange(normalizedOldBlock.idAttribute)}"` : ""} from="${escapeHtml(assertExists(oldBlock.author).shortName)}">`)} was changed by this update. Try again with a more specific update that only changes the content of ${messageNouns.pluralNoun} from you or adds new ${messageNouns.pluralNoun}.`,
                         },
                     );
                 } else {
@@ -363,10 +364,21 @@ export async function updateAgentWebMessagingPage<
         }
 
         if (newBlock.author !== null && newBlock.author.id !== context.botAccount.id) {
+            const {
+                data: {reference: botAccount},
+            } = await context.api.get(context.span, "/accounts/{id}-reference", {
+                params: {path: {id: context.botAccount.id}},
+            });
+
+            const botAccountPathname = await createAgentWebPageStoredLinkPathname(
+                context.storage,
+                botAccount,
+            );
+
             const authorLink: Link = {
                 type: "link",
-                url: context.botAccount.pathname,
-                children: [{type: "text", value: context.botAccount.shortName}],
+                url: botAccountPathname,
+                children: [{type: "text", value: botAccount.shortName}],
             };
 
             throw new InvalidArgumentError("Can only create messages as own account", {
@@ -499,7 +511,7 @@ export async function updateAgentWebMessagingPage<
                 throw new InvalidArgumentError(
                     "`<blockquote>` author prefix does not match cited message author",
                     {
-                        displayMessage: errorDisplayMessage`The \`<blockquote>\` content starts with ${quote(`[${newBlock.parent.author.shortName}](...): `)}, but ${quote(`<${messageNouns.noun} id="${idAttributeString}">`)} is from ${curlyQuote(citedBlockAuthor.shortName)}. Try again with ${quote(`[${citedBlockAuthor.shortName}](...): `)} before any other \`<blockquote>\` content.`,
+                        displayMessage: errorDisplayMessage`The \`<blockquote>\` content starts with ${quote(`[${newBlock.parent.author.shortName}](...): `)}, but ${quote(`<${messageNouns.noun} id="${idAttributeString}">`)} is from ${"shortName" in citedBlockAuthor ? curlyQuote(citedBlockAuthor.shortName) : "you"}. Try again with ${quote(`[${"shortName" in citedBlockAuthor ? citedBlockAuthor.shortName : "..."}](...): `)} before any other \`<blockquote>\` content.`,
                     },
                 );
             }

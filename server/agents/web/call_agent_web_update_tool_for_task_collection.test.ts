@@ -14,8 +14,8 @@ import {
     createAgentWebTaskQueryCursorHash,
     getAgentWebTaskQueryCursorForHashIfExists,
 } from "~/server/agents/web/agent_web_task_query_cursor_hash.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
-import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
@@ -35,6 +35,18 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
+async function callAgentWebUpdateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebUpdateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebUpdateTool(...callArguments)).response;
+}
+
 const spaceId = generateId<SpaceId>();
 
 const {span} = testTracer.startSpan("call_agent_web_update_tool_for_task_collection_new.test.ts");
@@ -48,14 +60,28 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: generateId<AccountId>(),
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: generateId<BotId>()},
-        pathname: "/bot/chatgpt",
     },
 };
+
+function mockAgentWebBotAccountReferenceForTest(
+    api: ApiClientMock,
+    botAccount: AgentWebContext["botAccount"],
+): void {
+    api.mockGet("/accounts/{id}-reference", {
+        params: {path: {id: botAccount.id}},
+        data: {
+            reference: {
+                type: "Account",
+                id: botAccount.id,
+                title: "ChatGPT",
+                shortName: "ChatGPT",
+                bot: botAccount.bot,
+            },
+        },
+    });
+}
 
 beforeEach(async () => {
     await storage.deleteAll();
@@ -654,12 +680,22 @@ test("rejects setting an unassigned open task as active", async () => {
         createTask: index => tasks[index]!,
     });
 
-    await storeAgentWebPageLinkForTest(storage, [collection, context.botAccount]);
+    await storeAgentWebPageLinkForTest(storage, [
+        collection,
+        {
+            type: "Account",
+            id: context.botAccount.id,
+            title: "ChatGPT",
+            shortName: "ChatGPT",
+            bot: context.botAccount.bot,
+        },
+    ]);
 
     await callAgentWebReadTool(context, {
         path: "/task-collection/test-task-collection",
         limit: "50kb",
     });
+    mockAgentWebBotAccountReferenceForTest(api, context.botAccount);
 
     await expect(
         callAgentWebUpdateTool(context, {
@@ -833,6 +869,7 @@ test("rejects removing the assignee from an active task", async () => {
         path: "/task-collection/test-task-collection",
         limit: "50kb",
     });
+    mockAgentWebBotAccountReferenceForTest(api, context.botAccount);
 
     await expect(
         callAgentWebUpdateTool(context, {

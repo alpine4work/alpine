@@ -37,8 +37,11 @@ async function main() {
             d1LocalDataPath,
             apiServiceUrl,
             edgeServiceUrl,
+            agentV2ServiceUrl,
             chatGptApiServiceKey: chatGptApiServiceKeyPath,
             chatGptWebhookSecret,
+            claudeApiServiceKey: claudeApiServiceKeyPath,
+            claudeWebhookSecret,
             cursorApiServiceKey: cursorApiServiceKeyPath,
             cursorWebhookSecret,
             mockChatGptApiServiceKey: mockChatGptApiServiceKeyPath,
@@ -59,8 +62,11 @@ async function main() {
             d1LocalDataPath: {type: "string"},
             apiServiceUrl: {type: "string"},
             edgeServiceUrl: {type: "string"},
+            agentV2ServiceUrl: {type: "string"},
             chatGptApiServiceKey: {type: "string"},
             chatGptWebhookSecret: {type: "string"},
+            claudeApiServiceKey: {type: "string"},
+            claudeWebhookSecret: {type: "string"},
             cursorApiServiceKey: {type: "string"},
             cursorWebhookSecret: {type: "string"},
             mockChatGptApiServiceKey: {type: "string"},
@@ -89,6 +95,9 @@ async function main() {
 
     const chatGptApiServiceKey = chatGptApiServiceKeyPath
         ? (await fs.readFile(chatGptApiServiceKeyPath, "utf8")).trim()
+        : undefined;
+    const claudeApiServiceKey = claudeApiServiceKeyPath
+        ? (await fs.readFile(claudeApiServiceKeyPath, "utf8")).trim()
         : undefined;
     const cursorApiServiceKey = cursorApiServiceKeyPath
         ? (await fs.readFile(cursorApiServiceKeyPath, "utf8")).trim()
@@ -133,8 +142,11 @@ async function main() {
         bindings: {
             API_SERVICE_URL: apiServiceUrl,
             EDGE_SERVICE_URL: edgeServiceUrl,
+            AGENT_V2_SERVICE_URL: agentV2ServiceUrl,
             CHAT_GPT_API_SERVICE_KEY: chatGptApiServiceKey,
             CHAT_GPT_WEBHOOK_SECRET: chatGptWebhookSecret,
+            CLAUDE_API_SERVICE_KEY: claudeApiServiceKey,
+            CLAUDE_WEBHOOK_SECRET: claudeWebhookSecret,
             CURSOR_API_SERVICE_KEY: cursorApiServiceKey,
             CURSOR_WEBHOOK_SECRET: cursorWebhookSecret,
             MOCK_CHAT_GPT_API_SERVICE_KEY: mockChatGptApiServiceKey,

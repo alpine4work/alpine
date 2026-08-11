@@ -40,8 +40,8 @@ module.exports = {
                 while (pathInternalIndex !== -1) {
                     // Reject an import: `~/foo/internal/bar` From: `~/qux/buz`
                     if (
-                        ourPath.slice(pathStartIndex, pathInternalIndex) !==
-                        importPath.slice(pathStartIndex, pathInternalIndex)
+                        ourPath.slice(pathStartIndex, pathInternalIndex + 1) !==
+                        importPath.slice(pathStartIndex, pathInternalIndex + 1)
                     ) {
                         context.report({
                             node: node.source,

@@ -88,7 +88,7 @@ export function approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterG
         // https://github.com/eddieantonio/unicode-default-word-boundary/blob/4085db79a22a5222a64df1a5cc27997d6a10e037/src/index.ts#L106-L118
         // https://unicode.org/reports/tr29/#Default_Word_Boundaries
         // eslint-disable-next-line no-control-regex
-        if (/^[\u000D\u000A\u000B\u000C\u0085\u2028\u2029]|\p{Zs}+$/u.test(text)) {
+        if (/^([\u000D\u000A\u000B\u000C\u0085\u2028\u2029]|\p{Zs})+$/u.test(text)) {
             continue;
         }
 

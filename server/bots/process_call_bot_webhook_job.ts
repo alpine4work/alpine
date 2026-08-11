@@ -9,7 +9,6 @@ import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
-import {parseApiBotWebhookEventIntoMessageRoom} from "~/shared/api/specification/parse_api_path.js";
 import {
     botWebhookSignatureHeader,
     signBotWebhookRequest,
@@ -208,7 +207,7 @@ async function actuallyCallBotWebhook(
     const attemptNumber = eventItem.attempt.number;
     const botWebhookUrl = new URL(webhook.url);
 
-    const room = parseApiBotWebhookEventIntoMessageRoom(job.event);
+    const {room} = job.event;
 
     let scope: BotTokenPayloadScope;
 
@@ -252,9 +251,11 @@ async function actuallyCallBotWebhook(
     const requestBodyString = JSON.stringify(requestBody);
 
     const requestHeaders: Record<string, string> = {
-        // 1.0.0 is the same version number that's in `api_specification.yaml`. If we
-        // change the API version we should consider changing the user agent here too.
-        "user-agent": "Alpine-API/1.0.0",
+        // We use a different versioning scheme for the webhook user agent than
+        // `api_specification.yaml`'s version which is based on the date. The webhook
+        // version shouldn't really change and the webhook consumer will need to opt into a
+        // new version via settings.
+        "user-agent": "Alpine-Webhook/1.0.0",
         "content-type": "application/json",
     };
 
@@ -283,10 +284,11 @@ async function actuallyCallBotWebhook(
         // EC2 instances lives in a public VPC so if you have the IP address you'll be able
         // to make requests to our servers which might be a problem.
         //
-        // TODO(calebmer, #public-api): Tracing needs to behave differently when calling
-        // third-party services. We shouldn't use `AgentService` as the `serviceName` and
-        // maybe the route should be `/*` since we don't know the route structure of
-        // third-party services.
+        // TODO(calebmer, #public-api-blocking): Tracing needs to behave differently when
+        // calling third-party services. We shouldn't use `AgentService` as the
+        // `serviceName` and maybe the route should be `/*` since we don't know the route
+        // structure of third-party services. We also shouldn't add tracer context headers
+        // (important).
         await fetchWithTracer(
             context.tracer.getTracer(),
             botWebhookUrl,
@@ -311,7 +313,9 @@ async function actuallyCallBotWebhook(
                 // recipient server is misconfigured.
                 if (response.status >= 500) {
                     rejectedReason = "ServerErrorStatusCode";
-                    throw new UnknownError(`Webhook request failed with status ${response.status}`);
+                    throw new UnknownError(
+                        `Webhook request failed with status code ${response.status}`,
+                    );
                 }
             },
         );
@@ -346,7 +350,7 @@ async function actuallyCallBotWebhook(
             },
             {initialItem: eventItem},
         );
-    } catch {
+    } catch (error) {
         timeout.clear();
 
         // Unit test helper for simulating a process crash.
@@ -381,6 +385,12 @@ async function actuallyCallBotWebhook(
             await context.jobs.sendAndWait(job, {
                 delaySeconds: Math.ceil((botWebhookRetryDelayIncrementMs * attemptNumber) / 1000),
             });
+        } else if (process.env.NODE_ENV !== "production") {
+            // When there's an error calling a bot webhook in development, log an error so the
+            // developer can see it in the console since they might not see it in the UI.
+            //
+            // eslint-disable-next-line no-console
+            console.error(`Call bot webhook job failed after ${attemptNumber} attempts:`, error);
         }
     }
 }

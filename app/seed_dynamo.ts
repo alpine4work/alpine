@@ -30,6 +30,8 @@ export function seedDynamo(
         chatGptLocalUnscopedApiKey: string;
         chatGptLocalScopedApiKey: string;
         chatGptWebhookSecret?: string;
+        claudeLocalUnscopedApiKey: string;
+        claudeWebhookSecret?: string;
         cursorLocalUnscopedApiKey: string;
         cursorWebhookSecret?: string;
         mockChatGptLocalUnscopedApiKey: string;

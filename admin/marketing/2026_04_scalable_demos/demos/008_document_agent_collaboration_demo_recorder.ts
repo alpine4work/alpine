@@ -167,7 +167,7 @@ forth. You also don\u2019t have to make updates to the document yourself.
                     room: {
                         type: "DocumentThread",
                         id: commentThreadId,
-                        document: {id: document.id},
+                        document: {type: "Document", id: document.id},
                     },
                     index: 0,
                     author: {id: accounts.cassCade.account.id},

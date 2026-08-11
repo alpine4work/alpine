@@ -106,6 +106,196 @@ test("returns space and account settings for an admin account", async () => {
     expect(settings.accountValues).toEqual(new Map([["accountSecret", "account-secret"]]));
 });
 
+test("returns empty String defaults when no space or account values exist", async () => {
+    const bot = await createBotWithSettings();
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+
+    const settings = await getBotSpaceAndSpaceAccountSettingsValues(
+        adminSession.action(),
+        space.id,
+        adminSession.account.id,
+        bot.id,
+    );
+
+    expect(Array.from(settings.spaceValues.entries())).toEqual([
+        ["spaceSecret", ""],
+        ["spacePublic", ""],
+    ]);
+    expect(Array.from(settings.accountValues.entries())).toEqual([["accountSecret", ""]]);
+    expect(settings.spaceValuesVersion).toEqual(0);
+    expect(settings.accountValuesVersion).toEqual(0);
+});
+
+test("returns Select defaults when no space or account values exist", async () => {
+    const bot = await TestBot.create(context, {name: "Test Bot"});
+
+    await BotsTable.createItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "SettingsSchema",
+        botId: bot.id,
+        description: emptySimpleContent,
+        schema: {
+            properties: new Map([
+                [
+                    "spaceModel",
+                    {
+                        type: "Select",
+                        level: "Space",
+                        label: "Space Model",
+                        hint: null,
+                        defaultValue: "space-fast",
+                        options: [
+                            {label: "Fast", value: "space-fast"},
+                            {label: "Accurate", value: "space-accurate"},
+                        ],
+                    },
+                ],
+                [
+                    "accountModel",
+                    {
+                        type: "Select",
+                        level: "SpaceAccount",
+                        label: "Account Model",
+                        hint: null,
+                        defaultValue: "account-fast",
+                        options: [
+                            {label: "Fast", value: "account-fast"},
+                            {label: "Accurate", value: "account-accurate"},
+                        ],
+                    },
+                ],
+            ]),
+        },
+    });
+
+    const space = await TestSpace.create(context);
+    const memberSession = await space.createSession({role: "Member"});
+
+    const settings = await getBotSpaceAndSpaceAccountSettingsValues(
+        memberSession.action(),
+        space.id,
+        memberSession.account.id,
+        bot.id,
+    );
+
+    expect(settings.spaceValues).toEqual(new Map([["spaceModel", "space-fast"]]));
+    expect(settings.accountValues).toEqual(new Map([["accountModel", "account-fast"]]));
+    expect(settings.spaceValuesVersion).toEqual(0);
+    expect(settings.accountValuesVersion).toEqual(0);
+});
+
+test("returns space and account values in schema order after out-of-order updates", async () => {
+    const bot = await TestBot.create(context, {name: "Test Bot"});
+
+    await BotsTable.createItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "SettingsSchema",
+        botId: bot.id,
+        description: emptySimpleContent,
+        schema: {
+            properties: new Map([
+                [
+                    "spaceFirst",
+                    {
+                        type: "String",
+                        level: "Space",
+                        label: "Space First",
+                        hint: null,
+                        placeholder: "",
+                        isCode: false,
+                        isSecret: false,
+                    },
+                ],
+                [
+                    "accountFirst",
+                    {
+                        type: "String",
+                        level: "SpaceAccount",
+                        label: "Account First",
+                        hint: null,
+                        placeholder: "",
+                        isCode: false,
+                        isSecret: false,
+                    },
+                ],
+                [
+                    "spaceSecond",
+                    {
+                        type: "String",
+                        level: "Space",
+                        label: "Space Second",
+                        hint: null,
+                        placeholder: "",
+                        isCode: false,
+                        isSecret: false,
+                    },
+                ],
+                [
+                    "accountSecond",
+                    {
+                        type: "String",
+                        level: "SpaceAccount",
+                        label: "Account Second",
+                        hint: null,
+                        placeholder: "",
+                        isCode: false,
+                        isSecret: false,
+                    },
+                ],
+            ]),
+        },
+    });
+
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    await bot.instantiate(adminSession);
+
+    // Update both levels in the reverse of schema order.
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "spaceSecond",
+        propertyValue: "space-second",
+    });
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "spaceFirst",
+        propertyValue: "space-first",
+    });
+    await updateBotSpaceAccountSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        accountId: adminSession.account.id,
+        botId: bot.id,
+        propertyKey: "accountSecond",
+        propertyValue: "account-second",
+    });
+    await updateBotSpaceAccountSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        accountId: adminSession.account.id,
+        botId: bot.id,
+        propertyKey: "accountFirst",
+        propertyValue: "account-first",
+    });
+
+    const settings = await getBotSpaceAndSpaceAccountSettingsValues(
+        adminSession.action(),
+        space.id,
+        adminSession.account.id,
+        bot.id,
+    );
+
+    expect(Array.from(settings.spaceValues.entries())).toEqual([
+        ["spaceFirst", "space-first"],
+        ["spaceSecond", "space-second"],
+    ]);
+    expect(Array.from(settings.accountValues.entries())).toEqual([
+        ["accountFirst", "account-first"],
+        ["accountSecond", "account-second"],
+    ]);
+});
+
 test("filters space secrets for members but returns account settings", async () => {
     const bot = await createBotWithSettings();
     const space = await TestSpace.create(context);

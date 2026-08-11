@@ -1,10 +1,7 @@
 import escapeHtml from "escape-html";
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, Link, Root} from "mdast";
-import {
-    AgentWebContext,
-    AgentWebContextWithoutStorage,
-} from "~/server/agents/web/agent_web_context.open_source.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_link.open_source.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
@@ -217,13 +214,12 @@ export async function readAgentWebPostPage(
 
     if (searchParams.get("after") === "post") {
         excludesPost = true;
-        searchParams.delete("after");
-        searchParams.set("start", "");
+        searchParams.set("after", "-1");
     }
 
     if (searchParams.get("before") === "post") {
         excludesPost = true;
-        searchParams.set("before", "0");
+        searchParams.set("before", "-1");
     }
 
     const parsedSearchParams = parseAgentWebMessagingPageSearchParams({
@@ -352,6 +348,8 @@ export async function readAgentWebPostPage(
                     // cursor based pagination across our API we treat `?before=100` as a "last 30
                     // messages <100" constraint and not messages between 70 and 100 constraint.
                     if (
+                        (parsedSearchParams.untilCursor === null ||
+                            parsedSearchParams.untilCursor < 0) &&
                         parsedSearchParams.startCursor !== null &&
                         parsedSearchParams.startCursor -
                             agentWebMessagingPageApiMessagesBatchCount <
@@ -564,10 +562,21 @@ export async function createAgentWebPostPage(
     const postBlock = newPage.blocks[0];
 
     if (postBlock.author !== null && postBlock.author.id !== context.botAccount.id) {
+        const {
+            data: {reference: botAccount},
+        } = await context.api.get(context.span, "/accounts/{id}-reference", {
+            params: {path: {id: context.botAccount.id}},
+        });
+
+        const botAccountPathname = await createAgentWebPageStoredLinkPathname(
+            context.storage,
+            botAccount,
+        );
+
         const authorLink: Link = {
             type: "link",
-            url: context.botAccount.pathname,
-            children: [{type: "text", value: context.botAccount.shortName}],
+            url: botAccountPathname,
+            children: [{type: "text", value: botAccount.shortName}],
         };
 
         throw new InvalidArgumentError("Can only create posts as own account", {
@@ -643,7 +652,7 @@ export async function createAgentWebPostPage(
 }
 
 export async function updateAgentWebPostPage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     pathname: MaybeThunk<MaybePromise<string>>,
     oldPageMetadata: MaybeThunk<MaybePromise<AgentWebPostPageMetadata>>,
     oldPage: AgentWebPostPage,
@@ -735,7 +744,7 @@ export async function updateAgentWebPostPage(
                     throw new InvalidArgumentError(
                         "Can\u2019t update post created by someone else",
                         {
-                            displayMessage: errorDisplayMessage`You can only update your \`<post>\`s. You can\u2019t update a \`<post>\` created by ${oldCustomBlock.author?.shortName ?? context.botAccount.shortName}. ${quote(`<post from="${escapeHtml(oldCustomBlock.author?.shortName ?? context.botAccount.shortName)}">`)} was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
+                            displayMessage: errorDisplayMessage`You can only update your \`<post>\`s. You can\u2019t update a \`<post>\` created by ${oldCustomBlock.author?.shortName ?? "yourself"}. ${quote(`<post${oldCustomBlock.author?.shortName ? ` from="${escapeHtml(oldCustomBlock.author.shortName)}"` : ""}>`)} was changed by this update. Try again with a more specific update that only changes the content of comments from you or adds new comments.`,
                         },
                     );
                 } else {

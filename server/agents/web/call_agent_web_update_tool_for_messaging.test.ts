@@ -12,8 +12,8 @@ import {
 import {mockApiGetChat} from "~/server/agents/api/test_helpers/mock_api_get_chat.js";
 import {mockApiGetChatMessages} from "~/server/agents/api/test_helpers/mock_api_get_chat_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
-import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import type {
     AgentWebMessagingPage,
@@ -50,6 +50,18 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
+async function callAgentWebUpdateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebUpdateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebUpdateTool(...callArguments)).response;
+}
+
 const spaceId = generateId<SpaceId>();
 const chatId = generateId<ChatId>();
 const botAccountId = generateId<AccountId>();
@@ -76,21 +88,38 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
 
+function mockAgentWebBotAccountReferenceForTest(
+    api: ApiClientMock,
+    botAccount: AgentWebContext["botAccount"],
+): void {
+    api.mockGet("/accounts/{id}-reference", {
+        params: {path: {id: botAccount.id}},
+        data: {
+            reference: {
+                type: "Account",
+                id: botAccount.id,
+                title: "ChatGPT",
+                shortName: "ChatGPT",
+                bot: botAccount.bot,
+            },
+        },
+    });
+}
+
 beforeEach(async () => {
-    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
-        storage,
-        context.botAccount,
-    );
-    assert(actualBotAccountPathname === context.botAccount.pathname);
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(storage, {
+        type: "Account",
+        id: context.botAccount.id,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: context.botAccount.bot,
+    });
+    assert(actualBotAccountPathname === "/bot/chatgpt");
 
     const chatPathname = await storeAgentWebPageLinkForTest(storage, {
         type: "Chat",
@@ -784,7 +813,6 @@ test("rejects edits to messages from another account", async () => {
         createMessage: index =>
             createMessage({index, author: aliceAccount, content: "Alice original"}),
     });
-
     await expect(
         callAgentWebUpdateTool(context, {
             path: chatPath,
@@ -975,6 +1003,7 @@ test("rejects creating messages from another account", async () => {
         createMessage: index =>
             createMessage({index, author: aliceAccount, content: "Alice original"}),
     });
+    mockAgentWebBotAccountReferenceForTest(api, context.botAccount);
 
     await expect(
         callAgentWebUpdateTool(context, {

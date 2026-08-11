@@ -61,6 +61,8 @@ export const options = {
     chatGptLocalUnscopedApiKey: {type: "string"},
     chatGptLocalScopedApiKey: {type: "string"},
     chatGptWebhookSecret: {type: "string"},
+    claudeLocalUnscopedApiKey: {type: "string"},
+    claudeWebhookSecret: {type: "string"},
     cursorLocalUnscopedApiKey: {type: "string"},
     cursorWebhookSecret: {type: "string"},
     mockChatGptLocalUnscopedApiKey: {type: "string"},

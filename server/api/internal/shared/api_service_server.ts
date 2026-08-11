@@ -14,6 +14,7 @@ import {ApiPathsBase} from "~/server/api/internal/shared/api_paths_type.js";
 import {ApiServiceProcessContext} from "~/server/api/internal/shared/api_service_context.js";
 import {getApiKeyAttributesIfExists} from "~/server/bots/get_api_key_attributes_if_exists.js";
 import {BotActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     createStandardizedServerBase,
@@ -260,16 +261,8 @@ export async function createApiServiceRequestListener(
     router.on("GET", "/healthcheck", (req, res) => {
         standardizedRequestListener(tracer, req, res, async request => {
             const url = new URL(request.url);
-            return await traceServerResponse(
-                tracer,
-                request,
-                url,
-                "/healthcheck",
-                async () =>
-                    new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    }),
+            return await traceServerResponse(tracer, request, url, "/healthcheck", async () =>
+                createSimpleOkResponse(),
             );
         });
     });

@@ -21,6 +21,7 @@ export function createServerTracer(options: {
         streamName: string;
         awsSigner: AwsRequestSigner;
     };
+    withoutWriteToFileInDev?: boolean;
 }): TracerRoot {
     return createServerTracerAndHoneycombClient(options)[0];
 }
@@ -34,6 +35,7 @@ export function createServerTracerAndHoneycombClient({
     waitUntil,
     honeycombDataset,
     kinesisTracerStreamOptions,
+    withoutWriteToFileInDev = false,
 }: {
     serviceName: TracerServiceName;
     jsHost: TracerEventJsHost;
@@ -47,6 +49,7 @@ export function createServerTracerAndHoneycombClient({
      * dev/test environments. See ##local-kinesis TODOs for more.
      */
     kinesisTracerStreamOptions?: {streamName: string; awsSigner: AwsRequestSigner};
+    withoutWriteToFileInDev?: boolean;
 }): [TracerRoot, TracerClient | null] {
     const tracer = TracerRoot.new({
         serviceName,
@@ -58,7 +61,7 @@ export function createServerTracerAndHoneycombClient({
         sendEvent: event => {
             honeycombClient?.sendEvent(event);
 
-            if (process.env.NODE_ENV !== "production") {
+            if (process.env.NODE_ENV !== "production" && !withoutWriteToFileInDev) {
                 writeTracerEventToFileInDev(event);
             }
         },

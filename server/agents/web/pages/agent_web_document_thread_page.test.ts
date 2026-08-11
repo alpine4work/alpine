@@ -37,7 +37,7 @@ const documentReference: ApiDocumentReferenceResponse = {
 const pageLink: AgentWebPageDocumentThreadRoutedLink = {
     type: "DocumentThread",
     document: documentReference,
-    threadId,
+    id: threadId,
 };
 
 function accountReference({
@@ -98,7 +98,7 @@ const firstCommentBlock = {
 };
 
 runAgentWebPageTests<
-    {document: {id: DocumentId}; threadId: DocumentCommentThreadId},
+    {document: {id: DocumentId}; id: DocumentCommentThreadId},
     AgentWebDocumentThreadPage
 >({
     print: printAgentWebDocumentThreadPage,
@@ -298,12 +298,12 @@ Preview body.
             setupStorage: async storage => {
                 await storeAgentWebPageLinkForTest(storage, pageLink.document);
                 await storage.documentCommentThreadNumberById.put(
-                    `${pageLink.document.id}-${pageLink.threadId}`,
+                    [pageLink.document.id, pageLink.id],
                     1,
                 );
                 await storage.documentCommentThreadIdByNumber.put(
-                    `${pageLink.document.id}-1`,
-                    pageLink.threadId,
+                    [pageLink.document.id, "1"],
+                    pageLink.id,
                 );
             },
             parseError: markdown`
@@ -509,12 +509,12 @@ First comment.
             setupStorage: async storage => {
                 await storeAgentWebPageLinkForTest(storage, pageLink.document);
                 await storage.documentCommentThreadNumberById.put(
-                    `${pageLink.document.id}-${pageLink.threadId}`,
+                    [pageLink.document.id, pageLink.id],
                     1,
                 );
                 await storage.documentCommentThreadIdByNumber.put(
-                    `${pageLink.document.id}-1`,
-                    pageLink.threadId,
+                    [pageLink.document.id, "1"],
+                    pageLink.id,
                 );
                 await storeAgentWebPageLinkForTest(storage, bobReference);
             },
@@ -544,12 +544,12 @@ First comment.
             setupStorage: async storage => {
                 await storeAgentWebPageLinkForTest(storage, pageLink.document);
                 await storage.documentCommentThreadNumberById.put(
-                    `${pageLink.document.id}-${pageLink.threadId}`,
+                    [pageLink.document.id, pageLink.id],
                     1,
                 );
                 await storage.documentCommentThreadIdByNumber.put(
-                    `${pageLink.document.id}-1`,
-                    pageLink.threadId,
+                    [pageLink.document.id, "1"],
+                    pageLink.id,
                 );
                 await storeAgentWebPageLinkForTest(storage, bobReference);
             },
@@ -704,12 +704,12 @@ Preview body.
             setupStorage: async storage => {
                 await storeAgentWebPageLinkForTest(storage, pageLink.document);
                 await storage.documentCommentThreadNumberById.put(
-                    `${pageLink.document.id}-${pageLink.threadId}`,
+                    [pageLink.document.id, pageLink.id],
                     1,
                 );
                 await storage.documentCommentThreadIdByNumber.put(
-                    `${pageLink.document.id}-1`,
-                    pageLink.threadId,
+                    [pageLink.document.id, "1"],
+                    pageLink.id,
                 );
                 await storeAgentWebPageLinkForTest(storage, bobReference);
             },

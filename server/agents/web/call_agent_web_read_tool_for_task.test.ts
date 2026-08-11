@@ -4,7 +4,7 @@ import {createApiTaskMock} from "~/server/agents/api/test_helpers/create_api_tas
 import {printApiTaskQueryCursorMock} from "~/server/agents/api/test_helpers/mock_api_get_task_collection_tasks.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {createAgentWebTaskQueryCursorHash} from "~/server/agents/web/agent_web_task_query_cursor_hash.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
@@ -24,6 +24,12 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
 const {span} = testTracer.startSpan("call_agent_web_read_tool_for_task.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
@@ -39,12 +45,8 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
 
@@ -289,7 +291,7 @@ test("prints exactly 50 subtasks and a See more link when more remain", async ()
         `Task:${taskId}`,
         afterCursor,
     );
-    await storage.taskQueryCursorByHash.put(`Task:${taskId}-abc`, afterCursor);
+    await storage.taskQueryCursorByHash.put([`Task:${taskId}`, "abc"], afterCursor);
 
     await storeAgentWebPageLinkForTest(storage, {
         type: "Task",

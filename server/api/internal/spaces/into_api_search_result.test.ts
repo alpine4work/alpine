@@ -506,12 +506,13 @@ describe("intoApiSearchResult", () => {
 
             expect(result).toEqual({
                 type: "DocumentMessage",
-                id: documentId,
-                threadId: commentThreadId,
+                document: {id: documentId},
+                id: commentThreadId,
                 index: commentIndex,
                 title: null,
                 bodySnippet: "Great point!",
                 matches: [{type: "BodySnippet", index: 0, length: 12}],
+                parsedFilter: undefined,
                 author: expect.objectContaining({
                     id: authorId,
                     name: "Comment Author",

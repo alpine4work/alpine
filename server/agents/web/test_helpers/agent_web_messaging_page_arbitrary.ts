@@ -99,7 +99,7 @@ export const AgentWebMessagingPagePaginationPageLinkArbitrary =
         DocumentThread: fc.record({
             type: fc.constant("DocumentThread"),
             document: ApiDocumentReferenceArbitrary,
-            threadId: createIdArbitrary<DocumentCommentThreadId>(),
+            id: createIdArbitrary<DocumentCommentThreadId>(),
         }),
         Post: fc.record({
             type: fc.constant("Post"),

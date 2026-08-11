@@ -140,8 +140,8 @@ export function intoApiSearchResult(
 
             return {
                 type: "DocumentMessage",
-                id: entity.comment.documentId,
-                threadId: entity.comment.commentThreadId,
+                document: {id: entity.comment.documentId},
+                id: entity.comment.commentThreadId,
                 index: entity.comment.index,
                 title: null,
                 bodySnippet: bodySnippet.text,

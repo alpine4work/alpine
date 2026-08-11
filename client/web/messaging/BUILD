@@ -17,6 +17,7 @@ ts_project(
         "//:node_modules/@react-aria/interactions",
         "//:node_modules/@vanilla-extract/dynamic",
         "//:node_modules/classnames",
+        "//:node_modules/compromise",
         "//:node_modules/date-fns",
         "//:node_modules/motion",
         "//:node_modules/phosphor-react",

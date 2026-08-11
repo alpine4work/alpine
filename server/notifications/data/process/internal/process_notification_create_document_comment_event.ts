@@ -287,7 +287,7 @@ export const processNotificationCreateDocumentCommentEvent = createNotificationE
         room: {
             type: "DocumentThread",
             id: event.commentThreadId,
-            document: {id: event.documentId},
+            document: {type: "Document", id: event.documentId},
         },
         index: event.commentIndex,
         author: {id: event.authorId},

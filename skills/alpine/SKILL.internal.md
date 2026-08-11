@@ -53,15 +53,15 @@ it refer to the documentation linked in the table below. If you're going to upda
 the `update` tool or create a new page with the `create` tool then we recommend reading any relevant
 documentation linked in the table below first.
 
-| Area                               | Related paths                         | Related `create` tool types             |
-| ---------------------------------- | ------------------------------------- | --------------------------------------- |
-| [Accounts](accounts.internal.md)   | `/human/...` or `/bot/...`            |                                         |
-| [Documents](documents.internal.md) | `/document/...`                       | `document` or `document-comment-thread` |
-| [Tasks](tasks.internal.md)         | `/task/...` or `/task-collection/...` | `task` or `task-collection`             |
-| [Chat](chat.internal.md)           | `/chat/...`                           | `chat`                                  |
-| [Forum](forum.internal.md)         | `/channel/...` or `/post/...`         | `channel` or `post`                     |
-| [Files](files.internal.md)         | `/file/...`                           |                                         |
-| [Spaces](spaces.internal.md)       | `/space`                              |                                         |
+| Area                               | Related paths                          | Related `create` tool types             | Related concepts |
+| ---------------------------------- | -------------------------------------- | --------------------------------------- | ---------------- |
+| [Accounts](accounts.internal.md)   | `/human/...`, `/bot/...`, or `/bot/me` |                                         |                  |
+| [Documents](documents.internal.md) | `/document/...`                        | `document` or `document-comment-thread` |                  |
+| [Tasks](tasks.internal.md)         | `/task/...` or `/task-collection/...`  | `task` or `task-collection`             | Projects         |
+| [Chat](chat.internal.md)           | `/chat/...`                            | `chat`                                  |                  |
+| [Forum](forum.internal.md)         | `/channel/...` or `/post/...`          | `channel` or `post`                     | Feed             |
+| [Files](files.internal.md)         | `/file/...`                            |                                         |                  |
+| [Spaces](spaces.internal.md)       | `/space`                               |                                         |                  |
 
 ## Tips
 

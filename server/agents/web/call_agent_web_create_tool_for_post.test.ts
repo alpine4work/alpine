@@ -2,8 +2,8 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_message_mock.js";
 import type {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
-import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
+import {callAgentWebCreateTool as actuallyCallAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
+import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
@@ -29,6 +29,18 @@ import type {
     SpaceId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebCreateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebCreateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebCreateTool(...callArguments)).response;
+}
+
+async function callAgentWebUpdateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebUpdateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebUpdateTool(...callArguments)).response;
+}
 
 const spaceId = generateId<SpaceId>();
 const announcementsChannelId = generateId<ChannelId>();
@@ -66,23 +78,40 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
+
+function mockAgentWebBotAccountReferenceForTest(
+    api: ApiClientMock,
+    botAccount: AgentWebContext["botAccount"],
+): void {
+    api.mockGet("/accounts/{id}-reference", {
+        params: {path: {id: botAccount.id}},
+        data: {
+            reference: {
+                type: "Account",
+                id: botAccount.id,
+                title: "ChatGPT",
+                shortName: "ChatGPT",
+                bot: botAccount.bot,
+            },
+        },
+    });
+}
 
 beforeEach(async () => {
     await storage.deleteAll();
 
-    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
-        storage,
-        context.botAccount,
-    );
-    assert(actualBotAccountPathname === context.botAccount.pathname);
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(storage, {
+        type: "Account",
+        id: context.botAccount.id,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: context.botAccount.bot,
+    });
+    assert(actualBotAccountPathname === "/bot/chatgpt");
 
     const actualAlicePathname = await storeAgentWebPageLinkForTest(storage, aliceAccount);
     assert(actualAlicePathname === "/human/alice");
@@ -603,6 +632,8 @@ Server should choose the post time.
 });
 
 test("rejects creating a post from another account", async () => {
+    mockAgentWebBotAccountReferenceForTest(api, context.botAccount);
+
     await expect(
         callAgentWebCreateTool(context, {
             type: "post",
@@ -652,6 +683,8 @@ Timezone is explicit.
 });
 
 test("rejects creating a comment from another account while creating a post", async () => {
+    mockAgentWebBotAccountReferenceForTest(api, context.botAccount);
+
     await expect(
         callAgentWebCreateTool(context, {
             type: "post",

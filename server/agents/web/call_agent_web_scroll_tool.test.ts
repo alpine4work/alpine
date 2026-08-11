@@ -1,9 +1,9 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_document.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {
-    callAgentWebScrollTool,
+    callAgentWebScrollTool as actuallyCallAgentWebScrollTool,
     truncateAgentWebReadResponse,
 } from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
@@ -16,6 +16,18 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
+async function callAgentWebScrollTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebScrollTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebScrollTool(...callArguments)).response;
+}
 
 const {span} = testTracer.startSpan("call_agent_web_scroll_tool.test.ts");
 const api = new ApiClientMock();
@@ -32,12 +44,8 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
 
@@ -182,7 +190,7 @@ test("paginates through a long GFM table across multiple scroll calls", async ()
 | M12 Workspace archive flow | Docs | Planned |`;
 
     await context.storage.readResponseByPath.put(path, {
-        expirationTime: new Date(Date.now() + 60_000),
+        expirationTime: Date.now() + 60_000,
         pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42, keys: []},
         ...createReadResponse(tableResponseString),
     });
@@ -382,7 +390,7 @@ test("throws when read response does not exist", async () => {
 
 test("throws when read response is expired", async () => {
     await context.storage.readResponseByPath.put("/document/expired", {
-        expirationTime: new Date(Date.now() - 60_000),
+        expirationTime: Date.now() - 60_000,
         pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42, keys: []},
         ...createReadResponse("Expired content."),
     });
@@ -400,7 +408,7 @@ test("throws when read response is expired", async () => {
 
 test.each([-1, 1.5, 3])("throws for invalid offset %s", async offset => {
     await context.storage.readResponseByPath.put("/document/offset", {
-        expirationTime: new Date(Date.now() + 60_000),
+        expirationTime: Date.now() + 60_000,
         pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 42, keys: []},
         ...createReadResponse("Single line"),
     });

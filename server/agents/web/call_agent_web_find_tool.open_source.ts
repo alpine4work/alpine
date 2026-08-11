@@ -21,17 +21,23 @@ export async function callAgentWebFindTool(
         limit?: number;
         matchLimit?: string;
     },
-): Promise<string> {
+): Promise<{isError: boolean; response: string}> {
     return await context.span.withSpan("Call agent web find tool", async span => {
         try {
-            return await actuallyCallAgentWebFindTool({...context, span}, options);
+            return {
+                isError: false,
+                response: await actuallyCallAgentWebFindTool({...context, span}, options),
+            };
         } catch (error) {
             span.addException(error);
 
-            return printAgentWebError(
-                `Couldn\u2019t find pattern in ${quote(options.path)}`,
-                error,
-            );
+            return {
+                isError: true,
+                response: printAgentWebError(
+                    `Couldn\u2019t find pattern in ${quote(options.path)}`,
+                    error,
+                ),
+            };
         }
     });
 }
@@ -57,7 +63,7 @@ async function actuallyCallAgentWebFindTool(
 
     const readResponse = await context.storage.readResponseByPath.get(path);
 
-    if (!readResponse || readResponse.expirationTime.getTime() < Date.now()) {
+    if (!readResponse || readResponse.expirationTime < Date.now()) {
         throw new NotFoundError("Read response not found or expired", {
             displayMessage: errorDisplayMessage`Can\u2019t call the \`find\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path ${quote(originalPath)} then call the \`find\` tool again. Or call the \`search\` tool if you don\u2019t know the exact path where the content you\u2019re looking for is.`,
         });

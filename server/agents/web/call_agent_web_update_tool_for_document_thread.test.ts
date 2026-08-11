@@ -4,8 +4,8 @@ import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_
 import {mockApiGetDocumentThreadMessages} from "~/server/agents/api/test_helpers/mock_api_get_document_thread_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
-import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
@@ -29,6 +29,18 @@ import {
     SpaceId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
+async function callAgentWebUpdateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebUpdateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebUpdateTool(...callArguments)).response;
+}
 
 const spaceId = generateId<SpaceId>();
 const documentId = generateId<DocumentId>();
@@ -61,7 +73,7 @@ const otherDocumentReference = {
 const documentThreadReference: AgentWebPageDocumentThreadRoutedLink = {
     type: "DocumentThread",
     document: documentReference,
-    threadId,
+    id: threadId,
 };
 
 const documentThreadPath = "/document/launch-spec/comments/1";
@@ -77,23 +89,40 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
+
+function mockAgentWebBotAccountReferenceForTest(
+    api: ApiClientMock,
+    botAccount: AgentWebContext["botAccount"],
+): void {
+    api.mockGet("/accounts/{id}-reference", {
+        params: {path: {id: botAccount.id}},
+        data: {
+            reference: {
+                type: "Account",
+                id: botAccount.id,
+                title: "ChatGPT",
+                shortName: "ChatGPT",
+                bot: botAccount.bot,
+            },
+        },
+    });
+}
 
 beforeEach(async () => {
     await storage.deleteAll();
 
-    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
-        storage,
-        context.botAccount,
-    );
-    assert(actualBotAccountPathname === context.botAccount.pathname);
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(storage, {
+        type: "Account",
+        id: context.botAccount.id,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: context.botAccount.bot,
+    });
+    assert(actualBotAccountPathname === "/bot/chatgpt");
 
     const actualDocumentPathname = await storeAgentWebPageLinkForTest(storage, documentReference);
     assert(actualDocumentPathname === "/document/launch-spec");
@@ -345,7 +374,7 @@ Preview.
 End of comments.`;
 
     await storage.readResponseByPath.put(documentThreadPath, {
-        expirationTime: new Date(Date.now() + 60 * 60 * 1000),
+        expirationTime: Date.now() + 60 * 60 * 1000,
         pageMetadata: {
             type: "DocumentThread",
             id: documentId,
@@ -639,6 +668,7 @@ test("rejects creating comments before the end of document thread comments", asy
 
 test("rejects creating comments from another account", async () => {
     await readDocumentThread({totalCommentCount: 0});
+    mockAgentWebBotAccountReferenceForTest(api, context.botAccount);
 
     await expect(
         callAgentWebUpdateTool(context, {

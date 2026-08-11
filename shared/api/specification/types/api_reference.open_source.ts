@@ -34,9 +34,14 @@ export type ApiReference =
       }
     | {
           readonly type: "DocumentMessage";
-          readonly id: DocumentId;
-          readonly threadId: DocumentCommentThreadId;
+          readonly document: {readonly id: DocumentId};
+          readonly id: DocumentCommentThreadId;
           readonly index: number;
+      }
+    | {
+          readonly type: "DocumentThread";
+          readonly document: {readonly id: DocumentId};
+          readonly id: DocumentCommentThreadId;
       }
     | {
           readonly type: "Post";

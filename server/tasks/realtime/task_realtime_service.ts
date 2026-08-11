@@ -17,6 +17,7 @@ import {
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
+import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {
     createServerBasicProcessContextModules,
     serverBasicProcessContextOptions,
@@ -611,12 +612,7 @@ export async function run({
                     );
                 }
 
-                return await Promise.resolve(
-                    new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    }),
-                );
+                return await Promise.resolve(createSimpleOkResponse());
             }
 
             if (route.type === "NotFound") {

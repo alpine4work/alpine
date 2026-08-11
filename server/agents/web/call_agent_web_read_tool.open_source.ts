@@ -7,9 +7,9 @@ import {
     AgentWebPage,
     AgentWebPageMetadata,
 } from "~/server/agents/web/agent_web_page.open_source.js";
-import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
-import {AgentWebPageRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.open_source.js";
-import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_page_stored_link_key.open_source.js";
+import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.open_source.js";
+import {AgentWebPageSkillRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.open_source.js";
+import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_page_stored_link.open_source.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
@@ -110,17 +110,28 @@ export const agentWebReadResponseExpirationHours = 1;
 export async function callAgentWebReadTool(
     context: AgentWebContext,
     options: {path: string; limit?: string},
-): Promise<string> {
+): Promise<
+    | {isError: false; response: string; pageLink: AgentWebPageLinkKeyObject}
+    | {isError: true; response: string}
+> {
     return await context.span.withSpan("Call agent web read tool", async span => {
         try {
-            const {truncatedResponse} = await actuallyCallAgentWebReadTool(
+            const {pageLink, response} = await actuallyCallAgentWebReadTool(
                 {...context, span},
                 options,
             );
-            return truncatedResponse;
+
+            return {
+                isError: false,
+                response,
+                pageLink,
+            };
         } catch (error) {
             span.addException(error);
-            return printAgentWebError(`Couldn\u2019t read ${quote(options.path)}`, error);
+            return {
+                isError: true,
+                response: printAgentWebError(`Couldn\u2019t read ${quote(options.path)}`, error),
+            };
         }
     });
 }
@@ -134,7 +145,10 @@ async function actuallyCallAgentWebReadTool(
         path: string;
         limit?: string;
     },
-) {
+): Promise<{
+    pageLink: AgentWebPageLinkKeyObject;
+    response: string;
+}> {
     // Allow passing in an Alpine URL to the `read` tool. This will help users who copy
     // an Alpine URL from their browser and paste it into their agent. The agent can
     // then take the URL and turn it into a human-readable path and operate on that.
@@ -169,7 +183,8 @@ async function actuallyCallAgentWebReadTool(
         );
 
         return {
-            truncatedResponse: `Found path for URL: ${quote(pathname)}.\n\nCall the \`read\` tool again with that path to see the ${getApiMentionReferenceNoun(reference.type)}\u2019s content.`,
+            pageLink: referenceResponse,
+            response: `Found path for URL: ${quote(pathname)}.\n\nCall the \`read\` tool again with that path to see the ${getApiMentionReferenceNoun(reference.type)}\u2019s content.`,
         };
     }
 
@@ -207,31 +222,29 @@ async function actuallyCallAgentWebReadTool(
             });
         }
 
-        const {response, metadata: pageMetadata} = await readAgentWebPageLink(
-            context,
-            pathname,
-            pageLink,
-            {
-                searchParams,
-                limitLength,
-                printPage: async page => {
-                    assert(pageLink.type !== "Skill");
-                    assert(page.type !== "Skill");
+        const {response, metadata: pageMetadata} = await readAgentWebPageLink(context, pageLink, {
+            searchParams,
+            limitLength,
+            printPage: async page => {
+                assert(pageLink.type !== "Skill" && pageLink.type !== "MyAccount");
 
-                    const response = await printAgentWebPageToMarkdownForReadTool(
-                        context.storage,
-                        pageLink,
-                        page,
-                    );
-                    return response;
-                },
+                const response = await printAgentWebPageToMarkdownForReadTool(
+                    context.storage,
+                    pageLink,
+                    page,
+                );
+                return response;
             },
-        );
+        });
 
         // In non-production environments, parse the response back into the underlying page
         // object just to make sure there are no parse errors. We don't do this in
         // production as a performance optimization.
-        if (process.env.NODE_ENV !== "production" && pageMetadata.type !== "Skill") {
+        if (
+            process.env.NODE_ENV !== "production" &&
+            pageMetadata.type !== "Skill" &&
+            pageMetadata.type !== "MyAccount"
+        ) {
             const responseTree = parseMarkdownTree(response);
 
             try {
@@ -259,7 +272,7 @@ async function actuallyCallAgentWebReadTool(
         newlineIndexes.push(response.length);
 
         const readResponse = {
-            expirationTime: addHours(new Date(), agentWebReadResponseExpirationHours),
+            expirationTime: addHours(new Date(), agentWebReadResponseExpirationHours).getTime(),
             pageMetadata,
             response,
             newlineIndexes,
@@ -268,11 +281,11 @@ async function actuallyCallAgentWebReadTool(
         await context.storage.readResponseByPath.put(path, readResponse);
 
         if (response.length <= limitLength) {
-            return {readResponse, truncatedResponse: response};
+            return {pageLink, response};
         } else {
             return {
-                readResponse,
-                truncatedResponse: truncateAgentWebReadResponse(
+                pageLink,
+                response: truncateAgentWebReadResponse(
                     {response, newlineIndexes},
                     {offsetNewline: 0, limitLength, isScrollTool: false},
                 ),
@@ -281,10 +294,105 @@ async function actuallyCallAgentWebReadTool(
     });
 }
 
+/**
+ * Similar to `callAgentWebReadTool()` but designed to be used independently of an
+ * agent tool call. For example, when loading initial context into an agent. So the
+ * agent didn't directly call the `read` tool but instead we're injecting some
+ * context.
+ *
+ * Differences:
+ *
+ * - Doesn't truncate the response. Since we're not calling the `read` tool then
+ *   there's no path to use for the `scroll` tool. However, for pages that require
+ *   data loading we do still try to fit our data into `limit` (and we overflow if
+ *   we can't).
+ *
+ * - Allows you to pass in a `pageLink` instead of a path. This allows you to read
+ *   data you haven't seen before (and so don't have a path for).
+ */
+export async function independentlyCallAgentWebReadToolWithoutTruncation(
+    context: AgentWebContext,
+    options: {
+        pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill" | "MyAccount"}>;
+        searchParams?: URLSearchParams;
+        limit?: string;
+    },
+): Promise<string> {
+    return await context.span.withSpan("Call agent web read tool (independently)", async span => {
+        try {
+            return await actuallyIndependentlyCallAgentWebReadToolWithoutTruncation(
+                {...context, span},
+                options,
+            );
+        } catch (error) {
+            span.addException(error);
+            return printAgentWebError("Couldn\u2019t read", error);
+        }
+    });
+}
+
+async function actuallyIndependentlyCallAgentWebReadToolWithoutTruncation(
+    context: AgentWebContext,
+    {
+        pageLink,
+        searchParams = new URLSearchParams(),
+        limit: limitBytesString = agentWebBytesDefaultLimit,
+    }: {
+        pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill" | "MyAccount"}>;
+        searchParams?: URLSearchParams;
+        limit?: string;
+    },
+) {
+    // The agent gives us a limit in bytes (which conventionally is understood as UTF-8
+    // code units) but for convenience we treat it as UTF-16 code units since that's
+    // how JavaScript strings are represented. This means in extreme cases we may
+    // return a string up to 2x longer in UTF-8 code units than the requested byte
+    // limit.
+    const limitLength = parseAgentWebBytes(limitBytesString);
+
+    const {response, metadata: pageMetadata} = await readAgentWebPageLink(context, pageLink, {
+        searchParams,
+        limitLength,
+        printPage: async page => {
+            const response = await printAgentWebPageToMarkdownForReadTool(
+                context.storage,
+                pageLink,
+                page,
+            );
+            return response;
+        },
+    });
+
+    // In non-production environments, parse the response back into the underlying page
+    // object just to make sure there are no parse errors. We don't do this in
+    // production for performance.
+    if (
+        process.env.NODE_ENV !== "production" &&
+        pageMetadata.type !== "Skill" &&
+        pageMetadata.type !== "MyAccount"
+    ) {
+        const responseTree = parseMarkdownTree(response);
+
+        try {
+            await parseAgentWebPageForTest(context.storage, pageMetadata, responseTree);
+        } catch (error) {
+            throw InternalError.from(
+                error,
+                "Couldn\u2019t parse agent web page returned by `readAgentWebPageLink()`",
+            );
+        }
+    }
+
+    // We don't truncate when printing with `pageLink` because we don't store the
+    // response in the read response cache. So if we tell the agent to call `scroll` it
+    // can't because there's no path it can give to `scroll`!
+    return response;
+}
+
 async function printAgentWebPageToMarkdownForReadTool(
     storage: AgentWebSessionStorage,
-    pageLink: Exclude<AgentWebPageLink, {type: "Skill"}>,
-    page: Exclude<AgentWebPage, {type: "Skill"}>,
+    pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill" | "MyAccount"}>,
+    page: Exclude<AgentWebPage, {type: "Skill" | "MyAccount"}>,
 ): Promise<string> {
     // We should always normalize agent web markdown before printing. The following
     // property is not true in all cases:
@@ -311,15 +419,14 @@ async function printAgentWebPageToMarkdownForReadTool(
 
 async function readAgentWebPageLink(
     context: AgentWebContext,
-    pathname: string,
     // We intentionally use the "key object" type so the code within this function
     // doesn't rely on `title` or any extra data we include in the full link object to
     // print a friendly path for the agent.
-    pageLink: AgentWebPageStoredLinkKeyObject | AgentWebPageRoutedLink,
+    pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill"}> | AgentWebPageSkillRoutedLink,
     options: {
         searchParams: URLSearchParams;
         limitLength: number;
-        printPage: (page: AgentWebPage) => Promise<string>;
+        printPage: (page: Exclude<AgentWebPage, {type: "Skill" | "MyAccount"}>) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebPageMetadata}> {
     switch (pageLink.type) {
@@ -335,22 +442,19 @@ async function readAgentWebPageLink(
         case "Document": {
             return await readAgentWebDocumentPage(context, pageLink.id, options);
         }
-        case "Inbox": {
-            return await readAgentWebInboxPage(context, pageLink.account, options);
-        }
         case "DocumentThread": {
             return await readAgentWebDocumentThreadPage(
                 context,
                 pageLink.document.id,
-                pageLink.threadId,
+                pageLink.id,
                 options,
             );
         }
         case "DocumentMessage": {
             return await readAgentWebDocumentThreadMessagePage(
                 context,
+                pageLink.document.id,
                 pageLink.id,
-                pageLink.threadId,
                 pageLink.index,
                 options,
             );
@@ -398,14 +502,44 @@ async function readAgentWebPageLink(
             // TODO(#agents-web): Implement sites API and agent web format.
             throw new UnimplementedError("Reading a site is unimplemented");
         }
+        case "Inbox": {
+            return await readAgentWebInboxPage(context, pageLink.account, options);
+        }
+        case "MyAccount": {
+            const {
+                data: {reference},
+            } = await context.api.get(context.span, "/accounts/{id}-reference", {
+                params: {path: {id: context.botAccount.id}},
+            });
+
+            const pathname = await createAgentWebPageStoredLinkPathname(context.storage, reference);
+
+            return {
+                response: printMarkdownTree({
+                    type: "paragraph",
+                    children: [
+                        {type: "text", value: "You are "},
+                        {
+                            type: "link",
+                            url: pathname,
+                            children: [
+                                {type: "text", value: printAgentWebPageStoredLinkLabel(reference)},
+                            ],
+                        },
+                        {type: "text", value: "."},
+                    ],
+                }).trim(),
+                metadata: {type: "MyAccount"},
+            };
+        }
         default:
             throw exhaustive(pageLink);
     }
 }
 
 function normalizeAgentWebPage(
-    page: Exclude<AgentWebPage, {type: "Skill"}>,
-): Exclude<AgentWebPage, {type: "Skill"}> {
+    page: Exclude<AgentWebPage, {type: "Skill" | "MyAccount"}>,
+): Exclude<AgentWebPage, {type: "Skill" | "MyAccount"}> {
     switch (page.type) {
         case "Account": {
             return normalizeAgentWebAccountPage(page);
@@ -447,7 +581,7 @@ function normalizeAgentWebPage(
 
 function printAgentWebPage(
     storage: AgentWebSessionStorage,
-    pageLink: Exclude<AgentWebPageLink, {type: "Skill"}>,
+    pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill" | "MyAccount"}>,
     page: AgentWebPage,
 ): Promise<Root> {
     switch (pageLink.type) {
@@ -469,11 +603,7 @@ function printAgentWebPage(
         }
         case "DocumentMessage": {
             assert(page.type === "DocumentThread");
-            return printAgentWebDocumentThreadPage(
-                storage,
-                {threadId: pageLink.threadId, document: {id: pageLink.id}},
-                page,
-            );
+            return printAgentWebDocumentThreadPage(storage, pageLink, page);
         }
         case "File": {
             // TODO(#agents-web): How should we return a file via the CLI or MCP?
@@ -530,7 +660,7 @@ function printAgentWebPage(
 
 async function parseAgentWebPageForTest(
     storage: AgentWebSessionStorage,
-    pageMetadata: Exclude<AgentWebPageMetadata, {type: "Skill"}>,
+    pageMetadata: Exclude<AgentWebPageMetadata, {type: "Skill" | "MyAccount"}>,
     response: Root,
 ): Promise<AgentWebPage> {
     assert(process.env.NODE_ENV !== "production");
@@ -548,7 +678,7 @@ async function parseAgentWebPageForTest(
         case "DocumentThread": {
             return await parseAgentWebDocumentThreadPage(
                 storage,
-                {document: {id: pageMetadata.id}, threadId: pageMetadata.threadId},
+                {document: {id: pageMetadata.id}, id: pageMetadata.threadId},
                 response,
             );
         }

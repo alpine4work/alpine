@@ -16,7 +16,6 @@ import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
-import {parseApiBotWebhookEventIntoMessageRoom} from "~/shared/api/specification/parse_api_path.js";
 import {
     botWebhookSignatureHeader,
     verifyBotWebhookRequestSignature,
@@ -307,7 +306,7 @@ export abstract class AgentDurableObjectBase<
                     botId: botAccount.bot.id,
                     botAccountId: botAccount.id,
                     event,
-                    room: parseApiBotWebhookEventIntoMessageRoom(event),
+                    room: event.room,
                     apiClient: createApiClient({
                         baseUrl: assertExists(
                             this._env.API_SERVICE_URL,

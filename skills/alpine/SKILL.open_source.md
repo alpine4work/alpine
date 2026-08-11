@@ -33,15 +33,15 @@ As you explore Alpine, you’ll find links like `[Hello, world!](/document/hello
 
 While the markdown you get from the `read` tool should be intuitive, if you need help understanding it refer to the documentation linked in the table below. If you’re going to update the markdown with the `update` tool or create a new page with the `create` tool then we recommend reading any relevant documentation linked in the table below first.
 
-| Area | Related paths | Related `create` tool types |
-| - | - | - |
-| [Accounts](accounts.md) | `/human/...` or `/bot/...` | |
-| [Documents](documents.md) | `/document/...` | `document` or `document-comment-thread` |
-| [Tasks](tasks.md) | `/task/...` or `/task-collection/...` | `task` or `task-collection` |
-| [Chat](chat.md) | `/chat/...` | `chat` |
-| [Forum](forum.md) | `/channel/...` or `/post/...` | `channel` or `post` |
-| [Files](files.md) | `/file/...` | |
-| [Spaces](spaces.md) | `/space` | |
+| Area | Related paths | Related `create` tool types | Related concepts |
+| - | - | - | - |
+| [Accounts](accounts.md) | `/human/...`, `/bot/...`, or `/bot/me` | | |
+| [Documents](documents.md) | `/document/...` | `document` or `document-comment-thread` | |
+| [Tasks](tasks.md) | `/task/...` or `/task-collection/...` | `task` or `task-collection` | Projects |
+| [Chat](chat.md) | `/chat/...` | `chat` | |
+| [Forum](forum.md) | `/channel/...` or `/post/...` | `channel` or `post` | Feed |
+| [Files](files.md) | `/file/...` | | |
+| [Spaces](spaces.md) | `/space` | | |
 
 ## Tips
 

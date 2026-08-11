@@ -7,7 +7,6 @@
 // DO NOT USE THIS FOR NEW CODE.
 
 import {
-    ApiBotWebhookEvent,
     ApiMentionReference,
     ApiMessageRoomReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
@@ -127,7 +126,7 @@ type ApiPathsType = [
         pathObject: {
             readonly type: "DocumentThread";
             readonly id: DocumentCommentThreadId;
-            readonly document: {readonly id: DocumentId};
+            readonly document: {readonly type: "Document"; readonly id: DocumentId};
         };
     },
     {
@@ -326,7 +325,7 @@ export function parseApiPath(path: string): ApiPathObject {
                 return {
                     type: "DocumentThread",
                     id: pathSegments[3],
-                    document: {id: pathSegments[1]},
+                    document: {type: "Document", id: pathSegments[1]},
                 };
             } else {
                 if (pathSegments.length !== 2) {
@@ -513,40 +512,6 @@ export function isApiMessageRoomPath(path: ApiPath): path is ApiMessageRoomPath 
 
 export function isApiMessageRoom(pathObject: ApiPathObject): pathObject is ApiMessageRoomReference {
     return apiMessageRoomTypes.has(pathObject.type);
-}
-
-export function parseApiBotWebhookEventIntoMessageRoom(
-    event: ApiBotWebhookEvent,
-): ApiMessageRoomReference {
-    switch (event.type) {
-        case "UpdatedMessageStreamExperimentalApprovalsPart":
-        case "CreatedMessage": {
-            return event.room;
-        }
-        case "CreatedPost": {
-            return {type: "Post", id: event.post.id};
-        }
-        default: {
-            throw exhaustive(event);
-        }
-    }
-}
-
-export function parseApiBotWebhookEventIntoMessageRoomPath(
-    event: ApiBotWebhookEvent,
-): ApiMessageRoomPath {
-    switch (event.type) {
-        case "UpdatedMessageStreamExperimentalApprovalsPart":
-        case "CreatedMessage": {
-            return printApiMessageRoomPath(event.room);
-        }
-        case "CreatedPost": {
-            return `/posts/${event.post.id}`;
-        }
-        default: {
-            throw exhaustive(event);
-        }
-    }
 }
 
 export function printApiMessageRoomPath(path: ApiMessageRoomReference): ApiMessageRoomPath {

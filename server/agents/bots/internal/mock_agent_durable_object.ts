@@ -10,7 +10,7 @@ import {
     AgentWebhookRequest,
 } from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
-import {shouldAgentRespondToRequest} from "~/server/agents/bots/internal/should_agent_respond_to_request.js";
+import {shouldAgentRespondToApiBotWebhookRequestWithCache} from "~/server/agents/bots/internal/should_agent_respond_to_api_bot_webhook_request_with_cache.js";
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {MockAgentRecording} from "~/shared/agents/mock_agent_recording.js";
 import {UnimplementedError} from "~/shared/error/error.open_source.js";
@@ -107,7 +107,8 @@ abstract class MockAgentDurableObjectBase extends AgentDurableObjectBase<MockAge
         // Mirror the real agent's response policy so the mock behaves the same in a 1:1
         // chat with the bot — where users don't typically @-mention — as the production
         // ChatGPT agent does.
-        if (!(await shouldAgentRespondToRequest(tracer, {...request, event}))) return;
+        if (!(await shouldAgentRespondToApiBotWebhookRequestWithCache(tracer, {...request, event})))
+            return;
 
         let recording =
             (await MockAgentRecordingCollection.get(this._state.storage, "")) ?? emptyArray;

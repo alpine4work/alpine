@@ -266,8 +266,8 @@ End of new notifications.
                     {
                         link: {
                             type: "DocumentMessage",
-                            id: specDocumentId,
-                            threadId: specThreadId,
+                            document: {type: "Document", id: specDocumentId},
+                            id: specThreadId,
                             index: 1,
                             authorShortName: "Dana",
                             preview: "What do you think?",
@@ -501,8 +501,8 @@ describe("intoAgentWebInboxPageEntry()", () => {
                 link(documentThreadEntry({type: "Document", id: documentId, title: "Roadmap"})),
             ).toEqual({
                 type: "DocumentMessage",
-                id: documentId,
-                threadId: documentThreadId,
+                document: {type: "Document", id: documentId},
+                id: documentThreadId,
                 index: 1,
                 authorShortName: "Alice",
                 preview: "Take a look",

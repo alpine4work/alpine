@@ -29,7 +29,7 @@ test("returns the same hash for the same cursor", async () => {
 });
 
 test("increments the hash when a different cursor claims the same hash", async () => {
-    await storage.taskQueryCursorByHash.put(`${queryId}-f55706`, otherCursor);
+    await storage.taskQueryCursorByHash.put([queryId, "f55706"], otherCursor);
 
     await expect(createAgentWebTaskQueryCursorHash(storage, queryId, cursor)).resolves.toEqual(
         "f55707",

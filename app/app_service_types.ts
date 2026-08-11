@@ -34,6 +34,8 @@ export type AppServiceConstants = {
             readonly chatGptLocalUnscopedApiKey?: string;
             readonly chatGptLocalScopedApiKey?: string;
             readonly chatGptWebhookSecret?: string;
+            readonly claudeLocalUnscopedApiKey?: string;
+            readonly claudeWebhookSecret?: string;
             readonly cursorLocalUnscopedApiKey?: string;
             readonly cursorWebhookSecret?: string;
             readonly mockChatGptLocalUnscopedApiKey?: string;

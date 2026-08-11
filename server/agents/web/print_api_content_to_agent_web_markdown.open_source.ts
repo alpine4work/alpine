@@ -450,9 +450,9 @@ async function traverseApiContentMarkdownHtmlNode(
                                     );
                                 }
 
-                                const id: `${DocumentId}-${DocumentCommentThreadId}` = `${documentId}-${commentThreadId}`;
+                                const key = [documentId, commentThreadId] as const;
 
-                                let number = await storage.documentCommentThreadNumberById.get(id);
+                                let number = await storage.documentCommentThreadNumberById.get(key);
 
                                 // Optimization: Avoid a `list()` call to get the next number if
                                 // `lastDocumentCommentThreadNumber + 1` isn't already in use.
@@ -460,21 +460,22 @@ async function traverseApiContentMarkdownHtmlNode(
                                     number = state.lastDocumentCommentThreadNumber + 1;
 
                                     const actualId =
-                                        await storage.documentCommentThreadIdByNumber.get(
-                                            `${documentId}-${number}`,
-                                        );
+                                        await storage.documentCommentThreadIdByNumber.get([
+                                            documentId,
+                                            `${number}`,
+                                        ]);
 
                                     // If the number isn't in use then let's use it!
                                     if (actualId === undefined) {
                                         await storage.documentCommentThreadNumberById.put(
-                                            id,
+                                            key,
                                             number,
                                         );
                                         await storage.documentCommentThreadIdByNumber.put(
-                                            `${documentId}-${number}`,
+                                            [documentId, `${number}`],
                                             commentThreadId,
                                         );
-                                    } else if (`${documentId}-${actualId}` !== id) {
+                                    } else if (actualId !== commentThreadId) {
                                         // If the number is in use but by a different comment thread then we'll need to
                                         // make a `list()` call to figure out the right number.
                                         number = undefined;
@@ -485,15 +486,15 @@ async function traverseApiContentMarkdownHtmlNode(
                                 // seen and use a comment thread number that's one more than that.
                                 if (number === undefined) {
                                     const threads =
-                                        await storage.documentCommentThreadNumberById.list({
-                                            prefix: `${documentId}-`,
-                                        });
+                                        await storage.documentCommentThreadNumberById.list(
+                                            documentId,
+                                        );
 
                                     number = threads.size + 1;
 
-                                    await storage.documentCommentThreadNumberById.put(id, number);
+                                    await storage.documentCommentThreadNumberById.put(key, number);
                                     await storage.documentCommentThreadIdByNumber.put(
-                                        `${documentId}-${number}`,
+                                        [documentId, `${number}`],
                                         commentThreadId,
                                     );
                                 }
@@ -823,20 +824,16 @@ function printAgentWebMarkdownUrl(storage: AgentWebSessionStorage, url: string):
         truncatedUrl = truncateUrlForAgentWebMarkdown(truncatedUrl);
         if (url === truncatedUrl) return url;
 
-        const urlsForTruncatedUrl = await storage.dedupeNumberByTruncatedUrlAndUrl.list({
-            prefix: `${truncatedUrl} `,
-        });
+        const urlsForTruncatedUrl =
+            await storage.dedupeNumberByTruncatedUrlAndUrl.list(truncatedUrl);
 
-        let dedupeNumber = urlsForTruncatedUrl.get(`${truncatedUrl} ${url}`);
+        let dedupeNumber = urlsForTruncatedUrl.get(url);
         const hadDedupeNumber = dedupeNumber !== undefined;
 
         if (dedupeNumber === undefined) {
             dedupeNumber = urlsForTruncatedUrl.size + 1;
 
-            await storage.dedupeNumberByTruncatedUrlAndUrl.put(
-                `${truncatedUrl} ${url}`,
-                dedupeNumber,
-            );
+            await storage.dedupeNumberByTruncatedUrlAndUrl.put([truncatedUrl, url], dedupeNumber);
         }
 
         const actualTruncatedUrl = addDedupeNumberToTruncatedAgentWebMarkdownUrl(
