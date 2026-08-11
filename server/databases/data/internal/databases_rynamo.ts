@@ -1,4 +1,4 @@
-import {resolveDatabaseTableAccessPolicyReplica} from "~/server/databases/data/resolve_database_table_access_policy_replica.js";
+import {dangerouslyResolveDatabaseTableAccessPolicyReplica} from "~/server/databases/data/dangerously_resolve_database_table_access_policy_replica.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {RynamoTableItemType, RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
 import {AccessPolicySchema, type LocalAccessPolicy} from "~/shared/access/access_policy.js";
@@ -57,6 +57,12 @@ export const DatabasesRynamo = RynamoTableSchema.new({
             },
         },
     },
+    // Best-effort: a crash between the DynamoDB write and this callback loses the
+    // push, and a `Site` policy source can change with no table metadata write at all.
+    // Neither can preserve revoked access — each active database group Durable Object
+    // periodically re-pulls its resolved policy replicas (see
+    // `getDatabaseGroupAccessPolicyReplicas`) and applies them through the same
+    // monotonic revision guard.
     broadcastEvents: async (context, events) => {
         const broadcastsByDatabaseGroupId = new Map<
             DatabaseGroupId,
@@ -82,12 +88,13 @@ export const DatabasesRynamo = RynamoTableSchema.new({
                     "Database table metadata deletion is not supported",
                 );
                 const {databaseGroupId, accessPolicy, version} = event.item.model;
-                const resolvedAccessPolicy = await resolveDatabaseTableAccessPolicyReplica(
-                    context,
-                    accessPolicy,
-                    version,
-                    {consistency: "StrongWithinCache"},
-                );
+                const resolvedAccessPolicy =
+                    await dangerouslyResolveDatabaseTableAccessPolicyReplica(
+                        context,
+                        accessPolicy,
+                        version,
+                        {consistency: "StrongWithinCache"},
+                    );
 
                 return {
                     databaseGroupId,

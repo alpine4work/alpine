@@ -9,6 +9,8 @@ ts_project(
     ],
     test_deps = [
         "//server/dynamo/test_helpers",
+        "//server/sites/data",
+        "//server/sites/test_helpers",
         "//server/spaces/test_helpers",
     ],
     deps = [

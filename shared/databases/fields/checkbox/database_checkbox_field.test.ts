@@ -85,7 +85,7 @@ describe("databaseCheckboxField", () => {
     });
 
     describe("generateCheckConstraint", () => {
-        test("accepts integers", async () => {
+        test("accepts zero and one", async () => {
             const db = await createDbWithCheckedColumn();
             sql`
                 INSERT INTO
@@ -99,6 +99,19 @@ describe("databaseCheckboxField", () => {
                 VALUES
                     (0)
             `.exec(db);
+            db.close();
+        });
+
+        test.each([-1, 2])("rejects integer %i", async value => {
+            const db = await createDbWithCheckedColumn();
+            expect(() =>
+                sql`
+                    INSERT INTO
+                        t (v)
+                    VALUES
+                        (${value})
+                `.exec(db),
+            ).toThrow("CHECK constraint failed");
             db.close();
         });
 

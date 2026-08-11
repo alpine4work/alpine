@@ -379,6 +379,7 @@ export type SearchInjection = {
 export type SitesInjectionContextModule = InstanceType<typeof SitesInjectionContextModule>;
 export const SitesInjectionContextModule = createInjectionContextModule<SitesInjection>({
     dangerouslyGetSiteAccessPolicyWithoutAuthorization: true,
+    dangerouslyGetSiteAccessPolicyReplicaWithoutAuthorization: true,
     getSitePreview: true,
     dangerouslyGetAddToSiteTransactionEntries: true,
     dangerouslyGetRemoveFromSiteTransactionEntries: true,
@@ -389,6 +390,11 @@ export type SitesInjection = {
         siteId: SiteId,
         options?: {consistency?: DynamoCacheReadConsistency},
     ): Promise<LocalAccessPolicy>;
+    dangerouslyGetSiteAccessPolicyReplicaWithoutAuthorization(
+        context: ServerMinimalActionContext,
+        siteId: SiteId,
+        options?: {consistency?: DynamoCacheReadConsistency},
+    ): Promise<{accessPolicy: LocalAccessPolicy; version: number}>;
     getSitePreview(
         context: ServerMinimalActionContext,
         siteId: SiteId,

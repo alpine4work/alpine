@@ -63,9 +63,10 @@ export async function updateSiteAccessPolicy(
         });
         const {getEvent} = await SitesTable.directlyUpdateItem(context, newItem);
 
-        // TODO(alex, #databases): Reliably propagate site access-policy updates to
-        // database Durable Objects so that a lost indexing job cannot preserve revoked
-        // access.
+        // This indexing job also re-syncs dependent database tables' resolved policy
+        // copies to their Durable Objects (best-effort, low latency). A lost job cannot
+        // preserve revoked access: each active database group Durable Object periodically
+        // re-pulls its policy replicas — see `getDatabaseGroupAccessPolicyReplicas`.
         context.jobs.send({
             type: "IndexSearchEntity",
             spaceId: siteAttributesItem.spaceId,

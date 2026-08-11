@@ -154,6 +154,13 @@ const sitesInjection: SitesInjection = {
         }
         return policy;
     },
+    dangerouslyGetSiteAccessPolicyReplicaWithoutAuthorization: async (_context, siteId) => {
+        const policy = siteAccessPolicies.get(siteId);
+        if (!policy) {
+            throw new FailedPreconditionError(`Site ${siteId} not found in test fixture`);
+        }
+        return {accessPolicy: policy, version: 1};
+    },
     getSitePreview: async (_context, siteId) => {
         const policy = siteAccessPolicies.get(siteId);
         if (!policy) {

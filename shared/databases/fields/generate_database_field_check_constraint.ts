@@ -22,6 +22,10 @@ export function generateDatabaseFieldCheckConstraint(
             return sql`
                 CHECK (
                     TYPEOF(${columnName}) = 'integer'
+                    AND (
+                        ${columnName} = 0
+                        OR ${columnName} = 1
+                    )
                 )
             `;
         case "Number":
