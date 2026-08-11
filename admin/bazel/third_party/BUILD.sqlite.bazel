@@ -10,7 +10,7 @@ js_library(
     visibility = ["//visibility:public"],
 )
 
-# TODO: Currently, building `@sqlite` is not 100% hermetic. List of known
+# TODO(alex, #databases): Currently, building `@sqlite` is not 100% hermetic. List of known
 # issues we need to fix to make it fully hermetic:
 #
 # - `make` must be installed globally for building packages with `make` (this

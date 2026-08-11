@@ -309,7 +309,7 @@ describe("createTable", () => {
         `.selectAllUnknown(db);
 
         const nameCol = colInfo.find(c => c.name === "name");
-        expect(nameCol!.type).toMatch(/^TEXT_alpine_[0-9a-z]{26}_[0-9a-z]{26}$/);
+        expect(nameCol!.type).toMatch(/^_alpine_TEXT_[0-9a-z]{26}_[0-9a-z]{26}$/);
     });
 
     test("duplicate table names get unique SQL identifiers", async () => {

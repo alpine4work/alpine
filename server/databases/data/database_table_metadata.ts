@@ -40,6 +40,13 @@ export async function createDatabaseTable(
     const databaseGroupId = await assignDatabaseGroupIdForSpace(sessionContext, spaceId);
     const tableId = generateId<DatabaseTableId>();
     const accessPolicy = databaseTableAccessPolicyForCreator(sessionContext.actor.getAccountId());
+    const {transactionEntries} = await validateAccessPolicyUpdateForServer(
+        sessionContext,
+        spaceId,
+        `DatabaseTable:${tableId}`,
+        null,
+        accessPolicy,
+    );
 
     // Create the backing table before publishing metadata. These stores cannot share a
     // transaction, so prefer an unreachable Durable Object table if the Dynamo write
@@ -59,21 +66,20 @@ export async function createDatabaseTable(
         },
     });
 
-    const {getEvent} = await DatabaseTablesTable.updateItem(
-        context,
-        {partitionType: "Table", sortRangeType: "Attributes", tableId},
-        item =>
-            DynamoItem.createOrUpdate(item, {
-                partitionType: "Table",
-                sortRangeType: "Attributes",
-                tableId,
-                databaseGroupId,
-                spaceId,
-                name,
-                isDeleted: false,
-                accessPolicy,
-            }),
-    );
+    const {getEvent, transactionEntry} = DatabaseTablesTable.transactionCreateItemWithEvent({
+        partitionType: "Table",
+        sortRangeType: "Attributes",
+        tableId,
+        databaseGroupId,
+        spaceId,
+        name,
+        isDeleted: false,
+        accessPolicy,
+    });
+    await RynamoTableSchema.executeTransaction(context, [
+        transactionEntry,
+        ...transactionEntries.map(entry => entry.transactionEntry),
+    ]);
     const tableMetadataVersion = (await getEvent(context)).item.model.version;
     assert(tableMetadataVersion === initialTableMetadataVersion);
     context.process.waitUntil(

@@ -214,7 +214,7 @@ const shimmerOptionsByRouteId: Record<
     "routes/_space.chat.with.$accountId.$spaceId": {component: ChatRouteShimmer},
     "routes/_space.create.$spaceId._index": {component: CreateRouteShimmer},
     "routes/_space.create.$spaceId.more": {component: CreateRouteShimmer},
-    // TODO(databases): Database routes don't have a custom shimmer design yet.
+    // TODO(alex, #databases): Database routes don't have a custom shimmer design yet.
     "routes/_space.database.$tableOrViewId": false,
     "routes/_space.database.new.$spaceId": false,
     "routes/_space.database.query.$spaceId": false,
