@@ -1,9 +1,9 @@
 import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
+import {dangerouslyResolveDatabaseTableAccessPolicyReplica} from "~/server/databases/data/dangerously_resolve_database_table_access_policy_replica.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
 import {DatabasesRynamo} from "~/server/databases/data/internal/databases_rynamo.js";
-import {resolveDatabaseTableAccessPolicyReplica} from "~/server/databases/data/resolve_database_table_access_policy_replica.js";
 import type {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
@@ -313,7 +313,7 @@ export async function syncDatabaseTableMetadataToDurableObject(
         tableMetadataVersion: number;
     },
 ): Promise<void> {
-    const replica = await resolveDatabaseTableAccessPolicyReplica(
+    const replica = await dangerouslyResolveDatabaseTableAccessPolicyReplica(
         context,
         accessPolicy,
         tableMetadataVersion,

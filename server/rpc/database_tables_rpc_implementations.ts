@@ -1,3 +1,4 @@
+import {dangerouslyGetDatabaseGroupAccessPolicyReplicasForDurableObject} from "~/server/databases/data/dangerously_get_database_group_access_policy_replicas_for_durable_object.js";
 import {
     createDatabaseTable,
     getDatabaseTableMetadataItem,
@@ -53,6 +54,20 @@ export default implementRpcs(definitions, {
             const spaceId = await getSpaceIdForDatabaseGroupId(context, input.databaseGroupId);
             await authorizeSpaceAccess(context, spaceId);
             return {};
+        },
+    },
+    getDatabaseGroupAccessPolicyReplicas: {
+        // The response contains resolved policies for tables the calling account may lack
+        // `View` on, so only the durable object may call this.
+        visibility: ["DatabaseGroupService"],
+        async execute(context, input) {
+            return {
+                replicaByTableId:
+                    await dangerouslyGetDatabaseGroupAccessPolicyReplicasForDurableObject(
+                        context,
+                        input,
+                    ),
+            };
         },
     },
 });

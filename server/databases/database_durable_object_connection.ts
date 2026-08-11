@@ -57,6 +57,7 @@ export class DatabaseDurableObjectConnection {
     ) => Promise<void>;
     private readonly sendEventToSelf: (event: DatabaseRealtimeEventStub) => Promise<void>;
     private readonly databaseGroupId: DatabaseGroupId;
+    private readonly maybeRefreshTableAccessPolicies: (context: WorkerSessionActionContext) => void;
     private readonly subscriptions = new Map<DatabaseTableId, TypedFastBitSet>();
     private readonly originatedMutationIds = new Set<DatabaseMutationId>();
 
@@ -65,16 +66,19 @@ export class DatabaseDurableObjectConnection {
         sendEventToAllAndWaitForOne,
         sendEventToSelf,
         databaseGroupId,
+        maybeRefreshTableAccessPolicies,
     }: {
         server: DatabaseServer;
         sendEventToAllAndWaitForOne: (event: DatabaseRealtimeEventStub) => Promise<void>;
         sendEventToSelf: (event: DatabaseRealtimeEventStub) => Promise<void>;
         databaseGroupId: DatabaseGroupId;
+        maybeRefreshTableAccessPolicies: (context: WorkerSessionActionContext) => void;
     }) {
         this.server = server;
         this.sendEventToAllAndWaitForOne = sendEventToAllAndWaitForOne;
         this.sendEventToSelf = sendEventToSelf;
         this.databaseGroupId = databaseGroupId;
+        this.maybeRefreshTableAccessPolicies = maybeRefreshTableAccessPolicies;
     }
 
     public readonly procedures: WebSocketConnectionProcedures<
@@ -194,6 +198,11 @@ export class DatabaseDurableObjectConnection {
         // the ~15s server-side membership cache) — the same staleness Alpine accepts for
         // documents and chat.
         await authorizeDatabaseGroupAccess(context, {databaseGroupId: this.databaseGroupId});
+
+        // Piggyback the durable object's per-table policy reconciliation on the re-auth
+        // cadence. It runs after the boundary check succeeds, is throttled group-wide, and
+        // never blocks authorization.
+        this.maybeRefreshTableAccessPolicies(context);
     }
 
     private registerTables(

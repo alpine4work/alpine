@@ -64,6 +64,7 @@ function createConnection({
         sendEventToAllAndWaitForOne,
         sendEventToSelf,
         databaseGroupId: generateId<DatabaseGroupId>(),
+        maybeRefreshTableAccessPolicies: () => {},
     });
 }
 
@@ -492,6 +493,7 @@ describe("connection authorization and metadata", () => {
             sendEventToAllAndWaitForOne: async () => {},
             sendEventToSelf: async () => {},
             databaseGroupId,
+            maybeRefreshTableAccessPolicies: () => {},
         });
         const eventStub: RynamoEventStub = {
             type: "PutItem",
@@ -542,11 +544,13 @@ describe("connection authorization and metadata", () => {
 
     test("authorize checks space access for the database group", async () => {
         const databaseGroupId = generateId<DatabaseGroupId>();
+        const refreshContexts: Array<unknown> = [];
         const conn = new DatabaseDurableObjectConnection({
             server,
             sendEventToAllAndWaitForOne: async () => {},
             sendEventToSelf: async () => {},
             databaseGroupId,
+            maybeRefreshTableAccessPolicies: context => refreshContexts.push(context),
         });
         const authorizedInputs: Array<unknown> = [];
         const context = {
@@ -562,6 +566,32 @@ describe("connection authorization and metadata", () => {
         await conn.authorize(context as any);
 
         expect(authorizedInputs).toEqual([{databaseGroupId}]);
+        // The policy reconciliation trigger piggybacks on a successful re-auth.
+        expect(refreshContexts).toEqual([context]);
+    });
+
+    test("authorize does not trigger a policy refresh when space access is denied", async () => {
+        const refreshContexts: Array<unknown> = [];
+        const conn = new DatabaseDurableObjectConnection({
+            server,
+            sendEventToAllAndWaitForOne: async () => {},
+            sendEventToSelf: async () => {},
+            databaseGroupId: generateId<DatabaseGroupId>(),
+            maybeRefreshTableAccessPolicies: context => refreshContexts.push(context),
+        });
+        const context = {
+            ...sessionTestContext,
+            rpc: {
+                execute: async () => {
+                    throw new PermissionDeniedError("Actor doesn\u2019t have access to the space");
+                },
+            },
+        };
+
+        await expect(conn.authorize(context as any)).rejects.toThrow(
+            "Actor doesn\u2019t have access to the space",
+        );
+        expect(refreshContexts).toEqual([]);
     });
 
     test("authorize propagates a space access denial", async () => {
@@ -628,6 +658,7 @@ describe("per-table realtime filtering", () => {
             sendEventToAllAndWaitForOne: async () => {},
             sendEventToSelf: async () => {},
             databaseGroupId: generateId<DatabaseGroupId>(),
+            maybeRefreshTableAccessPolicies: () => {},
         });
     }
 
