@@ -95,8 +95,8 @@ export const authorizeDatabaseGroupAccess = defineRpc({
  * guard.
  *
  * The output contains resolved policies for every requested table in the group,
- * regardless of the calling account's per-table access — it must stay visible to
- * `DatabaseGroupService` only.
+ * regardless of the calling account's per-table access — it must stay restricted
+ * to internal services and never become visible to `AppClient`.
  */
 export const getDatabaseGroupAccessPolicyReplicas = defineRpc({
     name: "getDatabaseGroupAccessPolicyReplicas",

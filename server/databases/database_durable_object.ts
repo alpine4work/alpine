@@ -49,6 +49,13 @@ type DatabaseGroupDurableObjectRoute =
  */
 const databaseTableAccessPolicyRefreshIntervalMs = 2 * 60 * 1000;
 
+/**
+ * How many tables one `getDatabaseGroupAccessPolicyReplicas` call covers. Matches
+ * DynamoDB's 100-item batch-read limit so one refresh batch resolves in one
+ * DynamoDB round trip.
+ */
+const tableAccessPolicyRefreshBatchSize = 100;
+
 class DatabaseGroupDurableObject {
     public static readonly serviceName = "DatabaseGroupService";
 
@@ -67,6 +74,7 @@ class DatabaseGroupDurableObject {
 
     public static async initialize({
         processContext,
+        initializeActionContext,
         storage,
         idName,
     }: {
@@ -78,11 +86,16 @@ class DatabaseGroupDurableObject {
     }): Promise<DatabaseGroupDurableObject> {
         const databaseGroupId = idName as DatabaseGroupId;
         const server = await DatabaseServer.create(storage);
-        return new DatabaseGroupDurableObject({
+        const durableObject = new DatabaseGroupDurableObject({
             processContext,
             databaseGroupId,
             server,
         });
+        // A wake can follow arbitrarily long hibernation, during which every push was
+        // lost, so reconcile immediately in the background without delaying the waking
+        // request.
+        durableObject.maybeRefreshTableAccessPolicies(initializeActionContext);
+        return durableObject;
     }
 
     private constructor({
@@ -189,11 +202,11 @@ class DatabaseGroupDurableObject {
     /**
      * Kick off a background reconciliation of the per-table access policy copies,
      * throttled to one pass per {@link databaseTableAccessPolicyRefreshIntervalMs}.
-     * Called from connection (re-)authorization, so it runs while any connection is
-     * active — including right after a wake from hibernation — and never blocks the
-     * caller.
+     * Called on wake (from {@link initialize}, since hibernation can outlast any push)
+     * and from connection (re-)authorization while connections are active. Never
+     * blocks the caller.
      */
-    private maybeRefreshTableAccessPolicies(context: WorkerSessionActionContext): void {
+    private maybeRefreshTableAccessPolicies(context: WorkerActionContext): void {
         const now = Date.now();
         if (
             now - this.lastTableAccessPolicyRefreshTime <
@@ -206,7 +219,7 @@ class DatabaseGroupDurableObject {
         context.process.waitUntil(this.refreshTableAccessPolicies(context));
     }
 
-    private async refreshTableAccessPolicies(context: WorkerSessionActionContext): Promise<void> {
+    private async refreshTableAccessPolicies(context: WorkerActionContext): Promise<void> {
         // Join tables derive access from their sides and the main table is a public
         // registry with hardcoded access, so only user tables have policy copies to
         // reconcile.
@@ -214,24 +227,35 @@ class DatabaseGroupDurableObject {
             .listDatabaseTables()
             .filter(table => table.kind === "table" && table.tableId !== databaseMainTableId)
             .map(table => table.tableId);
-        if (tableIds.length === 0) return;
 
-        const {replicaByTableId} = await getDatabaseGroupAccessPolicyReplicas(context, {
-            databaseGroupId: this.databaseGroupId,
-            tableIds,
-        });
+        // Sequential batches bound the request payloads and the DynamoDB read burst for
+        // groups with many tables. Each batch commits on arrival, so a failed later batch
+        // keeps the earlier batches' progress.
+        for (
+            let batchStart = 0;
+            batchStart < tableIds.length;
+            batchStart += tableAccessPolicyRefreshBatchSize
+        ) {
+            const {replicaByTableId} = await getDatabaseGroupAccessPolicyReplicas(context, {
+                databaseGroupId: this.databaseGroupId,
+                tableIds: tableIds.slice(
+                    batchStart,
+                    batchStart + tableAccessPolicyRefreshBatchSize,
+                ),
+            });
 
-        // The monotonic revision guard inside `setDatabaseTableAccessPolicy` drops
-        // replicas that lost a race against a fresher push.
-        this.server.transactionSync(() => {
-            for (const [tableId, replica] of replicaByTableId) {
-                this.server.setDatabaseTableAccessPolicy(
-                    tableId,
-                    replica.accessPolicy,
-                    replica.revision,
-                );
-            }
-        });
+            // The monotonic revision guard inside `setDatabaseTableAccessPolicy` drops
+            // replicas that lost a race against a fresher push.
+            this.server.transactionSync(() => {
+                for (const [tableId, replica] of replicaByTableId) {
+                    this.server.setDatabaseTableAccessPolicy(
+                        tableId,
+                        replica.accessPolicy,
+                        replica.revision,
+                    );
+                }
+            });
+        }
     }
 
     private async handleAction(context: WorkerActionContext, request: Request): Promise<Response> {

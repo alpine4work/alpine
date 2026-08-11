@@ -58,8 +58,11 @@ export default implementRpcs(definitions, {
     },
     getDatabaseGroupAccessPolicyReplicas: {
         // The response contains resolved policies for tables the calling account may lack
-        // `View` on, so only the durable object may call this.
-        visibility: ["DatabaseGroupService"],
+        // `View` on, so it must never be visible to `AppClient`. Only the durable object
+        // calls this: WebSocket-triggered refreshes originate from `DatabaseGroupService`,
+        // while wake-triggered refreshes retain the trusted source service name from the
+        // forwarded actor (matching `authorizeDatabaseGroupAccess`).
+        visibility: ["DatabaseGroupService", "AppService", "JobQueueService", "ApiService"],
         async execute(context, input) {
             return {
                 replicaByTableId:
