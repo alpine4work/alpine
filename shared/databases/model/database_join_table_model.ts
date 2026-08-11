@@ -60,8 +60,12 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
     }
 
     ensureTableNameIsUpToDate() {
-        const sourceName = this.root.getTable(this.sourceTableId).getField(this.sourceFieldId).name;
-        const targetName = this.root.getTable(this.targetTableId).getField(this.targetFieldId).name;
+        const sourceName = this.root
+            .getTable(this.sourceTableId)
+            .getField(this.sourceFieldId).humanName;
+        const targetName = this.root
+            .getTable(this.targetTableId)
+            .getField(this.targetFieldId).humanName;
 
         const joinTableName = formatUniqueTableName({
             model: this.root,

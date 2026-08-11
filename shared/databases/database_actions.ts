@@ -236,7 +236,7 @@ export const databaseActions = {
 
             const {table, defaultView} = model.createTable(tableId, {name, tableName});
 
-            return {tableId: table.id, tableName: table.tableName, viewId: defaultView.id};
+            return {tableId: table.id, tableName: table.sqlName, viewId: defaultView.id};
         },
     }),
 
@@ -262,7 +262,7 @@ export const databaseActions = {
             const existingTable = model.getTable(tableId);
             if (!applied) {
                 return {
-                    tableName: existingTable.tableName,
+                    tableName: existingTable.sqlName,
                     viewId: existingTable.getFirstView().id,
                 };
             }
@@ -274,7 +274,7 @@ export const databaseActions = {
                 excludeTableId: tableId,
             });
             const table = existingTable.updateName(name, {tableName});
-            return {tableName: model.getTable(tableId).tableName, viewId: table.getFirstView().id};
+            return {tableName: model.getTable(tableId).sqlName, viewId: table.getFirstView().id};
         },
     }),
 
@@ -304,7 +304,7 @@ export const databaseActions = {
             return {
                 tables: model.getTableIds("table").map(tableId => ({
                     id: tableId,
-                    name: model.getTable(tableId).name,
+                    name: model.getTable(tableId).humanName,
                 })),
             };
         },
@@ -329,8 +329,8 @@ export const databaseActions = {
             return {
                 table: {
                     id: table.id,
-                    name: table.name,
-                    tableName: table.tableName,
+                    name: table.humanName,
+                    tableName: table.sqlName,
                     nameFieldId: table.nameFieldId,
                 },
             };
@@ -370,7 +370,7 @@ export const databaseActions = {
             return {
                 tableId: table.id,
                 viewId: view.id,
-                tableName: table.name,
+                tableName: table.humanName,
                 fields,
             };
         },
@@ -413,7 +413,7 @@ export const databaseActions = {
 
             const endCursor = rows.length === limit ? rows[rows.length - 1]! : null;
 
-            return {tableId: table.id, viewId: view.id, tableName: table.tableName, endCursor};
+            return {tableId: table.id, viewId: view.id, tableName: table.sqlName, endCursor};
         },
     }),
 
@@ -506,7 +506,7 @@ export const databaseActions = {
             sql`
                 UPDATE ${table.tableRef}
                 SET
-                    ${sql.identifier(field.columnName)} = ${valueSql}
+                    ${sql.identifier(field.sqlName)} = ${valueSql}
                 WHERE
                     _id = ${rowId}
             `.exec(db);
@@ -582,7 +582,7 @@ export const databaseActions = {
             // registered so the uniqueness probe doesn't see its own row.
             const joinTableName = formatUniqueTableName({
                 model,
-                name: `${sourceFieldName} ${sourceTable.name}`,
+                name: `${sourceFieldName} ${sourceTable.humanName}`,
             });
 
             // Registering the topology first lets the authorizer derive the join schema's
@@ -606,7 +606,7 @@ export const databaseActions = {
             });
             sourceTable.appendFieldToAllViews(sourceField);
 
-            const targetField = targetTable.createField(targetFieldId, sourceTable.name, {
+            const targetField = targetTable.createField(targetFieldId, sourceTable.humanName, {
                 type: "relation",
                 joinTableId,
                 side: "target",
@@ -760,7 +760,7 @@ export const databaseActions = {
             });
 
             return {
-                linkedTableName: linkedTable.name,
+                linkedTableName: linkedTable.humanName,
                 rows: rows.map(row => ({
                     id: row.id,
                     name: formatDatabaseFieldValueString(linkedNameField.config, row.name),
@@ -909,7 +909,7 @@ export const databaseActions = {
 
             sql`
                 INSERT INTO
-                    ${linkedTable.tableRef} (_id, ${sql.identifier(linkedNameField.columnName)})
+                    ${linkedTable.tableRef} (_id, ${sql.identifier(linkedNameField.sqlName)})
                 VALUES
                     (
                         ${linkedRowId},

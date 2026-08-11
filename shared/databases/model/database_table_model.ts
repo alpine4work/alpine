@@ -39,16 +39,16 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     ) {
         const schema = sql.identifier(databaseTableSchemaName(row.id));
         super(schema, root);
-        this.tableRef = sql.identifier(databaseTableSchemaName(this.id), this.tableName);
+        this.tableRef = sql.identifier(databaseTableSchemaName(this.id), this.sqlName);
     }
 
     get id() {
         return this.row.id;
     }
-    get name() {
+    get humanName() {
         return this.row.name;
     }
-    get tableName() {
+    get sqlName() {
         return this.row.tableName;
     }
     get nameFieldId() {
@@ -71,7 +71,7 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
      * name is a no-op on the SQL identifier).
      */
     updateName(name: string, {tableName: newTableName}: {tableName: string}) {
-        if (newTableName !== this.tableName) {
+        if (newTableName !== this.sqlName) {
             sql`
                 ALTER TABLE ${this.tableRef}
                 RENAME TO ${sql.identifier(newTableName)}

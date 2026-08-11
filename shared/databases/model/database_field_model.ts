@@ -22,10 +22,10 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
     get id() {
         return this.row.id;
     }
-    get name() {
+    get humanName() {
         return this.row.name;
     }
-    get columnName() {
+    get sqlName() {
         return this.row.columnName;
     }
     get config() {
@@ -33,7 +33,7 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
     }
 
     column() {
-        return sql.identifier(this.columnName);
+        return sql.identifier(this.sqlName);
     }
 
     isType<const Type extends DatabaseFieldType>(
@@ -43,7 +43,7 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
     }
 
     updateName(newName: string) {
-        const newColumnName = this.table.formatUniqueFieldName(newName, this.columnName);
+        const newColumnName = this.table.formatUniqueFieldName(newName, this.sqlName);
 
         sql`
             UPDATE ${this.schema}._alpine_fields
@@ -64,8 +64,8 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
             case "number":
                 sql`
                     ALTER TABLE ${this.table.tableRef}
-                    RENAME COLUMN ${sql.identifier(this.columnName)} TO ${sql.identifier(
-                        newField.columnName,
+                    RENAME COLUMN ${sql.identifier(this.sqlName)} TO ${sql.identifier(
+                        newField.sqlName,
                     )}
                 `.exec(this.db);
                 break;
