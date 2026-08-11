@@ -142,13 +142,13 @@ describe("DatabaseModel", () => {
 
         const fields = defaultView.getFieldsWithViewMetadata();
         expect({
-            tableName: table.sqlName,
+            sqlName: table.sqlName,
             field: fields[0],
         }).toMatchObject({
-            tableName: "tasks",
+            sqlName: "tasks",
             field: {
                 id: nameField.id,
-                name: "Name",
+                humanName: "Name",
                 width: databaseViewDefaultColumnWidth,
                 hidden: false,
             },
@@ -197,10 +197,10 @@ describe("DatabaseModel", () => {
 
         expect({
             row: joinTable.row,
-            columns: readColumnNames(db, joinTable.id, joinTable.tableName),
+            columns: readColumnNames(db, joinTable.id, joinTable.sqlName),
         }).toMatchObject({
             row: {
-                tableName: "project_tasks",
+                sqlName: "project_tasks",
                 sourceRowIdColumnName: "tasks_id",
                 sourcePositionColumnName: "tasks_position",
                 targetRowIdColumnName: "projects_id",
@@ -241,7 +241,7 @@ describe("DatabaseModel", () => {
             targetField,
         );
 
-        expect(readColumnNames(db, joinTable.id, joinTable.tableName)).toEqual([
+        expect(readColumnNames(db, joinTable.id, joinTable.sqlName)).toEqual([
             "tasks_id",
             "tasks_id_2",
             "tasks_position",
@@ -292,7 +292,7 @@ describe("DatabaseModel", () => {
         `.selectAllUnknown(db)[0];
         expect({
             row: updatedJoinTable.row,
-            columns: readColumnNames(db, updatedJoinTable.id, updatedJoinTable.tableName),
+            columns: readColumnNames(db, updatedJoinTable.id, updatedJoinTable.sqlName),
             link: row,
         }).toMatchObject({
             row: {
@@ -314,10 +314,10 @@ describe("DatabaseModel", () => {
 
         const updatedJoinTable = model.getJoinTable(joinTable.id);
         expect({
-            tableName: updatedJoinTable.tableName,
-            columns: readColumnNames(db, updatedJoinTable.id, updatedJoinTable.tableName),
+            sqlName: updatedJoinTable.sqlName,
+            columns: readColumnNames(db, updatedJoinTable.id, updatedJoinTable.sqlName),
         }).toMatchObject({
-            tableName: "owner_tasks",
+            sqlName: "owner_tasks",
             columns: ["tasks_id", "projects_id", "tasks_position", "projects_position"],
         });
         db.close();

@@ -165,15 +165,15 @@ function DatabaseGridViewHeaderEditor({
     const provider = getDatabaseFieldComponentProvider(field.config.type);
     const Icon = provider.Icon;
     const inputRef = useRef<HTMLInputElement>(null);
-    const [draftName, setDraftName] = useState(field.name);
+    const [draftName, setDraftName] = useState(field.humanName);
 
     useEffect(() => {
-        setDraftName(field.name);
-    }, [field.name]);
+        setDraftName(field.humanName);
+    }, [field.humanName]);
 
     const commitRename = useEvent(() => {
         const trimmed = (inputRef.current?.value ?? draftName).trim();
-        if (trimmed === "" || trimmed === field.name) return;
+        if (trimmed === "" || trimmed === field.humanName) return;
         onRenameField(field.id, trimmed);
     });
 
@@ -189,7 +189,7 @@ function DatabaseGridViewHeaderEditor({
             value={draftName}
             onChange={setDraftName}
             onEnter={commitRename}
-            onEscape={() => setDraftName(field.name)}
+            onEscape={() => setDraftName(field.humanName)}
             paddingBottom={configActions.length > 0 ? "1" : "1.5"}
         />
     );
@@ -212,7 +212,7 @@ function DatabaseGridViewHeaderEditor({
             <Box color="grey-50" display="flex" alignItems="center">
                 <Icon size={14} />
             </Box>
-            <Box fontStyle="truncate-semi-bold">{field.name}</Box>
+            <Box fontStyle="truncate-semi-bold">{field.humanName}</Box>
         </Box>
     );
 

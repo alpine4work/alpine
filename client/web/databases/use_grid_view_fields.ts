@@ -21,7 +21,7 @@ import type {
 
 export type DatabaseGridViewField = {
     readonly id: DatabaseFieldId;
-    readonly name: string;
+    readonly humanName: string;
     readonly config: DatabaseFieldConfig;
     readonly position: OrderKey;
     readonly width: number;
@@ -122,7 +122,9 @@ export function useGridViewFields({
                         ? prev
                         : [...prev, action.field];
                 case "rename":
-                    return prev.map(f => (f.id === action.fieldId ? {...f, name: action.name} : f));
+                    return prev.map(f =>
+                        f.id === action.fieldId ? {...f, humanName: action.name} : f,
+                    );
                 case "resize":
                     return prev.map(f =>
                         f.id === action.fieldId ? {...f, width: action.width} : f,
@@ -170,7 +172,7 @@ export function useGridViewFields({
                 await conn.executeAction("createRelationField", {
                     joinTableId: config.joinTableId,
                     sourceTableId: tableId,
-                    sourceFieldName: name,
+                    sourceFieldHumanName: name,
                     targetTableId: config.linkedTableId,
                     cardinality: config.cardinality,
                 });
@@ -185,7 +187,7 @@ export function useGridViewFields({
                 type: "create",
                 field: {
                     id: fieldId,
-                    name,
+                    humanName: name,
                     config,
                     position: addPosition,
                     width: databaseViewDefaultColumnWidth,
@@ -193,7 +195,7 @@ export function useGridViewFields({
                     linkedTableReadAccess: null,
                 },
             });
-            await conn.executeAction("createField", {fieldId, tableId, name, config});
+            await conn.executeAction("createField", {fieldId, tableId, humanName: name, config});
         });
     });
 
@@ -243,7 +245,7 @@ export function useGridViewFields({
             ...resizedFields,
             {
                 id: addingFieldId,
-                name: "",
+                humanName: "",
                 config: {type: "plainText"},
                 position: generateOrderKeyBetween(lastField?.position ?? null, null),
                 width: databaseViewDefaultColumnWidth,
@@ -317,7 +319,7 @@ export function useGridViewFields({
         if (trimmed === "") return;
         startTransition(async () => {
             applyOptimisticField({type: "rename", fieldId, name: trimmed});
-            await conn.executeAction("renameField", {tableId, fieldId, name: trimmed});
+            await conn.executeAction("renameField", {tableId, fieldId, humanName: trimmed});
         });
     });
 

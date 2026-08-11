@@ -23,10 +23,10 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
         return this.row.id;
     }
     get humanName() {
-        return this.row.name;
+        return this.row.humanName;
     }
     get sqlName() {
-        return this.row.columnName;
+        return this.row.sqlName;
     }
     get config() {
         return this.row.config;

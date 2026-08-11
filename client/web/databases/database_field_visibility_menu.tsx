@@ -24,7 +24,7 @@ import type {DatabaseFieldId} from "~/shared/id/types/id_types.open_source.js";
 
 type FieldWithPosition = {
     readonly id: DatabaseFieldId;
-    readonly name: string;
+    readonly humanName: string;
     readonly position: OrderKey;
 };
 
@@ -204,7 +204,7 @@ function DatabaseFieldVisibilityPanel({
                         <DatabaseFieldVisibilityRow
                             key={field.id}
                             id={field.id}
-                            name={field.name}
+                            name={field.humanName}
                             isShown={true}
                             canToggle={shownFields.length > 1}
                             isDragOverlay={false}
@@ -223,7 +223,7 @@ function DatabaseFieldVisibilityPanel({
                                 <DatabaseFieldVisibilityRow
                                     key={field.id}
                                     id={field.id}
-                                    name={field.name}
+                                    name={field.humanName}
                                     isShown={false}
                                     canToggle={true}
                                     isDragOverlay={false}
@@ -315,7 +315,7 @@ function DatabaseFieldVisibilityDragPortals({
                     <DragOverlay zIndex={70}>
                         <DatabaseFieldVisibilityRow
                             id={activeField.id}
-                            name={activeField.name}
+                            name={activeField.humanName}
                             isShown={activeField.isShown}
                             canToggle={false}
                             isDragOverlay={true}

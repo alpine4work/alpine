@@ -12,15 +12,15 @@ export type DatabaseTableKind = "table" | "join";
 
 export const DatabaseTableRow = {
     id: Schema.id<DatabaseTableId>(),
-    name: Schema.string,
-    tableName: Schema.string.originalPropertyKey("table_name"),
+    humanName: Schema.string.originalPropertyKey("name"),
+    sqlName: Schema.string.originalPropertyKey("table_name"),
     nameFieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("name_field_id"),
 };
 export type DatabaseTableRow = ObjectSchemaConfigType<typeof DatabaseTableRow>;
 
 export const DatabaseJoinTableRow = {
     id: Schema.id<DatabaseTableId>(),
-    tableName: Schema.string.originalPropertyKey("table_name"),
+    sqlName: Schema.string.originalPropertyKey("table_name"),
     sourceTableId: Schema.id<DatabaseTableId>().originalPropertyKey("source_table_id"),
     sourceFieldId: Schema.id<DatabaseFieldId>().originalPropertyKey("source_field_id"),
     targetTableId: Schema.id<DatabaseTableId>().originalPropertyKey("target_table_id"),
@@ -34,14 +34,14 @@ export type DatabaseJoinTableRow = ObjectSchemaConfigType<typeof DatabaseJoinTab
 
 export const DatabaseViewRow = {
     id: Schema.id<DatabaseViewId>(),
-    name: Schema.string,
+    humanName: Schema.string.originalPropertyKey("name"),
 };
 export type DatabaseViewRow = ObjectSchemaConfigType<typeof DatabaseViewRow>;
 
 export const DatabaseFieldRow = {
     id: Schema.id<DatabaseFieldId>(),
-    name: Schema.string,
-    columnName: Schema.string.originalPropertyKey("column_name"),
+    humanName: Schema.string.originalPropertyKey("name"),
+    sqlName: Schema.string.originalPropertyKey("column_name"),
     config: DatabaseFieldConfigSqlSchema,
 };
 export type DatabaseFieldRow = ObjectSchemaConfigType<typeof DatabaseFieldRow>;

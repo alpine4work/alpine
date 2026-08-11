@@ -76,10 +76,10 @@ function createPolicyRevisionForTest() {
     };
 }
 
-function createTableInputForTest(name: string) {
+function createTableInputForTest(humanName: string) {
     return {
         tableId: generateId<DatabaseTableId>(),
-        name,
+        humanName,
         // Grant every space member Manage so the test clients — which connect as ordinary
         // sessions and are now subject to per-table access — can read and write these
         // tables. These tests exercise sync mechanics, not access control.
@@ -217,7 +217,7 @@ test("internal-only actions are available over HTTP but not public websocket pro
                 name: "syncTableMetadata",
                 input: {
                     tableId: table.tableId,
-                    name: "Projects",
+                    humanName: "Projects",
                     accessPolicy: createTableInput.accessPolicy,
                     policyRevision: createPolicyRevisionForTest(),
                 },
@@ -230,7 +230,7 @@ test("internal-only actions are available over HTTP but not public websocket pro
     ).rejects.toThrow("Database action syncTableMetadata is internal-only");
     await executeInternalAction(databaseGroupId, "syncTableMetadata", {
         tableId: table.tableId,
-        name: "Projects",
+        humanName: "Projects",
         accessPolicy: createTableInput.accessPolicy,
         policyRevision: createPolicyRevisionForTest(),
     });
@@ -323,7 +323,7 @@ test("a DELETE without a WHERE clause replicates to the server and peers", async
     await settle();
 
     await executeAction(writer, "rawSql", {
-        sql: sql`DELETE FROM ${sql.tableRef(table.tableId, table.tableName)}`.query,
+        sql: sql`DELETE FROM ${sql.tableRef(table.tableId, table.sqlName)}`.query,
     });
     await settle();
 
@@ -408,7 +408,7 @@ test("realtime materializes appended pages for a warmed client", async () => {
                         n < 1000
                 )
             INSERT INTO
-                ${sql.tableRef(table.tableId, table.tableName)} (_id)
+                ${sql.tableRef(table.tableId, table.sqlName)} (_id)
             SELECT
                 generate_id ()
             FROM
@@ -441,7 +441,7 @@ test("realtime materializes appended pages for a warmed client", async () => {
             SELECT
                 COUNT(*) AS count
             FROM
-                ${sql.tableRef(table.tableId, table.tableName)}
+                ${sql.tableRef(table.tableId, table.sqlName)}
         `.query,
     });
     expect({
@@ -524,7 +524,7 @@ test("a schema change made while disconnected is visible after reconnecting", as
     await executeAction(writer, "createField", {
         fieldId,
         tableId: table.tableId,
-        name: "Notes",
+        humanName: "Notes",
         config: {type: "plainText"},
     });
     await executeAction(writer, "updateCellValue", {
@@ -540,14 +540,14 @@ test("a schema change made while disconnected is visible after reconnecting", as
     const {fields} = await executeAction(writer, "getViewSchema", {
         tableOrViewId: table.tableId,
     });
-    const columnName = fields.find(field => field.id === fieldId)!.columnName;
+    const sqlName = fields.find(field => field.id === fieldId)!.sqlName;
     const {rows} = await executeAction(reader, "readonlyRawSql", {
         sql: sql`
             SELECT
                 _id,
-                ${sql.identifier(columnName)} AS value
+                ${sql.identifier(sqlName)} AS value
             FROM
-                ${sql.tableRef(table.tableId, table.tableName)}
+                ${sql.tableRef(table.tableId, table.sqlName)}
         `.query,
     });
 
@@ -610,7 +610,7 @@ test("a schema change from another client is visible to an attached peer", async
     await executeAction(writer, "createField", {
         fieldId,
         tableId: table.tableId,
-        name: "Notes",
+        humanName: "Notes",
         config: {type: "plainText"},
     });
     await executeAction(writer, "updateCellValue", {
@@ -627,14 +627,14 @@ test("a schema change from another client is visible to an attached peer", async
     const {fields} = await executeAction(writer, "getViewSchema", {
         tableOrViewId: table.tableId,
     });
-    const columnName = fields.find(field => field.id === fieldId)!.columnName;
+    const sqlName = fields.find(field => field.id === fieldId)!.sqlName;
     const {rows} = await executeAction(reader, "readonlyRawSql", {
         sql: sql`
             SELECT
                 _id,
-                ${sql.identifier(columnName)} AS value
+                ${sql.identifier(sqlName)} AS value
             FROM
-                ${sql.tableRef(table.tableId, table.tableName)}
+                ${sql.tableRef(table.tableId, table.sqlName)}
         `.query,
     });
 
@@ -682,7 +682,7 @@ test("server-side action errors reject the caller", async () => {
         executeAction(client, "createRelationField", {
             joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: generateId<DatabaseTableId>(),
-            sourceFieldName: "Link",
+            sourceFieldHumanName: "Link",
             targetTableId: generateId<DatabaseTableId>(),
             cardinality: "many",
         }),
@@ -745,7 +745,7 @@ test("a mutation that no-ops on the server is confirmed without errors", async (
     // subquery targets the row without a bound parameter (`.query` drops bindings) and
     // keeps SQLite off the truncate-optimized DELETE path, which bypasses page writes
     // entirely.
-    const tableRef = sql.tableRef(table.tableId, table.tableName);
+    const tableRef = sql.tableRef(table.tableId, table.sqlName);
     const deleteSql = sql`
         DELETE FROM ${tableRef}
         WHERE
@@ -992,14 +992,14 @@ test("registration catch-up is not discarded when a realtime event races the res
     await executeInternalAction(databaseGroupId, "createField", {
         fieldId,
         tableId: table.tableId,
-        name: "Notes",
+        humanName: "Notes",
         config: {type: "plainText"},
     });
     const {fields} = await executeInternalAction(databaseGroupId, "getViewSchema", {
         tableOrViewId: table.tableId,
     });
-    const columnName = fields.find(field => field.id === fieldId)!.columnName;
-    const tableRef = sql.tableRef(table.tableId, table.tableName);
+    const sqlName = fields.find(field => field.id === fieldId)!.sqlName;
+    const tableRef = sql.tableRef(table.tableId, table.sqlName);
     // Seed 12 rows with ~1.5 KB values so consecutive rows land on different 4 KB leaf
     // pages (about two rows per leaf). The value is built inline from `zeroblob`
     // because `.query` drops bound parameters.
@@ -1018,7 +1018,7 @@ test("registration catch-up is not discarded when a realtime event races the res
                         n < 12
                 )
             INSERT INTO
-                ${tableRef} (_id, ${sql.identifier(columnName)})
+                ${tableRef} (_id, ${sql.identifier(sqlName)})
             SELECT
                 generate_id (),
                 'seed:' || REPLACE(HEX(ZEROBLOB(747)), '00', 'xy')
@@ -1037,7 +1037,7 @@ test("registration catch-up is not discarded when a realtime event races the res
     const scanSql = sql`
         SELECT
             _id,
-            ${sql.identifier(columnName)} AS value
+            ${sql.identifier(sqlName)} AS value
         FROM
             ${tableRef}
         ORDER BY
@@ -1102,7 +1102,7 @@ test("registration catch-up is not discarded when a realtime event races the res
     await executeAction(reader, "readonlyRawSql", {
         sql: sql`
             SELECT
-                ${sql.identifier(columnName)} AS value
+                ${sql.identifier(sqlName)} AS value
             FROM
                 ${tableRef}
             WHERE
@@ -1358,7 +1358,7 @@ interface TestDatabaseClient {
 
 interface TestDatabaseTableRef {
     readonly tableId: DatabaseTableId;
-    readonly tableName: string;
+    readonly sqlName: string;
 }
 
 interface TestDatabaseTable extends TestDatabaseTableRef {
@@ -1479,7 +1479,7 @@ async function restartClient(
  * group's pages for seeding warm clients.
  */
 async function createTableOnServer(databaseGroupId: DatabaseGroupId): Promise<TestDatabaseTable> {
-    const {tableId, tableName} = await executeInternalAction(
+    const {tableId, sqlName} = await executeInternalAction(
         databaseGroupId,
         "createTable",
         createTableInputForTest("Projects"),
@@ -1495,7 +1495,7 @@ async function createTableOnServer(databaseGroupId: DatabaseGroupId): Promise<Te
             FROM
                 database_tables
         `.selectValue(durableObjectStorage.sql, Schema.integer.nullable()) ?? 0;
-    return {tableId, tableName, seedPages, seedWatermark};
+    return {tableId, sqlName, seedPages, seedWatermark};
 }
 
 async function executeInternalAction<const Name extends DatabaseActionName>(
@@ -1790,7 +1790,7 @@ function selectRowIdsQuery(table: TestDatabaseTableRef): string {
         SELECT
             _id
         FROM
-            ${sql.tableRef(table.tableId, table.tableName)}
+            ${sql.tableRef(table.tableId, table.sqlName)}
         ORDER BY
             _id
     `.query;

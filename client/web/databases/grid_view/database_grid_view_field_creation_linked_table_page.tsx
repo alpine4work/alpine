@@ -65,7 +65,8 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
     const filter = useFilter({sensitivity: "base"});
     const filteredTables = useMemo(
         () =>
-            tables?.filter(table => filter.contains(table.name, filterValue.trim())) ?? emptyTables,
+            tables?.filter(table => filter.contains(table.humanName, filterValue.trim())) ??
+            emptyTables,
         [tables, filterValue, filter],
     );
 
@@ -73,7 +74,7 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
         // An empty name defaults to the linked table's name. The symmetric field on the
         // target side is created by the server, so this side is always the source.
         onCommit({
-            name: name.trim() || table.name,
+            name: name.trim() || table.humanName,
             config: {
                 type: "relation",
                 joinTableId: generateId<DatabaseTableId>(),
@@ -225,8 +226,8 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
 
 function renderDatabaseGridViewLinkedTableItem(table: DatabaseGridViewLinkedTable) {
     return (
-        <Item key={table.id} textValue={table.name}>
-            <Box fontStyle="truncate">{table.name}</Box>
+        <Item key={table.id} textValue={table.humanName}>
+            <Box fontStyle="truncate">{table.humanName}</Box>
         </Item>
     );
 }

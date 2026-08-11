@@ -159,7 +159,9 @@ function DatabaseRelationGridViewCellEditorOverlay({
     const candidateRows: ReadonlyArray<DatabaseRelationCandidateRow> = linkableRowsResult?.ok
         ? linkableRowsResult.value.rows
         : [];
-    const linkedTableName = linkableRowsResult?.ok ? linkableRowsResult.value.linkedTableName : "";
+    const linkedTableHumanName = linkableRowsResult?.ok
+        ? linkableRowsResult.value.linkedTableHumanName
+        : "";
 
     const addLink = useEvent((linkedRowId: DatabaseRowId) => {
         setSearch("");
@@ -383,7 +385,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                         </IconButton>
                     </Box>
                 ) : null}
-                {linkedTableName !== "" ? (
+                {linkedTableHumanName !== "" ? (
                     <Box
                         fontSize="75"
                         fontStyle="truncate-semi-bold"
@@ -391,7 +393,7 @@ function DatabaseRelationGridViewCellEditorOverlay({
                         flexShrink="0"
                         style={{maxWidth: 140}}
                     >
-                        {linkedTableName}
+                        {linkedTableHumanName}
                     </Box>
                 ) : null}
             </Box>
