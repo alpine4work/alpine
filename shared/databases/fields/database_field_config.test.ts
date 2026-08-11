@@ -1,23 +1,9 @@
 import {
     DatabaseFieldConfigSchema,
     DatabaseFieldConfigSqlSchema,
-    getDatabaseFieldProvider,
-} from "~/shared/databases/fields/all_database_field_providers.js";
+} from "~/shared/databases/fields/database_field_config.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
-
-describe("databaseFieldProviders registry", () => {
-    test("getDatabaseFieldProvider returns the matching provider", () => {
-        expect(getDatabaseFieldProvider("plainText").type).toBe("plainText");
-        expect(getDatabaseFieldProvider("checkbox").type).toBe("checkbox");
-        expect(getDatabaseFieldProvider("number").type).toBe("number");
-        expect(getDatabaseFieldProvider("relation").type).toBe("relation");
-    });
-
-    test("getDatabaseFieldProvider asserts on unknown type", () => {
-        expect(() => getDatabaseFieldProvider("bogus" as never)).toThrow("unknown field type");
-    });
-});
 
 describe("DatabaseFieldConfigSqlSchema", () => {
     test("round-trips a number config with decimalPlaces", () => {

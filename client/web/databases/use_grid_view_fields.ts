@@ -4,7 +4,7 @@ import {startTransition, useMemo, useOptimistic, useState} from "react";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
-import {type DatabaseFieldConfig} from "~/shared/databases/fields/all_database_field_providers.js";
+import {type DatabaseFieldConfig} from "~/shared/databases/fields/database_field_config.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";

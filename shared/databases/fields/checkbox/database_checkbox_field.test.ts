@@ -1,6 +1,7 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
-import {databaseFieldProviderStrings} from "~/shared/databases/fields/database_field_provider_test_helpers.js";
+import {getDatabaseFieldStrings} from "~/shared/databases/fields/database_field_test_helpers.js";
+import {generateDatabaseFieldCheckConstraint} from "~/shared/databases/fields/generate_database_field_check_constraint.js";
+import {parseDatabaseFieldValueString} from "~/shared/databases/fields/parse_database_field_value_string.js";
 import {sql} from "~/shared/databases/sql.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -9,7 +10,7 @@ let dbCounter = 0;
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-checkbox-${dbCounter++}.sqlite3`, "ct");
-    const check = databaseCheckboxFieldProvider.generateCheckConstraint(sql.identifier("v"));
+    const check = generateDatabaseFieldCheckConstraint("checkbox", sql.identifier("v"));
     sql`
         CREATE TABLE t (
             v INTEGER NOT NULL DEFAULT 0 ${check}
@@ -18,7 +19,7 @@ async function createDbWithCheckedColumn() {
     return db;
 }
 
-describe("databaseCheckboxFieldProvider", () => {
+describe("databaseCheckboxField", () => {
     describe("parseString", () => {
         test.each([
             ["", false],
@@ -55,7 +56,7 @@ describe("databaseCheckboxFieldProvider", () => {
             ["arbitrary text", true],
             ["  yes  ", true],
         ])("parses %j as %s", (input, expected) => {
-            expect(databaseCheckboxFieldProvider.parseValueString(input)).toEqual({
+            expect(parseDatabaseFieldValueString({type: "checkbox"}, input)).toEqual({
                 ok: true,
                 value: expected,
             });
@@ -69,9 +70,8 @@ describe("databaseCheckboxFieldProvider", () => {
         ])("formats %s as %s", async (value, expected) => {
             const db = await createDbWithCheckedColumn();
             expect(
-                databaseFieldProviderStrings({
+                getDatabaseFieldStrings({
                     db,
-                    provider: databaseCheckboxFieldProvider,
                     value,
                     config: {type: "checkbox"},
                 }),

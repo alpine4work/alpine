@@ -5,10 +5,9 @@ import type {DatabaseGridViewField} from "~/client/web/databases/use_grid_view_f
 import type {MenuActions} from "~/client/web/design/menu.js";
 import {
     DatabaseFieldConfig,
-    DatabaseFieldProvider,
     DatabaseFieldType,
-    DatabaseFieldValue,
-} from "~/shared/databases/fields/all_database_field_providers.js";
+} from "~/shared/databases/fields/database_field_config.js";
+import {DatabaseFieldValue} from "~/shared/databases/fields/database_field_value.js";
 import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 // -- Grid view cell props -----------------------------------------------------
@@ -84,11 +83,11 @@ export type DatabaseFieldComponentProviderBase = {
 // -- Factory ------------------------------------------------------------------
 
 /**
- * Define a field component provider. `Type` is inferred from the shared field
- * provider so `type` preserves the literal discriminant.
+ * Define a field component provider. `Type` is inferred from the field type
+ * literal so `type` preserves the literal discriminant.
  */
 export function defineDatabaseFieldComponentProvider<const Type extends DatabaseFieldType>(
-    provider: DatabaseFieldProvider<Type>,
+    type: Type,
     options: {
         readonly label: string;
         readonly Icon: Icon;
@@ -102,7 +101,7 @@ export function defineDatabaseFieldComponentProvider<const Type extends Database
     },
 ) {
     return {
-        type: provider.type,
+        type,
         label: options.label,
         Icon: options.Icon,
         GridViewCellContent: options.GridViewCellContent,
