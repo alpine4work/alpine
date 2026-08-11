@@ -1426,6 +1426,12 @@ export type TracerEventData = {
             /** The attempt number of a Cloudflare D1 deployment. */
             readonly databaseName?: string;
         };
+
+        /** Information related to Cloudflare containers. */
+        readonly containers?: {
+            /** The ID of the Cloudflare container. */
+            readonly id?: string;
+        };
     };
 
     /**

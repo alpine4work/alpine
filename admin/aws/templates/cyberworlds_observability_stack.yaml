@@ -1530,6 +1530,8 @@ Resources:
                           Type: string
                         - Name: cloudflare__d1__database_name
                           Type: string
+                        - Name: cloudflare__containers__id
+                          Type: string
                         - Name: github__compare_url
                           Type: string
                         - Name: github__workflow__run__id

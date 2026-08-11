@@ -75,7 +75,7 @@ export class ClaudeAgentSandbox extends Sandbox<AgentV2ServiceEnv> {
 }
 
 ClaudeAgentSandbox.outboundByHost = {
-    "tracer.cyberworlds.dev": async (request: Request, env: AgentV2ServiceEnv) => {
+    "tracer.cyberworlds.dev": async (request, env: AgentV2ServiceEnv, ctx) => {
         const events: Array<{time: number; data: TracerEventFlatData}> = await request.json();
 
         if (!env.HONEYCOMB_API_KEY) {
@@ -91,6 +91,10 @@ ClaudeAgentSandbox.outboundByHost = {
                 // on the server.
                 assert(event.data["service.name"] === "ClaudeAgentService");
                 assert(event.data["meta.untrusted"] === true);
+
+                // Make sure to add the container ID to logged events. So we can correlate events
+                // coming from the same container.
+                event.data["cloudflare.containers.id"] = ctx.containerId;
             }
 
             return createSimpleOkResponse();

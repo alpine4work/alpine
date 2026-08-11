@@ -459,6 +459,9 @@ const TracerEventDataSchema = {
             action: Schema.string,
             databaseName: Schema.string,
         },
+        containers: {
+            id: Schema.string,
+        },
     },
     github: {
         compareUrl: Schema.string,
