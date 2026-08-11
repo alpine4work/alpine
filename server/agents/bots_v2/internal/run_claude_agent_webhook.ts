@@ -31,6 +31,8 @@ import {createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
@@ -120,14 +122,14 @@ export async function runClaudeAgentWebhookAfterQueue(
     });
 
     const [
-        ,
+        initializeSandboxResult,
         {
             data: {message: streamMessage},
         },
     ] = await runAllPromises([
         // Perform some initialization for the container. Like mounting a bucket and
         // setting up environment variables.
-        span.withSpan("Initialize sandbox", () => sandbox.initialize()),
+        captureResultPromise(span.withSpan("Initialize sandbox", () => sandbox.initialize())),
 
         // We create the new stream message immediately. Even before the sandbox
         // initializes. Since sandbox initialization can be expensive and we want to give
@@ -149,6 +151,9 @@ export async function runClaudeAgentWebhookAfterQueue(
     let errorContent: ApiContent | null = null;
 
     try {
+        // If initializing the sandbox fails, then we want to throw in this try/catch.
+        unwrapResult(initializeSandboxResult);
+
         // Being really safe and encoding the event to base64 before passing it as a shell
         // argument to the sandbox. This way we avoid the possibility of shell injection
         // attacks. I couldn't find a shell escaper module I was 100% confident in.
