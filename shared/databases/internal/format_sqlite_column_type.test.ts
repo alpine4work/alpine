@@ -1,5 +1,5 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import type {SqliteStorageType} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import type {SqliteStorageType} from "~/shared/databases/fields/get_database_field_sqlite_type.js";
 import {formatSqliteColumnType} from "~/shared/databases/internal/format_sqlite_column_type.js";
 import {sql} from "~/shared/databases/sql.js";
 import type {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
