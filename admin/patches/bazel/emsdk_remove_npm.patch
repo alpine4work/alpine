@@ -6,10 +6,16 @@ diff --git a/bazel/emscripten_deps.bzl b/bazel/emscripten_deps.bzl
  load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
  load("@rules_nodejs//nodejs:repositories.bzl", "nodejs_register_toolchains")
  load(":revisions.bzl", "EMSCRIPTEN_TAGS")
-@@ -174,37 +173,3 @@
+@@ -174,37 +173,9 @@
              type = "zip",
          )
  
++    # Alpine uses the node_modules trees that are already in the Emscripten
++    # binary archives through linker_files. Do not create unused npm
++    # repositories here. The macOS repository names collide. The lockfiles are
++    # not at Bazel package roots. Thus, these upstream calls prevent WORKSPACE
++    # evaluation.
++
 -    if "emscripten_npm_linux" not in excludes:
 -        npm_translate_lock(
 -            name = "emscripten_npm_linux",

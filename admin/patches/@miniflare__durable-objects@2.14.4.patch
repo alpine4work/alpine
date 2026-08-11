@@ -15,12 +15,14 @@ diff --git a/dist/src/index.js b/dist/src/index.js
 index d385ab85595c932907a2073f64c52b05c74eec3f..c1743f55f9e82fdfa8bf81d4457a0708bb18d180 100644
 --- a/dist/src/index.js
 +++ b/dist/src/index.js
-@@ -778,6 +778,117 @@ var DurableObjectTransaction = class {
+@@ -778,6 +778,119 @@ var DurableObjectTransaction = class {
      this[kRolledback] = true;
    }
  };
-+// NOTE(claude): SqlStorage polyfill for sqlite-backed Durable Objects.
-+// Wraps a better-sqlite3 database to match Cloudflare's SqlStorage API.
++// PATCH: Miniflare 2 does not implement Cloudflare's `SqlStorage` or
++// `transactionSync()` APIs. Alpine Durable Objects use these APIs in production,
++// so local development and tests need a better-sqlite3-backed polyfill with the
++// same interface.
 +var SqlStorageCursor = class {
 +  #rows;
 +  #index = 0;
@@ -133,7 +135,7 @@ index d385ab85595c932907a2073f64c52b05c74eec3f..c1743f55f9e82fdfa8bf81d4457a0708
  var txnWriteSetsMaxSize = 16;
  var DurableObjectStorage = class {
    #mutex = new ReadWriteMutex();
-@@ -789,6 +900,7 @@ var DurableObjectStorage = class {
+@@ -789,6 +902,7 @@ var DurableObjectStorage = class {
    #shadow;
    #alarmBridge;
    [kAlarmExists] = true;
@@ -141,7 +143,7 @@ index d385ab85595c932907a2073f64c52b05c74eec3f..c1743f55f9e82fdfa8bf81d4457a0708
    constructor(inner, alarmBridge) {
      this.#inner = inner;
      this.#alarmBridge = alarmBridge;
-@@ -1006,6 +1118,37 @@ var DurableObjectStorage = class {
+@@ -1006,6 +1120,37 @@ var DurableObjectStorage = class {
        return this.#mutex.runWithWrite(this.#flush);
      }, options);
    }

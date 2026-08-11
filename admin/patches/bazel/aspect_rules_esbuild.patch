@@ -172,11 +172,14 @@ diff --git a/esbuild/private/versions.bzl b/esbuild/private/versions.bzl
 index f0e33ca..b8810fc 100644
 --- a/esbuild/private/versions.bzl
 +++ b/esbuild/private/versions.bzl
-@@ -13,6 +13,14 @@ TOOL_VERSIONS = {
+@@ -13,6 +13,17 @@ TOOL_VERSIONS = {
          "linux-arm64": "sha512-j1t5iG8jE7BhonbsEg5d9qOYcVZv/Rv6tghaXM/Ug9xahM0nX/H2gfu6X6z11QRTMT6+aywOMA8TDkhPo8aCGw==",
          "win32-x64": "sha512-Arm+WgUFLUATuoxCJcahGuk6Yj9Pzxd6l11Zb/2aAuv5kWWvvfhLFo2fni4uSK5vzlUdCGZ/BdV5tH8klj8p8g==",
      },
 +    "0.21.5": {
++        # Alpine selects esbuild 0.21.5 in WORKSPACE. rules_esbuild 0.21.0 does
++        # not include these checksums, so the toolchain fetch fails without
++        # this entry.
 +        "npm": "sha512-mg3OPMV4hXywwpoDxu3Qda5xCKQi+vCTZq8S9J/EpkhB2HzKXq4SNFZE3+NK93JYxc8VMSep+lOUSC/RVKaBqw==",
 +        "darwin-x64": "sha512-se/JjF8NlmKVG4kNIuyWMV/22ZaerB+qaSi5MdrXtd6R08kvs2qCN4C09miupktDitvh8jRFflwGFBQcxZRjbw==",
 +        "darwin-arm64": "sha512-DwqXqZyuk5AiWWf3UfLiRDJ5EDd49zg6O9wclZ7kUMv2WRFr4HKjXp/5t8JZ11QbQfUS6/cRCKGwYhtNAY88kQ==",
