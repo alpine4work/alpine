@@ -10,6 +10,20 @@ SANDBOX_TRANSPORT = "rpc"
 SANDBOX_LOG_LEVEL = "debug"
 SANDBOX_LOG_FORMAT = "json"
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+destinations = ["honeycomb-logs"]
+head_sampling_rate = 1
+
+[observability.traces]
+enabled = true
+destinations = ["honeycomb-traces"]
+head_sampling_rate = 1
+
 [[r2_buckets]]
 binding = "ClaudeAgentBucket"
 bucket_name = "alpine-claude-agent"
