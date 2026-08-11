@@ -185,14 +185,14 @@ describe("sql.tableRef", () => {
     test("qualifies a name with the table prefixed schema", () => {
         const q = sql.tableRef("abc123" as DatabaseTableId, "my_table");
         expect(q.query).toBe(
-            `${sqliteDoubleQuote}_alpine_schema_abc123${sqliteDoubleQuote}.${sqliteDoubleQuote}my_table${sqliteDoubleQuote}`,
+            `${sqliteDoubleQuote}_alpine_table_schema_abc123${sqliteDoubleQuote}.${sqliteDoubleQuote}my_table${sqliteDoubleQuote}`,
         );
     });
 
     test("escapes double quotes in the name", () => {
         const q = sql.tableRef("abc123" as DatabaseTableId, ["c ", "d"].join(sqliteDoubleQuote));
         expect(q.query).toBe(
-            `${sqliteDoubleQuote}_alpine_schema_abc123${sqliteDoubleQuote}.${sqliteDoubleQuote}c ${sqliteDoubleQuote}${sqliteDoubleQuote}d${sqliteDoubleQuote}`,
+            `${sqliteDoubleQuote}_alpine_table_schema_abc123${sqliteDoubleQuote}.${sqliteDoubleQuote}c ${sqliteDoubleQuote}${sqliteDoubleQuote}d${sqliteDoubleQuote}`,
         );
     });
 });

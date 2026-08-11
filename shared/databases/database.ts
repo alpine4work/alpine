@@ -763,7 +763,7 @@ export class Database {
     private readonly resolveSchemaAccess = (schemaName: string): AccessLevel | null => {
         // Public SQL cannot spoof either transient schema: ATTACH and DETACH are denied
         // outside Database's private attach mode, and table schemas always use the
-        // `_alpine_schema_` prefix.
+        // `_alpine_table_schema_` prefix.
         if (schemaName === "main" || schemaName === "temp" || schemaName.startsWith("vacuum_")) {
             return "Manage";
         }
@@ -1354,9 +1354,10 @@ class DatabaseTrackedExecutionImpl<Value> implements DatabaseTrackedExecution<Va
 // SQLite reports a reference to an unattached per-db file in one of two shapes,
 // both naming the schema we generated via `databaseTableSchemaName`:
 //
-// - `no such table: _alpine_schema_<tableId>.<inner>` — for DML/SELECT/ALTER.
-// - `unknown database "_alpine_schema_<tableId>"` — for some DDL (e.g. CREATE
-//   INDEX).
+// - `no such table: _alpine_table_schema_<tableId>.<inner>` — for
+//   DML/SELECT/ALTER.
+// - `unknown database "_alpine_table_schema_<tableId>"` — for some DDL, such as
+//   CREATE INDEX.
 //
 // Ids are 26-char Crockford base-32; matching `[0-9a-z]+` up to the `.`/`"`
 // boundary recovers the id without depending on its exact length. These message

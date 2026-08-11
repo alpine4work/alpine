@@ -488,7 +488,7 @@ sql.join = (queries: Array<SqlQuery>, separator: string): SqlQuery => {
  * DatabaseTableId} (see `Database`'s unattached-table detection). The leading `_`
  * also marks it internal, matching the `_alpine_*` table convention.
  */
-export const databaseTableSchemaNamePrefix = "_alpine_schema_";
+export const databaseTableSchemaNamePrefix = "_alpine_table_schema_";
 
 /**
  * SQLite schema name for a table's `ATTACH`-ed per-db file: {@link
@@ -501,9 +501,10 @@ export function databaseTableSchemaName(tableId: DatabaseTableId): string {
 }
 
 /**
- * Create a schema-qualified SQL identifier, `"_alpine_schema_{tableId}"."name"`,
- * for referencing a table (or index) in a {@link DatabaseTableId}'s `ATTACH`-ed
- * per-db file. Both parts are quoted and escaped via {@link sql.identifier}.
+ * Create a schema-qualified SQL identifier,
+ * `"_alpine_table_schema_{tableId}"."name"`, for referencing a table (or index) in
+ * a {@link DatabaseTableId}'s `ATTACH`-ed per-db file. Both parts are quoted and
+ * escaped via {@link sql.identifier}.
  */
 sql.tableRef = (schema: DatabaseTableId, name?: string): SqlQuery =>
     name
