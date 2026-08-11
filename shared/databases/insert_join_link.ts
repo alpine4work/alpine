@@ -1,4 +1,4 @@
-import type {ResolvedDatabaseRelation} from "~/shared/databases/fields/database_relation_field.js";
+import type {ResolvedDatabaseRelation} from "~/shared/databases/fields/relation/resolve_database_relation.js";
 import {sql} from "~/shared/databases/sql.js";
 import type {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import type {DatabaseRowId} from "~/shared/id/types/id_types.open_source.js";

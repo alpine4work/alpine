@@ -13,7 +13,7 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {
     DatabaseFieldConfig,
     DatabaseFieldType,
-} from "~/shared/databases/fields/all_database_field_providers.js";
+} from "~/shared/databases/fields/database_field_config.js";
 
 /**
  * The first page of the field creation popover: the list of field types. Up and

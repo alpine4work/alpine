@@ -12,7 +12,7 @@ import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_t
 import {
     type DatabaseFieldConfig,
     DatabaseFieldConfigSqlSchema,
-} from "~/shared/databases/fields/all_database_field_providers.js";
+} from "~/shared/databases/fields/database_field_config.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";

@@ -10,10 +10,8 @@ import {
 } from "~/client/web/databases/fields/database_field_component_provider.js";
 import {Box} from "~/client/web/design/box.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {
-    databaseNumberFieldValueToString,
-    parseDatabaseNumberFieldValueString,
-} from "~/shared/databases/fields/database_number_field.js";
+import {formatDatabaseNumberFieldValueString} from "~/shared/databases/fields/number/format_database_number_field_value_string.js";
+import {parseDatabaseNumberFieldValueString} from "~/shared/databases/fields/number/parse_database_number_field_value_string.js";
 
 function DatabaseNumberGridViewCellContent({
     ref,
@@ -34,7 +32,7 @@ function DatabaseNumberGridViewCellContent({
             color="grey-100"
             onClick={onCellClick}
         >
-            {databaseNumberFieldValueToString(value, field.config)}
+            {formatDatabaseNumberFieldValueString(value, field.config)}
         </Box>
     );
 }

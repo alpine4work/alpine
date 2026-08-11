@@ -10,18 +10,17 @@ import type {
 import {DatabaseActionRequiresServerError} from "~/shared/databases/database_action_requires_server_error.js";
 import {DatabaseTableAccessPolicyRevisionSchema} from "~/shared/databases/database_table_access_policy_revision.js";
 import {executeSqliteTransaction} from "~/shared/databases/execute_sqlite_transaction.js";
-import {
-    DatabaseFieldConfigSchema,
-    assertDatabaseFieldConfigChangeValid,
-    databaseFieldColumn,
-    databaseFieldSqlValueSchema,
-    databaseFieldValueToSql,
-    databaseFieldValueToString,
-    parseDatabaseFieldValueString,
-    selectDatabaseFieldColumn,
-    unknownDatabaseFieldValueToSql,
-} from "~/shared/databases/fields/all_database_field_providers.js";
-import {resolveDatabaseRelation} from "~/shared/databases/fields/database_relation_field.js";
+import {DatabaseFieldConfigSchema} from "~/shared/databases/fields/database_field_config.js";
+import {formatDatabaseFieldValueString} from "~/shared/databases/fields/format_database_field_value_string.js";
+import {getDatabaseFieldDefaultValue} from "~/shared/databases/fields/get_database_field_default_value.js";
+import {getDatabaseFieldSqlValueSchema} from "~/shared/databases/fields/get_database_field_sql_value_schema.js";
+import {isDatabaseFieldColumnBacked} from "~/shared/databases/fields/is_database_field_column_backed.js";
+import {parseDatabaseFieldValueString} from "~/shared/databases/fields/parse_database_field_value_string.js";
+import {assertDatabaseRelationFieldConfigChangeValid} from "~/shared/databases/fields/relation/assert_database_relation_field_config_change_valid.js";
+import {resolveDatabaseRelation} from "~/shared/databases/fields/relation/resolve_database_relation.js";
+import {selectDatabaseFieldColumn} from "~/shared/databases/fields/select_database_field_column.js";
+import {serializeDatabaseFieldValueToSql} from "~/shared/databases/fields/serialize_database_field_value_to_sql.js";
+import {serializeUnknownDatabaseFieldValueToSql} from "~/shared/databases/fields/serialize_unknown_database_field_value_to_sql.js";
 import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
 import {insertJoinLink} from "~/shared/databases/insert_join_link.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
@@ -448,7 +447,7 @@ export const databaseActions = {
                 fieldIndexes.set(field.id, fieldIndex);
 
                 selectColumns.push(selectDatabaseFieldColumn(field, dataRow));
-                columnSchemas.push(databaseFieldSqlValueSchema(field.config.type));
+                columnSchemas.push(getDatabaseFieldSqlValueSchema(field.config.type));
             }
 
             const selectList = sql.join(selectColumns, ", ");
@@ -500,10 +499,10 @@ export const databaseActions = {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
             assert(
-                databaseFieldColumn(field.config.type) != null,
+                isDatabaseFieldColumnBacked(field.config.type),
                 `cannot update virtual field ${fieldId} with updateCellValue`,
             );
-            const valueSql = unknownDatabaseFieldValueToSql(field.config.type, value);
+            const valueSql = serializeUnknownDatabaseFieldValueToSql(field.config.type, value);
             sql`
                 UPDATE ${table.tableRef}
                 SET
@@ -757,14 +756,14 @@ export const databaseActions = {
                     linked_row._id DESC
             `.selectAll(db, {
                 id: Schema.id<DatabaseRowId>(),
-                name: databaseFieldSqlValueSchema(linkedNameField.config.type),
+                name: getDatabaseFieldSqlValueSchema(linkedNameField.config.type),
             });
 
             return {
                 linkedTableName: linkedTable.name,
                 rows: rows.map(row => ({
                     id: row.id,
-                    name: databaseFieldValueToString(linkedNameField.config, row.name),
+                    name: formatDatabaseFieldValueString(linkedNameField.config, row.name),
                 })),
             };
         },
@@ -833,14 +832,14 @@ export const databaseActions = {
                     link_row.${relation.our.positionColumn}
             `.selectAll(db, {
                 id: Schema.id<DatabaseRowId>(),
-                name: databaseFieldSqlValueSchema(linkedNameField.config.type),
+                name: getDatabaseFieldSqlValueSchema(linkedNameField.config.type),
                 position: OrderKeySchema,
             });
 
             return {
                 rows: rows.map(row => ({
                     id: row.id,
-                    name: databaseFieldValueToString(linkedNameField.config, row.name),
+                    name: formatDatabaseFieldValueString(linkedNameField.config, row.name),
                     position: row.position,
                 })),
             };
@@ -899,15 +898,14 @@ export const databaseActions = {
             assert(table.rowExists(rowId), "row not found");
 
             const linkedNameField = linkedTable.getNameField();
-            const linkedNameColumn = databaseFieldColumn(linkedNameField.config.type);
             assert(
-                linkedNameColumn != null,
+                isDatabaseFieldColumnBacked(linkedNameField.config.type),
                 "linked table name field must be column-backed to create a row by name",
             );
             const parsedName = parseDatabaseFieldValueString(linkedNameField.config, name);
             const nameSql = parsedName.ok
-                ? databaseFieldValueToSql(linkedNameField.config.type, parsedName.value)
-                : linkedNameColumn.defaultValue;
+                ? serializeDatabaseFieldValueToSql(linkedNameField.config.type, parsedName.value)
+                : getDatabaseFieldDefaultValue(linkedNameField.config.type);
 
             sql`
                 INSERT INTO
@@ -949,7 +947,18 @@ export const databaseActions = {
                 field.config.type === config.type,
                 `cannot change field type from ${field.config.type} to ${config.type}`,
             );
-            assertDatabaseFieldConfigChangeValid(field.config, config);
+            switch (field.config.type) {
+                case "plainText":
+                case "checkbox":
+                case "number":
+                    break;
+                case "relation":
+                    assert(config.type === "relation", "cannot change field type");
+                    assertDatabaseRelationFieldConfigChangeValid(field.config, config);
+                    break;
+                default:
+                    throw exhaustive(field.config);
+            }
 
             field.updateConfig(config);
 

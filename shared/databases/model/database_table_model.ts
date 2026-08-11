@@ -1,8 +1,12 @@
 import {
     DatabaseFieldConfig,
     DatabaseFieldConfigSqlSchema,
-    databaseFieldColumn,
-} from "~/shared/databases/fields/all_database_field_providers.js";
+} from "~/shared/databases/fields/database_field_config.js";
+import {generateDatabaseFieldCheckConstraint} from "~/shared/databases/fields/generate_database_field_check_constraint.js";
+import {getDatabaseFieldDefaultValue} from "~/shared/databases/fields/get_database_field_default_value.js";
+import {getDatabaseFieldSqliteType} from "~/shared/databases/fields/get_database_field_sqlite_type.js";
+import {isDatabaseFieldColumnBacked} from "~/shared/databases/fields/is_database_field_column_backed.js";
+import {isDatabaseFieldNullable} from "~/shared/databases/fields/is_database_field_nullable.js";
 import {formatSqliteColumnType} from "~/shared/databases/internal/format_sqlite_column_type.js";
 import {formatUniqueSqlName} from "~/shared/databases/internal/format_unique_sql_name.js";
 import {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
@@ -196,7 +200,6 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
         config: DatabaseFieldConfig,
     ): DatabaseFieldModel {
         const columnName = this.formatUniqueFieldName(name);
-        const fieldColumn = databaseFieldColumn(config.type);
 
         sql`
             INSERT INTO
@@ -210,20 +213,22 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
                 )
         `.exec(this.db);
 
-        if (fieldColumn != null) {
+        if (isDatabaseFieldColumnBacked(config.type)) {
             const column = sql.identifier(columnName);
 
             const columnType = sql.raw(
-                formatSqliteColumnType(fieldColumn.sqliteType, this.id, fieldId),
+                formatSqliteColumnType(getDatabaseFieldSqliteType(config.type), this.id, fieldId),
             );
-            const notNullClause = fieldColumn.nullable ? sql`` : sql`NOT NULL`;
-            const check = fieldColumn.generateCheckConstraint(column);
+            const notNullClause = isDatabaseFieldNullable(config.type) ? sql`` : sql`NOT NULL`;
+            const check = generateDatabaseFieldCheckConstraint(config.type, column);
 
             sql`
                 ALTER TABLE ${this.tableRef}
                 ADD COLUMN ${sql.identifier(
                     columnName,
-                )} ${columnType} ${notNullClause} DEFAULT ${fieldColumn.defaultValue} ${check}
+                )} ${columnType} ${notNullClause} DEFAULT ${getDatabaseFieldDefaultValue(
+                    config.type,
+                )} ${check}
             `.exec(this.db);
         }
 

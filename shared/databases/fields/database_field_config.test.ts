@@ -1,7 +1,7 @@
 import {
     DatabaseFieldConfigSchema,
     DatabaseFieldConfigSqlSchema,
-} from "~/shared/databases/fields/all_database_field_providers.js";
+} from "~/shared/databases/fields/database_field_config.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 

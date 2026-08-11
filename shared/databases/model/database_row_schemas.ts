@@ -1,4 +1,4 @@
-import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/all_database_field_providers.js";
+import {DatabaseFieldConfigSqlSchema} from "~/shared/databases/fields/database_field_config.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
 import {
     DatabaseFieldId,

@@ -1,9 +1,8 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {databaseFieldProviderStrings} from "~/shared/databases/fields/database_field_provider_test_helpers.js";
-import {
-    databaseNumberFieldColumn,
-    parseDatabaseNumberFieldValueString,
-} from "~/shared/databases/fields/database_number_field.js";
+import {getDatabaseFieldStrings} from "~/shared/databases/fields/database_field_test_helpers.js";
+import {generateDatabaseFieldCheckConstraint} from "~/shared/databases/fields/generate_database_field_check_constraint.js";
+import {isDatabaseFieldNullable} from "~/shared/databases/fields/is_database_field_nullable.js";
+import {parseDatabaseNumberFieldValueString} from "~/shared/databases/fields/number/parse_database_number_field_value_string.js";
 import {sql} from "~/shared/databases/sql.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -12,7 +11,7 @@ let dbCounter = 0;
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-number-${dbCounter++}.sqlite3`, "ct");
-    const check = databaseNumberFieldColumn.generateCheckConstraint(sql.identifier("v"));
+    const check = generateDatabaseFieldCheckConstraint("number", sql.identifier("v"));
     // Match the production DDL: nullable REAL with no NOT NULL clause.
     sql`
         CREATE TABLE t (
@@ -24,7 +23,7 @@ async function createDbWithCheckedColumn() {
 
 describe("databaseNumberField", () => {
     test("nullable is true", () => {
-        expect(databaseNumberFieldColumn.nullable).toBe(true);
+        expect(isDatabaseFieldNullable("number")).toBe(true);
     });
 
     describe("parseString", () => {
@@ -196,7 +195,7 @@ describe("databaseNumberField", () => {
         ])("formats %s with decimalPlaces=%s as %s", async (decimalPlaces, value, expected) => {
             const db = await createDbWithCheckedColumn();
             expect(
-                databaseFieldProviderStrings({
+                getDatabaseFieldStrings({
                     db,
                     value,
                     config: {type: "number", decimalPlaces},

@@ -1,9 +1,9 @@
-import {databaseFieldValueToString} from "~/shared/databases/fields/all_database_field_providers.js";
+import {formatDatabaseFieldValueString} from "~/shared/databases/fields/format_database_field_value_string.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
-describe("databaseRelationField", () => {
+describe("formatDatabaseFieldValueString", () => {
     test("formats linked record names", () => {
         const value = [
             {
@@ -31,6 +31,6 @@ describe("databaseRelationField", () => {
             linkedTableId: generateChronologicalId<DatabaseTableId>(),
         };
 
-        expect(databaseFieldValueToString(config, value)).toBe("Alpha, Untitled, Beta");
+        expect(formatDatabaseFieldValueString(config, value)).toBe("Alpha, Untitled, Beta");
     });
 });

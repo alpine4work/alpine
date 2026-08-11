@@ -6,8 +6,8 @@ import type {MenuActions} from "~/client/web/design/menu.js";
 import {
     DatabaseFieldConfig,
     DatabaseFieldType,
-    DatabaseFieldValue,
-} from "~/shared/databases/fields/all_database_field_providers.js";
+} from "~/shared/databases/fields/database_field_config.js";
+import {DatabaseFieldValue} from "~/shared/databases/fields/database_field_value.js";
 import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 // -- Grid view cell props -----------------------------------------------------

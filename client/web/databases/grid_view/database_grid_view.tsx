@@ -40,7 +40,7 @@ import {
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
 import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
-import type {DatabaseFieldValue} from "~/shared/databases/fields/all_database_field_providers.js";
+import type {DatabaseFieldValue} from "~/shared/databases/fields/database_field_value.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
 import type {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";

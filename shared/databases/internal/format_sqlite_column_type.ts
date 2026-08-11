@@ -1,4 +1,4 @@
-import {SqliteStorageType} from "~/shared/databases/fields/all_database_field_providers.js";
+import {SqliteStorageType} from "~/shared/databases/fields/get_database_field_sqlite_type.js";
 import {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
