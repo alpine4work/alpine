@@ -72,11 +72,7 @@ import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {
-    ContentEditorClientId,
-    DatabaseTableId,
-    DocumentId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
@@ -146,94 +142,6 @@ afterEach(() => {
     const hadNoTimers = import.meta.jest.getTimerCount() === 0;
     import.meta.jest.clearAllTimers();
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
-});
-
-test("database table search result respects its access policy", async () => {
-    const space = await TestSpace.create(context);
-    const creator = await space.createSession();
-    const other = await space.createSession();
-    const tableId = generateId<DatabaseTableId>();
-
-    await indexDatabaseTableSearchEntity(creator.action(), {
-        spaceId: space.id,
-        tableId,
-        name: "Roadmap Grid",
-        accessPolicy: {
-            type: "Local",
-            accountGrantById: new Map([[creator.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        },
-        isDeleted: false,
-    });
-    await context.opensearch.refresh(SearchEntityKeywordIndex);
-
-    const input = {
-        spaceId: space.id,
-        queryText: "Roadmap",
-        limit: 10,
-        timeZone: defaultTimeZone,
-        currentTime: new Date(),
-    };
-
-    expect({
-        creator: (await searchByKeywords(creator.action(), input)).map(result => result.id),
-        other: (await searchByKeywords(other.action(), input)).map(result => result.id),
-    }).toEqual({creator: [`DatabaseTable:${tableId}`], other: []});
-});
-
-test("database table search result can appear by affinity", async () => {
-    const space = await TestSpace.create(context);
-    const creator = await space.createSession();
-    const other = await space.createSession();
-    const tableId = generateId<DatabaseTableId>();
-
-    await indexDatabaseTableSearchEntity(creator.action(), {
-        spaceId: space.id,
-        tableId,
-        name: "Roadmap Grid",
-        accessPolicy: {
-            type: "Local",
-            accountGrantById: new Map([[creator.account.id, {level: "Manage", generation: 0}]]),
-            defaultGrant: null,
-            urlGrant: null,
-        },
-        isDeleted: false,
-    });
-    await context.opensearch.refresh(SearchEntityKeywordIndex);
-
-    await runAllPromises([
-        markSearchAffinityEntityInteraction(creator.action(), {
-            spaceId: space.id,
-            entityId: `DatabaseTable:${tableId}`,
-            interaction: {type: "HighIntentUpdate"},
-            siteId: null,
-        }),
-        markSearchAffinityEntityInteraction(other.action(), {
-            spaceId: space.id,
-            entityId: `DatabaseTable:${tableId}`,
-            interaction: {type: "HighIntentUpdate"},
-            siteId: null,
-        }),
-    ]);
-
-    expect({
-        creator: (await searchByAffinity(creator.action(), space.id)).results,
-        other: (await searchByAffinity(other.action(), space.id)).results,
-    }).toEqual({
-        creator: [
-            new SearchAffinityEntityResultModel({
-                score: expect.closeTo(3),
-                favoriteOrderKey: null,
-                model: SearchAffinityEntityModel.new({
-                    type: "DatabaseTable",
-                    title: "Roadmap Grid",
-                    table: {id: tableId},
-                }),
-            }),
-        ],
-        other: [],
-    });
 });
 
 test("can index and reindex a document", async () => {

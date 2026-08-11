@@ -14,7 +14,7 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
  * this on the client throws `DatabaseActionRequiresServerError`, routing the
  * action to the server.
  */
-export function formatUniqueTableName({
+export function formatUniqueTableSqlName({
     model,
     name,
     excludeTableId,

@@ -1,7 +1,7 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
-import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
+import {formatUniqueTableSqlName} from "~/shared/databases/format_unique_table_sql_name.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
@@ -28,7 +28,7 @@ const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 const testAccountId = generateId<AccountId>();
 
-// Test stand-in for the action server context: `formatUniqueTableName` and
+// Test stand-in for the action server context: `formatUniqueTableSqlName` and
 // `registerTable` reach the table store through `model.ctx.server()`.
 function createTestModel(db: SqliteDatabase): DatabaseModel {
     return new DatabaseModel(
@@ -61,7 +61,7 @@ function attachTableDb(db: SqliteDatabase, tableId: DatabaseTableId): void {
 function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: string) {
     // Mirrors the createTable action: resolve the unique name, register the table,
     // migrate the per-table file, then create the metadata.
-    const tableName = formatUniqueTableName({model, name});
+    const tableName = formatUniqueTableSqlName({model, name});
     model.registerTable(tableId, {
         kind: "table",
         tableName,
@@ -84,7 +84,7 @@ function createJoinTableWithUniqueName(
     sourceField: DatabaseFieldModel,
     targetField: DatabaseFieldModel,
 ) {
-    const tableName = formatUniqueTableName({
+    const tableName = formatUniqueTableSqlName({
         model,
         name: `${sourceField.humanName} ${targetField.humanName}`,
     });
@@ -275,7 +275,7 @@ describe("DatabaseModel", () => {
         `.exec(db);
 
         target.updateName("Milestones", {
-            tableName: formatUniqueTableName({
+            tableName: formatUniqueTableSqlName({
                 model,
                 name: "Milestones",
                 excludeTableId: target.id,

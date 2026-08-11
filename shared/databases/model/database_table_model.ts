@@ -66,9 +66,9 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     }
 
     /**
-     * `tableName` is resolved by the calling action via `formatUniqueTableName` (with
-     * this table as `excludeTableId`, so a rename to a slug variant of the current
-     * name is a no-op on the SQL identifier).
+     * `tableName` is resolved by the calling action via `formatUniqueTableSqlName`
+     * (with this table as `excludeTableId`, so a rename to a slug variant of the
+     * current name is a no-op on the SQL identifier).
      */
     updateName(name: string, {tableName: newTableName}: {tableName: string}) {
         if (newTableName !== this.sqlName) {
@@ -179,7 +179,7 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
         return this.getField(this.nameFieldId);
     }
 
-    formatUniqueFieldName(name: string, existing?: string) {
+    formatUniqueFieldSqlName(name: string, existing?: string) {
         const existingColumnNames = new Set<string>(
             sql`
                 SELECT
@@ -199,7 +199,7 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
         name: string,
         config: DatabaseFieldConfig,
     ): DatabaseFieldModel {
-        const columnName = this.formatUniqueFieldName(name);
+        const columnName = this.formatUniqueFieldSqlName(name);
 
         sql`
             INSERT INTO

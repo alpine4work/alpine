@@ -7,8 +7,8 @@ import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_p
  * digit, or the reserved `sqlite_` prefix.
  *
  * Deduplication against existing names is the caller's job — see
- * `formatUniqueSqlName` (in-memory set) and `formatUniqueTableName` (registry hash
- * probe).
+ * `formatUniqueSqlName` (in-memory set) and `formatUniqueTableSqlName` (registry
+ * hash probe).
  */
 export function slugifySqlName(name: string): string {
     let slug = convertToUrlPathnameSlug(name, "_");

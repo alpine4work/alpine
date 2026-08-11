@@ -43,7 +43,7 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
     }
 
     updateName(newName: string) {
-        const newColumnName = this.table.formatUniqueFieldName(newName, this.sqlName);
+        const newColumnName = this.table.formatUniqueFieldSqlName(newName, this.sqlName);
 
         sql`
             UPDATE ${this.schema}._alpine_fields
