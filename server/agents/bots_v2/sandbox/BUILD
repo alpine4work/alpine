@@ -2,6 +2,7 @@ load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("//admin/bazel:production_transition.bzl", "production_transition")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 filegroup(
@@ -11,6 +12,12 @@ filegroup(
         ":sandbox_skills",
         ":claude_agent_service_bundle_file",
     ],
+    visibility = ["//server/agents/bots_v2:__subpackages__"],
+)
+
+production_transition(
+    name = "sandbox_files_production",
+    target = ":sandbox_files",
     visibility = ["//server/agents/bots_v2:__subpackages__"],
 )
 

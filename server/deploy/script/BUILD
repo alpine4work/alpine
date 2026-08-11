@@ -16,6 +16,7 @@ ts_project(
         "//app:app_static_production",
         "//server/edge:wrangler",
         "//server/agents/bots:wrangler",
+        "//server/agents/bots_v2:wrangler",
         "//server/resources:wrangler",
     ],
     deps = [

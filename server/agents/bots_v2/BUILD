@@ -66,3 +66,14 @@ production_transition(
     name = "agent_v2_service_bundle_file_production",
     target = ":agent_v2_service_bundle_file",
 )
+
+wrangler_bin.wrangler_binary(
+    name = "wrangler",
+    chdir = package_name(),
+    data = [
+        "wrangler.toml",
+        ":agent_v2_service_bundle_file_production",
+        "//server/agents/bots_v2/sandbox:sandbox_files_production",
+    ],
+    visibility = ["//server/deploy/script:__pkg__"],
+)

@@ -164,4 +164,11 @@ export async function deployCloudflareWorkers(
         joinPath(runfilesPath, "cyberworlds/admin/local_redirect/wrangler.sh"),
         env,
     );
+
+    await deployCloudflareWorkerWithRetry(
+        context,
+        "Agent V2 Service",
+        joinPath(runfilesPath, "cyberworlds/server/agents/bots_v2/wrangler.sh"),
+        env,
+    );
 }
