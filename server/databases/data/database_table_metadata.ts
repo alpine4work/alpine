@@ -113,7 +113,7 @@ export async function updateDatabaseTableAccessPolicy(
         const item = await DatabasesRynamo.getItemIfExists(
             context,
             {partitionType: "Table", sortRangeType: "Attributes", tableId},
-            {consistency: "Strong"},
+            {consistency: "StrongWithinCache"},
         );
         if (item === null || item.name === null) {
             throw createDatabaseTableNotFoundError(tableId);
@@ -122,7 +122,7 @@ export async function updateDatabaseTableAccessPolicy(
         await authorizeSpaceAccess(context, spaceId, "Member");
         if (
             !(await evaluateAccessPolicy(context, spaceId, item.accessPolicy, "Manage", {
-                consistency: "Strong",
+                consistency: "StrongWithinCache",
             }))
         ) {
             throw new PermissionDeniedError(
@@ -136,7 +136,7 @@ export async function updateDatabaseTableAccessPolicy(
             `DatabaseTable:${tableId}`,
             item.accessPolicy,
             accessPolicy,
-            {consistency: "Strong"},
+            {consistency: "StrongWithinCache"},
         );
         const storedAccessPolicy: AccessPolicy =
             accessPolicy.type === "Local"
