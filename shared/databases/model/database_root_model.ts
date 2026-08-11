@@ -166,7 +166,7 @@ export class DatabaseModel {
         `.exec(this.db);
         sql`
             CREATE INDEX ${table.schema}._alpine_rows_created_at ON ${sql.identifier(
-                table.tableName,
+                table.sqlName,
             )} (_created_at)
         `.exec(this.db);
 
@@ -316,16 +316,16 @@ export class DatabaseModel {
     }
 
     formatJoinTableColumnNames(sourceTable: DatabaseTableModel, targetTable: DatabaseTableModel) {
-        const sourceRowIdColumnName = `${sourceTable.tableName}_id`;
-        const sourcePositionColumnName = `${sourceTable.tableName}_position`;
+        const sourceRowIdColumnName = `${sourceTable.sqlName}_id`;
+        const sourcePositionColumnName = `${sourceTable.sqlName}_position`;
         const existingColumnNames = new Set([sourceRowIdColumnName, sourcePositionColumnName]);
         const targetRowIdColumnName = formatUniqueSqlName(
-            `${targetTable.tableName} id`,
+            `${targetTable.sqlName} id`,
             existingColumnNames,
         );
         existingColumnNames.add(targetRowIdColumnName);
         const targetPositionColumnName = formatUniqueSqlName(
-            `${targetTable.tableName} position`,
+            `${targetTable.sqlName} position`,
             existingColumnNames,
         );
 

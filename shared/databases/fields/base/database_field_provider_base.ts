@@ -85,9 +85,7 @@ export abstract class ColumnBackedDatabaseFieldProvider<
     ) {
         sql`
             ALTER TABLE ${oldField.table.tableRef}
-            RENAME COLUMN ${sql.identifier(oldField.columnName)} TO ${sql.identifier(
-                newField.columnName,
-            )}
+            RENAME COLUMN ${sql.identifier(oldField.sqlName)} TO ${sql.identifier(newField.sqlName)}
         `.exec(oldField.db);
     }
 }

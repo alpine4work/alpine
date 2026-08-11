@@ -86,7 +86,7 @@ function createJoinTableWithUniqueName(
 ) {
     const tableName = formatUniqueTableName({
         model,
-        name: `${sourceField.name} ${targetField.name}`,
+        name: `${sourceField.humanName} ${targetField.humanName}`,
     });
     model.registerTable(joinTableId, {
         kind: "join",
@@ -142,7 +142,7 @@ describe("DatabaseModel", () => {
 
         const fields = defaultView.getFieldsWithViewMetadata();
         expect({
-            tableName: table.tableName,
+            tableName: table.sqlName,
             field: fields[0],
         }).toMatchObject({
             tableName: "tasks",
