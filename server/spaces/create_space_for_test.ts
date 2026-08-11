@@ -26,24 +26,27 @@ export async function createSpaceForTest(
 ) {
     assert(isTestNodeEnvOrAdminScenariosScript);
 
-    await SpacesTable.createItem(context, {
-        partitionType: "Space",
-        sortRangeType: "Attributes",
-        spaceId: id,
-        name,
-        createdTime: new Date(),
-        themeColor: defaultSpaceThemeColor,
-        databaseGroupId,
-    });
-
-    if (databaseGroupId !== undefined) {
-        await SpacesTable.createOrReplaceItem(context, {
-            partitionType: "DatabaseGroup",
-            sortRangeType: "Space",
-            databaseGroupId,
+    await DynamoTableSchema.executeTransaction(context, [
+        SpacesTable.transactionCreateItem({
+            partitionType: "Space",
+            sortRangeType: "Attributes",
             spaceId: id,
-        });
-    }
+            name,
+            createdTime: new Date(),
+            themeColor: defaultSpaceThemeColor,
+            databaseGroupId,
+        }),
+        ...(databaseGroupId === undefined
+            ? []
+            : [
+                  SpacesTable.transactionCreateOrReplaceItem({
+                      partitionType: "DatabaseGroup",
+                      sortRangeType: "Space",
+                      databaseGroupId,
+                      spaceId: id,
+                  }),
+              ]),
+    ]);
 }
 
 /**
