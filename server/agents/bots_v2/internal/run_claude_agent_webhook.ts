@@ -129,7 +129,12 @@ export async function runClaudeAgentWebhookAfterQueue(
     ] = await runAllPromises([
         // Perform some initialization for the container. Like mounting a bucket and
         // setting up environment variables.
-        captureResultPromise(span.withSpan("Initialize sandbox", () => sandbox.initialize())),
+        captureResultPromise(
+            span.withSpan("Initialize sandbox", async span => {
+                const {branch} = await sandbox.initialize();
+                span.addData({common: {branch}});
+            }),
+        ),
 
         // We create the new stream message immediately. Even before the sandbox
         // initializes. Since sandbox initialization can be expensive and we want to give

@@ -17,14 +17,24 @@ import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_fl
 import {convertTracerEventFlatDataToKinesisData} from "~/shared/tracer/tracer_event.open_source.js";
 
 export class ClaudeAgentSandbox extends Sandbox<AgentV2ServiceEnv> {
-    #initializePromise: Promise<void> | null = null;
+    #initializePromise: Promise<{branch: string}> | null = null;
 
-    initialize(): Promise<void> {
-        this.#initializePromise ??= this.#initialize();
-        return this.#initializePromise;
+    initialize(): Promise<{branch: string}> {
+        if (this.#initializePromise !== null) {
+            return this.#initializePromise.then(() => ({branch: "AlreadyInitialized"}));
+        } else {
+            this.#initializePromise = this.#initialize();
+            return this.#initializePromise;
+        }
     }
 
-    async #initialize(): Promise<void> {
+    async #initialize(): Promise<{branch: string}> {
+        // Looks like the bucket was already mounted? So we noop. We expect this may happen
+        // in production when the durable object code deploys so the durable object
+        // JavaScript class resets but the underlying Docker container is still running.
+        // But I (@calebmer) am not 100% sure if this case will ever really happen.
+        if (await this.exists("/workspace/bucket")) return {branch: "BucketAlreadyMounted"};
+
         // `getSandbox()` uses `idFromName()`, so this is the original sandbox ID.
         const sandboxId = assertExists(this.ctx.id.name);
         const bucketPrefix = `/sandbox/${sandboxId}/`;
@@ -46,6 +56,8 @@ export class ClaudeAgentSandbox extends Sandbox<AgentV2ServiceEnv> {
             ALPINE_API_URL: assertExists(this.env.API_SERVICE_URL),
             ALPINE_API_KEY: assertExists(this.env.CLAUDE_API_SERVICE_KEY),
         });
+
+        return {branch: "Initialized"};
     }
 
     override async startProcess(
