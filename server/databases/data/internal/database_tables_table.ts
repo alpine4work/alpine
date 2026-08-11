@@ -72,9 +72,9 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
             }
         >();
 
-        await runAllPromises(
+        const resolvedBroadcastEvents = await runAllPromises(
             events.map(async ({itemKey, eventStub, getEvent}) => {
-                if (itemKey.partitionType !== "Table") return;
+                if (itemKey.partitionType !== "Table") return null;
 
                 const event = await getEvent(context);
                 assert(
@@ -89,15 +89,27 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
                     {consistency: "StrongWithinCache"},
                 );
 
-                const broadcast = getOrSetDefaultMapValue(
-                    broadcastsByDatabaseGroupId,
+                return {
                     databaseGroupId,
-                    () => ({events: [], resolvedAccessPolicyByTableId: new Map()}),
-                );
-                broadcast.events.push(eventStub);
-                broadcast.resolvedAccessPolicyByTableId.set(itemKey.tableId, resolvedAccessPolicy);
+                    eventStub,
+                    resolvedAccessPolicy,
+                    tableId: itemKey.tableId,
+                };
             }),
         );
+
+        for (const resolvedBroadcastEvent of resolvedBroadcastEvents) {
+            if (resolvedBroadcastEvent === null) continue;
+            const {databaseGroupId, eventStub, resolvedAccessPolicy, tableId} =
+                resolvedBroadcastEvent;
+            const broadcast = getOrSetDefaultMapValue(
+                broadcastsByDatabaseGroupId,
+                databaseGroupId,
+                () => ({events: [], resolvedAccessPolicyByTableId: new Map()}),
+            );
+            broadcast.events.push(eventStub);
+            broadcast.resolvedAccessPolicyByTableId.set(tableId, resolvedAccessPolicy);
+        }
 
         await runAllPromises(
             mapIterable(broadcastsByDatabaseGroupId, async ([databaseGroupId, broadcast]) => {

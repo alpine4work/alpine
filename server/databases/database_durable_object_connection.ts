@@ -52,25 +52,27 @@ export type DatabaseRealtimeEventStub =
 
 export class DatabaseDurableObjectConnection {
     private readonly server: DatabaseServer;
-    private readonly sendEventToAll: (event: DatabaseRealtimeEventStub) => void;
-    private readonly sendEventToSelf: (event: DatabaseRealtimeEventStub) => void;
+    private readonly sendEventToAllAndWaitForOne: (
+        event: DatabaseRealtimeEventStub,
+    ) => Promise<void>;
+    private readonly sendEventToSelf: (event: DatabaseRealtimeEventStub) => Promise<void>;
     private readonly databaseGroupId: DatabaseGroupId;
     private readonly subscriptions = new Map<DatabaseTableId, TypedFastBitSet>();
     private readonly originatedMutationIds = new Set<DatabaseMutationId>();
 
     constructor({
         server,
-        sendEventToAll,
+        sendEventToAllAndWaitForOne,
         sendEventToSelf,
         databaseGroupId,
     }: {
         server: DatabaseServer;
-        sendEventToAll: (event: DatabaseRealtimeEventStub) => void;
-        sendEventToSelf: (event: DatabaseRealtimeEventStub) => void;
+        sendEventToAllAndWaitForOne: (event: DatabaseRealtimeEventStub) => Promise<void>;
+        sendEventToSelf: (event: DatabaseRealtimeEventStub) => Promise<void>;
         databaseGroupId: DatabaseGroupId;
     }) {
         this.server = server;
-        this.sendEventToAll = sendEventToAll;
+        this.sendEventToAllAndWaitForOne = sendEventToAllAndWaitForOne;
         this.sendEventToSelf = sendEventToSelf;
         this.databaseGroupId = databaseGroupId;
     }
@@ -132,7 +134,7 @@ export class DatabaseDurableObjectConnection {
             );
             if (pageDiffs.size > 0) {
                 this.originatedMutationIds.add(input.mutationId);
-                this.sendEventToAll({
+                await this.sendEventToAllAndWaitForOne({
                     type: "PagesChanged",
                     pageDiffs,
                     mutationId: input.mutationId,
@@ -145,7 +147,7 @@ export class DatabaseDurableObjectConnection {
                 // diffs, so confirm it to the originator explicitly with an empty event.
                 // Foreground calls (`returnPages: true`) consume the response directly and need no
                 // confirmation.
-                this.sendEventToSelf({
+                await this.sendEventToSelf({
                     type: "PagesChanged",
                     pageDiffs: new Map(),
                     mutationId: input.mutationId,
@@ -334,6 +336,22 @@ export class DatabaseDurableObjectConnection {
                 }
                 for (const tableId of deniedTableIds ?? []) {
                     tableAccess.set(tableId, null);
+                }
+                const changedTableIds = new Set(tableAccess.keys());
+                for (const joinTableId of this.subscriptions.keys()) {
+                    const entry = this.server.getDatabaseTableAccessEntry(joinTableId);
+                    if (
+                        entry === null ||
+                        entry.kind !== "join" ||
+                        (!changedTableIds.has(entry.sourceTableId) &&
+                            !changedTableIds.has(entry.targetTableId))
+                    ) {
+                        continue;
+                    }
+                    tableAccess.set(
+                        joinTableId,
+                        this.server.getTableAccessLevelForAccount(joinTableId, accountId),
+                    );
                 }
                 for (const [tableId, accessLevel] of tableAccess) {
                     if (accessLevel === null) {

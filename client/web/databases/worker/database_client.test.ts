@@ -2275,6 +2275,154 @@ describe("registerReactiveAction", () => {
         expect(trackedExecutionCount).toBe(2);
     });
 
+    test("invalidation landing mid-re-execution schedules a trailing re-execution", async () => {
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`);
+        client.commitOptimisticPagesForTests();
+        await execute(
+            client,
+            testConn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('v1')
+            `,
+        );
+
+        // Land the second write after the re-execution has already read its pages but
+        // before its snapshot is stored, so `setTrackedSnapshot()` clears the `dirty` flag
+        // the invalidation just set.
+        const executeActionWithTracking = client.executeActionWithTracking.bind(client);
+        let trackedExecutionCount = 0;
+        let writeDuringNextExecution = false;
+        client.executeActionWithTracking = (async (...args) => {
+            trackedExecutionCount++;
+            const tracked = await executeActionWithTracking(...args);
+            if (writeDuringNextExecution) {
+                writeDuringNextExecution = false;
+                await execute(
+                    client,
+                    testConn,
+                    sql`
+                        INSERT INTO
+                            t (val)
+                        VALUES
+                            ('v3')
+                    `,
+                );
+            }
+            return tracked;
+        }) as DatabaseClient["executeActionWithTracking"];
+
+        const notifications: Array<{rows: ReadonlyArray<Record<string, unknown>>}> = [];
+        await client.registerReactiveAction(
+            "q1",
+            {name: "readonlyRawSql", input: {sql: "SELECT * FROM t ORDER BY id"}},
+            testConn,
+            output => {
+                notifications.push(output as {rows: ReadonlyArray<Record<string, unknown>>});
+            },
+            () => {},
+        );
+
+        writeDuringNextExecution = true;
+        await execute(
+            client,
+            testConn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('v2')
+            `,
+        );
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(notifications[notifications.length - 1]!.rows).toMatchObject([
+            {id: 1, val: "v1"},
+            {id: 2, val: "v2"},
+            {id: 3, val: "v3"},
+        ]);
+        // Registration, the run for `v2`, and one trailing run for `v3` — the dropped
+        // invalidation must not queue more than a single extra execution.
+        expect(trackedExecutionCount).toBe(3);
+    });
+
+    test("a failing trailing re-execution does not retry forever", async () => {
+        const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
+
+        client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)`);
+        client.commitOptimisticPagesForTests();
+        await execute(
+            client,
+            testConn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('v1')
+            `,
+        );
+
+        // A failed execution never calls `setTrackedSnapshot()`, so the tracked execution
+        // stays dirty. Looping on that dirty state instead of on queued invalidations
+        // would spin forever.
+        const executeActionWithTracking = client.executeActionWithTracking.bind(client);
+        let trackedExecutionCount = 0;
+        let failExecutions = false;
+        let writeDuringNextExecution = false;
+        client.executeActionWithTracking = (async (...args) => {
+            trackedExecutionCount++;
+            const tracked = await executeActionWithTracking(...args);
+            if (writeDuringNextExecution) {
+                writeDuringNextExecution = false;
+                await execute(
+                    client,
+                    testConn,
+                    sql`
+                        INSERT INTO
+                            t (val)
+                        VALUES
+                            ('v3')
+                    `,
+                );
+            }
+            if (failExecutions) throw new InternalError("read failed");
+            return tracked;
+        }) as DatabaseClient["executeActionWithTracking"];
+
+        const errors: Array<unknown> = [];
+        await client.registerReactiveAction(
+            "q1",
+            {name: "readonlyRawSql", input: {sql: "SELECT * FROM t ORDER BY id"}},
+            testConn,
+            () => {},
+            error => {
+                errors.push(error);
+            },
+        );
+
+        failExecutions = true;
+        writeDuringNextExecution = true;
+        await execute(
+            client,
+            testConn,
+            sql`
+                INSERT INTO
+                    t (val)
+                VALUES
+                    ('v2')
+            `,
+        );
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Registration, the failing run for `v2`, and one failing trailing run for `v3`.
+        expect(trackedExecutionCount).toBe(3);
+        expect(errors.length).toBe(2);
+    });
+
     test("optimistic mutation invalidates overlapping reactive action", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
 

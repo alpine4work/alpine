@@ -165,6 +165,10 @@ export class WebSocketServer<
             context: Context<ProcessContextModules>,
             event: EventStub,
         ) => SafeFloatingPromise<void>;
+        sendEventToAllAndWaitForOne: (
+            context: Context<ProcessContextModules>,
+            event: EventStub,
+        ) => Promise<void>;
         sendEventToOthers: (context: Context<ProcessContextModules>, event: EventStub) => void;
         iterateOtherConnections: () => Iterable<Connection>;
         closeWithError: (context: Context<ProcessContextModules>, error: unknown) => void;
@@ -203,6 +207,10 @@ export class WebSocketServer<
                 context: Context<ProcessContextModules>,
                 event: EventStub,
             ) => SafeFloatingPromise<void>;
+            sendEventToAllAndWaitForOne: (
+                context: Context<ProcessContextModules>,
+                event: EventStub,
+            ) => Promise<void>;
             sendEventToOthers: (context: Context<ProcessContextModules>, event: EventStub) => void;
             iterateOtherConnections: () => Iterable<Connection>;
             closeWithError: (context: Context<ProcessContextModules>, error: unknown) => void;
@@ -328,6 +336,9 @@ export class WebSocketServer<
             searchParams: new URL(request.url).searchParams,
             sendEvent: (context, event) => {
                 return connection.sendEvent(context, event);
+            },
+            sendEventToAllAndWaitForOne: (context, event) => {
+                return this.sendEventToAllAndWaitForOne(context, event, connection.id);
             },
             sendEventToOthers: (context, event) => {
                 this._sendEventToOthers(context, connection.id, event);
@@ -463,6 +474,23 @@ export class WebSocketServer<
                 connection.sendEvent(context, eventStub),
             ),
         );
+    }
+
+    /**
+     * Send a message to all connected clients and wait for one selected connection's
+     * event to send. Other connections remain fire-and-forget.
+     */
+    public async sendEventToAllAndWaitForOne(
+        context: Context<ProcessContextModules>,
+        eventStub: EventStub,
+        connectionId: WebSocketConnectionId,
+    ): Promise<void> {
+        let selectedSend: SafeFloatingPromise<void> | null = null;
+        for (const connection of this._connections.values()) {
+            const send = connection.sendEvent(context, eventStub);
+            if (connection.id === connectionId) selectedSend = send;
+        }
+        if (selectedSend !== null) await selectedSend;
     }
 
     /**
@@ -603,6 +631,9 @@ export class WebSocketServer<
             searchParams: searchParams ?? new URLSearchParams(),
             sendEvent: (context, event) => {
                 return connection.sendEvent(context, event);
+            },
+            sendEventToAllAndWaitForOne: (context, event) => {
+                return this.sendEventToAllAndWaitForOne(context, event, connection.id);
             },
             sendEventToOthers: (context, event) => {
                 this._sendEventToOthers(context, connection.id, event);

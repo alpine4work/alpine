@@ -476,6 +476,7 @@ export class DatabaseClient {
             {getTableAccessLevel: this.getTableAccessLevel},
         );
         let reExecuting = false;
+        let reExecuteQueued = false;
 
         const executeAndUpdateReactive = async (options: {
             seedUnknownDependenciesOnFailure: boolean;
@@ -498,21 +499,36 @@ export class DatabaseClient {
         };
 
         const notifyIfChanged = () => {
-            if (reExecuting) return;
+            // An invalidation that lands after the in-flight run read its pages but before it
+            // finished would otherwise be lost: `setTrackedSnapshot()` clears the `dirty` flag
+            // `invalidateForPages()` just set, so no later notification is scheduled and the
+            // reactive value stays stale until an unrelated overlapping write arrives. Queue a
+            // trailing run instead. The flag (rather than the execution's `dirty` state)
+            // bounds us to one extra run per dropped invalidation: a failed run leaves the
+            // execution dirty forever and looping on that would retry without end.
+            if (reExecuting) {
+                reExecuteQueued = true;
+                return;
+            }
             reExecuting = true;
             void (async () => {
                 try {
-                    // We only call this after `execution.invalidateForPages()` returned true, meaning
-                    // the previous read set overlapped written pages (or the previous execution failed
-                    // and has an unknown dependency set). This matches the old `checkInvalidation()`
-                    // behavior without putting listener semantics in `Database`.
-                    notify(
-                        await executeAndUpdateReactive({
-                            seedUnknownDependenciesOnFailure: false,
-                        }),
-                    );
-                } catch (error) {
-                    reportError(error);
+                    do {
+                        reExecuteQueued = false;
+                        try {
+                            // We only call this after `execution.invalidateForPages()` returned true, meaning
+                            // the previous read set overlapped written pages (or the previous execution failed
+                            // and has an unknown dependency set). This matches the old `checkInvalidation()`
+                            // behavior without putting listener semantics in `Database`.
+                            notify(
+                                await executeAndUpdateReactive({
+                                    seedUnknownDependenciesOnFailure: false,
+                                }),
+                            );
+                        } catch (error) {
+                            reportError(error);
+                        }
+                    } while (reExecuteQueued);
                 } finally {
                     reExecuting = false;
                 }

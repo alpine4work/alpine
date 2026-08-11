@@ -89,15 +89,19 @@ class DatabaseGroupDurableObject {
             typeof DatabaseRealtimeProtocol,
             DatabaseRealtimeEventStub,
             DatabaseDurableObjectConnection
-        >(this.processContext, DatabaseRealtimeProtocol, ({sendEvent}) => {
-            return new DatabaseDurableObjectConnection({
-                server: this.server,
-                sendEventToAll: event =>
-                    this.webSocketServer.sendEventToAll(this.processContext, event),
-                sendEventToSelf: event => void sendEvent(this.processContext, event),
-                databaseGroupId: this.databaseGroupId,
-            });
-        });
+        >(
+            this.processContext,
+            DatabaseRealtimeProtocol,
+            ({sendEvent, sendEventToAllAndWaitForOne}) => {
+                return new DatabaseDurableObjectConnection({
+                    server: this.server,
+                    sendEventToAllAndWaitForOne: event =>
+                        sendEventToAllAndWaitForOne(this.processContext, event),
+                    sendEventToSelf: event => sendEvent(this.processContext, event),
+                    databaseGroupId: this.databaseGroupId,
+                });
+            },
+        );
     }
 
     public static parseRoute(url: URL): [string, DatabaseGroupDurableObjectRoute] {
