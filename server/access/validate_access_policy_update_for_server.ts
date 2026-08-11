@@ -175,6 +175,18 @@ async function validateResolvedAccessPolicyUpdateForServer(
     } else {
         assert(context.actor.type !== "Bot");
 
+        // Site change validation checks an old Site policy together with the new Site
+        // policy. Check all other old policies here.
+        if (
+            (oldAccessPolicy.type !== "Site" ||
+                !isSiteRelatedAccessPolicyUpdate(oldAccessPolicy, newAccessPolicy)) &&
+            !(await evaluateAccessPolicy(context, spaceId, oldAccessPolicy, "Manage", options))
+        ) {
+            throw new PermissionDeniedError(
+                "Actor doesn\u2019t have `Manage` access on old access policy",
+            );
+        }
+
         let isAccountRemovedFromSpace: ((accountId: AccountId) => boolean) | undefined;
 
         // When attempting to move an entity into a site, we need to make sure that removed
