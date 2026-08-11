@@ -115,6 +115,34 @@ test("bots cannot update existing access policies", async () => {
     ).rejects.toThrow(new PermissionDeniedError("Bots can\u2019t update access policies"));
 });
 
+test("accounts without Manage access cannot update existing local access policies", async () => {
+    const space = await TestSpace.create(context);
+    const [ownerSession, editorSession] = await space.createSessions(2);
+    const oldAccessPolicy: AccessPolicy = {
+        type: "Local",
+        accountGrantById: new Map([
+            [ownerSession.account.id, {level: "Manage", generation: 0}],
+            [editorSession.account.id, {level: "Edit"}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+    const newAccessPolicy: AccessPolicy = {
+        ...oldAccessPolicy,
+        defaultGrant: {level: "View"},
+    };
+
+    await expect(
+        validateAccessPolicyUpdateForServer(
+            editorSession.action(),
+            space.id,
+            `Channel:${generateId<ChannelId>()}`,
+            oldAccessPolicy,
+            newAccessPolicy,
+        ),
+    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access on old access policy");
+});
+
 test("bots can create new access policies", async () => {
     const space = await TestSpace.create(context);
     const adminSession = await space.createSession({role: "Admin"});
