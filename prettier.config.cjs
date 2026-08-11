@@ -16,8 +16,9 @@ module.exports = {
     arrowParens: "avoid",
     proseWrap: "always",
     embeddedSqlTags: ["sql"],
-    // Disable all other embedded language identifiers so only SQL tagged templates are
-    // formatted by prettier-plugin-embed.
+    // Let prettier-plugin-embed handle only SQL. Empty arrays let Prettier keep its
+    // native formatting for tags such as `markdown` and `html`. GLSL formatting needs
+    // prettier-plugin-glsl, which this project does not use.
     embeddedMarkdownTags: [],
     embeddedCssTags: [],
     embeddedGlslTags: [],

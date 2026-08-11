@@ -1,0 +1,19 @@
+const markdownValue = markdown`
+# Heading
+
+This is a very long Markdown paragraph that should wrap because it is much longer than the
+configured one hundred character print width for this repository.
+`;
+const htmlValue = html`<main>
+    <section><p>This is HTML.</p></section>
+</main>`;
+const glslValue = glsl`void main(){gl_Position=vec4(1.0);}`;
+const sqlValue = sql`
+    SELECT
+        first_name,
+        last_name
+    FROM
+        accounts
+    WHERE
+        account_id = 1
+`;
