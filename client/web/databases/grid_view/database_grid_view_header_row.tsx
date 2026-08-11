@@ -4,7 +4,8 @@ import {Plus} from "phosphor-react";
 import {Ref, forwardRef, useEffect, useRef, useState} from "react";
 import {mergeProps, useHover} from "react-aria";
 import {DatabaseFieldVisibilityMenu} from "~/client/web/databases/database_field_visibility_menu.js";
-import {getDatabaseFieldComponentProvider} from "~/client/web/databases/fields/database_field_component_providers.js";
+import {getDatabaseFieldConfigMenuActions} from "~/client/web/databases/fields/get_database_field_config_menu_actions.js";
+import {getDatabaseFieldIcon} from "~/client/web/databases/fields/get_database_field_icon.js";
 import {gridRowHeight} from "~/client/web/databases/grid_view/database_grid_view_constants.js";
 import {DatabaseGridViewFieldCreationCell} from "~/client/web/databases/grid_view/database_grid_view_field_creation_cell.js";
 import {
@@ -162,8 +163,7 @@ function DatabaseGridViewHeaderEditor({
     onRenameField: (fieldId: DatabaseFieldId, name: string) => void;
     onUpdateFieldConfig: (fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => void;
 }) {
-    const provider = getDatabaseFieldComponentProvider(field.config.type);
-    const Icon = provider.Icon;
+    const Icon = getDatabaseFieldIcon(field.config.type);
     const inputRef = useRef<HTMLInputElement>(null);
     const [draftName, setDraftName] = useState(field.name);
 
@@ -177,11 +177,10 @@ function DatabaseGridViewHeaderEditor({
         onRenameField(field.id, trimmed);
     });
 
-    const configActions =
-        provider.getConfigMenuActions?.({
-            config: field.config,
-            onCommit: config => onUpdateFieldConfig(field.id, config),
-        }) ?? [];
+    const configActions = getDatabaseFieldConfigMenuActions({
+        config: field.config,
+        onCommit: config => onUpdateFieldConfig(field.id, config),
+    });
 
     const renameInput = (
         <DatabaseGridViewHeaderRenameInput

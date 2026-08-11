@@ -1,5 +1,3 @@
-/* eslint-disable react-refresh/only-export-components -- provider pattern */
-
 import {
     DndContext,
     DragOverlay,
@@ -12,7 +10,7 @@ import {
 import {SortableContext, useSortable} from "@dnd-kit/sortable";
 import {setInteractionModality} from "@react-aria/interactions";
 import type {Node} from "@react-types/shared";
-import {DotsSixVertical, LinkSimple, MagnifyingGlass, Plus, X, XCircle} from "phosphor-react";
+import {DotsSixVertical, MagnifyingGlass, Plus, X, XCircle} from "phosphor-react";
 import {
     type RefObject,
     startTransition,
@@ -27,11 +25,9 @@ import {createPortal} from "react-dom";
 import {type ComboBoxState, Item, type ListState, useListState} from "react-stately";
 
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
-import {
-    type DatabaseGridViewCellContentProps,
-    type DatabaseGridViewCellEditorOverlayProps,
-    defineDatabaseFieldComponentProvider,
-} from "~/client/web/databases/fields/database_field_component_provider.js";
+import type {DatabaseGridViewCellEditorOverlayProps} from "~/client/web/databases/fields/database_grid_view_cell_props.js";
+import {databaseRelationRowLabel} from "~/client/web/databases/fields/relation/database_relation_row_label.js";
+import {DatabaseRelationRowName} from "~/client/web/databases/fields/relation/database_relation_row_name.js";
 import {gridRowHeight} from "~/client/web/databases/grid_view/database_grid_view_constants.js";
 import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
@@ -51,38 +47,6 @@ import {
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import type {DatabaseRowId} from "~/shared/id/types/id_types.open_source.js";
 
-function DatabaseRelationGridViewCellContent({
-    ref,
-    field,
-    value,
-    onCellClick,
-}: DatabaseGridViewCellContentProps<"relation">) {
-    const links = Array.isArray(value) ? value : [];
-    const noAccess = field.linkedTableReadAccess === false;
-    return (
-        <Box
-            ref={ref as React.Ref<HTMLDivElement>}
-            tabIndex={-1}
-            height="full"
-            display="flex"
-            alignItems="center"
-            gap="1"
-            padding="1"
-            overflow="hidden"
-            onClick={onCellClick}
-        >
-            {links.slice(0, 3).map(link => (
-                <DatabaseRelationChip key={link.id} name={link.name} noAccess={noAccess} />
-            ))}
-            {links.length > 3 ? (
-                <Box fontSize="75" color="grey-50" flexShrink="0">
-                    +{links.length - 3}
-                </Box>
-            ) : null}
-        </Box>
-    );
-}
-
 /** An ordered linked record, as returned by the `listLinkedRows` action. */
 type DatabaseRelationLinkedRow = {
     id: DatabaseRowId;
@@ -98,7 +62,7 @@ type DatabaseRelationCandidateRow = {
     name: string | null;
 };
 
-function DatabaseRelationGridViewCellEditorOverlay({
+export function DatabaseRelationGridViewCellEditorOverlay({
     ref,
     tableId,
     field,
@@ -618,47 +582,6 @@ function DatabaseRelationLinkedRow({
     );
 }
 
-/**
- * The accessible label / typeahead text for a linked record, falling back to
- * "Untitled" when the record has no meaningful name (`null`, empty, or
- * whitespace-only).
- */
-function databaseRelationRowLabel(name: string | null): string {
-    return name != null && name.trim() !== "" ? name : "Untitled";
-}
-
-/**
- * Renders a linked record's name, falling back to a muted "Untitled" when the
- * record has no meaningful name (`null`, empty, or whitespace-only). Preserves the
- * name's whitespace with `white-space: pre` so names aren't silently collapsed.
- */
-function DatabaseRelationRowName({name}: {name: string | null}) {
-    if (name == null || name.trim() === "") {
-        return <span className={sprinkles({color: "grey-50"})}>Untitled</span>;
-    }
-    return <span style={{whiteSpace: "pre"}}>{name}</span>;
-}
-
-function DatabaseRelationChip({name, noAccess}: {name: string | null; noAccess?: boolean}) {
-    return (
-        <Box
-            display="flex"
-            alignItems="center"
-            flexShrink="0"
-            backgroundColor="grey-5"
-            borderRadius="1"
-            paddingX="1"
-            fontSize="75"
-            color={noAccess === true ? "grey-50" : "grey-100"}
-            style={{maxWidth: 120}}
-        >
-            <Box fontStyle="truncate">
-                {noAccess === true ? "No access" : <DatabaseRelationRowName name={name} />}
-            </Box>
-        </Box>
-    );
-}
-
 function DatabaseRelationCandidateListBox({
     listState,
     listBoxRef,
@@ -781,14 +704,3 @@ function DatabaseRelationCreateRow({query, onPress}: {query: string; onPress: ()
         </Box>
     );
 }
-
-export const databaseRelationFieldComponentProvider = defineDatabaseFieldComponentProvider(
-    "relation",
-    {
-        label: "Linked record",
-        Icon: LinkSimple,
-        GridViewCellContent: DatabaseRelationGridViewCellContent,
-        GridViewCellEditorOverlay: DatabaseRelationGridViewCellEditorOverlay,
-        getConfigMenuActions: null,
-    },
-);

@@ -15,7 +15,9 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
-import {getDatabaseFieldComponentProvider} from "~/client/web/databases/fields/database_field_component_providers.js";
+import {DatabaseGridViewCellContent} from "~/client/web/databases/fields/database_grid_view_cell_content.js";
+import {DatabaseGridViewCellEditorOverlay} from "~/client/web/databases/fields/database_grid_view_cell_editor_overlay.js";
+import {hasDatabaseGridViewCellEditorOverlay} from "~/client/web/databases/fields/has_database_grid_view_cell_editor_overlay.js";
 import {gridRowHeight} from "~/client/web/databases/grid_view/database_grid_view_constants.js";
 import {DatabaseGridViewHeaderRow} from "~/client/web/databases/grid_view/database_grid_view_header_row.js";
 import {
@@ -696,8 +698,7 @@ function DatabaseGridViewCell({
     onCreateRow: () => void;
 }) {
     const conn = useDatabaseConnection();
-    const provider = getDatabaseFieldComponentProvider(field.config.type);
-    const EditorOverlay = provider.GridViewCellEditorOverlay;
+    const hasEditorOverlay = hasDatabaseGridViewCellEditorOverlay(field.config.type);
     const cellRef = useRef<HTMLDivElement>(null);
     const [optimisticValue, setOptimisticValue] = useOptimistic(value);
 
@@ -720,8 +721,8 @@ function DatabaseGridViewCell({
         });
     });
 
-    const editorOverlay = EditorOverlay ? (
-        <EditorOverlay
+    const editorOverlay = hasEditorOverlay ? (
+        <DatabaseGridViewCellEditorOverlay
             tableId={tableId}
             field={field}
             rowId={rowId}
@@ -738,7 +739,7 @@ function DatabaseGridViewCell({
 
     return (
         <Overlay
-            isVisible={isEditing && EditorOverlay != null}
+            isVisible={isEditing && hasEditorOverlay}
             placement="cover-top"
             fallbackPlacements={[]}
             preventOverflow={false}
@@ -756,7 +757,7 @@ function DatabaseGridViewCell({
                 }}
                 onFocus={() => dispatch({type: "select", rowId, fieldId: field.id})}
             >
-                <provider.GridViewCellContent
+                <DatabaseGridViewCellContent
                     ref={cellRef}
                     field={field}
                     value={optimisticValue as DatabaseFieldValue}
