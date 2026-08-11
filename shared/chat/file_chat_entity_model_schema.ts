@@ -2,7 +2,7 @@ import {ChatMessageModel} from "~/shared/chat/chat_model.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

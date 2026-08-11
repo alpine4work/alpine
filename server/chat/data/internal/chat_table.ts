@@ -14,7 +14,7 @@ import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const ChatTable = DynamoTableSchema.new({
     name: "Chat",

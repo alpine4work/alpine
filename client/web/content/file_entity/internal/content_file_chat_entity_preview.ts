@@ -30,10 +30,10 @@ import {
     FileChatEntityModelSchema,
 } from "~/shared/chat/file_chat_entity_model_schema.js";
 import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx, screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";

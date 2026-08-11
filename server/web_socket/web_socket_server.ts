@@ -38,7 +38,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js"
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {webSocketExpirationTimeoutMs} from "~/shared/web_socket/web_socket_expiration_timeout_ms.js";

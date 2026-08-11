@@ -27,7 +27,7 @@ import {
     regenerateOneTimePasswordSignIn,
     signUpAccountWithEmailAddress,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function AuthenticationSignInOrSignUpView({
     state,

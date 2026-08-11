@@ -59,8 +59,8 @@ import {
 
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {ColorWithShade} from "~/shared/design/core/inverted_colors.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";

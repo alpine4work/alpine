@@ -1,8 +1,6 @@
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {
-    TracerEventDataBase,
-    TracerEventFullData,
-} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerEventDataBase} from "~/shared/tracer/types/tracer_event_data_types.open_source.js";
 
 /**
  * Merges data from multiple tracer events together into one event.

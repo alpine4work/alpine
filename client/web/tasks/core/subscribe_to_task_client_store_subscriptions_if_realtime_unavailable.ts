@@ -9,7 +9,7 @@ import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {
     TaskRealtimeLoadQueriesInputSchema,

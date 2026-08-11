@@ -14,7 +14,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {generateServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 const context = createTestContext();

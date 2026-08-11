@@ -1,4 +1,4 @@
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 export const mobilePlatformSelector = ":root[data-platform=mobile]";
 export const desktopPlatformSelector = ":root:not([data-platform=mobile])";

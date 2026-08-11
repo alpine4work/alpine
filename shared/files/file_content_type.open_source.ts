@@ -2,7 +2,6 @@ import MIMEType from "whatwg-mimetype";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Supported content types for files uploaded to Alpine.
@@ -90,8 +89,6 @@ export function isFileWebSafeImageContentType(
 export function getFileImageContentTypes(): ReadonlyArray<FileImageContentType> {
     return getObjectKeysWithKeyofType(fileImageContentTypes);
 }
-
-export const FileImageContentTypeSchema = Schema.enum(getFileImageContentTypes());
 
 /**
  * Document file types. All documents file types are converted to [PDF (Portable
@@ -615,8 +612,6 @@ const filePreferredExtensionByContentType: {[Key in FileContentType]: string} = 
 export const fileContentTypes: ReadonlySet<FileContentType> = new Set(
     getObjectKeysWithKeyofType(filePreferredExtensionByContentType),
 );
-
-export const FileContentTypeSchema = Schema.enum(fileContentTypes);
 
 /**
  * Is the provided string a `FileContentType`?

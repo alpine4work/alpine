@@ -4,13 +4,13 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 import {isId} from "~/shared/id/id.open_source.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {
     getHeadersTracerData,
     obfuscateCookieHeader,
     obfuscateSetCookieHeaders,
 } from "~/shared/tracer/fetch_with_tracer.open_source.js";
-import {tracerEventHttpSearchParamNameByServiceName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.open_source.js";
+import {tracerEventHttpSearchParamNameByServiceName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
 import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";

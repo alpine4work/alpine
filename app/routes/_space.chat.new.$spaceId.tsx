@@ -50,7 +50,7 @@ import {
     MessageDraftWithFilesSchema,
     emptyMessageDraftWithFiles,
 } from "~/shared/messaging/message_draft_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {
     ServerSynchronizationCheckpointSchema,

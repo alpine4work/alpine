@@ -83,7 +83,7 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/web/virtualized/virtualized_scroll_view.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
     RemLength,
     addRemLengths,

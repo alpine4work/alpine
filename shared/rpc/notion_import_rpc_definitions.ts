@@ -4,7 +4,7 @@ import {
     NotionImportTeamspaceOptionsSchema,
 } from "~/shared/importer/notion/notion_import_item.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const createNotionImport = defineRpc({
     name: "createNotionImport",

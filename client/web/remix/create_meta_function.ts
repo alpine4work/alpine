@@ -3,7 +3,7 @@ import {Location, Params} from "react-router-dom";
 import {getLoaderDataWithSchema} from "~/client/web/remix/get_loader_data_with_schema.js";
 import {isLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {metaDefaultTitle, metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Create a new meta function that can use data serialized by a `loader` returning

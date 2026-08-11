@@ -86,7 +86,7 @@ import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.op
 import {MessageDraft, MessageDraftWithFiles} from "~/shared/messaging/message_draft_schema.js";
 import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {MessageContentPayloadParent} from "~/shared/messaging/message_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {ServerSynchronizationCheckpoint} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 import {WebSocketPongMessage} from "~/shared/web_socket/web_socket_schema.js";
 

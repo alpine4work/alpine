@@ -12,7 +12,7 @@ import {
     MessageContentWithReferences,
 } from "~/shared/content/message_content_schema.js";
 import {trimContentFragmentEndPos} from "~/shared/content/trim_content.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
     PromiseResolver,
     createPromiseResolver,

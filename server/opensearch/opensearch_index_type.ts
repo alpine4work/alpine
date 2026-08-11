@@ -12,7 +12,7 @@ import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import {ObjectSchema, UnionSchema} from "~/shared/schema/schema.open_source.js";
+import {ObjectSchema, UnionSchema} from "~/shared/schema/schema.js";
 
 export type OpensearchIndexTypeType<Type extends OpensearchIndexTypeBase<any, any, any>> =
     Type extends OpensearchIndexTypeBase<infer Value, any, any> ? Value : never;

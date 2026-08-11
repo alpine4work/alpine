@@ -43,8 +43,8 @@ import {
 } from "~/client/web/styles/styles.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
     RemLength,
     convertRemLengthToPx,
@@ -52,7 +52,7 @@ import {
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {

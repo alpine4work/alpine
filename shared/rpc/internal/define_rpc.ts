@@ -8,11 +8,7 @@ import {generateId} from "~/shared/id/id.open_source.js";
 import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
-import {
-    ObjectSchemaConfigBase,
-    ObjectSchemaConfigType,
-    Schema,
-} from "~/shared/schema/schema.open_source.js";
+import {ObjectSchemaConfigBase, ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
 
 /**
  * Define the interface for an RPC.

@@ -4,7 +4,7 @@ import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {Reaction, getValueByReaction} from "~/shared/reactions/reaction.js";
 import {reactionById, reactionIds} from "~/shared/reactions/reaction_id.js";
 import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 export type ReactionSet = InstanceType<typeof ReactionSet>;
 

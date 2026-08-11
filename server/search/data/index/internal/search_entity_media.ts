@@ -5,7 +5,7 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_sour
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
 
 export type SearchEntityMedia = SchemaType<typeof SearchEntityMediaSchema>;

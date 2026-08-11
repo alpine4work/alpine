@@ -91,7 +91,7 @@ import {Id, generateId, isId} from "~/shared/id/id.open_source.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {areProsemirrorNodesEqualExceptText} from "~/shared/prosemirror/are_prosemirror_nodes_equal_except_text.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

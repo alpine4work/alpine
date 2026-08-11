@@ -3,8 +3,8 @@ import {generateId} from "~/shared/id/id.open_source.js";
 import {
     SchemaBackwardsIncompatibleError,
     checkSchemaBackwardsCompatibility,
-} from "~/shared/schema/check_schema_backwards_compatibility.open_source.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/check_schema_backwards_compatibility.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 function testCase<LastValue, NextValue>({
     isBackwardsCompatible,

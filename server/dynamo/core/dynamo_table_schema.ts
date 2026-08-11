@@ -82,7 +82,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js"
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {PartialBy} from "~/shared/helpers/types/partial_by.js";
 import {Replace} from "~/shared/helpers/types/replace.open_source.js";
-import {checkSchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.open_source.js";
+import {checkSchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.js";
 import {
     ObjectSchema,
     Schema,
@@ -90,7 +90,7 @@ import {
     SchemaSerializedObjectValue,
     SchemaSerializedValue,
     objectSchemaMissingPropertySymbol,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 
 // Never actually used at runtime. Only used by the type system.
 declare const typesSymbol: unique symbol;

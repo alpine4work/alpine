@@ -1,5 +1,5 @@
-import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.open_source.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 
 /**

@@ -21,7 +21,7 @@ import {
 } from "~/shared/notifications/inbox_model.js";
 import {WebPushSubscriptionSchema} from "~/shared/notifications/web_push_subscription.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {ServerSynchronizationCheckpointSchema} from "~/shared/web_socket/server_synchronization_checkpoint.js";
 
 export const getInboxWithStrongReadConsistency = defineRpc({

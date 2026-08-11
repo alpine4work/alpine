@@ -44,7 +44,7 @@ import {
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
 import {screenPaddingX} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {

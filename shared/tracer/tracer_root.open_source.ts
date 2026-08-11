@@ -8,11 +8,8 @@ import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_d
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
-import {
-    TracerEventData,
-    TracerEventFullData,
-    TracerEventJsHost,
-} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data_types.open_source.js";
 
 /**
  * The name of the service our tracer is for.

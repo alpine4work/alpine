@@ -39,7 +39,7 @@ import {BotSettingsAccountSchema} from "~/shared/bots/bot_settings_account_schem
 import {SettingsDefaultKnownBotAccountModelDataBase} from "~/shared/bots/settings_default_known_bot_account_model_data_types.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     chatGptBotAccount: BotSettingsAccountSchema,

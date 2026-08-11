@@ -5,7 +5,7 @@ import {MessageStreamSchema} from "~/shared/messaging/message_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type ChatModelDefinition = SchemaType<typeof ChatModelDefinitionSchema>;

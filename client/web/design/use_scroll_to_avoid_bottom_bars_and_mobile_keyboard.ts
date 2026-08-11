@@ -30,7 +30,7 @@ import {useRouteLayout} from "~/client/web/remix/route_layout_context.js";
 import {getSpacingScaleWithoutListening} from "~/client/web/remix/spacing_scale_context.js";
 import {useIsInertNativeMobileRoute} from "~/client/web/remix/use_is_inert_native_mobile_route.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";

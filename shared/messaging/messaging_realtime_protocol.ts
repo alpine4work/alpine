@@ -26,12 +26,7 @@ import {
 import {Reaction} from "~/shared/reactions/reaction.js";
 import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {
-    ObjectSchemaConfigType,
-    Schema,
-    SchemaType,
-    UnionSchema,
-} from "~/shared/schema/schema.open_source.js";
+import {ObjectSchemaConfigType, Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 import {
     SearchMentionEntityId,
     SearchMentionEntityIdSchema,

@@ -5,7 +5,7 @@ import {
 } from "~/client/web/accounts/account_avatar_pile_size.js";
 import {backgroundColorVar, sprinkles} from "~/client/web/styles/styles.js";
 import {addRemLengths, negateRemLength, spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 

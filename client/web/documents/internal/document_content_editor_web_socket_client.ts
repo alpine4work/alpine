@@ -31,7 +31,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
-import {SchemaType} from "~/shared/schema/schema.open_source.js";
+import {SchemaType} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";

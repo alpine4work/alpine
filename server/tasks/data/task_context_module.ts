@@ -28,7 +28,7 @@ import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";

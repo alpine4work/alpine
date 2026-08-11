@@ -47,7 +47,7 @@ import {ReactionOrGenericLikeSchema} from "~/shared/reactions/reaction_schema.js
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {SiteContainerIdSchema} from "~/shared/sites/site_entry_id.js";
 import {SiteOrSiteEntryModelSchema} from "~/shared/sites/site_model.js";
 import {RynamoSiteEventSchema} from "~/shared/sites/site_realtime_protocol.js";

@@ -115,7 +115,7 @@ import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,
 } from "~/shared/remix/peek_path_helpers.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];

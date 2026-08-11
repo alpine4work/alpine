@@ -30,7 +30,7 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_sourc
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {Tuple} from "~/shared/helpers/types/tuple.js";
 import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {

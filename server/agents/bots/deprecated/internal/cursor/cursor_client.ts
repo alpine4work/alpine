@@ -16,7 +16,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {getUrlRegExp} from "~/shared/helpers/string/url_reg_exp.js";
 import {BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 

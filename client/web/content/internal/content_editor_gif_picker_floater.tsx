@@ -11,7 +11,7 @@ import {OverlayRef} from "~/client/web/design/overlay.js";
 import {OverlayAnimated} from "~/client/web/design/overlay_animated.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {overlayFadeOutAnimationDurationMs} from "~/client/web/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 
 /**
  * Floater wrapper for the GIF picker. On desktop, renders as an `OverlayAnimated`

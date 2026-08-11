@@ -32,7 +32,7 @@ import {
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {authorizeTaskAccess, getTaskNotesContent} from "~/shared/rpc/tasks_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {
     TaskNotesCollaborationBroadcastTaskActivityRequestBodySchema,
     TaskNotesCollaborationProtocol,

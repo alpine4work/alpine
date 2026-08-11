@@ -7,7 +7,7 @@ import {
     RpcHttpCallInputSchema,
     RpcHttpCallOutputSchema,
 } from "~/shared/rpc/helpers/rpc_http_schema.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export async function action({request, context: loaderContext, span, params}: LoaderArgs) {
     try {

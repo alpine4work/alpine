@@ -65,9 +65,9 @@ import {getFontsCriticalCss} from "~/client/web/styles/core/fonts_critical_css.j
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {colors} from "~/shared/design/core/colors.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {UnknownError} from "~/shared/error/error.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -81,10 +81,10 @@ import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
 import {ClientInfo, ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_tracer_event_propagated_data_for_pathname.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.open_source.js";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Build root metadata while allowing public content to own its robots policy.

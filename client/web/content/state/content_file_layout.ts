@@ -5,8 +5,8 @@ import {
 } from "~/client/web/content/state/content_file_layout_computations.js";
 import {createCachedFunction} from "~/client/web/content/state/internal/create_cached_function.js";
 import {ContentFileLayout, fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";

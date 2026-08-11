@@ -22,7 +22,7 @@ import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessLevel, hasAccessLevel} from "~/shared/access/access_policy.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {isFileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {getFileEntityNoun} from "~/shared/files/get_file_entity_noun.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";

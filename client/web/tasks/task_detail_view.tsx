@@ -231,7 +231,7 @@ import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ConstStore, falseStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";

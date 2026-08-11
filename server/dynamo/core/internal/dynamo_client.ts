@@ -42,10 +42,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
-import {
-    SchemaSerializedObjectValue,
-    SchemaSerializedValue,
-} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedObjectValue, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
 /**

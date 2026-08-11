@@ -1,7 +1,7 @@
 import {unwrapLoadingIndicatorLoaderData} from "~/client/web/remix/loading_indicator_loader_data.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {deserializedValueSymbol} from "~/shared/remix/json_with_schema_shared.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * Gets data returned by a loader. Loader data is serialized with a schema so we

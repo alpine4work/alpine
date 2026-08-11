@@ -13,7 +13,7 @@ import {
     spinAnimationClassName,
     sprinkles,
 } from "~/client/web/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {FileAudioPreview} from "~/shared/files/file_preview.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";

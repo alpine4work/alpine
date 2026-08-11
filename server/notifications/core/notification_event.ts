@@ -18,7 +18,7 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchMentionEntityIdSchema} from "~/shared/search/search_entity_id.js";
 
 const ApiBotWebhookNewMessageEventMessageParentSchema: Schema<ApiBotWebhookCreatedMessageEventMessageParent> =

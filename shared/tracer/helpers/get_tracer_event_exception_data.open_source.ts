@@ -7,11 +7,11 @@ import {renderDebugErrorDisplayMessage} from "~/shared/error/render_debug_error_
 import {isRetryError} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {TraceId} from "~/shared/id/types/id_types.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 import {
-    TracerEventData,
     TracerEventExceptionDataBase,
     TracerEventExceptionDataBaseWithCause,
-} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+} from "~/shared/tracer/types/tracer_event_data_types.open_source.js";
 
 /**
  * Gets the `TracerEventData` for an exception.

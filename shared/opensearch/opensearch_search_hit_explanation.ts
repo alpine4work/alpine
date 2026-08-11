@@ -1,4 +1,4 @@
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Explanation for why a hit has a certain score. If `explain` is set to true on a

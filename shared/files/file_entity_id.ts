@@ -15,7 +15,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Search entities you can create file nodes in content for. This embeds a preview

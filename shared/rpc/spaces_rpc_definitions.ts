@@ -6,7 +6,7 @@ import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {SpaceAccountSettingsSchema} from "~/shared/spaces/space_account_settings.js";
 import {SpaceModel, SpaceRoleSchema} from "~/shared/spaces/space_model.js";

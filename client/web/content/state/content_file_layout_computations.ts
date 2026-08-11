@@ -9,9 +9,9 @@ import {
 } from "~/shared/content/compute_file_row_layout.js";
 import {getFileEntityPreviewHeight} from "~/shared/content/get_file_entity_preview_height.js";
 import {getFilePreviewSize} from "~/shared/content/get_file_preview_size.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {RemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";

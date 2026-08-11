@@ -7,7 +7,7 @@ import {useElementWithRef} from "~/client/web/helpers/refs/use_element_with_ref.
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {Sprinkles, sprinkles} from "~/client/web/styles/styles.js";
 import {Spacing, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 

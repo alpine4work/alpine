@@ -1,6 +1,6 @@
 import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintSchema} from "~/shared/spell_check/spell_check_schema.js";
 
 export class SpellCheckIgnoredLintModel extends Model(

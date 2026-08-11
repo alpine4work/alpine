@@ -16,7 +16,7 @@ import {
     visitProsemirrorSlice,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchMentionEntityId,
     SearchMentionEntityIdSchema,

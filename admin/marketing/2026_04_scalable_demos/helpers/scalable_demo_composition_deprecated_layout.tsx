@@ -4,7 +4,7 @@ import {computeScalableDemoCompositionDeprecatedMargin} from "~/admin/marketing/
 import {scalableDemoDefaultViewportWidth} from "~/admin/marketing/2026_04_scalable_demos/helpers/scalable_demo_default_viewport.js";
 import {ReactionIcon} from "~/client/web/reactions/icons/reaction_icon.js";
 import {ParsableRemLength, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {LogoWordmarkBase} from "~/shared/design/logo_wordmark_base.js";
 import {goldenRatio} from "~/shared/helpers/number/golden_ratio.js";
 import {Reaction} from "~/shared/reactions/reaction.js";

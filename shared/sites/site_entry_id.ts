@@ -8,7 +8,7 @@ import {
     SiteSideBarSectionId,
     SiteTopBarId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {
     SiteItemSearchEntityId,
     isSiteItemSearchEntityId,

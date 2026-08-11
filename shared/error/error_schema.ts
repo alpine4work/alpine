@@ -13,7 +13,7 @@ import {
 } from "~/shared/error/types/error_display_message_type.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.open_source.js";
-import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export const ErrorCodeSchema = Schema.enum(getErrorCodes());
 

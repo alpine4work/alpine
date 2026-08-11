@@ -10,7 +10,7 @@ import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {decodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {SchemaSerializedObjectValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 
 /**
  * The token agent class is responsible for RSA key cryptography between services

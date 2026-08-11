@@ -8,7 +8,7 @@ import {DateString, deserializeDateString} from "~/shared/helpers/date/date_stri
 import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 const githubOwner = "cyberworlds";
 const githubRepo = "cyberworlds";

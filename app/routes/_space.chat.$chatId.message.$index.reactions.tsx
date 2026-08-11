@@ -14,7 +14,7 @@ import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_a
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const LoaderSchema = Schema.object({

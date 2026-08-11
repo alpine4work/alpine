@@ -6,7 +6,7 @@ import {
     PostId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Identifies the entity whose messaging surface a draft belongs to.

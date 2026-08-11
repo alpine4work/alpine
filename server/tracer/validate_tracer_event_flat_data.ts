@@ -5,7 +5,7 @@ import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {
     SchemaSerializedValue,
     withSchemaDeserializationStackFrame,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data.open_source.js";
 
 /**

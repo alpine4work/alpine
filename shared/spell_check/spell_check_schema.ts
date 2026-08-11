@@ -1,5 +1,5 @@
 import {AccountId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const SpellCheckIgnoredLintSchema = Schema.object({
     /** When was this lint ignore created? */

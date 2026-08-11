@@ -13,8 +13,8 @@ import {
     TaskStoreLoaderData,
     TaskStoreLoaderDataSchema,
 } from "~/shared/remix/task_store_loader_data.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Creates a JSON HTTP response using a schema for serialization.

@@ -70,7 +70,7 @@ import {
     archiveInboxDocumentNewCommentThreadsEntryCommentThread,
     unarchiveInboxDocumentNewCommentThreadsEntryCommentThread,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {
     ServerSynchronizationCheckpoint,
     ServerSynchronizationCheckpointSchema,

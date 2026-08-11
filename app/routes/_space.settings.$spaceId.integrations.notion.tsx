@@ -28,7 +28,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 import {AccountId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 const LoaderSchema = Schema.object({

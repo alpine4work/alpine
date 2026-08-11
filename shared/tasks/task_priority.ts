@@ -1,6 +1,6 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export type TaskPriority = "Low" | "Medium" | "High" | "Urgent";
 

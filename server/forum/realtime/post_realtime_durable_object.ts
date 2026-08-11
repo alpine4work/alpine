@@ -26,7 +26,7 @@ import {
     MessagingRealtimeBroadcastNewMessageRequestSchema,
     MessagingRealtimeBroadcastPutMessageStreamPartRequestSchema,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 type PostRealtimeDurableObjectRoute =
     | "Main"

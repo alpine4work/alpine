@@ -24,7 +24,7 @@ import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.j
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type BatchItemFailures = Array<{itemIdentifier: string}>;

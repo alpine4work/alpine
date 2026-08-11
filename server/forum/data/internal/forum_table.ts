@@ -15,7 +15,7 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 // Contains forum data that's not covered by our general realtime system. For
 // instance, post comments are covered by our messaging realtime system.

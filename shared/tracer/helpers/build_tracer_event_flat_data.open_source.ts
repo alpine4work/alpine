@@ -1,6 +1,6 @@
 import {LinkedList} from "~/shared/helpers/immutable/linked_list.open_source.js";
 import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.open_source.js";
-import {TracerEventDataBase} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventDataBase} from "~/shared/tracer/types/tracer_event_data_types.open_source.js";
 
 export type TracerEventFlatData = {
     [key: string]: string | number | boolean;

@@ -1,5 +1,5 @@
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * `isDeepEqual()` only performs a referential equality check on custom JavaScript

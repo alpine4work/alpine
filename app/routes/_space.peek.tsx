@@ -25,7 +25,7 @@ import {getTracerEventPropagatedDataForPathname} from "~/shared/tracer/get_trace
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.open_source.js";
 import {tracerEventDataContextPeekMoveIntoAboveKeys} from "~/shared/tracer/helpers/tracer_event_data_context_peek_move_into_above_key.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export default function PeekLayout() {
     // Navigating to this route via URL will show you an error! This route can only be

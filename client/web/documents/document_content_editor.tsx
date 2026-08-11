@@ -153,15 +153,15 @@ import {
 import {MessageContentWithReferences} from "~/shared/content/message_content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
 import {paragraphClassName} from "~/shared/design/core/constant_class_names.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
     screenPaddingX,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/shared/design/core/timing.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
@@ -215,7 +215,7 @@ import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemir
 import {createDocument, duplicateDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {getMessageDraft} from "~/shared/rpc/message_drafts_rpc_definitions.js";
 import {createSpellCheckIgnoredLint} from "~/shared/rpc/spell_check_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";

@@ -14,7 +14,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.open_sou
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * Get both space and space account settings for a bot in one request.

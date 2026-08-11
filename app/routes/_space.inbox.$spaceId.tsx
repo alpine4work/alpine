@@ -31,7 +31,7 @@ import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {InboxEntryStatusSchema} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModelSchema, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {convertLegacySpacePath} from "~/shared/search/convert_legacy_space_path.js";
 
 const LoaderSchema = Schema.object({

@@ -11,8 +11,8 @@ import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {
     FileAttachmentTarget,
     serializeFileAttachmentTargetString,

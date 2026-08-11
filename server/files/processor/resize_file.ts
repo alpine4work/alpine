@@ -39,7 +39,7 @@ import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {getChronologicalIdTime} from "~/shared/id/chronological_id.open_source.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Resize a file from Cloudflare R2. You provide the `width` as a URL search param

@@ -1,7 +1,7 @@
 import {TracerEventFlatDataSchemaForGlue} from "~/server/tracer/tracer_event_data_schema.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 import {convertCamelCaseToSnakeCase} from "~/shared/helpers/string/convert_camel_case_to_snake_case.open_source.js";
-import {SchemaWithOnlyDeserialization} from "~/shared/schema/schema.open_source.js";
+import {SchemaWithOnlyDeserialization} from "~/shared/schema/schema.js";
 
 type SchemaLike = SchemaWithOnlyDeserialization<unknown> & {
     getDescription(): {type: string};

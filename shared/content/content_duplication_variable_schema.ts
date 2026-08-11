@@ -14,7 +14,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.o
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Plain data representation for marks used in duplication. This doesn't depend on

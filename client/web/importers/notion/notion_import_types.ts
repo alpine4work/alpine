@@ -3,7 +3,7 @@ import {
     NotionImportStatusSchema,
     NotionImportTeamspaceOptionsSchema,
 } from "~/shared/importer/notion/notion_import_item.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /** The type of import option for a teamspace. */
 export type TeamspaceImportOptionType = "Public" | "Private" | "DoNotImport";

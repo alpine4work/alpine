@@ -1,5 +1,5 @@
 import {FileChatEntityModelSchema} from "~/shared/chat/file_chat_entity_model_schema.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {FileDocumentEntityModelSchema} from "~/shared/documents/file_document_entity_model_schema.js";
 import {FileEntityId, parseFileEntityId} from "~/shared/files/file_entity_id.js";
 import {FileEntityModel, FileEntityModelResult} from "~/shared/files/file_entity_model.js";

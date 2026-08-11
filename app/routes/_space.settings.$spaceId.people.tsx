@@ -40,7 +40,7 @@ import {
     updateSpaceAccountRole,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {
     AccountModel,
     AccountModelData,

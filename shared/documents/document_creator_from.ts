@@ -1,5 +1,5 @@
 import {AccountId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Schema for the document creator's "from" field, indicating what created the

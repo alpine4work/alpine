@@ -2,7 +2,7 @@ import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_id
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const getContentReferencesWithoutFiles = defineRpc({
     name: "getContentReferencesWithoutFiles",

@@ -16,7 +16,7 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 import {
     SiteItemSearchEntityId,
     SiteItemSearchEntityIdSchema,

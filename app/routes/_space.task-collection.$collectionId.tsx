@@ -37,7 +37,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {generateId, isId} from "~/shared/id/id.open_source.js";
 import {BrowserId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {

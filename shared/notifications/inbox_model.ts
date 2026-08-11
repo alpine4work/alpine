@@ -1,4 +1,4 @@
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
@@ -17,7 +17,7 @@ import {MessageContentPayloadClericalSchema} from "~/shared/messaging/message_sc
 import {DigestNotificationsScheduleSchema} from "~/shared/notifications/notifications_schedule_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export class InboxModel extends Model(

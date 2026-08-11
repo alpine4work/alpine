@@ -1,5 +1,5 @@
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const NotionImportTeamspaceStatistics = Schema.map(
     Schema.string,

@@ -1,5 +1,5 @@
 import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 // Avatar items persist after deletion to track changes via updateLockVersion.
 // Lifecycle: null → {avatarId, content} → {avatarId: null, content: null} Making

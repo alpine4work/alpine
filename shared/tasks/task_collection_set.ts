@@ -9,7 +9,7 @@ import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const TaskCollectionSetEntries = createCrdtMap(Schema.id<TaskCollectionId>(), OrderKeySchema);
 type TaskCollectionSetEntries = CrdtMap<TaskCollectionId, OrderKey>;

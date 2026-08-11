@@ -3,7 +3,7 @@ import {removeLocalStorage, useLocalStorage} from "~/client/web/helpers/use_loca
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const AuthenticationSignUpInviteEmailAddressesSchema = Schema.array(Schema.string);
 

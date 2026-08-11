@@ -65,7 +65,7 @@ import {
     instantiateBotSpaceAccount,
     removeSpaceAccount,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {hasSpaceRole} from "~/shared/spaces/space_model.js";
 
 const LoaderSchema = Schema.object({

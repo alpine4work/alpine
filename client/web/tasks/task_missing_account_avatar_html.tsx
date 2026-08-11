@@ -3,7 +3,7 @@ import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generat
 import {userIconSvg} from "~/client/web/icons/user_icon_svg.js";
 import {inputPlaceholderStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {HtmlElementGenerator, HtmlGenerator} from "~/shared/helpers/html/html_generator.js";
 
 // Hardcode Phosphor User icon SVG since we don't want to mount a React root

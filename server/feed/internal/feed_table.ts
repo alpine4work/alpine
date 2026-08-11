@@ -2,7 +2,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 // Ideally block items are ~2kb in size each. From one basic experiment, 10 post
 // entries are 1.78kb as a minified JSON string. We'd really benefit from binary

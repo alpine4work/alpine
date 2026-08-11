@@ -120,7 +120,7 @@ import {
     createAlphaSpaceAsAdmin,
     instantiateBotSpaceAccount,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchOptions,
     SearchOptionsSchema,

@@ -10,7 +10,7 @@ import {
     serializeScheduleDateTime,
     serializeScheduleDateTimeString,
 } from "~/server/notifications/core/schedule_date_time.js";
-import {SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+import {SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 describe("isScheduleDateTime", () => {
     test("returns true for valid date", () => {

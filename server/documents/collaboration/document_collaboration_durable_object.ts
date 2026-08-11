@@ -72,7 +72,7 @@ import {
     getDocumentContentForCollaborationServiceInitialization,
     getResolvedDocumentCommentThreadRanges,
 } from "~/shared/rpc/documents_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {SpellCheckIgnoredLintRealtimeTransactionSchema} from "~/shared/spell_check/spell_check_model.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 

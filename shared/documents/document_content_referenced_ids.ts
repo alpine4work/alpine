@@ -15,7 +15,7 @@ import {
     visitProsemirrorNode,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Just the IDs we need for loading a `ContentReferences` object. Useful to perform

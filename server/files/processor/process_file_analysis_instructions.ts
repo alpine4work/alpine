@@ -7,7 +7,7 @@ import {
     fileAnalysisDescriptionMaxLength,
 } from "~/shared/files/file_analysis.js";
 import {PrettyMarkdown, markdown} from "~/shared/helpers/string/markdown.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Join markdown prompt sections into one markdown string.

@@ -3,7 +3,7 @@ import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.op
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const createBot = defineRpc({
     name: "createBot",

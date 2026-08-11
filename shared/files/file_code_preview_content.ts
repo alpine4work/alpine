@@ -7,7 +7,7 @@ import {
     JsonStringifiableUint8Array,
     Schema,
     SchemaDeserializationError,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 
 /**
  * Preview content for a code file. To preview a code file we take the first couple

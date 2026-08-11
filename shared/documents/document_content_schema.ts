@@ -38,7 +38,7 @@ import {
     SiteId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
     nodes: {

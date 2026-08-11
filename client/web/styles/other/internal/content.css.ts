@@ -84,7 +84,7 @@ import {FontSize, fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {RawColor, parseRawColor, printRawColor} from "~/shared/design/core/helpers/raw_color.js";
 import {colorByHighlightColor} from "~/shared/design/core/highlight_color.js";
 import {invertedColorsWithShade} from "~/shared/design/core/inverted_colors.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     Spacing,
@@ -99,7 +99,7 @@ import {
     SpacingScale,
     allSpacingScales,
     remPxBySpacingScale,
-} from "~/shared/design/core/spacing_scale.open_source.js";
+} from "~/shared/design/core/spacing_scale.js";
 import {ThemeColor, themeColors} from "~/shared/design/core/theme_colors.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";

@@ -25,7 +25,7 @@ import {
     SessionId,
     WebSocketProcedureRequestId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 import {
     WebSocketProtocolEventType,

@@ -2,7 +2,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SlackWorkspaceSchema} from "~/shared/integrations/slack/slack_space_integration_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const IntegrationsTable = DynamoTableSchema.new({
     name: "Integrations",

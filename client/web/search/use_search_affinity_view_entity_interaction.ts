@@ -7,7 +7,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.open_source.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
 import {markSearchAffinityEntityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const SessionStorageSchema = Schema.object({

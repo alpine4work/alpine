@@ -20,7 +20,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 /**
  * The identifier of an entity in our search system. Search entities are a

@@ -2,7 +2,7 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {BotId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModelData} from "~/shared/spaces/account_model.js";
 import {AccountModelDataForAvatarDesign} from "~/shared/spaces/get_account_avatar_design.js";
 

@@ -36,7 +36,7 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {taskStoreLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {TaskStoreLoaderDataSchema} from "~/shared/remix/task_store_loader_data.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 
 const taskRealtimeClientBySpaceIdForClient =

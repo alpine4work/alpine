@@ -15,7 +15,7 @@ import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.j
 import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {rejectSpaceAccountInviteAsSpam} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),

@@ -14,7 +14,7 @@ import {
     RpcDefinitionInputType,
     RpcDefinitionOutputType,
 } from "~/shared/rpc/rpc_definition.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type RpcExecuteOptions = {

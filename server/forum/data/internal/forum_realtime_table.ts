@@ -62,7 +62,7 @@ import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js"
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const ForumRealtimeTable = RynamoTableSchema.new({

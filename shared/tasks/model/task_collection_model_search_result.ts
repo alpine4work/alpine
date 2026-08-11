@@ -1,5 +1,5 @@
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 

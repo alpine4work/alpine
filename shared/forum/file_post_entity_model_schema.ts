@@ -1,7 +1,7 @@
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {PostContentWithReferencesSchema} from "~/shared/forum/post_content_schema.js";
 import {PostId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type FilePostEntityModel = SchemaType<typeof FilePostEntityModelSchema>;

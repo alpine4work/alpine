@@ -11,7 +11,7 @@ import {caretRightIconSvg} from "~/client/web/icons/caret_right_icon_svg.js";
 import {createSvgHtmlGenerator} from "~/client/web/icons/create_svg_html_generator.js";
 import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {Store} from "~/shared/store/store.js";

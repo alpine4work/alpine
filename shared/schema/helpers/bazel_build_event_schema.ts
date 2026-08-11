@@ -2,7 +2,7 @@
 // that's shared across `//admin/dev` and `//app:app_wrapper`. Should we create a
 // `shared/dev` package?
 
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type BazelBuildEvent = SchemaType<typeof BazelBuildEventSchema>;
 

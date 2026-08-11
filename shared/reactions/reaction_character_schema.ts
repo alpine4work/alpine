@@ -3,7 +3,7 @@ import {
     reactionCharacterById,
     reactionCharacterIds,
 } from "~/shared/reactions/reaction_character_id.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 export const ReactionCharacterSchema = Schema.integer.transform<ReactionCharacter>({
     serialize: character => (reactionCharacterIds as any)[character.type][character.variant],

@@ -35,9 +35,9 @@ import {
 } from "~/shared/auth/auth_sign_in_or_sign_up_schema.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function AuthenticationSignInOrSignUpOneTimePasswordView({
     state,

@@ -38,7 +38,7 @@ import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.open
 import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
 import {AccountId, ChatId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AppSpaceRouteId} from "~/shared/remix/app_space_route_id.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 

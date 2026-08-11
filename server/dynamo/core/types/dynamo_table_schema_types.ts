@@ -8,8 +8,8 @@ import {IdentityType} from "~/shared/helpers/types/identity_type.open_source.js"
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import type {ObjectSchema, SchemaType} from "~/shared/schema/schema.open_source.js";
-import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.open_source.js";
+import type {ObjectSchema, SchemaType} from "~/shared/schema/schema.js";
+import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
 /**
  * Types for the `DynamoTableSchema` file. These types get a little complicated. So

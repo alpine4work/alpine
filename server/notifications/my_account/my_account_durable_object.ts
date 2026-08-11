@@ -21,7 +21,7 @@ import {
     MyAccountBroadcastInboxRealtimeEventsSchema,
     MyAccountProtocol,
 } from "~/shared/notifications/my_account_protocol.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 type MyAccountDurableObjectRoute = "Main" | "BroadcastInboxRealtimeEvents" | "NotFound";
 

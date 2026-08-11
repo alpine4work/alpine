@@ -5,7 +5,7 @@ import {
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {contentLargeFallbackFileWidthPx} from "~/shared/design/core/content_shared_styles.js";
 import {screenPaddingXRem} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";

@@ -6,7 +6,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
 
 export async function action({request, context, span}: LoaderArgs) {

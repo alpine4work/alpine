@@ -1,6 +1,6 @@
 import {AccountModelWithoutSpaceAndAvatarDataSchema} from "~/shared/accounts/account_model_without_space.js";
 import {AccountId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const SpaceAccountStateRemovedReasons = ["ActionByAdmin", "InviteRejectedAsSpam"] as const;
 export type SpaceAccountStateRemovedReason = (typeof SpaceAccountStateRemovedReasons)[number];

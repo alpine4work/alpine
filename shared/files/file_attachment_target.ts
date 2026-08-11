@@ -12,7 +12,7 @@ import {
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Files may be attached to various entities in our system. A file may be attached

@@ -55,7 +55,7 @@ import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContextIfExists} from "~/client/web/spaces/context/space_context.js";
 import {pointerEventsNoneNotInheritedClassName} from "~/client/web/styles/styles.js";
 import {FontSize} from "~/shared/design/core/fonts.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {
     RemLength,
     Spacing,

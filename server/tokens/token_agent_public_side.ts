@@ -10,7 +10,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * The token agent class is responsible for RSA key cryptography between services

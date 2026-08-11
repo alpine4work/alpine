@@ -3,7 +3,7 @@ import {
     TracerEventFlatData,
     buildTracerEventFlatData,
 } from "~/shared/tracer/helpers/build_tracer_event_flat_data.open_source.js";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * An in-memory tracer event. Events are structured so they can be cheaply

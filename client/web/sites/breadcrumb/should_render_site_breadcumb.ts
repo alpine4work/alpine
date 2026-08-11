@@ -1,7 +1,7 @@
 import {PeekContext} from "~/client/web/remix/peek_context_types.js";
 import {SiteDataContextValue} from "~/client/web/sites/context/site_context.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 
 export function shouldRenderSiteBreadcrumb({
     routeLayout,

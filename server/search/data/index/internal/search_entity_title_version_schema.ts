@@ -1,5 +1,5 @@
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskTitleSnapshotSchema} from "~/shared/tasks/title/task_title.js";
 
 export type SearchEntityTitleVersion = SchemaType<typeof SearchEntityTitleVersionSchema>;

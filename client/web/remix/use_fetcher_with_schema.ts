@@ -1,7 +1,7 @@
 import {FetcherWithComponents} from "@remix-run/react";
 import {useMemo} from "react";
 import {useFetcher} from "react-router-dom";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Returns a fetcher object with deserialized data from a schema.

@@ -6,7 +6,7 @@ import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {EmailAddressSchema} from "~/shared/schema/helpers/email_address_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const getAccount = defineRpc({

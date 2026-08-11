@@ -7,7 +7,7 @@ import {authorizePostAccess} from "~/server/forum/data/authorize_post_access.js"
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {ChatGptConversationItemSchema} from "~/shared/debug/chat_gpt/chat_gpt_conversation_item.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     items: Schema.array(ChatGptConversationItemSchema),

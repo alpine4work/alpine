@@ -23,11 +23,11 @@ import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_so
 import {Optionalize} from "~/shared/helpers/types/optionalize.open_source.js";
 import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {Id, isId} from "~/shared/id/id.open_source.js";
-import {checkSchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.open_source.js";
+import {checkSchemaBackwardsCompatibility} from "~/shared/schema/check_schema_backwards_compatibility.js";
 import {
     SchemaSerializedObjectValuePropertyDescription,
     SchemaSerializedValueDescription,
-} from "~/shared/schema/types/schema_description_types.open_source.js";
+} from "~/shared/schema/types/schema_description_types.js";
 
 /**
  * Get the underlying type of a schema object.

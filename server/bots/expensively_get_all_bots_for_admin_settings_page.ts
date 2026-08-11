@@ -6,7 +6,7 @@ import {BotForAdmin} from "~/shared/bots/bot_schema.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {ApiKey} from "~/shared/id/api_key.js";
 import {BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 // NOTE(ifitzsimmons, #bots): In order to support an internal bot management page,
 // we need to load all bots (with their avatars). Eventually, we should introduce

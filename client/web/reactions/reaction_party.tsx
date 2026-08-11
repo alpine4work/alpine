@@ -20,7 +20,7 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";

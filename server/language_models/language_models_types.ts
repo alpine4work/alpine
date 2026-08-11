@@ -1,6 +1,6 @@
 import {ContentBlock, InferenceConfiguration, Message} from "@aws-sdk/client-bedrock-runtime";
 import {SupportedBedrockModel} from "~/server/language_models/supported_bedrock_model.js";
-import {SchemaWithoutValidation} from "~/shared/schema/schema.open_source.js";
+import {SchemaWithoutValidation} from "~/shared/schema/schema.js";
 
 export type LanguageModelsMessage = Message;
 export type LanguageModelsInferenceConfig = InferenceConfiguration;

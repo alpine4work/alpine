@@ -3,7 +3,7 @@ import {OpensearchSearchHitExplanationSchema} from "~/shared/opensearch/opensear
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityId, SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";

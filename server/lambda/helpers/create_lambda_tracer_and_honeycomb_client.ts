@@ -7,7 +7,7 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {writeTracerEventToFileInDev} from "~/shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
-import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data_types.open_source.js";
 
 export function createLambdaTracerAndHoneycombClient({
     serviceName,

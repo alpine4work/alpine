@@ -86,7 +86,7 @@ import {
     emptyMessageDraftWithFiles,
 } from "~/shared/messaging/message_draft_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {ConstStore} from "~/shared/store/const_store.js";

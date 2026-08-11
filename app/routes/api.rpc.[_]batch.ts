@@ -9,7 +9,7 @@ import {
     RpcHttpBatchCallEventOutputSchema,
     RpcHttpBatchCallInputSchema,
 } from "~/shared/rpc/helpers/rpc_http_schema.js";
-import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 
 export async function action({request, context: loaderContext, span}: LoaderArgs) {
     try {

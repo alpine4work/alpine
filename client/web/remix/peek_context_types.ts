@@ -1,5 +1,5 @@
 import {Memo} from "react";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {PeekId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 
