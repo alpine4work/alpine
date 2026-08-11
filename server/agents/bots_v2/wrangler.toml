@@ -34,6 +34,7 @@ class_name = "ClaudeAgentSandbox"
 image = "./sandbox/claude_agent.dockerfile"
 instance_type = "standard-1"
 max_instances = 1000
+rollout_active_grace_period = 3600
 constraints = {regions = ["ENAM"]}
 
 [[durable_objects.bindings]]
