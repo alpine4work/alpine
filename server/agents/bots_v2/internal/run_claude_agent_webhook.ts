@@ -7,7 +7,10 @@ import {
     pingApiMessageStream,
 } from "~/server/agents/api/api_client.open_source.js";
 import {shouldAgentRespondToApiBotWebhookRequest} from "~/server/agents/api/should_agent_respond_to_bot_webhook_request.js";
-import {AgentV2ServiceEnv} from "~/server/agents/bots_v2/internal/agent_v2_service_env.js";
+import {
+    AgentV2ServiceEnv,
+    AgentV2ServiceQueueMessage,
+} from "~/server/agents/bots_v2/internal/agent_v2_service_env.js";
 import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {messageStreamPingIntervalMs} from "~/shared/agents/message_stream_ping_interval_ms.js";
 import {printErrorDisplayMessageToApiContent} from "~/shared/api/content/print_error_display_message_to_api_content.js";
@@ -31,7 +34,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
-export async function runClaudeAgentWebhook(
+export async function runClaudeAgentWebhookBeforeQueue(
     span: TracerSpan,
     request: Request,
     env: AgentV2ServiceEnv,
@@ -84,6 +87,23 @@ export async function runClaudeAgentWebhook(
 
     span.addData({common: {branch: "Responding"}});
 
+    // We need to execute the rest of our Claude agent webhook in the background via a
+    // Cloudflare queue. Because it can take more than 10s (the Alpine webhook
+    // deadline) to initialize the sandbox and acknowledge the
+    await env.Queue.send({
+        type: "ClaudeAgentWebhook",
+        requestBody: {...requestBody, event: requestBody.event},
+        tracerContext: span.getPropagationContext(),
+    });
+
+    return createSimpleOkResponse();
+}
+
+export async function runClaudeAgentWebhookAfterQueue(
+    span: TracerSpan,
+    requestBody: AgentV2ServiceQueueMessage["requestBody"],
+    env: AgentV2ServiceEnv,
+): Promise<void> {
     const {room} = requestBody.event;
     const sandboxId = `${requestBody.botAccount.id}/${convertApiReferenceKeyToLowercase(printApiReferenceKey(room))}`;
 
@@ -91,6 +111,12 @@ export async function runClaudeAgentWebhook(
         // In order to support steering, each `sandbox.startProcess()` call should have its
         // own session. So we don't wait on the last process to start the next process.
         enableDefaultSession: false,
+    });
+
+    const apiClient = createApiClient({
+        baseUrl: assertExists(env.API_SERVICE_URL),
+        apiKey: assertExists(env.CLAUDE_API_SERVICE_KEY),
+        accessToken: requestBody.accessToken,
     });
 
     const [
@@ -128,16 +154,22 @@ export async function runClaudeAgentWebhook(
         // attacks. I couldn't find a shell escaper module I was 100% confident in.
         const requestArg = encodeBase64(
             new TextEncoder().encode(
-                JSON.stringify({...requestBody, streamMessageIndex: streamMessage.index}),
+                JSON.stringify({
+                    body: requestBody,
+                    streamMessageIndex: streamMessage.index,
+                    // We are intentionally using the parent span instead of the "Start sandbox
+                    // process" span. We'll root the Claude agent execution in the parent span.
+                    tracerContext: span.getPropagationContext(),
+                }),
             ),
         );
 
-        const sandboxProcess = await span.withSpan("Start sandbox process", () =>
-            sandbox.startProcess(
+        const sandboxProcess = await span.withSpan("Start sandbox process", async () => {
+            return await sandbox.startProcess(
                 // eslint-disable-next-line cyberworlds/string-quotes
                 `node /workspace/claude_agent_service_bundle.mjs '${requestArg}'`,
-            ),
-        );
+            );
+        });
 
         // This function will reject if the process exits before the event is acknowledged.
         try {
@@ -198,6 +230,4 @@ export async function runClaudeAgentWebhook(
 
         await completeApiMessageStream(span, apiClient, room, streamMessage.index);
     }
-
-    return createSimpleOkResponse();
 }

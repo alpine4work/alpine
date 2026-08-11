@@ -43,3 +43,12 @@ name = "ClaudeAgentSandbox"
 [[migrations]]
 new_sqlite_classes = ["ClaudeAgentSandbox"]
 tag = "v1"
+
+[[queues.producers]]
+queue = "alpine-agent-v2-service"
+binding = "Queue"
+
+[[queues.consumers]]
+queue = "alpine-agent-v2-service"
+max_batch_size = 1
+max_batch_timeout = 1

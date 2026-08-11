@@ -429,7 +429,7 @@ async function* generateClaudeAgentPrompt(
         hasSeenFirstEvent = true;
 
         const {request} = eventQueueEvent;
-        const {event} = request;
+        const {event} = request.body;
 
         let hasAcknowledged = false;
 
@@ -447,7 +447,7 @@ async function* generateClaudeAgentPrompt(
             messageRef.current = new AgentWebMessageStreamSession({
                 parentSpan: span,
                 apiClient,
-                room: request.event.room,
+                room: event.room,
                 messageIndex: request.streamMessageIndex,
                 streamParser: new AgentWebMarkdownStreamParser({
                     storage,

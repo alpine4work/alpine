@@ -18,14 +18,21 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {EventQueue} from "~/shared/helpers/control/event_queue.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
-import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
+import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
 
-export type ClaudeAgentServiceRequest = ApiBotWebhookRequestBody & {
+export type ClaudeAgentServiceRequest = {
+    readonly body: ApiBotWebhookRequestBody;
+
     /**
      * The stream message created by `/claude/webhook` while waiting on the sandbox to
      * initialize.
      */
     readonly streamMessageIndex: number;
+
+    /**
+     * Allows us to continue tracing from the parent webhook call span.
+     */
+    readonly tracerContext: TracerSpanPropagationContext;
 };
 
 export type ClaudeAgentServiceEvent =
@@ -78,12 +85,20 @@ main()
     });
 
 async function main() {
+    const request: ClaudeAgentServiceRequest = JSON.parse(
+        new TextDecoder().decode(decodeBase64(process.argv[2] ?? "")),
+    );
+
     const {tracer, flushTracerEvents} = createClaudeAgentServiceTracer();
 
     try {
-        await tracer.withSpan("Run Claude agent service", async span => {
-            await actuallyMain(span);
-        });
+        await tracer.withSpanFromPropagationContext(
+            "Run Claude agent service",
+            request.tracerContext,
+            async span => {
+                await actuallyMain(span, request);
+            },
+        );
     } finally {
         // Flush any pending tracer events before exiting. Once we return the process exits
         // and any pending tracer events won't be sent.
@@ -91,11 +106,7 @@ async function main() {
     }
 }
 
-async function actuallyMain(span: TracerSpan) {
-    const request: ClaudeAgentServiceRequest = JSON.parse(
-        new TextDecoder().decode(decodeBase64(process.argv[2] ?? "")),
-    );
-
+async function actuallyMain(span: TracerSpan, request: ClaudeAgentServiceRequest) {
     const apiUrl = assertExists(process.env.ALPINE_API_URL);
 
     const apiClient = createApiClient({
@@ -106,7 +117,7 @@ async function actuallyMain(span: TracerSpan) {
             ? `http://host.docker.internal:${apiUrl.slice("http://localhost:".length)}`
             : apiUrl,
         apiKey: assertExists(process.env.ALPINE_API_KEY),
-        accessToken: request.accessToken,
+        accessToken: request.body.accessToken,
     });
 
     await retryWithExponentialBackoff(async retry => {
@@ -132,7 +143,7 @@ async function actuallyMain(span: TracerSpan) {
                 }
 
                 // eslint-disable-next-line no-console
-                console.log(`Acknowledged event ${request.eventId} (sent to other process)`);
+                console.log(`Acknowledged event ${request.body.eventId} (sent to other process)`);
                 break;
             }
             case "Listening": {
@@ -146,15 +157,17 @@ async function actuallyMain(span: TracerSpan) {
                         request,
                         acknowledge: () => {
                             // eslint-disable-next-line no-console
-                            console.log(`Acknowledged event ${request.eventId} (in own process)`);
+                            console.log(
+                                `Acknowledged event ${request.body.eventId} (in own process)`,
+                            );
                         },
                     });
 
                     await runClaudeAgent(span, {
                         apiClient,
-                        spaceId: request.spaceId,
-                        botAccount: request.botAccount,
-                        room: request.event.room,
+                        spaceId: request.body.spaceId,
+                        botAccount: request.body.botAccount,
+                        room: request.body.event.room,
                         eventQueue: result.eventQueue,
                     });
                 } finally {

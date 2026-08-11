@@ -1,38 +1,23 @@
-import {AgentV2ServiceEnv} from "~/server/agents/bots_v2/internal/agent_v2_service_env.js";
-import {runClaudeAgentWebhook} from "~/server/agents/bots_v2/internal/run_claude_agent_webhook.js";
+import {
+    AgentV2ServiceEnv,
+    AgentV2ServiceQueueMessage,
+} from "~/server/agents/bots_v2/internal/agent_v2_service_env.js";
+import {
+    runClaudeAgentWebhookAfterQueue,
+    runClaudeAgentWebhookBeforeQueue,
+} from "~/server/agents/bots_v2/internal/run_claude_agent_webhook.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 type AgentV2ServiceRoute = {type: "ClaudeWebhook"} | {type: "NotFound"};
 
-async function handleFetch(
-    request: Request,
-    env: AgentV2ServiceEnv,
-    executionContext: ExecutionContext,
-) {
-    const url = new URL(request.url);
-
-    let routeString: string;
-    let route: AgentV2ServiceRoute;
-
-    switch (url.pathname) {
-        case "/claude/webhook": {
-            routeString = "/claude/webhook";
-            route = {type: "ClaudeWebhook"};
-            break;
-        }
-        default: {
-            routeString = "/*";
-            route = {type: "NotFound"};
-            break;
-        }
-    }
-
+function createTracer(env: AgentV2ServiceEnv, executionContext: ExecutionContext) {
     const streamName = env.KINESIS_TRACER_STREAM_NAME;
     if (!streamName && process.env.NODE_ENV === "production")
         throw new InternalError("Must provide `KINESIS_TRACER_STREAM_NAME` in production");
@@ -69,6 +54,34 @@ async function handleFetch(
             : undefined,
     });
 
+    return tracer;
+}
+
+async function handleFetch(
+    request: Request,
+    env: AgentV2ServiceEnv,
+    executionContext: ExecutionContext,
+) {
+    const url = new URL(request.url);
+
+    let routeString: string;
+    let route: AgentV2ServiceRoute;
+
+    switch (url.pathname) {
+        case "/claude/webhook": {
+            routeString = "/claude/webhook";
+            route = {type: "ClaudeWebhook"};
+            break;
+        }
+        default: {
+            routeString = "/*";
+            route = {type: "NotFound"};
+            break;
+        }
+    }
+
+    const tracer = createTracer(env, executionContext);
+
     return await traceServerResponse(tracer, request, url, routeString, async (span, request) => {
         try {
             switch (route.type) {
@@ -80,7 +93,7 @@ async function handleFetch(
                 }
                 case "ClaudeWebhook": {
                     try {
-                        return await runClaudeAgentWebhook(span, request, env);
+                        return await runClaudeAgentWebhookBeforeQueue(span, request, env);
                     } catch (error) {
                         if (process.env.NODE_ENV !== "production") {
                             // In dev, log to the console if the webhook fails to make debugging easier.
@@ -101,8 +114,35 @@ async function handleFetch(
     });
 }
 
+async function handleQueue(
+    batch: MessageBatch<AgentV2ServiceQueueMessage>,
+    env: AgentV2ServiceEnv,
+    executionContext: ExecutionContext,
+) {
+    const tracer = createTracer(env, executionContext);
+
+    await runAllPromises(
+        batch.messages.map(async message => {
+            const handleSpanName = "Process Claude agent webhook";
+
+            await tracer.withSpanFromPropagationContext(
+                `Handle: ${handleSpanName}`,
+                message.body.tracerContext,
+                async span => {
+                    span.addData({context: {handler: handleSpanName}});
+
+                    await runClaudeAgentWebhookAfterQueue(span, message.body.requestBody, env);
+                },
+            );
+        }),
+    );
+}
+
 // eslint-disable-next-line import/no-default-export
-export default {fetch: handleFetch};
+export default {
+    fetch: handleFetch,
+    queue: handleQueue,
+} satisfies ExportedHandler<AgentV2ServiceEnv, AgentV2ServiceQueueMessage>;
 
 // `ContainerProxy` is required for `sandbox.mountBucket()` according to:
 // https://developers.cloudflare.com/sandbox/guides/mount-buckets/#production-prerequisites-for-r2-binding-mounts
