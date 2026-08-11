@@ -4,6 +4,11 @@ import {selectDatabaseFieldColumnAsString} from "~/shared/databases/fields/selec
 import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 
+/**
+ * Returns a SQL expression that selects a relation as an ordered JSON value. The
+ * expression contains the join and access-control behavior so callers can treat
+ * relation fields like other typed fields.
+ */
 export function selectDatabaseRelationFieldColumn(
     field: DatabaseFieldModelOfType<"Relation">,
     dataRow: SqlQuery,

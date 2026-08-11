@@ -44,7 +44,9 @@ const usThousandsPattern = /^\d{1,3}(,\d{3})+(\.\d+)?$/;
  *   patterns like `1,23` are rejected, not silently reinterpreted.
  *
  * Rejects `Infinity`, `NaN`, leading `%`, multiple `%` signs, and decoration
- * containing digits (a digit in decoration means a number was missed).
+ * containing digits (a digit in decoration means a number was missed). Import and
+ * paste paths use these rules to normalize common human-readable number forms
+ * without accepting ambiguous numeric data.
  */
 export function parseDatabaseNumberFieldValueString(input: string): Result<number | null, void> {
     let s = input.trim();

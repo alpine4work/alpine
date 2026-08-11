@@ -1,7 +1,8 @@
 /**
  * Parses a string as a checkbox value. Match is on a trimmed, lower-cased input
  * against {@link checkboxFalseStrings}. Empty (whitespace only) input is also
- * `false`. Anything else is `true`.
+ * `false`. Anything else is `true`. These permissive rules let paste and import
+ * paths accept common checkbox representations.
  */
 export function parseDatabaseCheckboxFieldValueString(input: string): boolean {
     return !checkboxFalseStrings.has(input.trim().toLowerCase());

@@ -14,7 +14,8 @@ import {Schema} from "~/shared/schema/schema.open_source.js";
 /**
  * Returns a field value formatted as a string both by
  * `formatDatabaseFieldValueString` and by `selectDatabaseFieldColumnAsString`
- * (evaluated in SQLite), so tests can assert the two implementations agree.
+ * (evaluated in SQLite). Tests use both results to detect differences between the
+ * in-memory and SQL implementations.
  */
 export function getDatabaseFieldStrings<Type extends DatabaseFieldType>({
     db,
@@ -48,6 +49,10 @@ export function getDatabaseFieldStrings<Type extends DatabaseFieldType>({
     };
 }
 
+/**
+ * Creates the minimum field model that the string-format tests need. This test
+ * double keeps the tests independent from full database model construction.
+ */
 function createTestField<Type extends DatabaseFieldType>(
     config: DatabaseFieldConfig<Type>,
 ): DatabaseFieldModel {

@@ -9,6 +9,11 @@ import type {DatabasePlainTextFieldValue} from "~/shared/databases/fields/plain_
 import type {DatabaseRelationFieldValue} from "~/shared/databases/fields/relation/database_relation_field.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
+/**
+ * Formats a typed field value as display text without a database query. This
+ * dispatcher defines one text representation for each field type and keeps it
+ * aligned with SQL-side formatting.
+ */
 export function formatDatabaseFieldValueString<Type extends DatabaseFieldType>(
     config: DatabaseFieldConfig<Type>,
     value: DatabaseFieldValue<Type>,

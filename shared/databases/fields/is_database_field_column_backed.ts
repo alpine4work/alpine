@@ -5,8 +5,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 export type DatabaseColumnBackedFieldType = Exclude<DatabaseFieldType, "Relation">;
 
 /**
- * Whether a field type is stored in a SQLite column of its own. Virtual field
- * types (relation) have no column and are projected at query time instead.
+ * Returns true when a field type has its own SQLite column. Schema code uses this
+ * type guard to exclude virtual fields, such as relations, which queries calculate
+ * at run time.
  */
 export function isDatabaseFieldColumnBacked(
     type: DatabaseFieldType,

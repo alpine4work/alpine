@@ -13,6 +13,11 @@ const databaseFieldValueSchemas: {[Type in DatabaseFieldType]: Schema<DatabaseFi
     Relation: DatabaseRelationFieldValueSchema,
 };
 
+/**
+ * Returns the application-value schema for a field type. This central mapping lets
+ * generic field code validate values without losing the value type that
+ * corresponds to the field type.
+ */
 export function getDatabaseFieldValueSchema<Type extends DatabaseFieldType>(
     type: Type,
 ): Schema<DatabaseFieldValue<Type>> {

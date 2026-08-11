@@ -4,7 +4,8 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 /**
  * Asserts that updating a relation field's config from `existingConfig` to
  * `nextConfig` is allowed. A relation's topology (join table, side, linked table)
- * is immutable; only `cardinality` may change.
+ * is immutable; only `cardinality` may change. This check prevents a config update
+ * from disconnecting the field from its existing join-table data.
  */
 export function assertDatabaseRelationFieldConfigChangeValid(
     existingConfig: DatabaseRelationFieldConfig,

@@ -6,7 +6,9 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 /**
  * Resolves a relation field against its join table, validating the field's config
  * against the join table's topology and returning the column names for the field's
- * own side (`our`) and the linked side (`their`).
+ * own side (`our`) and the linked side (`their`). Relation queries use this one
+ * validated orientation so source-side and target-side fields cannot select the
+ * wrong join columns.
  */
 export function resolveDatabaseRelation(field: DatabaseFieldModelOfType<"Relation">) {
     const joinTable = field.root.getJoinTable(field.config.joinTableId);

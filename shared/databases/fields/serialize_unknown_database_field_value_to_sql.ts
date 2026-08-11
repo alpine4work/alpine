@@ -5,8 +5,9 @@ import type {SqlQuery} from "~/shared/databases/sql.js";
 import type {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
 
 /**
- * Validates an untyped value against the field type's schema, then serializes it
- * to SQL.
+ * Validates an untyped value against the field type's application schema, then
+ * serializes it to SQL. This function provides a safe boundary for callers that do
+ * not have a statically typed `DatabaseFieldValue`.
  */
 export function serializeUnknownDatabaseFieldValueToSql(
     type: DatabaseFieldType,

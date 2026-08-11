@@ -7,6 +7,10 @@ import {sql} from "~/shared/databases/sql.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 
+/**
+ * Creates a checkbox table with the production storage constraint. The tests use
+ * this table to compare application formatting with SQLite formatting.
+ */
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-checkbox-${dbCounter++}.sqlite3`, "ct");

@@ -6,7 +6,11 @@ import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
-/** The SQL expression selecting a field's value formatted as display text. */
+/**
+ * Returns the SQL expression that selects a field value as display text. This
+ * dispatcher gives SQL queries the same type-specific text format that in-memory
+ * values use.
+ */
 export function selectDatabaseFieldColumnAsString(
     field: DatabaseFieldModel,
     dataRow: SqlQuery,
