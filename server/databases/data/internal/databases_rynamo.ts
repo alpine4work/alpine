@@ -17,7 +17,7 @@ import type {
 } from "~/shared/id/types/id_types.open_source.js";
 import {Schema} from "~/shared/schema/schema.open_source.js";
 
-export const DatabaseTablesTable = RynamoTableSchema.new({
+export const DatabasesRynamo = RynamoTableSchema.new({
     name: "DatabaseTableMetadata",
     partitions: [
         {
@@ -129,8 +129,4 @@ export const DatabaseTablesTable = RynamoTableSchema.new({
     },
 });
 
-export type DatabaseTableItem = RynamoTableItemType<
-    typeof DatabaseTablesTable,
-    "Table",
-    "Attributes"
->;
+export type DatabaseTableItem = RynamoTableItemType<typeof DatabasesRynamo, "Table", "Attributes">;

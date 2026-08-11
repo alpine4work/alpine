@@ -1,5 +1,5 @@
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
-import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
+import {DatabasesRynamo} from "~/server/databases/data/internal/databases_rynamo.js";
 import {createDatabaseTableNotFoundError} from "~/shared/databases/database_error_messages.js";
 import type {
     DatabaseGroupId,
@@ -11,7 +11,7 @@ export async function getDatabaseTableLocation(
     context: ServerActionContext,
     tableId: DatabaseTableId,
 ): Promise<{databaseGroupId: DatabaseGroupId; spaceId: SpaceId}> {
-    let item = await DatabaseTablesTable.getItemIfExists(
+    let item = await DatabasesRynamo.getItemIfExists(
         context,
         {partitionType: "Table", sortRangeType: "Attributes", tableId},
         {consistency: "Eventual", allowsEventualReadConsistency: true},
@@ -20,7 +20,7 @@ export async function getDatabaseTableLocation(
     // Location attributes never change. An eventual hit is authoritative, but a miss
     // may be replication lag immediately after creation and needs a strong retry.
     if (item === null) {
-        item = await DatabaseTablesTable.getItemIfExists(
+        item = await DatabasesRynamo.getItemIfExists(
             context,
             {partitionType: "Table", sortRangeType: "Attributes", tableId},
             {consistency: "Strong"},
