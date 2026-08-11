@@ -30,7 +30,7 @@ const context = createTestContext({
     sendRequestToDurableObject: (_context, request) => {
         const action = DatabaseActionObjectSchema.deserialize(request.body ?? null);
         assert(action.name === "createTable");
-        if (action.input.name === failedBackingTableName) {
+        if (action.input.humanName === failedBackingTableName) {
             failedCreationTableId = action.input.tableId;
             return Promise.reject(new InternalError("Failed to create backing table"));
         }
@@ -40,7 +40,7 @@ const context = createTestContext({
                     name: "createTable",
                     output: {
                         tableId: action.input.tableId,
-                        tableName: "projects",
+                        sqlName: "projects",
                         viewId: createdViewId,
                     },
                 },

@@ -170,7 +170,7 @@ async function buildSchemaSeed(name: string): Promise<{
     seedPages: DatabasePages;
     fileSizesInPages: ReadonlyMap<DatabaseTableId, number>;
     viewId: string;
-    tableName: string;
+    sqlName: string;
 }> {
     const fake = await Database.create(
         {readPage: () => null, getFileSize: () => 0},
@@ -186,7 +186,7 @@ async function buildSchemaSeed(name: string): Promise<{
             name: "createTable",
             input: {
                 tableId: generateChronologicalId<DatabaseTableId>(),
-                name,
+                humanName: name,
                 accessPolicy: databaseTableAccessPolicyForCreator(creatorId),
                 policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
             },
@@ -208,18 +208,18 @@ async function buildSchemaSeed(name: string): Promise<{
         }
     }
     fake.close();
-    return {seedPages, fileSizesInPages, viewId: result.viewId, tableName: result.tableName};
+    return {seedPages, fileSizesInPages, viewId: result.viewId, sqlName: result.sqlName};
 }
 
 async function setupTestDatabase(): Promise<{
     client: DatabaseClient;
     conn: DatabaseWorkerConnection;
     viewId: string;
-    tableName: string;
+    sqlName: string;
     mutate: (query: SqlQuery) => Promise<void>;
 }> {
     const dir = createInMemoryOpfsDirectoryHandle();
-    const {seedPages, fileSizesInPages, viewId, tableName} = await buildSchemaSeed("Tasks");
+    const {seedPages, fileSizesInPages, viewId, sqlName} = await buildSchemaSeed("Tasks");
     for (const [tableId, pages] of seedPages) {
         await prepopulateOpfsTablePages(
             dir,
@@ -249,19 +249,19 @@ async function setupTestDatabase(): Promise<{
 
     const {conn, mutate} = createTestConnection(client);
 
-    return {client, conn, viewId, tableName, mutate};
+    return {client, conn, viewId, sqlName, mutate};
 }
 
 async function insertRows(
     conn: DatabaseWorkerConnection,
-    tableName: string,
+    sqlName: string,
     n: number,
 ): Promise<void> {
     const values = Array.from({length: n}, (_, i) => sql`(${"Task " + i})`);
     await conn.executeAction("rawSql", {
         ...rawSqlInputForTest(sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (name)
+                ${sql.identifier(sqlName)} (name)
             VALUES
                 ${sql.join(values, ", ")}
         `),
@@ -347,8 +347,8 @@ describe("DatabaseQuery constructor", () => {
 
 describe("DatabaseQuery loadInitialPage", () => {
     test("populates tree from database", async () => {
-        const {conn, viewId, tableName} = await setupTestDatabase();
-        await insertRows(conn, tableName, 5);
+        const {conn, viewId, sqlName} = await setupTestDatabase();
+        await insertRows(conn, sqlName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
         query.listen(conn);
@@ -374,8 +374,8 @@ describe("DatabaseQuery loadInitialPage", () => {
     });
 
     test("is no-op when pages already exist", async () => {
-        const {conn, viewId, tableName} = await setupTestDatabase();
-        await insertRows(conn, tableName, 3);
+        const {conn, viewId, sqlName} = await setupTestDatabase();
+        await insertRows(conn, sqlName, 3);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
         query.listen(conn);
@@ -393,9 +393,9 @@ describe("DatabaseQuery loadInitialPage", () => {
 
 describe("DatabaseQuery loadMore", () => {
     test("loads additional pages when needsMore is true", async () => {
-        const {conn, viewId, tableName} = await setupTestDatabase();
+        const {conn, viewId, sqlName} = await setupTestDatabase();
         const totalRows = databaseViewTargetRowsPerPage + 10;
-        await insertRows(conn, tableName, totalRows);
+        await insertRows(conn, sqlName, totalRows);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
         query.listen(conn);
@@ -413,8 +413,8 @@ describe("DatabaseQuery loadMore", () => {
     });
 
     test("is no-op when needsMore is false", async () => {
-        const {conn, viewId, tableName} = await setupTestDatabase();
-        await insertRows(conn, tableName, 5);
+        const {conn, viewId, sqlName} = await setupTestDatabase();
+        await insertRows(conn, sqlName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
         query.listen(conn);
@@ -432,8 +432,8 @@ describe("DatabaseQuery loadMore", () => {
 
 describe("DatabaseQuery reactive updates", () => {
     test("reflects inserted rows", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
-        await insertRows(conn, tableName, 3);
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
+        await insertRows(conn, sqlName, 3);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
         query.listen(conn);
@@ -443,7 +443,7 @@ describe("DatabaseQuery reactive updates", () => {
 
         await mutate(sql`
             INSERT INTO
-                ${sql.identifier(tableName)} (name)
+                ${sql.identifier(sqlName)} (name)
             VALUES
                 (${"New task"})
         `);
@@ -455,8 +455,8 @@ describe("DatabaseQuery reactive updates", () => {
     });
 
     test("reflects deleted rows", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
-        await insertRows(conn, tableName, 5);
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
+        await insertRows(conn, sqlName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
         query.listen(conn);
@@ -469,7 +469,7 @@ describe("DatabaseQuery reactive updates", () => {
         const targetId = items[0]!.getId();
 
         await mutate(sql`
-            DELETE FROM ${sql.identifier(tableName)}
+            DELETE FROM ${sql.identifier(sqlName)}
             WHERE
                 _id = ${targetId}
         `);
@@ -481,8 +481,8 @@ describe("DatabaseQuery reactive updates", () => {
     });
 
     test("handles all rows deleted to empty", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
-        await insertRows(conn, tableName, 2);
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
+        await insertRows(conn, sqlName, 2);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
         query.listen(conn);
@@ -490,7 +490,7 @@ describe("DatabaseQuery reactive updates", () => {
 
         expect(getTreeItemCount(query)).toBe(2);
 
-        await mutate(sql`DELETE FROM ${sql.identifier(tableName)}`);
+        await mutate(sql`DELETE FROM ${sql.identifier(sqlName)}`);
         await flush();
 
         expect(getTreeItemCount(query)).toBe(0);
@@ -502,8 +502,8 @@ describe("DatabaseQuery reactive updates", () => {
     });
 
     test("open-ended page recovers after all rows deleted", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
-        await insertRowsWithIds(mutate, tableName, [100, 200, 300]);
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
+        await insertRowsWithIds(mutate, sqlName, [100, 200, 300]);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -516,14 +516,14 @@ describe("DatabaseQuery reactive updates", () => {
         // 3 < target → endCursor=null → open-ended
         expect(query.needsMoreStore.getSnapshot()).toBe(false);
 
-        await deleteRowsWithIds(mutate, tableName, [100, 200, 300]);
+        await deleteRowsWithIds(mutate, sqlName, [100, 200, 300]);
         await flush();
 
         expect(getTreeItemCount(query)).toBe(0);
 
         // Insert new rows — watch is still alive so they appear via the existing
         // subscription.
-        await insertRowsWithIds(mutate, tableName, [400, 500]);
+        await insertRowsWithIds(mutate, sqlName, [400, 500]);
         await flush();
 
         expect(getTreeItemCount(query)).toBe(2);
@@ -532,11 +532,11 @@ describe("DatabaseQuery reactive updates", () => {
     });
 
     test("bounded page goes empty then rebalances with neighbor", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         // 20 rows → page 1 bounded (10 rows), page 2
         const times = Array.from({length: 20}, (_, i) => (i + 1) * 100);
-        await insertRowsWithIds(mutate, tableName, times);
+        await insertRowsWithIds(mutate, sqlName, times);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -553,7 +553,7 @@ describe("DatabaseQuery reactive updates", () => {
         // Delete all 10 rows in page 1 (times 100..1000). Page 1 is bounded — its cursor
         // range should stay covered so rebalance can merge it with page 2.
         const page1Times = Array.from({length: 10}, (_, i) => (i + 1) * 100);
-        await deleteRowsWithIds(mutate, tableName, page1Times);
+        await deleteRowsWithIds(mutate, sqlName, page1Times);
         await flushWithRebalance();
 
         // Rebalance merges the empty page with page 2 into a single page.
@@ -569,11 +569,11 @@ describe("DatabaseQuery reactive updates", () => {
     });
 
     test("rows inserted into emptied bounded page range appear", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         // 20 rows → page 1 bounded (10 rows), page 2
         const times = Array.from({length: 20}, (_, i) => (i + 1) * 100);
-        await insertRowsWithIds(mutate, tableName, times);
+        await insertRowsWithIds(mutate, sqlName, times);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -588,12 +588,12 @@ describe("DatabaseQuery reactive updates", () => {
 
         // Delete all rows from page 1
         const page1Times = Array.from({length: 10}, (_, i) => (i + 1) * 100);
-        await deleteRowsWithIds(mutate, tableName, page1Times);
+        await deleteRowsWithIds(mutate, sqlName, page1Times);
         await flush();
 
         // Insert new rows within page 1's cursor range. These should appear because the
         // watch still covers that range.
-        await insertRowsWithIds(mutate, tableName, [150, 250]);
+        await insertRowsWithIds(mutate, sqlName, [150, 250]);
         await flush();
 
         expect(getTreeItemCount(query)).toBe(12);
@@ -604,8 +604,8 @@ describe("DatabaseQuery reactive updates", () => {
 
 describe("DatabaseQuery dispose", () => {
     test("retains last tree value and resets isLoadingMore", async () => {
-        const {conn, viewId, tableName} = await setupTestDatabase();
-        await insertRows(conn, tableName, 5);
+        const {conn, viewId, sqlName} = await setupTestDatabase();
+        await insertRows(conn, sqlName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
         query.listen(conn);
@@ -622,8 +622,8 @@ describe("DatabaseQuery dispose", () => {
     });
 
     test("loadMore is no-op after dispose", async () => {
-        const {conn, viewId, tableName} = await setupTestDatabase();
-        await insertRows(conn, tableName, 5);
+        const {conn, viewId, sqlName} = await setupTestDatabase();
+        await insertRows(conn, sqlName, 5);
 
         const query = new DatabaseQuery({tableOrViewId: viewId});
         query.listen(conn);
@@ -651,7 +651,7 @@ function makeId(time: number): DatabaseRowId {
 
 async function insertRowsWithIds(
     mutate: (query: SqlQuery) => Promise<void>,
-    tableName: string,
+    sqlName: string,
     times: ReadonlyArray<number>,
 ): Promise<void> {
     if (times.length === 0) return;
@@ -665,7 +665,7 @@ async function insertRowsWithIds(
     );
     await mutate(sql`
         INSERT INTO
-            ${sql.identifier(tableName)} (_id, name)
+            ${sql.identifier(sqlName)} (_id, name)
         VALUES
             ${sql.join(values, ", ")}
     `);
@@ -673,13 +673,13 @@ async function insertRowsWithIds(
 
 async function deleteRowsWithIds(
     mutate: (query: SqlQuery) => Promise<void>,
-    tableName: string,
+    sqlName: string,
     times: ReadonlyArray<number>,
 ): Promise<void> {
     if (times.length === 0) return;
     const ids = times.map(t => sql`${makeId(t)}`);
     await mutate(sql`
-        DELETE FROM ${sql.identifier(tableName)}
+        DELETE FROM ${sql.identifier(sqlName)}
         WHERE
             _id IN (${sql.join(ids, ", ")})
     `);
@@ -709,11 +709,11 @@ describe("DatabaseQuery rebalance — split", () => {
     // target=10, split>=15, merge<=5
 
     test("page exceeding 1.5x target splits into two pages", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         // Insert 10 rows — exactly the target
         const initialTimes = Array.from({length: 10}, (_, i) => (i + 1) * 100);
-        await insertRowsWithIds(mutate, tableName, initialTimes);
+        await insertRowsWithIds(mutate, sqlName, initialTimes);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -728,7 +728,7 @@ describe("DatabaseQuery rebalance — split", () => {
 
         // Insert 5 rows within the page's cursor range (times < 1000 so \_id < endCursor)
         const extraTimes = [150, 250, 350, 450, 550];
-        await insertRowsWithIds(mutate, tableName, extraTimes);
+        await insertRowsWithIds(mutate, sqlName, extraTimes);
         await flushWithRebalance();
 
         // Should have split into 2 tree nodes
@@ -745,10 +745,10 @@ describe("DatabaseQuery rebalance — split", () => {
     });
 
     test("split of last page keeps second half open-ended", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         // Insert 3 rows — fewer than target → endCursor=null
-        await insertRowsWithIds(mutate, tableName, [100, 200, 300]);
+        await insertRowsWithIds(mutate, sqlName, [100, 200, 300]);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -762,7 +762,7 @@ describe("DatabaseQuery rebalance — split", () => {
 
         // Insert 12 more rows → total 15, page is open-ended
         const moreTimes = Array.from({length: 12}, (_, i) => 400 + i * 100);
-        await insertRowsWithIds(mutate, tableName, moreTimes);
+        await insertRowsWithIds(mutate, sqlName, moreTimes);
         await flushWithRebalance();
 
         expect(getTreeNodeCount(query)).toBe(2);
@@ -777,11 +777,11 @@ describe("DatabaseQuery rebalance — split", () => {
 
 describe("DatabaseQuery rebalance — merge", () => {
     test("two consecutive small pages merge into one", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         // 20 rows → 2 pages of 10
         const times = Array.from({length: 20}, (_, i) => (i + 1) * 100);
-        await insertRowsWithIds(mutate, tableName, times);
+        await insertRowsWithIds(mutate, sqlName, times);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -800,7 +800,7 @@ describe("DatabaseQuery rebalance — merge", () => {
         const deleteTimes = [
             100, 200, 300, 400, 500, 600, 700, 1100, 1200, 1300, 1400, 1500, 1600, 1700,
         ];
-        await deleteRowsWithIds(mutate, tableName, deleteTimes);
+        await deleteRowsWithIds(mutate, sqlName, deleteTimes);
         await flushWithRebalance();
 
         // 6 total rows → ceil(6/10) = 1 page
@@ -816,10 +816,10 @@ describe("DatabaseQuery rebalance — merge", () => {
     });
 
     test("single page below threshold does not merge", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         // 3 rows → one page with endCursor=null
-        await insertRowsWithIds(mutate, tableName, [100, 200, 300]);
+        await insertRowsWithIds(mutate, sqlName, [100, 200, 300]);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -839,11 +839,11 @@ describe("DatabaseQuery rebalance — merge", () => {
 
 describe("DatabaseQuery rebalance — merge forward", () => {
     test("small first page merges with next page", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         // 20 rows → 2 pages of 10
         const times = Array.from({length: 20}, (_, i) => (i + 1) * 100);
-        await insertRowsWithIds(mutate, tableName, times);
+        await insertRowsWithIds(mutate, sqlName, times);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -858,7 +858,7 @@ describe("DatabaseQuery rebalance — merge forward", () => {
 
         // Delete 7 from page 1 → 3 + 10. Page 1 is small, consumes page 2 → 13 total → 1
         // page.
-        await deleteRowsWithIds(mutate, tableName, [100, 200, 300, 400, 500, 600, 700]);
+        await deleteRowsWithIds(mutate, sqlName, [100, 200, 300, 400, 500, 600, 700]);
         await flushWithRebalance();
 
         expect(getTreeNodeCount(query)).toBe(1);
@@ -875,11 +875,11 @@ describe("DatabaseQuery rebalance — merge forward", () => {
 
 describe("DatabaseQuery rebalance — edge cases", () => {
     test("dispose during rebalance cleans up without error", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         await insertRowsWithIds(
             mutate,
-            tableName,
+            sqlName,
             Array.from({length: 3}, (_, i) => (i + 1) * 100),
         );
 
@@ -892,7 +892,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
 
         // Add enough rows to trigger split (15 total)
         const moreTimes = Array.from({length: 12}, (_, i) => 400 + i * 100);
-        await insertRowsWithIds(mutate, tableName, moreTimes);
+        await insertRowsWithIds(mutate, sqlName, moreTimes);
         await flush();
 
         // Dispose immediately — rebalance timer may be pending or in-flight.
@@ -903,10 +903,10 @@ describe("DatabaseQuery rebalance — edge cases", () => {
     });
 
     test("loadMore blocked during rebalance", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         const times = Array.from({length: 20}, (_, i) => (i + 1) * 100);
-        await insertRowsWithIds(mutate, tableName, times);
+        await insertRowsWithIds(mutate, sqlName, times);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -918,7 +918,7 @@ describe("DatabaseQuery rebalance — edge cases", () => {
         await flush();
 
         // Delete from page 2 to trigger rebalance
-        await deleteRowsWithIds(mutate, tableName, [1100, 1200, 1300, 1400, 1500, 1600]);
+        await deleteRowsWithIds(mutate, sqlName, [1100, 1200, 1300, 1400, 1500, 1600]);
         // Don't wait for rebalance — try loadMore immediately
         await flush();
 
@@ -933,11 +933,11 @@ describe("DatabaseQuery rebalance — edge cases", () => {
     });
 
     test("reactive update after split lands in correct page", async () => {
-        const {conn, viewId, tableName, mutate} = await setupTestDatabase();
+        const {conn, viewId, sqlName, mutate} = await setupTestDatabase();
 
         // 10 rows → 1 bounded page
         const initialTimes = Array.from({length: 10}, (_, i) => (i + 1) * 100);
-        await insertRowsWithIds(mutate, tableName, initialTimes);
+        await insertRowsWithIds(mutate, sqlName, initialTimes);
 
         const query = new DatabaseQuery({
             tableOrViewId: viewId,
@@ -947,14 +947,14 @@ describe("DatabaseQuery rebalance — edge cases", () => {
         await query.loadInitialPage();
 
         // Insert 5 within range → 15 → split
-        await insertRowsWithIds(mutate, tableName, [150, 250, 350, 450, 550]);
+        await insertRowsWithIds(mutate, sqlName, [150, 250, 350, 450, 550]);
         await flushWithRebalance();
 
         expect(getTreeNodeCount(query)).toBe(2);
         expect(getTreeItemCount(query)).toBe(15);
 
         // Insert one more row within the first page's range
-        await insertRowsWithIds(mutate, tableName, [120]);
+        await insertRowsWithIds(mutate, sqlName, [120]);
         await flush();
 
         expect(getTreeItemCount(query)).toBe(16);

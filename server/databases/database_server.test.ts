@@ -55,10 +55,10 @@ const testContext = {
     },
 } as any;
 
-function createTableInputForTest(name: string) {
+function createTableInputForTest(humanName: string) {
     return {
         tableId: generateChronologicalId<DatabaseTableId>(),
-        name,
+        humanName,
         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
         policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
     };
@@ -1079,7 +1079,7 @@ describe("DatabaseServer", () => {
                     name: "syncTableMetadata",
                     input: {
                         tableId: generateChronologicalId<DatabaseTableId>(),
-                        name: "Tasks",
+                        humanName: "Tasks",
                         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
                         policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
                     },
@@ -1127,7 +1127,7 @@ describe("DatabaseServer", () => {
                 name: "createTable",
                 input: {
                     tableId,
-                    name: "Tasks",
+                    humanName: "Tasks",
                     accessPolicy: databaseTableAccessPolicyForCreator(creator),
                     policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
                 },
@@ -1321,7 +1321,7 @@ describe("DatabaseServer — per-table storage", () => {
             input: {
                 joinTableId: generateChronologicalId<DatabaseTableId>(),
                 sourceTableId: source.tableId,
-                sourceFieldName: "Project",
+                sourceFieldHumanName: "Project",
                 targetTableId: target.tableId,
                 cardinality: "many",
             },
@@ -1371,32 +1371,32 @@ describe("DatabaseServer — per-table access", () => {
 
     function createTableWithPolicy(
         server: DatabaseServer,
-        name: string,
+        humanName: string,
         accessPolicy: LocalAccessPolicy,
-    ): {tableId: DatabaseTableId; tableName: string} {
+    ): {tableId: DatabaseTableId; sqlName: string} {
         const tableId = generateChronologicalId<DatabaseTableId>();
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {
                 tableId,
-                name,
+                humanName,
                 accessPolicy,
                 policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
             },
         });
-        return {tableId, tableName: result.tableName};
+        return {tableId, sqlName: result.sqlName};
     }
 
-    function selectAllFromTable(tableName: string) {
+    function selectAllFromTable(sqlName: string) {
         return {
             name: "readonlyRawSql" as const,
-            input: {sql: `SELECT * FROM "${tableName}"`},
+            input: {sql: `SELECT * FROM "${sqlName}"`},
         };
     }
 
     test("denies reads of a table the account has no access to", async () => {
         const server = await createServer();
-        const {tableId, tableName} = createTableWithPolicy(
+        const {tableId, sqlName} = createTableWithPolicy(
             server,
             "Tasks",
             databaseTableAccessPolicyForCreator(testAccountId),
@@ -1404,14 +1404,14 @@ describe("DatabaseServer — per-table access", () => {
         const outsider = generateId<AccountId>();
 
         expect(() =>
-            server.executeAction(createSessionContext(outsider), selectAllFromTable(tableName)),
+            server.executeAction(createSessionContext(outsider), selectAllFromTable(sqlName)),
         ).toThrow(`Permission denied for read on database table ${tableId}`);
     });
 
     test("allows reads at View level", async () => {
         const server = await createServer();
         const viewer = generateId<AccountId>();
-        const {tableName} = createTableWithPolicy(
+        const {sqlName} = createTableWithPolicy(
             server,
             "Tasks",
             localPolicyWithGrants([[viewer, "View"]]),
@@ -1419,7 +1419,7 @@ describe("DatabaseServer — per-table access", () => {
 
         const {result} = server.executeAction<"readonlyRawSql">(
             createSessionContext(viewer),
-            selectAllFromTable(tableName),
+            selectAllFromTable(sqlName),
         );
 
         expect(result.rows).toEqual([]);
@@ -1442,7 +1442,7 @@ describe("DatabaseServer — per-table access", () => {
                 input: {
                     fieldId: generateChronologicalId<DatabaseFieldId>(),
                     tableId,
-                    name: "Notes",
+                    humanName: "Notes",
                     config: {type: "plainText"},
                 },
             }),
@@ -1464,7 +1464,7 @@ describe("DatabaseServer — per-table access", () => {
                 input: {
                     fieldId: generateChronologicalId<DatabaseFieldId>(),
                     tableId,
-                    name: "Notes",
+                    humanName: "Notes",
                     config: {type: "plainText"},
                 },
             }),
@@ -1475,11 +1475,11 @@ describe("DatabaseServer — per-table access", () => {
         const server = await createServer();
         // A policy granting nobody anything; a `System` actor (holding space-wide
         // authority and no account) must still read.
-        const {tableName} = createTableWithPolicy(server, "Tasks", localPolicyWithGrants([]));
+        const {sqlName} = createTableWithPolicy(server, "Tasks", localPolicyWithGrants([]));
 
         const {result} = server.executeAction<"readonlyRawSql">(
             testContext,
-            selectAllFromTable(tableName),
+            selectAllFromTable(sqlName),
         );
 
         expect(result.rows).toEqual([]);
@@ -1488,28 +1488,28 @@ describe("DatabaseServer — per-table access", () => {
     test("a policy update through syncTableMetadata revokes access mid-session", async () => {
         const server = await createServer();
         const viewer = generateId<AccountId>();
-        const {tableId, tableName} = createTableWithPolicy(
+        const {tableId, sqlName} = createTableWithPolicy(
             server,
             "Tasks",
             localPolicyWithGrants([[viewer, "View"]]),
         );
         server.executeAction<"readonlyRawSql">(
             createSessionContext(viewer),
-            selectAllFromTable(tableName),
+            selectAllFromTable(sqlName),
         );
 
         server.executeAction<"syncTableMetadata">(testContext, {
             name: "syncTableMetadata",
             input: {
                 tableId,
-                name: "Tasks",
+                humanName: "Tasks",
                 accessPolicy: localPolicyWithGrants([]),
                 policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 0},
             },
         });
 
         expect(() =>
-            server.executeAction(createSessionContext(viewer), selectAllFromTable(tableName)),
+            server.executeAction(createSessionContext(viewer), selectAllFromTable(sqlName)),
         ).toThrow(`Permission denied for read on database table ${tableId}`);
     });
 
@@ -1527,7 +1527,7 @@ describe("DatabaseServer — per-table access", () => {
             name: "syncTableMetadata",
             input: {
                 tableId,
-                name: "Current",
+                humanName: "Current",
                 accessPolicy: currentPolicy,
                 policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 5},
             },
@@ -1536,7 +1536,7 @@ describe("DatabaseServer — per-table access", () => {
             name: "syncTableMetadata",
             input: {
                 tableId,
-                name: "Stale",
+                humanName: "Stale",
                 accessPolicy: localPolicyWithGrants([[viewer, "View"]]),
                 policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 4},
             },
@@ -1544,8 +1544,8 @@ describe("DatabaseServer — per-table access", () => {
 
         expect({
             policy: server.getDatabaseTableAccessPolicy(tableId),
-            tableName: staleResult.tableName,
-        }).toEqual({policy: currentPolicy, tableName: "current"});
+            sqlName: staleResult.sqlName,
+        }).toEqual({policy: currentPolicy, sqlName: "current"});
     });
 
     // Linked-records scenario: Tasks и People joined by an "Assignee" relation.
@@ -1578,7 +1578,7 @@ describe("DatabaseServer — per-table access", () => {
             input: {
                 joinTableId,
                 sourceTableId: tasks.tableId,
-                sourceFieldName: "Assignee",
+                sourceFieldHumanName: "Assignee",
                 targetTableId: people.tableId,
                 cardinality: "many",
             },
@@ -1694,7 +1694,7 @@ describe("DatabaseServer — per-table access", () => {
                 input: {
                     joinTableId,
                     sourceTableId: scenario.tasks.tableId,
-                    sourceFieldName: "Reviewer",
+                    sourceFieldHumanName: "Reviewer",
                     targetTableId: scenario.people.tableId,
                     cardinality: "many",
                 },
@@ -1781,7 +1781,7 @@ describe("DatabaseServer — per-table access", () => {
             },
         );
 
-        expect(result).toEqual({linkedTableName: "No access", rows: []});
+        expect(result).toEqual({linkedTableHumanName: "No access", rows: []});
     });
 
     test("view rows include linked record names when the linked table is readable", async () => {
@@ -1818,7 +1818,7 @@ describe("DatabaseServer — per-table access", () => {
                 input: {
                     joinTableId: generateChronologicalId<DatabaseTableId>(),
                     sourceTableId: scenario.tasks.tableId,
-                    sourceFieldName: "Reviewer",
+                    sourceFieldHumanName: "Reviewer",
                     targetTableId: scenario.people.tableId,
                     cardinality: "many",
                 },
@@ -1837,7 +1837,7 @@ describe("DatabaseServer — table access levels", () => {
             name: "createTable",
             input: {
                 tableId: generateChronologicalId<DatabaseTableId>(),
-                name: "Readable",
+                humanName: "Readable",
                 accessPolicy: {
                     type: "Local",
                     accountGrantById: new Map([[viewer, {level: "View" as const}]]),
@@ -1851,7 +1851,7 @@ describe("DatabaseServer — table access levels", () => {
             name: "createTable",
             input: {
                 tableId: generateChronologicalId<DatabaseTableId>(),
-                name: "Hidden",
+                humanName: "Hidden",
                 accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
                 policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
             },

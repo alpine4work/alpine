@@ -131,7 +131,7 @@ function selectionReducer(
 export function DatabaseGridView({
     tableId,
     viewId,
-    tableName,
+    humanName,
     initialAccessPolicy,
     accessPolicySiteById,
     onTableMetadataEvents,
@@ -140,7 +140,7 @@ export function DatabaseGridView({
 }: {
     tableId: DatabaseTableId;
     viewId: DatabaseViewId;
-    tableName: string;
+    humanName: string;
     initialAccessPolicy: AccessPolicy;
     accessPolicySiteById: ReadonlyMap<SiteId, SitePreviewModel>;
     onTableMetadataEvents: (events: ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>) => void;
@@ -464,7 +464,7 @@ export function DatabaseGridView({
                         color="grey-100"
                         overflow="hidden"
                     >
-                        {tableName}
+                        {humanName}
                     </Box>
                     <Box flexShrink="0">
                         <ShareButton
@@ -747,7 +747,7 @@ function DatabaseGridViewCell({
         >
             <Box
                 data-testid="DatabaseGridViewCell"
-                data-field-name={field.name}
+                data-field-name={field.humanName}
                 border="transparent"
                 style={{
                     ...field.columnStyle,

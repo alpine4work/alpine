@@ -93,10 +93,10 @@ function run<N extends DatabaseActionName>(
     return executeDatabaseAction<N>({name, input} as any, makeCtx(db));
 }
 
-function createTableForTest(db: Database, name: string): DatabaseActionOutput<"createTable"> {
+function createTableForTest(db: Database, humanName: string): DatabaseActionOutput<"createTable"> {
     return run(db, "createTable", {
         tableId: generateChronologicalId<DatabaseTableId>(),
-        name,
+        humanName,
         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
         policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
     });
@@ -105,10 +105,10 @@ function createTableForTest(db: Database, name: string): DatabaseActionOutput<"c
 describe("createTable", () => {
     test("registers an id-only row in the main database", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "Tasks");
+        const {tableId, sqlName} = createTableForTest(db, "Tasks");
 
         expect(isId(tableId)).toBe(true);
-        expect(tableName).toBe("tasks");
+        expect(sqlName).toBe("tasks");
 
         // The public main database holds only ids and storage kind — no name.
         const tables = sql`
@@ -177,11 +177,11 @@ describe("createTable", () => {
 
     test("creates a queryable table with system columns", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "Tasks");
+        const {tableId, sqlName} = createTableForTest(db, "Tasks");
 
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (name)
+                ${sql.tableRef(tableId, sqlName)} (name)
             VALUES
                 ('Do laundry')
         `.exec(db);
@@ -189,7 +189,7 @@ describe("createTable", () => {
             SELECT
                 *
             FROM
-                ${sql.tableRef(tableId, tableName)}
+                ${sql.tableRef(tableId, sqlName)}
         `.selectAllUnknown(db);
 
         expect(isId(rows[0]!._id as string)).toBe(true);
@@ -199,17 +199,17 @@ describe("createTable", () => {
 
     test("_id auto-generates a ChronologicalId", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
 
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (name)
+                ${sql.tableRef(tableId, sqlName)} (name)
             VALUES
                 ('a')
         `.exec(db);
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (name)
+                ${sql.tableRef(tableId, sqlName)} (name)
             VALUES
                 ('b')
         `.exec(db);
@@ -217,7 +217,7 @@ describe("createTable", () => {
             SELECT
                 _id
             FROM
-                ${sql.tableRef(tableId, tableName)}
+                ${sql.tableRef(tableId, sqlName)}
             ORDER BY
                 _id
         `.selectAllUnknown(db);
@@ -230,11 +230,11 @@ describe("createTable", () => {
 
     test("_created_at auto-populates with datetime", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
 
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (name)
+                ${sql.tableRef(tableId, sqlName)} (name)
             VALUES
                 ('x')
         `.exec(db);
@@ -242,7 +242,7 @@ describe("createTable", () => {
             SELECT
                 _created_at
             FROM
-                ${sql.tableRef(tableId, tableName)}
+                ${sql.tableRef(tableId, sqlName)}
         `.selectOne(db, {
             createdAt: Schema.string.originalPropertyKey("_created_at"),
         }).createdAt;
@@ -253,12 +253,12 @@ describe("createTable", () => {
 
     test("_created_at CHECK rejects unparseable values", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
 
         expect(() => {
             sql`
                 INSERT INTO
-                    ${sql.tableRef(tableId, tableName)} (_created_at, name)
+                    ${sql.tableRef(tableId, sqlName)} (_created_at, name)
                 VALUES
                     ('not-a-date', 'x')
             `.exec(db);
@@ -267,18 +267,18 @@ describe("createTable", () => {
 
     test("name column defaults to empty string", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
 
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} DEFAULT
+                ${sql.tableRef(tableId, sqlName)} DEFAULT
             VALUES
         `.exec(db);
         const name = sql`
             SELECT
                 name
             FROM
-                ${sql.tableRef(tableId, tableName)}
+                ${sql.tableRef(tableId, sqlName)}
         `.selectOne(db, {
             name: Schema.string,
         }).name;
@@ -287,12 +287,12 @@ describe("createTable", () => {
 
     test("name column CHECK rejects blobs", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
 
         expect(() => {
             sql`
                 INSERT INTO
-                    ${sql.tableRef(tableId, tableName)} (name)
+                    ${sql.tableRef(tableId, sqlName)} (name)
                 VALUES
                     (x'00')
             `.exec(db);
@@ -301,10 +301,10 @@ describe("createTable", () => {
 
     test("column type is encoded in type name", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
 
         const colInfo = sql`
-            PRAGMA ${sql.tableRef(tableId, "table_info")} (${sql.identifier(tableName)})
+            PRAGMA ${sql.tableRef(tableId, "table_info")} (${sql.identifier(sqlName)})
         `.selectAllUnknown(db);
 
         const nameCol = colInfo.find(c => c.name === "name");
@@ -316,16 +316,16 @@ describe("createTable", () => {
         const first = createTableForTest(db, "Tasks");
         const second = createTableForTest(db, "Tasks");
 
-        expect(first.tableName).toBe("tasks");
-        expect(second.tableName).toBe("tasks_2");
+        expect(first.sqlName).toBe("tasks");
+        expect(second.sqlName).toBe("tasks_2");
     });
 
     test("index exists on _created_at", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
 
         const indexes = sql`
-            PRAGMA ${sql.tableRef(tableId, "index_list")} (${sql.identifier(tableName)})
+            PRAGMA ${sql.tableRef(tableId, "index_list")} (${sql.identifier(sqlName)})
         `.selectAllUnknown(db);
 
         expect(indexes.some(idx => (idx.name as string).includes("_created_at"))).toBe(true);
@@ -495,11 +495,16 @@ function addFieldAndGetId(
     db: SqliteDatabase,
     tableId: DatabaseTableId,
     viewId: DatabaseViewId,
-    name: string,
+    humanName: string,
     type: "plainText" | "checkbox" | "number" = "plainText",
 ) {
     const fieldId = generateChronologicalId<DatabaseFieldId>();
-    run(db, "createField", {fieldId, tableId, name, config: getDefaultFieldConfig(type)});
+    run(db, "createField", {
+        fieldId,
+        tableId,
+        humanName,
+        config: getDefaultFieldConfig(type),
+    });
     return {fieldId};
 }
 
@@ -625,10 +630,10 @@ function readLinks(
 describe("rawSql", () => {
     test("SELECT passes rows through", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (name)
+                ${sql.tableRef(tableId, sqlName)} (name)
             VALUES
                 ('a'),
                 ('b')
@@ -639,7 +644,7 @@ describe("rawSql", () => {
                 SELECT
                     name
                 FROM
-                    ${sql.tableRef(tableId, tableName)}
+                    ${sql.tableRef(tableId, sqlName)}
                 ORDER BY
                     name
             `.query,
@@ -651,12 +656,12 @@ describe("rawSql", () => {
 
     test("INSERT goes through (writeLevel: data)", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
 
         run(db, "rawSql", {
             sql: sql`
                 INSERT INTO
-                    ${sql.tableRef(tableId, tableName)} (name)
+                    ${sql.tableRef(tableId, sqlName)} (name)
                 VALUES
                     ('inserted')
             `.query,
@@ -666,7 +671,7 @@ describe("rawSql", () => {
             SELECT
                 name
             FROM
-                ${sql.tableRef(tableId, tableName)}
+                ${sql.tableRef(tableId, sqlName)}
         `.selectAllUnknown(db);
         expect(rows).toMatchObject([{name: "inserted"}]);
         db.close();
@@ -676,10 +681,10 @@ describe("rawSql", () => {
 describe("readonlyRawSql", () => {
     test("SELECT passes rows through", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (name)
+                ${sql.tableRef(tableId, sqlName)} (name)
             VALUES
                 ('hello')
         `.exec(db);
@@ -689,7 +694,7 @@ describe("readonlyRawSql", () => {
                 SELECT
                     name
                 FROM
-                    ${sql.tableRef(tableId, tableName)}
+                    ${sql.tableRef(tableId, sqlName)}
             `.query,
         });
 
@@ -699,14 +704,14 @@ describe("readonlyRawSql", () => {
 
     test("returns empty array for empty result set", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
 
         const {rows} = run(db, "readonlyRawSql", {
             sql: sql`
                 SELECT
                     *
                 FROM
-                    ${sql.tableRef(tableId, tableName)}
+                    ${sql.tableRef(tableId, sqlName)}
             `.query,
         });
 
@@ -763,7 +768,7 @@ describe("listTables", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: first.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: second.tableId,
             cardinality: "many",
         });
@@ -771,8 +776,8 @@ describe("listTables", () => {
         const {tables} = run(db, "listTables", {});
 
         expect(tables).toEqual([
-            {id: first.tableId, name: "Tasks"},
-            {id: second.tableId, name: "Projects"},
+            {id: first.tableId, humanName: "Tasks"},
+            {id: second.tableId, humanName: "Projects"},
         ]);
         expect(tables.map(table => table.id)).not.toContain(relation.joinTableId);
         db.close();
@@ -802,7 +807,7 @@ describe("createRelationField", () => {
         const result = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "one",
         });
@@ -919,7 +924,7 @@ describe("createRelationField", () => {
         const result = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -936,7 +941,7 @@ describe("createRelationField", () => {
         const result = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: table.tableId,
-            sourceFieldName: "Related",
+            sourceFieldHumanName: "Related",
             targetTableId: table.tableId,
             cardinality: "many",
         });
@@ -976,7 +981,7 @@ describe("addLink", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1007,7 +1012,7 @@ describe("addLink", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "one",
         });
@@ -1047,7 +1052,7 @@ describe("addLink", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1072,7 +1077,7 @@ describe("addLink", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "one",
         });
@@ -1108,7 +1113,7 @@ describe("removeLink", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1154,7 +1159,7 @@ describe("removeLink", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: table.tableId,
-            sourceFieldName: "Related",
+            sourceFieldHumanName: "Related",
             targetTableId: table.tableId,
             cardinality: "many",
         });
@@ -1187,7 +1192,7 @@ describe("listLinkableRows", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1231,7 +1236,7 @@ describe("listLinkableRows", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1261,7 +1266,7 @@ describe("listLinkableRows", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1295,7 +1300,7 @@ describe("listLinkableRows", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1329,19 +1334,19 @@ describe("listLinkableRows", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
 
-        const {linkedTableName} = run(db, "listLinkableRows", {
+        const {linkedTableHumanName} = run(db, "listLinkableRows", {
             tableId: source.tableId,
             fieldId: relation.sourceFieldId,
             rowId: sourceRowId,
         });
 
-        expect(linkedTableName).toBe("Projects");
+        expect(linkedTableHumanName).toBe("Projects");
         db.close();
     });
 });
@@ -1354,7 +1359,7 @@ describe("listLinkedRows", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1396,7 +1401,7 @@ describe("moveLink", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1453,7 +1458,7 @@ describe("createAndLinkRow", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1485,7 +1490,7 @@ describe("createAndLinkRow", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "one",
         });
@@ -1522,26 +1527,26 @@ describe("createAndLinkRow", () => {
 function renameTableForTest(
     db: Database,
     tableId: DatabaseTableId,
-    name: string,
+    humanName: string,
 ): DatabaseActionOutput<"syncTableMetadata"> {
     return run(db, "syncTableMetadata", {
         tableId,
-        name,
+        humanName,
         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
         policyRevision: {tableMetadataVersion: 2, sourcePolicyVersion: 0},
     });
 }
 
 describe("syncTableMetadata", () => {
-    test("relabels without changing tableName when slug is unchanged", async () => {
+    test("relabels without changing sqlName when slug is unchanged", async () => {
         const db = await createDb();
-        const {tableId, tableName: original} = createTableForTest(db, "Tasks");
+        const {tableId, sqlName: original} = createTableForTest(db, "Tasks");
 
         // "Tasks" and "Tasks!" both slugify to "tasks", so the SQL table name should not
         // change — only the label.
-        const {tableName} = renameTableForTest(db, tableId, "Tasks!");
+        const {sqlName} = renameTableForTest(db, tableId, "Tasks!");
 
-        expect(tableName).toBe(original);
+        expect(sqlName).toBe(original);
         const rows = sql`
             SELECT
                 name,
@@ -1563,9 +1568,9 @@ describe("syncTableMetadata", () => {
                 ('keep me')
         `.exec(db);
 
-        const {tableName} = renameTableForTest(db, tableId, "Projects");
+        const {sqlName} = renameTableForTest(db, tableId, "Projects");
 
-        expect(tableName).toBe("projects");
+        expect(sqlName).toBe("projects");
         // Data survives the rename.
         const rows = sql`
             SELECT
@@ -1587,9 +1592,9 @@ describe("syncTableMetadata", () => {
         createTableForTest(db, "Tasks");
         const {tableId} = createTableForTest(db, "Projects");
 
-        const {tableName} = renameTableForTest(db, tableId, "Tasks");
+        const {sqlName} = renameTableForTest(db, tableId, "Tasks");
 
-        expect(tableName).toBe("tasks_2");
+        expect(sqlName).toBe("tasks_2");
         db.close();
     });
 
@@ -1603,7 +1608,7 @@ describe("syncTableMetadata", () => {
         // a stale value would let a new "Projects" table collide (or block "Tasks"
         // forever).
         const collision = createTableForTest(db, "Projects");
-        expect(collision.tableName).toBe("projects_2");
+        expect(collision.sqlName).toBe("projects_2");
         db.close();
     });
 });
@@ -1611,10 +1616,10 @@ describe("syncTableMetadata", () => {
 describe("getViewRowsPageCursor", () => {
     test("returns null endCursor when fewer rows than limit exist", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (name)
+                ${sql.tableRef(tableId, sqlName)} (name)
             VALUES
                 ('a'),
                 ('b')
@@ -1626,19 +1631,19 @@ describe("getViewRowsPageCursor", () => {
             limit: 5,
         });
 
-        expect(result).toMatchObject({tableId, viewId, tableName, endCursor: null});
+        expect(result).toMatchObject({tableId, viewId, sqlName, endCursor: null});
     });
 
     test("returns endCursor when row count equals limit", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         const ids: Array<string> = [];
         for (let i = 0; i < 3; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
             ids.push(id);
             sql`
                 INSERT INTO
-                    ${sql.tableRef(tableId, tableName)} (_id, name)
+                    ${sql.tableRef(tableId, sqlName)} (_id, name)
                 VALUES
                     (
                         ${id},
@@ -1659,14 +1664,14 @@ describe("getViewRowsPageCursor", () => {
 
     test("after-cursor pagination skips earlier rows", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         const ids: Array<DatabaseRowId> = [];
         for (let i = 0; i < 5; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
             ids.push(id);
             sql`
                 INSERT INTO
-                    ${sql.tableRef(tableId, tableName)} (_id)
+                    ${sql.tableRef(tableId, sqlName)} (_id)
                 VALUES
                     (${id})
             `.exec(db);
@@ -1686,12 +1691,12 @@ describe("getViewRowsPageCursor", () => {
 describe("getViewRowsPage", () => {
     test("returns rows in id order with _id at position 0 and view fields at positions 1..n", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         const id1 = generateChronologicalId<DatabaseRowId>();
         const id2 = generateChronologicalId<DatabaseRowId>();
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (_id, name)
+                ${sql.tableRef(tableId, sqlName)} (_id, name)
             VALUES
                 (
                     ${id1},
@@ -1700,7 +1705,7 @@ describe("getViewRowsPage", () => {
         `.exec(db);
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (_id, name)
+                ${sql.tableRef(tableId, sqlName)} (_id, name)
             VALUES
                 (
                     ${id2},
@@ -1725,14 +1730,14 @@ describe("getViewRowsPage", () => {
 
     test("filters by both afterCursor and endCursor when both are set", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         const ids: Array<DatabaseRowId> = [];
         for (let i = 0; i < 4; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
             ids.push(id);
             sql`
                 INSERT INTO
-                    ${sql.tableRef(tableId, tableName)} (_id)
+                    ${sql.tableRef(tableId, sqlName)} (_id)
                 VALUES
                     (${id})
             `.exec(db);
@@ -1749,14 +1754,14 @@ describe("getViewRowsPage", () => {
 
     test("after-only and end-only cursor branches return the expected slices", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         const ids: Array<DatabaseRowId> = [];
         for (let i = 0; i < 3; i++) {
             const id = generateChronologicalId<DatabaseRowId>();
             ids.push(id);
             sql`
                 INSERT INTO
-                    ${sql.tableRef(tableId, tableName)} (_id)
+                    ${sql.tableRef(tableId, sqlName)} (_id)
                 VALUES
                     (${id})
             `.exec(db);
@@ -1779,12 +1784,12 @@ describe("getViewRowsPage", () => {
 
     test("checkbox values are deserialized via the field provider sqlValueSchema", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Done", "checkbox");
         const rowId = generateChronologicalId<DatabaseRowId>();
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (_id)
+                ${sql.tableRef(tableId, sqlName)} (_id)
             VALUES
                 (${rowId})
         `.exec(db);
@@ -1807,7 +1812,7 @@ describe("getViewRowsPage", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1890,7 +1895,7 @@ describe("getViewRowsPage", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1928,7 +1933,7 @@ describe("getViewRowsPage", () => {
         run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -1954,7 +1959,7 @@ describe("getViewRowsPage", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: table.tableId,
-            sourceFieldName: "Related",
+            sourceFieldHumanName: "Related",
             targetTableId: table.tableId,
             cardinality: "many",
         });
@@ -2011,7 +2016,7 @@ describe("getViewRowsPage", () => {
 describe("updateCellValue", () => {
     test("writes the value to the table after serializing through the provider", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         const {fieldId: nameFieldId} = sql`
             SELECT
                 id
@@ -2023,7 +2028,7 @@ describe("updateCellValue", () => {
         const rowId = generateChronologicalId<DatabaseRowId>();
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (_id)
+                ${sql.tableRef(tableId, sqlName)} (_id)
             VALUES
                 (${rowId})
         `.exec(db);
@@ -2048,12 +2053,12 @@ describe("updateCellValue", () => {
 
     test("rejects virtual fields", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         const {fieldId} = addRelationFieldMetadata(db, tableId, viewId);
         const rowId = generateChronologicalId<DatabaseRowId>();
         sql`
             INSERT INTO
-                ${sql.tableRef(tableId, tableName)} (_id)
+                ${sql.tableRef(tableId, sqlName)} (_id)
             VALUES
                 (${rowId})
         `.exec(db);
@@ -2086,7 +2091,7 @@ describe("createField", () => {
         run(db, "createField", {
             fieldId,
             tableId,
-            name: "Status",
+            humanName: "Status",
             config: {type: "plainText"},
         });
 
@@ -2129,7 +2134,7 @@ describe("createField", () => {
             run(db, "createField", {
                 fieldId,
                 tableId,
-                name: "Links",
+                humanName: "Links",
                 config: {
                     type: "relation",
                     joinTableId: generateChronologicalId<DatabaseTableId>(),
@@ -2151,7 +2156,7 @@ describe("updateFieldConfig", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -2175,7 +2180,7 @@ describe("updateFieldConfig", () => {
 describe("createRow", () => {
     test("inserts a row with the given _id and uses column defaults for the rest", async () => {
         const db = await createDb();
-        const {tableId, tableName} = createTableForTest(db, "T");
+        const {tableId, sqlName} = createTableForTest(db, "T");
         const rowId = generateChronologicalId<DatabaseRowId>();
 
         run(db, "createRow", {tableId, rowId});
@@ -2184,7 +2189,7 @@ describe("createRow", () => {
             SELECT
                 *
             FROM
-                ${sql.tableRef(tableId, tableName)}
+                ${sql.tableRef(tableId, sqlName)}
         `.selectAllUnknown(db);
         expect(rows).toMatchObject([{_id: rowId, name: ""}]);
         expect(rows[0]!._created_at).toBeDefined();
@@ -2217,10 +2222,10 @@ describe("resizeField", () => {
 describe("renameField", () => {
     test("renames both the metadata row and the underlying SQL column", async () => {
         const db = await createDb();
-        const {tableId, viewId, tableName} = createTableForTest(db, "T");
+        const {tableId, viewId, sqlName} = createTableForTest(db, "T");
         const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Status");
 
-        run(db, "renameField", {tableId, fieldId, name: "Priority"});
+        run(db, "renameField", {tableId, fieldId, humanName: "Priority"});
 
         const meta = sql`
             SELECT
@@ -2242,7 +2247,7 @@ describe("renameField", () => {
             SELECT
                 priority
             FROM
-                ${sql.tableRef(tableId, tableName)}
+                ${sql.tableRef(tableId, sqlName)}
         `.selectAllUnknown(db);
         db.close();
     });
@@ -2255,7 +2260,7 @@ describe("renameField", () => {
 
         // Rename Status → Priority. The "priority" column is taken by the other field, so
         // a suffix should be added.
-        run(db, "renameField", {tableId, fieldId: statusId, name: "Priority"});
+        run(db, "renameField", {tableId, fieldId: statusId, humanName: "Priority"});
 
         const meta = sql`
             SELECT
@@ -2277,7 +2282,7 @@ describe("renameField", () => {
         // The existing field's column is "status"; renaming to "Status!" still slugifies
         // to "status" — but the dedup loop excludes the field being renamed
         // (`AND id != ${fieldId}`) so no suffix is added.
-        run(db, "renameField", {tableId, fieldId, name: "Status!"});
+        run(db, "renameField", {tableId, fieldId, humanName: "Status!"});
 
         const meta = sql`
             SELECT
@@ -2298,7 +2303,7 @@ describe("renameField", () => {
         const relation = run(db, "createRelationField", {
             joinTableId: generateChronologicalId<DatabaseTableId>(),
             sourceTableId: source.tableId,
-            sourceFieldName: "Project",
+            sourceFieldHumanName: "Project",
             targetTableId: target.tableId,
             cardinality: "many",
         });
@@ -2306,7 +2311,7 @@ describe("renameField", () => {
         run(db, "renameField", {
             tableId: source.tableId,
             fieldId: relation.sourceFieldId,
-            name: "Partners",
+            humanName: "Partners",
         });
 
         const meta = sql`

@@ -277,7 +277,7 @@ export class DatabaseModel {
 
         sql`
             CREATE INDEX ${joinTable.schema}._alpine_join_table_source_row_id ON ${sql.identifier(
-                joinTable.tableName,
+                joinTable.sqlName,
             )} (
                 ${sourceRowIdColumn},
                 ${sourcePositionColumn}
@@ -286,7 +286,7 @@ export class DatabaseModel {
 
         sql`
             CREATE INDEX ${joinTable.schema}._alpine_join_table_target_row_id ON ${sql.identifier(
-                joinTable.tableName,
+                joinTable.sqlName,
             )} (
                 ${targetRowIdColumn},
                 ${targetPositionColumn}

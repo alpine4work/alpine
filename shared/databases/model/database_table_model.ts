@@ -43,10 +43,10 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
         return this.row.id;
     }
     get humanName() {
-        return this.row.name;
+        return this.row.humanName;
     }
     get sqlName() {
-        return this.row.tableName;
+        return this.row.sqlName;
     }
     get nameFieldId() {
         return this.row.nameFieldId;

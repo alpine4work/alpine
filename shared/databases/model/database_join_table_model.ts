@@ -13,14 +13,14 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
     ) {
         const schema = sql.identifier(databaseTableSchemaName(row.id));
         super(schema, root);
-        this.tableRef = sql.identifier(databaseTableSchemaName(this.id), this.tableName);
+        this.tableRef = sql.identifier(databaseTableSchemaName(this.id), this.sqlName);
     }
 
     get id() {
         return this.row.id;
     }
-    get tableName() {
-        return this.row.tableName;
+    get sqlName() {
+        return this.row.sqlName;
     }
     get sourceTableId() {
         return this.row.sourceTableId;
@@ -73,7 +73,7 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
             excludeTableId: this.id,
         });
 
-        if (joinTableName === this.tableName) return;
+        if (joinTableName === this.sqlName) return;
 
         sql`
             ALTER TABLE ${this.tableRef}

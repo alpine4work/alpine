@@ -50,7 +50,7 @@ export async function createDatabaseTable(
         name: "createTable",
         input: {
             tableId,
-            name,
+            humanName: name,
             accessPolicy,
             policyRevision: {
                 tableMetadataVersion: initialTableMetadataVersion,
@@ -318,7 +318,7 @@ export async function syncDatabaseTableMetadataToDurableObject(
         name: "syncTableMetadata",
         input: {
             tableId,
-            name,
+            humanName: name,
             accessPolicy: replica.accessPolicy,
             policyRevision: replica.revision,
         },

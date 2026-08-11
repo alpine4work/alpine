@@ -201,7 +201,7 @@ function DatabaseViewRouteContent() {
         <DatabaseGridView
             tableId={schemaResult.value.tableId}
             viewId={schemaResult.value.viewId}
-            tableName={schemaResult.value.tableName}
+            humanName={schemaResult.value.humanName}
             initialAccessPolicy={tableMetadataItem.model.accessPolicy}
             accessPolicySiteById={loaderData.accessPolicySiteById}
             onTableMetadataEvents={handleTableMetadataEvents}

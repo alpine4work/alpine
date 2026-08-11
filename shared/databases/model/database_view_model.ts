@@ -24,7 +24,7 @@ export class DatabaseViewModel extends DatabaseTableScopedBaseModel {
         return this.row.id;
     }
     get name() {
-        return this.row.name;
+        return this.row.humanName;
     }
 
     getFields() {
@@ -65,8 +65,8 @@ export class DatabaseViewModel extends DatabaseTableScopedBaseModel {
                 view_fields.position
         `.selectAll(this.db, {
             id: DatabaseFieldRow.id,
-            name: DatabaseFieldRow.name,
-            columnName: DatabaseFieldRow.columnName,
+            humanName: DatabaseFieldRow.humanName,
+            sqlName: DatabaseFieldRow.sqlName,
             config: DatabaseFieldRow.config,
             position: DatabaseViewFieldRow.position,
             width: DatabaseViewFieldRow.width,

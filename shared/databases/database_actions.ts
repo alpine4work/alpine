@@ -207,20 +207,20 @@ export const databaseActions = {
     createTable: defineDatabaseAction({
         input: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
-            name: LabelStringSchema,
+            humanName: LabelStringSchema,
             accessPolicy: LocalAccessPolicySchema,
             policyRevision: DatabaseTableAccessPolicyRevisionSchema,
         }),
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
-            tableName: Schema.string,
+            sqlName: Schema.string,
             viewId: Schema.id<DatabaseViewId>(),
         }),
         writeLevel: "schema+data",
         internalOnly: true,
-        run({db, server, model}, {tableId, name, accessPolicy, policyRevision}) {
+        run({db, server, model}, {tableId, humanName, accessPolicy, policyRevision}) {
             // Resolve the unique SQLite table name before registering the new table.
-            const tableName = formatUniqueTableName({model, name});
+            const tableName = formatUniqueTableName({model, name: humanName});
 
             // Register the table, then attach + migrate its per-db file before writing any of
             // the table's data or metadata into it. `attach` is a no-op if already attached.
@@ -229,26 +229,29 @@ export const databaseActions = {
             server().attach(tableId);
             runTableMigrations(db, tableId);
 
-            const {table, defaultView} = model.createTable(tableId, {name, tableName});
+            const {table, defaultView} = model.createTable(tableId, {
+                name: humanName,
+                tableName,
+            });
 
-            return {tableId: table.id, tableName: table.sqlName, viewId: defaultView.id};
+            return {tableId: table.id, sqlName: table.sqlName, viewId: defaultView.id};
         },
     }),
 
     syncTableMetadata: defineDatabaseAction({
         input: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
-            name: LabelStringSchema,
+            humanName: LabelStringSchema,
             accessPolicy: LocalAccessPolicySchema,
             policyRevision: DatabaseTableAccessPolicyRevisionSchema,
         }),
         output: Schema.object({
-            tableName: Schema.string,
+            sqlName: Schema.string,
             viewId: Schema.id<DatabaseViewId>(),
         }),
         writeLevel: "schema+data",
         internalOnly: true,
-        run({server, model}, {tableId, name, accessPolicy, policyRevision}) {
+        run({server, model}, {tableId, humanName, accessPolicy, policyRevision}) {
             const applied = server().tables.setTableAccessPolicy(
                 tableId,
                 accessPolicy,
@@ -257,7 +260,7 @@ export const databaseActions = {
             const existingTable = model.getTable(tableId);
             if (!applied) {
                 return {
-                    tableName: existingTable.sqlName,
+                    sqlName: existingTable.sqlName,
                     viewId: existingTable.getFirstView().id,
                 };
             }
@@ -265,11 +268,11 @@ export const databaseActions = {
             // rename to a slug variant of its current name resolves to that name.
             const tableName = formatUniqueTableName({
                 model,
-                name,
+                name: humanName,
                 excludeTableId: tableId,
             });
-            const table = existingTable.updateName(name, {tableName});
-            return {tableName: model.getTable(tableId).sqlName, viewId: table.getFirstView().id};
+            const table = existingTable.updateName(humanName, {tableName});
+            return {sqlName: model.getTable(tableId).sqlName, viewId: table.getFirstView().id};
         },
     }),
 
@@ -290,7 +293,7 @@ export const databaseActions = {
             tables: Schema.array(
                 Schema.object({
                     id: Schema.id<DatabaseTableId>(),
-                    name: Schema.string,
+                    humanName: Schema.string,
                 }),
             ),
         }),
@@ -299,7 +302,7 @@ export const databaseActions = {
             return {
                 tables: model.getTableIds("table").map(tableId => ({
                     id: tableId,
-                    name: model.getTable(tableId).humanName,
+                    humanName: model.getTable(tableId).humanName,
                 })),
             };
         },
@@ -312,8 +315,8 @@ export const databaseActions = {
         output: Schema.object({
             table: Schema.object({
                 id: Schema.id<DatabaseTableId>(),
-                name: Schema.string,
-                tableName: Schema.string,
+                humanName: Schema.string,
+                sqlName: Schema.string,
                 nameFieldId: Schema.id<DatabaseFieldId>(),
             }).nullable(),
         }),
@@ -324,8 +327,8 @@ export const databaseActions = {
             return {
                 table: {
                     id: table.id,
-                    name: table.humanName,
-                    tableName: table.sqlName,
+                    humanName: table.humanName,
+                    sqlName: table.sqlName,
                     nameFieldId: table.nameFieldId,
                 },
             };
@@ -337,12 +340,12 @@ export const databaseActions = {
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             viewId: Schema.id<DatabaseViewId>(),
-            tableName: Schema.string,
+            humanName: Schema.string,
             fields: Schema.array(
                 Schema.object({
                     id: Schema.id<DatabaseFieldId>(),
-                    name: Schema.string,
-                    columnName: Schema.string.originalPropertyKey("column_name"),
+                    humanName: Schema.string,
+                    sqlName: Schema.string,
                     config: DatabaseFieldConfigSchema,
                     position: OrderKeySchema,
                     width: Schema.integer,
@@ -365,7 +368,7 @@ export const databaseActions = {
             return {
                 tableId: table.id,
                 viewId: view.id,
-                tableName: table.humanName,
+                humanName: table.humanName,
                 fields,
             };
         },
@@ -380,7 +383,7 @@ export const databaseActions = {
         output: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             viewId: Schema.id<DatabaseViewId>(),
-            tableName: Schema.string,
+            sqlName: Schema.string,
             endCursor: Schema.id<DatabaseRowId>().nullable(),
         }),
         writeLevel: "none",
@@ -408,7 +411,7 @@ export const databaseActions = {
 
             const endCursor = rows.length === limit ? rows[rows.length - 1]! : null;
 
-            return {tableId: table.id, viewId: view.id, tableName: table.sqlName, endCursor};
+            return {tableId: table.id, viewId: view.id, sqlName: table.sqlName, endCursor};
         },
     }),
 
@@ -534,16 +537,16 @@ export const databaseActions = {
         input: Schema.object({
             fieldId: Schema.id<DatabaseFieldId>(),
             tableId: Schema.id<DatabaseTableId>(),
-            name: LabelStringSchema,
+            humanName: LabelStringSchema,
             config: DatabaseFieldConfigSchema,
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run({model}, {fieldId, tableId, name, config}) {
+        run({model}, {fieldId, tableId, humanName, config}) {
             assert(config.type !== "relation", "use createRelationField to create relation fields");
 
             const table = model.getTable(tableId);
-            const field = table.createField(fieldId, name, config);
+            const field = table.createField(fieldId, humanName, config);
             table.appendFieldToAllViews(field);
 
             return {};
@@ -554,7 +557,7 @@ export const databaseActions = {
         input: Schema.object({
             joinTableId: Schema.id<DatabaseTableId>(),
             sourceTableId: Schema.id<DatabaseTableId>(),
-            sourceFieldName: LabelStringSchema,
+            sourceFieldHumanName: LabelStringSchema,
             targetTableId: Schema.id<DatabaseTableId>(),
             cardinality: Schema.enum(["one", "many"]),
         }),
@@ -566,7 +569,7 @@ export const databaseActions = {
         writeLevel: "schema+data",
         run(
             {db, model, server},
-            {joinTableId, sourceTableId, sourceFieldName, targetTableId, cardinality},
+            {joinTableId, sourceTableId, sourceFieldHumanName, targetTableId, cardinality},
         ) {
             const sourceTable = model.getTable(sourceTableId);
             const targetTable = model.getTable(targetTableId);
@@ -575,11 +578,11 @@ export const databaseActions = {
             const targetFieldId = generateChronologicalId<DatabaseFieldId>();
 
             // The join table is named after its two relation fields, created below as
-            // `sourceFieldName` and the source table's name. Resolved before the join table is
-            // registered so the uniqueness probe doesn't see its own row.
+            // `sourceFieldHumanName` and the source table's name. Resolved before the join
+            // table is registered so the uniqueness probe doesn't see its own row.
             const joinTableName = formatUniqueTableName({
                 model,
-                name: `${sourceFieldName} ${sourceTable.humanName}`,
+                name: `${sourceFieldHumanName} ${sourceTable.humanName}`,
             });
 
             // Registering the topology first lets the authorizer derive the join schema's
@@ -594,7 +597,7 @@ export const databaseActions = {
             server().attach(joinTableId);
             runJoinTableMigrations(db, joinTableId);
 
-            const sourceField = sourceTable.createField(sourceFieldId, sourceFieldName, {
+            const sourceField = sourceTable.createField(sourceFieldId, sourceFieldHumanName, {
                 type: "relation",
                 joinTableId,
                 side: "source",
@@ -699,7 +702,7 @@ export const databaseActions = {
         }),
         output: Schema.object({
             /** Display name of the linked table, shown in the picker header. */
-            linkedTableName: Schema.string,
+            linkedTableHumanName: Schema.string,
             rows: Schema.array(
                 Schema.object({
                     id: Schema.id<DatabaseRowId>(),
@@ -718,7 +721,7 @@ export const databaseActions = {
             assert(table.rowExists(rowId), "row not found");
 
             if (!hasAccessLevel(getTableAccessLevel(relation.linkedTableId), "View")) {
-                return {linkedTableName: "No access", rows: []};
+                return {linkedTableHumanName: "No access", rows: []};
             }
             const linkedTable = model.getTable(relation.linkedTableId);
             const linkedNameField = linkedTable.getNameField();
@@ -761,7 +764,7 @@ export const databaseActions = {
             });
 
             return {
-                linkedTableName: linkedTable.humanName,
+                linkedTableHumanName: linkedTable.humanName,
                 rows: rows.map(row => ({
                     id: row.id,
                     name: linkedNameProvider.valueToString(row.name, linkedNameField.config),
@@ -1003,14 +1006,14 @@ export const databaseActions = {
         input: Schema.object({
             tableId: Schema.id<DatabaseTableId>(),
             fieldId: Schema.id<DatabaseFieldId>(),
-            name: LabelStringSchema,
+            humanName: LabelStringSchema,
         }),
         output: Schema.object({}),
         writeLevel: "schema+data",
-        run({model}, {tableId, fieldId, name}) {
+        run({model}, {tableId, fieldId, humanName}) {
             const table = model.getTable(tableId);
             const existingField = table.getField(fieldId);
-            existingField.updateName(name);
+            existingField.updateName(humanName);
 
             return {};
         },
