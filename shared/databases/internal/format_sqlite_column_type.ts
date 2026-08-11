@@ -2,7 +2,7 @@ import {SqliteStorageType} from "~/shared/databases/fields/base/database_field_p
 import {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
- * SQLite accepts anything as the 'type' of a columm, and will return it through
+ * SQLite accepts anything as the 'type' of a column, and will return it through
  * queries. Here, we encode the actual column type (which SQLite detects and uses
  * as the storage type) but also include the table and field ids. When users write
  * custom SQL queries, we can use the resulting type information to tie selected
@@ -13,5 +13,5 @@ export function formatSqliteColumnType(
     tableId: DatabaseTableId,
     fieldId: DatabaseFieldId,
 ): string {
-    return `${type}_alpine_${tableId}_${fieldId}`;
+    return `_alpine_${type}_${tableId}_${fieldId}`;
 }
