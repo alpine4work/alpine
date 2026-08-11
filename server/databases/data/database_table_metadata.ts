@@ -120,6 +120,15 @@ export async function updateDatabaseTableAccessPolicy(
         }
         const {spaceId} = item;
         await authorizeSpaceAccess(context, spaceId, "Member");
+        if (
+            !(await evaluateAccessPolicy(context, spaceId, item.accessPolicy, "Manage", {
+                consistency: "Strong",
+            }))
+        ) {
+            throw new PermissionDeniedError(
+                `Account does not have Manage access to database table ${tableId}`,
+            );
+        }
 
         const {transactionEntries} = await validateAccessPolicyUpdateForServer(
             context,

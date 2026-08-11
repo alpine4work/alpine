@@ -116,7 +116,7 @@ test("updating a database table access policy requires Manage access", async () 
                 ]),
             },
         }),
-    ).rejects.toThrow("Actor doesn\u2019t have `Manage` access on old access policy");
+    ).rejects.toThrow(`Account does not have Manage access to database table ${tableId}`);
 });
 
 test("database table access policy updates enforce manager generations", async () => {
