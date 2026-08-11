@@ -12,9 +12,9 @@ import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.open_s
  * whose access derives from their sides).
  */
 export type DatabaseServerTableRegistration =
-    | {kind: "table"; tableName: string; accessPolicy: LocalAccessPolicy}
+    | {kind: "Table"; tableName: string; accessPolicy: LocalAccessPolicy}
     | {
-          kind: "join";
+          kind: "Join";
           tableName: string;
           sourceTableId: DatabaseTableId;
           targetTableId: DatabaseTableId;

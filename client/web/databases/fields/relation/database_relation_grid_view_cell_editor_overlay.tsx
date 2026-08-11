@@ -69,7 +69,7 @@ export function DatabaseRelationGridViewCellEditorOverlay({
     rowId,
     initialEditString,
     onClose,
-}: DatabaseGridViewCellEditorOverlayProps<"relation">) {
+}: DatabaseGridViewCellEditorOverlayProps<"Relation">) {
     const conn = useDatabaseConnection();
     const reporter = useReporter();
     const fieldId = field.id;

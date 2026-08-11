@@ -12,16 +12,16 @@ export function selectDatabaseFieldColumnAsString(
     dataRow: SqlQuery,
 ): SqlQuery {
     switch (field.config.type) {
-        case "plainText":
+        case "PlainText":
             return sql`${dataRow}.${field.column()}`;
-        case "checkbox":
-            assert(field.isType("checkbox"));
+        case "Checkbox":
+            assert(field.isType("Checkbox"));
             return selectDatabaseCheckboxFieldColumnAsString(field, dataRow);
-        case "number":
-            assert(field.isType("number"));
+        case "Number":
+            assert(field.isType("Number"));
             return selectDatabaseNumberFieldColumnAsString(field, dataRow);
-        case "relation":
-            assert(field.isType("relation"));
+        case "Relation":
+            assert(field.isType("Relation"));
             return selectDatabaseRelationFieldColumnAsString(field, dataRow);
         default:
             throw exhaustive(field.config);

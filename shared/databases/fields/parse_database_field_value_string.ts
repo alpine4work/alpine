@@ -17,13 +17,13 @@ export function parseDatabaseFieldValueString(
     input: string,
 ): Result<DatabaseFieldValue, void> {
     switch (config.type) {
-        case "plainText":
+        case "PlainText":
             return {ok: true, value: input};
-        case "checkbox":
+        case "Checkbox":
             return {ok: true, value: parseDatabaseCheckboxFieldValueString(input)};
-        case "number":
+        case "Number":
             return parseDatabaseNumberFieldValueString(input);
-        case "relation":
+        case "Relation":
             // TODO(alex, #databases): implement this
             return {ok: false, error: undefined};
         default:

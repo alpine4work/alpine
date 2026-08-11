@@ -4,10 +4,10 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 /** Whether a column-backed field type's column allows SQL `NULL`. */
 export function isDatabaseFieldNullable(type: DatabaseColumnBackedFieldType): boolean {
     switch (type) {
-        case "plainText":
-        case "checkbox":
+        case "PlainText":
+        case "Checkbox":
             return false;
-        case "number":
+        case "Number":
             return true;
         default:
             throw exhaustive(type);

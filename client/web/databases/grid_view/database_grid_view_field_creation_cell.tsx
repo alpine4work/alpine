@@ -10,7 +10,7 @@ import {TextInputWithoutLabel} from "~/client/web/design/text_input.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 
-type DatabaseGridViewFieldCreationScreen = "fieldType" | "linkedTable";
+type DatabaseGridViewFieldCreationScreen = "FieldType" | "LinkedTable";
 
 /**
  * The header cell contents for a field that's being created: the field name input
@@ -30,7 +30,7 @@ export function DatabaseGridViewFieldCreationCell({
     onCancel: () => void;
 }) {
     const [name, setName] = useState("");
-    const [screen, setScreen] = useState<DatabaseGridViewFieldCreationScreen>("fieldType");
+    const [screen, setScreen] = useState<DatabaseGridViewFieldCreationScreen>("FieldType");
 
     const nameInputRef = useRef<HTMLInputElement>(null);
     const pageRef = useRef<DatabaseGridViewFieldCreationPageRef>(null);
@@ -38,14 +38,14 @@ export function DatabaseGridViewFieldCreationCell({
     // Focus the name input when the field type page shows (both on mount and when
     // coming back from the linked table page, which focuses its own filter input).
     useEffect(() => {
-        if (screen === "fieldType") nameInputRef.current?.focus();
+        if (screen === "FieldType") nameInputRef.current?.focus();
     }, [screen]);
 
     // Escape steps back one level: from the linked table page to the field type page,
     // then out of the creation flow entirely.
     const handleEscape = useEvent(() => {
-        if (screen === "linkedTable") {
-            setScreen("fieldType");
+        if (screen === "LinkedTable") {
+            setScreen("FieldType");
         } else {
             onCancel();
         }
@@ -62,19 +62,19 @@ export function DatabaseGridViewFieldCreationCell({
                 preventOverflow={false}
                 overlay={
                     <DatabaseGridViewFieldCreationPopover>
-                        {screen === "fieldType" ? (
+                        {screen === "FieldType" ? (
                             <DatabaseGridViewFieldCreationTypePage
                                 ref={pageRef}
                                 name={name}
                                 onCommit={onCommit}
-                                onPickRelation={() => setScreen("linkedTable")}
+                                onPickRelation={() => setScreen("LinkedTable")}
                             />
                         ) : (
                             <DatabaseGridViewFieldCreationLinkedTablePage
                                 ref={pageRef}
                                 name={name}
                                 onCommit={onCommit}
-                                onBack={() => setScreen("fieldType")}
+                                onBack={() => setScreen("FieldType")}
                             />
                         )}
                     </DatabaseGridViewFieldCreationPopover>

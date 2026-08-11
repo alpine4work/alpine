@@ -10,7 +10,7 @@ let dbCounter = 0;
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-checkbox-${dbCounter++}.sqlite3`, "ct");
-    const check = generateDatabaseFieldCheckConstraint("checkbox", sql.identifier("v"));
+    const check = generateDatabaseFieldCheckConstraint("Checkbox", sql.identifier("v"));
     sql`
         CREATE TABLE t (
             v INTEGER NOT NULL DEFAULT 0 ${check}
@@ -56,7 +56,7 @@ describe("databaseCheckboxField", () => {
             ["arbitrary text", true],
             ["  yes  ", true],
         ])("parses %j as %s", (input, expected) => {
-            expect(parseDatabaseFieldValueString({type: "checkbox"}, input)).toEqual({
+            expect(parseDatabaseFieldValueString({type: "Checkbox"}, input)).toEqual({
                 ok: true,
                 value: expected,
             });
@@ -73,7 +73,7 @@ describe("databaseCheckboxField", () => {
                 getDatabaseFieldStrings({
                     db,
                     value,
-                    config: {type: "checkbox"},
+                    config: {type: "Checkbox"},
                 }),
             ).toEqual({valueToString: expected, selectColumnAsString: expected});
             db.close();

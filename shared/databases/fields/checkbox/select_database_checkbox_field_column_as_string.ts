@@ -2,7 +2,7 @@ import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_f
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 
 export function selectDatabaseCheckboxFieldColumnAsString(
-    field: DatabaseFieldModelOfType<"checkbox">,
+    field: DatabaseFieldModelOfType<"Checkbox">,
     dataRow: SqlQuery,
 ): SqlQuery {
     return sql`

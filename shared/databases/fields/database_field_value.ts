@@ -5,10 +5,10 @@ import type {DatabasePlainTextFieldValue} from "~/shared/databases/fields/plain_
 import type {DatabaseRelationFieldValue} from "~/shared/databases/fields/relation/database_relation_field.js";
 
 type DatabaseFieldValues = {
-    plainText: DatabasePlainTextFieldValue;
-    checkbox: DatabaseCheckboxFieldValue;
-    number: DatabaseNumberFieldValue;
-    relation: DatabaseRelationFieldValue;
+    PlainText: DatabasePlainTextFieldValue;
+    Checkbox: DatabaseCheckboxFieldValue;
+    Number: DatabaseNumberFieldValue;
+    Relation: DatabaseRelationFieldValue;
 };
 
 export type DatabaseFieldValue<Type extends DatabaseFieldType = DatabaseFieldType> =

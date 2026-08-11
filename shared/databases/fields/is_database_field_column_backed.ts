@@ -2,7 +2,7 @@ import type {DatabaseFieldType} from "~/shared/databases/fields/database_field_c
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /** Field types stored in a SQLite column of their table's data file. */
-export type DatabaseColumnBackedFieldType = Exclude<DatabaseFieldType, "relation">;
+export type DatabaseColumnBackedFieldType = Exclude<DatabaseFieldType, "Relation">;
 
 /**
  * Whether a field type is stored in a SQLite column of its own. Virtual field
@@ -12,11 +12,11 @@ export function isDatabaseFieldColumnBacked(
     type: DatabaseFieldType,
 ): type is DatabaseColumnBackedFieldType {
     switch (type) {
-        case "plainText":
-        case "checkbox":
-        case "number":
+        case "PlainText":
+        case "Checkbox":
+        case "Number":
             return true;
-        case "relation":
+        case "Relation":
             return false;
         default:
             throw exhaustive(type);

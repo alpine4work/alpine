@@ -10,19 +10,19 @@ export function generateDatabaseFieldCheckConstraint(
     columnName: SqlQuery,
 ): SqlQuery {
     switch (type) {
-        case "plainText":
+        case "PlainText":
             return sql`
                 CHECK (
                     TYPEOF(${columnName}) = 'text'
                 )
             `;
-        case "checkbox":
+        case "Checkbox":
             return sql`
                 CHECK (
                     TYPEOF(${columnName}) = 'integer'
                 )
             `;
-        case "number":
+        case "Number":
             return sql`
                 CHECK (
                     TYPEOF(${columnName}) IN ('real', 'integer', 'null')

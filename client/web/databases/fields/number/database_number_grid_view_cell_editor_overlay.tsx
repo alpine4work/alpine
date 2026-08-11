@@ -13,7 +13,7 @@ export function DatabaseNumberGridViewCellEditorOverlay({
     onClose,
     moveSelection,
     onCreateRow,
-}: DatabaseGridViewCellEditorOverlayProps<"number">) {
+}: DatabaseGridViewCellEditorOverlayProps<"Number">) {
     const [editValue, setEditValue] = useState(
         initialEditString ?? (initialValue == null ? "" : String(initialValue)),
     );

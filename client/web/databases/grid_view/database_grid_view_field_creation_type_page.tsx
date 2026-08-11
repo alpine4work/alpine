@@ -35,7 +35,7 @@ export function DatabaseGridViewFieldCreationTypePage({
     const [highlightedIndex, setHighlightedIndex] = useState(0);
 
     const commitFieldType = useEvent((type: DatabaseFieldType) => {
-        if (type === "relation") {
+        if (type === "Relation") {
             onPickRelation();
             return;
         }
@@ -106,7 +106,7 @@ function DatabaseGridViewFieldCreationTypeOption({
             >
                 <Icon size={14} />
                 <Box fontStyle="truncate">{getDatabaseFieldLabel(type)}</Box>
-                {type === "relation" && (
+                {type === "Relation" && (
                     <Box marginLeft="auto" display="flex" alignItems="center" color="grey-50">
                         <CaretRight size={12} />
                     </Box>
@@ -118,11 +118,11 @@ function DatabaseGridViewFieldCreationTypeOption({
 
 function getDefaultDatabaseFieldConfig(type: DatabaseColumnBackedFieldType): DatabaseFieldConfig {
     switch (type) {
-        case "checkbox":
-            return {type: "checkbox"};
-        case "number":
-            return {type: "number", decimalPlaces: null};
-        case "plainText":
-            return {type: "plainText"};
+        case "Checkbox":
+            return {type: "Checkbox"};
+        case "Number":
+            return {type: "Number", decimalPlaces: null};
+        case "PlainText":
+            return {type: "PlainText"};
     }
 }

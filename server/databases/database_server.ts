@@ -114,8 +114,8 @@ export interface DatabaseServerActionResult<
  * hasn't arrived) evaluate to no access — fail closed.
  */
 export type DatabaseServerTableAccessEntry =
-    | {kind: "table"; accessPolicy: LocalAccessPolicy | null}
-    | {kind: "join"; sourceTableId: DatabaseTableId; targetTableId: DatabaseTableId};
+    | {kind: "Table"; accessPolicy: LocalAccessPolicy | null}
+    | {kind: "Join"; sourceTableId: DatabaseTableId; targetTableId: DatabaseTableId};
 
 /**
  * Canonical SQLite database backed by a Cloudflare Durable Object's {@link
@@ -201,7 +201,7 @@ export class DatabaseServer {
                         server.registerDatabaseTable(tableId, {
                             ...registration,
                             schemaVersion:
-                                registration.kind === "table"
+                                registration.kind === "Table"
                                     ? tableSqliteMigrations(tableId).length
                                     : joinTableSqliteMigrations(tableId).length,
                         }),
@@ -294,9 +294,9 @@ export class DatabaseServer {
         const entry = this.getDatabaseTableAccessEntry(tableId);
         if (entry === null) return null;
         switch (entry.kind) {
-            case "table":
+            case "Table":
                 return accessLevelForPolicy(entry.accessPolicy, accountId);
-            case "join": {
+            case "Join": {
                 const sourceLevel = this.getSideTableAccessLevel(entry.sourceTableId, accountId);
                 const targetLevel = this.getSideTableAccessLevel(entry.targetTableId, accountId);
                 return maxAccessLevel(sourceLevel, targetLevel);
@@ -412,7 +412,7 @@ export class DatabaseServer {
      */
     listDatabaseTables(): Array<{
         tableId: DatabaseTableId;
-        kind: "table" | "join";
+        kind: "Table" | "Join";
         schemaVersion: number;
     }> {
         return sql`
@@ -428,7 +428,7 @@ export class DatabaseServer {
                 table_id
         `.selectAll(this.sql, {
             tableId: Schema.id<DatabaseTableId>().originalPropertyKey("table_id"),
-            kind: Schema.enum(["table", "join"]),
+            kind: Schema.enum(["Table", "Join"]),
             schemaVersion: Schema.integer.originalPropertyKey("schema_version"),
         });
     }
@@ -740,10 +740,10 @@ export class DatabaseServer {
                     ${registration.tableName},
                     ${registration.schemaVersion},
                     ${accessPolicyColumnSchema.serialize(
-                registration.kind === "table" ? registration.accessPolicy : null,
+                registration.kind === "Table" ? registration.accessPolicy : null,
             )},
-                    ${registration.kind === "join" ? registration.sourceTableId : null},
-                    ${registration.kind === "join" ? registration.targetTableId : null}
+                    ${registration.kind === "Join" ? registration.sourceTableId : null},
+                    ${registration.kind === "Join" ? registration.targetTableId : null}
                 )
             ON CONFLICT (table_id) DO UPDATE
             SET
@@ -854,7 +854,7 @@ export class DatabaseServer {
         accountId: AccountId | null,
     ): AccessLevel | null {
         const entry = this.getDatabaseTableAccessEntry(tableId);
-        if (entry === null || entry.kind !== "table") return null;
+        if (entry === null || entry.kind !== "Table") return null;
         return accessLevelForPolicy(entry.accessPolicy, accountId);
     }
 
@@ -887,7 +887,7 @@ export class DatabaseServer {
         // stay under SQLite's limit.
         for (const table of this.listDatabaseTables()) {
             const migrationCount =
-                table.kind === "table"
+                table.kind === "Table"
                     ? tableSqliteMigrations(table.tableId).length
                     : joinTableSqliteMigrations(table.tableId).length;
             if (table.schemaVersion === migrationCount) continue;
@@ -896,10 +896,10 @@ export class DatabaseServer {
                     this.getDatabase().attachIfNeeded(table.tableId);
                     executeSqliteTransaction(db, () => {
                         switch (table.kind) {
-                            case "table":
+                            case "Table":
                                 runTableMigrations(db, table.tableId);
                                 break;
-                            case "join":
+                            case "Join":
                                 runJoinTableMigrations(db, table.tableId);
                                 break;
                             default:
@@ -1117,12 +1117,12 @@ const accessPolicyColumnSchema = SqlJsonSchema(LocalAccessPolicySchema).nullable
  * `database_durable_object_sql_migrations.ts` guarantees each variant's columns).
  */
 const databaseTableRowSchema = Schema.unionWithKey("kind", {
-    table: Schema.object({
-        kind: Schema.value("table"),
+    Table: Schema.object({
+        kind: Schema.value("Table"),
         accessPolicy: accessPolicyColumnSchema.originalPropertyKey("access_policy"),
     }),
-    join: Schema.object({
-        kind: Schema.value("join"),
+    Join: Schema.object({
+        kind: Schema.value("Join"),
         sourceTableId: Schema.id<DatabaseTableId>().originalPropertyKey("source_table_id"),
         targetTableId: Schema.id<DatabaseTableId>().originalPropertyKey("target_table_id"),
     }),

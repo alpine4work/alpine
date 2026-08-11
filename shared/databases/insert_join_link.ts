@@ -10,7 +10,7 @@ import {Schema} from "~/shared/schema/schema.open_source.js";
  * already exists (`INSERT OR IGNORE`).
  *
  * Shared by the `addLink` and `createAndLinkRow` actions. Does not enforce
- * cardinality — callers handle replacing existing links for `cardinality: "one"`
+ * cardinality — callers handle replacing existing links for `cardinality: "One"`
  * fields before inserting.
  */
 export function insertJoinLink({

@@ -8,28 +8,28 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 /** Renders the cell content component for the field type of `props.field`. */
 export function DatabaseGridViewCellContent(props: DatabaseGridViewCellContentProps) {
     switch (props.field.config.type) {
-        case "plainText":
+        case "PlainText":
             return (
                 <DatabasePlainTextGridViewCellContent
-                    {...(props as DatabaseGridViewCellContentProps<"plainText">)}
+                    {...(props as DatabaseGridViewCellContentProps<"PlainText">)}
                 />
             );
-        case "checkbox":
+        case "Checkbox":
             return (
                 <DatabaseCheckboxGridViewCellContent
-                    {...(props as DatabaseGridViewCellContentProps<"checkbox">)}
+                    {...(props as DatabaseGridViewCellContentProps<"Checkbox">)}
                 />
             );
-        case "number":
+        case "Number":
             return (
                 <DatabaseNumberGridViewCellContent
-                    {...(props as DatabaseGridViewCellContentProps<"number">)}
+                    {...(props as DatabaseGridViewCellContentProps<"Number">)}
                 />
             );
-        case "relation":
+        case "Relation":
             return (
                 <DatabaseRelationGridViewCellContent
-                    {...(props as DatabaseGridViewCellContentProps<"relation">)}
+                    {...(props as DatabaseGridViewCellContentProps<"Relation">)}
                 />
             );
         default:

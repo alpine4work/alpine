@@ -49,7 +49,7 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
     onBack: () => void;
 }) {
     const [filterValue, setFilterValue] = useState("");
-    const [cardinality, setCardinality] = useState<"one" | "many">("many");
+    const [cardinality, setCardinality] = useState<"One" | "Many">("Many");
 
     const inputRef = useRef<HTMLInputElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
@@ -75,9 +75,9 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
         onCommit({
             name: name.trim() || table.name,
             config: {
-                type: "relation",
+                type: "Relation",
                 joinTableId: generateChronologicalId<DatabaseTableId>(),
-                side: "source",
+                side: "Source",
                 cardinality,
                 linkedTableId: table.id,
             },
@@ -213,8 +213,8 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
             />
             <Box borderTop="grey-5" padding="1.5">
                 <Switch
-                    isSelected={cardinality === "many"}
-                    onChange={isSelected => setCardinality(isSelected ? "many" : "one")}
+                    isSelected={cardinality === "Many"}
+                    onChange={isSelected => setCardinality(isSelected ? "Many" : "One")}
                 >
                     Allow multiple links
                 </Switch>

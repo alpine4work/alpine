@@ -213,7 +213,7 @@ export class DatabaseDurableObjectConnection {
             tableAccess.set(tableId, accessLevel);
 
             const entry = this.server.getDatabaseTableAccessEntry(tableId);
-            if (entry !== null && entry.kind === "join") {
+            if (entry !== null && entry.kind === "Join") {
                 for (const sideTableId of [entry.sourceTableId, entry.targetTableId]) {
                     tableAccess.set(
                         sideTableId,
@@ -241,7 +241,7 @@ export class DatabaseDurableObjectConnection {
 
             let catchUp: DatabaseTableRegistrationResult["catchUp"];
             if (heldChangedPageIndexes.isEmpty()) {
-                catchUp = {type: "current"};
+                catchUp = {type: "Current"};
             } else if (
                 !heldTombstonedPageIndexes.isEmpty() ||
                 heldChangedPageIndexes.size() > registrationCatchUpInlinePageLimit
@@ -249,7 +249,7 @@ export class DatabaseDurableObjectConnection {
                 // The wire union cannot carry inline pages and deletions together. When a
                 // tombstone is present, invalidate the whole changed intersection so the client
                 // refetches surviving pages on demand.
-                catchUp = {type: "stale", pageIndexes: heldChangedPageIndexes};
+                catchUp = {type: "Stale", pageIndexes: heldChangedPageIndexes};
             } else {
                 const pages = new Map<number, {version: number; data: Uint8Array}>();
                 for (const pageIndex of heldChangedPageIndexes) {
@@ -257,7 +257,7 @@ export class DatabaseDurableObjectConnection {
                     assert(page !== null, `changed page ${pageIndex} is missing from ${tableId}`);
                     pages.set(pageIndex, page);
                 }
-                catchUp = {type: "pages", pages};
+                catchUp = {type: "Pages", pages};
             }
 
             this.subscriptions.set(tableId, registration.heldPages.clone());
@@ -342,7 +342,7 @@ export class DatabaseDurableObjectConnection {
                     const entry = this.server.getDatabaseTableAccessEntry(joinTableId);
                     if (
                         entry === null ||
-                        entry.kind !== "join" ||
+                        entry.kind !== "Join" ||
                         (!changedTableIds.has(entry.sourceTableId) &&
                             !changedTableIds.has(entry.targetTableId))
                     ) {

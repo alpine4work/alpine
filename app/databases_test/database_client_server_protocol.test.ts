@@ -119,7 +119,7 @@ test("client executes actions against the database server", async () => {
         rows: [
             {
                 id: createTableResult.tableId,
-                kind: "table",
+                kind: "Table",
             },
         ],
         reportedErrors: [],
@@ -525,7 +525,7 @@ test("a schema change made while disconnected is visible after reconnecting", as
         fieldId,
         tableId: table.tableId,
         name: "Notes",
-        config: {type: "plainText"},
+        config: {type: "PlainText"},
     });
     await executeAction(writer, "updateCellValue", {
         tableId: table.tableId,
@@ -611,7 +611,7 @@ test("a schema change from another client is visible to an attached peer", async
         fieldId,
         tableId: table.tableId,
         name: "Notes",
-        config: {type: "plainText"},
+        config: {type: "PlainText"},
     });
     await executeAction(writer, "updateCellValue", {
         tableId: table.tableId,
@@ -684,7 +684,7 @@ test("server-side action errors reject the caller", async () => {
             sourceTableId: generateChronologicalId<DatabaseTableId>(),
             sourceFieldName: "Link",
             targetTableId: generateChronologicalId<DatabaseTableId>(),
-            cardinality: "many",
+            cardinality: "Many",
         }),
     ).rejects.toThrow();
 });
@@ -993,7 +993,7 @@ test("registration catch-up is not discarded when a realtime event races the res
         fieldId,
         tableId: table.tableId,
         name: "Notes",
-        config: {type: "plainText"},
+        config: {type: "PlainText"},
     });
     const {fields} = await executeInternalAction(databaseGroupId, "getViewSchema", {
         tableOrViewId: table.tableId,

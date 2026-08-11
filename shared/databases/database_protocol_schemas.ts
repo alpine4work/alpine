@@ -135,13 +135,13 @@ export const DatabaseTableRegistrationResultSchema = Schema.object({
     watermark: Schema.integer,
     fileSizeInPages: Schema.integer,
     catchUp: Schema.unionWithKey("type", {
-        current: Schema.object({type: Schema.value("current")}),
-        pages: Schema.object({
-            type: Schema.value("pages"),
+        Current: Schema.object({type: Schema.value("Current")}),
+        Pages: Schema.object({
+            type: Schema.value("Pages"),
             pages: DatabaseTablePagesSchema,
         }),
-        stale: Schema.object({
-            type: Schema.value("stale"),
+        Stale: Schema.object({
+            type: Schema.value("Stale"),
             pageIndexes: BitsetSchema,
         }),
     }),

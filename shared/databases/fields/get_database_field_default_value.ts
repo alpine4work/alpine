@@ -5,11 +5,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 /** The SQL default value of a column-backed field type's column. */
 export function getDatabaseFieldDefaultValue(type: DatabaseColumnBackedFieldType): SqlQuery {
     switch (type) {
-        case "plainText":
+        case "PlainText":
             return sql`''`;
-        case "checkbox":
+        case "Checkbox":
             return sql`0`;
-        case "number":
+        case "Number":
             return sql`NULL`;
         default:
             throw exhaustive(type);

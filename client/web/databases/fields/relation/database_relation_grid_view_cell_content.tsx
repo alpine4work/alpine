@@ -7,7 +7,7 @@ export function DatabaseRelationGridViewCellContent({
     field,
     value,
     onCellClick,
-}: DatabaseGridViewCellContentProps<"relation">) {
+}: DatabaseGridViewCellContentProps<"Relation">) {
     const links = Array.isArray(value) ? value : [];
     const noAccess = field.linkedTableReadAccess === false;
     return (

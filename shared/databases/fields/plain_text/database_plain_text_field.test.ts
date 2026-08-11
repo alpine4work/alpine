@@ -10,7 +10,7 @@ let dbCounter = 0;
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-plain-text-${dbCounter++}.sqlite3`, "ct");
-    const check = generateDatabaseFieldCheckConstraint("plainText", sql.identifier("v"));
+    const check = generateDatabaseFieldCheckConstraint("PlainText", sql.identifier("v"));
     sql`
         CREATE TABLE t (
             v TEXT NOT NULL DEFAULT '' ${check}
@@ -22,15 +22,15 @@ async function createDbWithCheckedColumn() {
 describe("databasePlainTextField", () => {
     describe("parseString", () => {
         test("any input is ok", () => {
-            expect(parseDatabaseFieldValueString({type: "plainText"}, "hello")).toEqual({
+            expect(parseDatabaseFieldValueString({type: "PlainText"}, "hello")).toEqual({
                 ok: true,
                 value: "hello",
             });
-            expect(parseDatabaseFieldValueString({type: "plainText"}, "")).toEqual({
+            expect(parseDatabaseFieldValueString({type: "PlainText"}, "")).toEqual({
                 ok: true,
                 value: "",
             });
-            expect(parseDatabaseFieldValueString({type: "plainText"}, "  spaces  ")).toEqual({
+            expect(parseDatabaseFieldValueString({type: "PlainText"}, "  spaces  ")).toEqual({
                 ok: true,
                 value: "  spaces  ",
             });
@@ -47,7 +47,7 @@ describe("databasePlainTextField", () => {
                 getDatabaseFieldStrings({
                     db,
                     value,
-                    config: {type: "plainText"},
+                    config: {type: "PlainText"},
                 }),
             ).toEqual({valueToString: expected, selectColumnAsString: expected});
             db.close();

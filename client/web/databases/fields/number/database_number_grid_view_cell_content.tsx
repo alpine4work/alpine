@@ -7,7 +7,7 @@ export function DatabaseNumberGridViewCellContent({
     field,
     value,
     onCellClick,
-}: DatabaseGridViewCellContentProps<"number">) {
+}: DatabaseGridViewCellContentProps<"Number">) {
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}

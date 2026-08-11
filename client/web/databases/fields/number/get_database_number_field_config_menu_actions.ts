@@ -15,7 +15,7 @@ const decimalPlacesOptions: ReadonlyArray<{label: string; value: number | null}>
 export function getDatabaseNumberFieldConfigMenuActions({
     config,
     onCommit,
-}: DatabaseFieldConfigMenuActionsArgs<"number">): MenuActions {
+}: DatabaseFieldConfigMenuActionsArgs<"Number">): MenuActions {
     return [
         {
             hasChildren: true,
@@ -25,7 +25,7 @@ export function getDatabaseNumberFieldConfigMenuActions({
                 label: option.label,
                 isSelected: option.value === config.decimalPlaces,
                 onPress: () => {
-                    onCommit({type: "number", decimalPlaces: option.value});
+                    onCommit({type: "Number", decimalPlaces: option.value});
                 },
             })),
         },

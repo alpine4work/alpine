@@ -4,10 +4,10 @@ import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
 
 export const DatabaseRelationFieldConfigSchema = Schema.object({
-    type: Schema.value("relation"),
+    type: Schema.value("Relation"),
     joinTableId: Schema.id<DatabaseTableId>(),
-    side: Schema.enum(["source", "target"]),
-    cardinality: Schema.enum(["one", "many"]),
+    side: Schema.enum(["Source", "Target"]),
+    cardinality: Schema.enum(["One", "Many"]),
     linkedTableId: Schema.id<DatabaseTableId>(),
 });
 export type DatabaseRelationFieldConfig = SchemaType<typeof DatabaseRelationFieldConfigSchema>;

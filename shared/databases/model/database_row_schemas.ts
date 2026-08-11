@@ -8,7 +8,7 @@ import {
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.open_source.js";
 
-export type DatabaseTableKind = "table" | "join";
+export type DatabaseTableKind = "Table" | "Join";
 
 export const DatabaseTableRow = {
     id: Schema.id<DatabaseTableId>(),

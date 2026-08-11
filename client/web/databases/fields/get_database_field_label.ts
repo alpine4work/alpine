@@ -6,13 +6,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
  */
 export function getDatabaseFieldLabel(type: DatabaseFieldType): string {
     switch (type) {
-        case "plainText":
+        case "PlainText":
             return "Text";
-        case "checkbox":
+        case "Checkbox":
             return "Checkbox";
-        case "number":
+        case "Number":
             return "Number";
-        case "relation":
+        case "Relation":
             return "Linked record";
         default:
             throw exhaustive(type);

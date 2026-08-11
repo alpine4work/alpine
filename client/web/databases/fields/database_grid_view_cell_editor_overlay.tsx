@@ -11,24 +11,24 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
  */
 export function DatabaseGridViewCellEditorOverlay(props: DatabaseGridViewCellEditorOverlayProps) {
     switch (props.field.config.type) {
-        case "plainText":
+        case "PlainText":
             return (
                 <DatabasePlainTextGridViewCellEditorOverlay
-                    {...(props as DatabaseGridViewCellEditorOverlayProps<"plainText">)}
+                    {...(props as DatabaseGridViewCellEditorOverlayProps<"PlainText">)}
                 />
             );
-        case "checkbox":
+        case "Checkbox":
             return null;
-        case "number":
+        case "Number":
             return (
                 <DatabaseNumberGridViewCellEditorOverlay
-                    {...(props as DatabaseGridViewCellEditorOverlayProps<"number">)}
+                    {...(props as DatabaseGridViewCellEditorOverlayProps<"Number">)}
                 />
             );
-        case "relation":
+        case "Relation":
             return (
                 <DatabaseRelationGridViewCellEditorOverlay
-                    {...(props as DatabaseGridViewCellEditorOverlayProps<"relation">)}
+                    {...(props as DatabaseGridViewCellEditorOverlayProps<"Relation">)}
                 />
             );
         default:

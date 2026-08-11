@@ -6,13 +6,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 /** The icon of a field type, shown in the type picker and field headers. */
 export function getDatabaseFieldIcon(type: DatabaseFieldType): Icon {
     switch (type) {
-        case "plainText":
+        case "PlainText":
             return TextAa;
-        case "checkbox":
+        case "Checkbox":
             return CheckSquare;
-        case "number":
+        case "Number":
             return Hash;
-        case "relation":
+        case "Relation":
             return LinkSimple;
         default:
             throw exhaustive(type);

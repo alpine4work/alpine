@@ -18,13 +18,13 @@ export function formatDatabaseFieldValueString(
     value: DatabaseFieldValue,
 ): string {
     switch (config.type) {
-        case "plainText":
+        case "PlainText":
             return value as DatabasePlainTextFieldValue;
-        case "checkbox":
+        case "Checkbox":
             return value ? "true" : "false";
-        case "number":
+        case "Number":
             return formatDatabaseNumberFieldValueString(value as DatabaseNumberFieldValue, config);
-        case "relation":
+        case "Relation":
             return (value as DatabaseRelationFieldValue)
                 .map(link => link.name ?? "Untitled")
                 .join(", ");

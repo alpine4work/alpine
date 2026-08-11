@@ -46,6 +46,52 @@ export const mainSqliteMigrations: ReadonlyArray<SqliteMigration> = [
         ) STRICT,
         WITHOUT ROWID;
     `,
+    sql`
+        CREATE TABLE _alpine_tables_pascal_case (
+            id TEXT PRIMARY KEY,
+            kind TEXT NOT NULL,
+            CHECK (is_id (id)),
+            CHECK (kind IN ('Table', 'Join'))
+        ) STRICT,
+        WITHOUT ROWID;
+
+        CREATE TABLE _alpine_views_pascal_case (
+            id TEXT PRIMARY KEY,
+            table_id TEXT NOT NULL REFERENCES _alpine_tables_pascal_case (id) DEFERRABLE INITIALLY DEFERRED,
+            CHECK (is_id (id)),
+            CHECK (is_id (table_id))
+        ) STRICT,
+        WITHOUT ROWID;
+
+        INSERT INTO
+            _alpine_tables_pascal_case (id, kind)
+        SELECT
+            id,
+            CASE kind
+                WHEN 'table' THEN 'Table'
+                WHEN 'join' THEN 'Join'
+            END
+        FROM
+            _alpine_tables;
+
+        INSERT INTO
+            _alpine_views_pascal_case (id, table_id)
+        SELECT
+            id,
+            table_id
+        FROM
+            _alpine_views;
+
+        DROP TABLE _alpine_views;
+
+        DROP TABLE _alpine_tables;
+
+        ALTER TABLE _alpine_tables_pascal_case
+        RENAME TO _alpine_tables;
+
+        ALTER TABLE _alpine_views_pascal_case
+        RENAME TO _alpine_views;
+    `,
 ];
 
 /**
@@ -111,6 +157,38 @@ export function tableSqliteMigrations(tableId: DatabaseTableId): ReadonlyArray<S
                 CHECK (id = ${sqlStringLiteral(tableId)})
             ) STRICT,
             WITHOUT ROWID;
+        `,
+        sql`
+            UPDATE ${schema}._alpine_fields
+            SET
+                config = jsonb_set (
+                    config,
+                    '$.side',
+                    CASE config ->> '$.side'
+                        WHEN 'source' THEN 'Source'
+                        WHEN 'target' THEN 'Target'
+                    END,
+                    '$.cardinality',
+                    CASE config ->> '$.cardinality'
+                        WHEN 'one' THEN 'One'
+                        WHEN 'many' THEN 'Many'
+                    END
+                )
+            WHERE
+                config ->> '$.type' = 'relation';
+
+            UPDATE ${schema}._alpine_fields
+            SET
+                config = jsonb_set (
+                    config,
+                    '$.type',
+                    CASE config ->> '$.type'
+                        WHEN 'plainText' THEN 'PlainText'
+                        WHEN 'checkbox' THEN 'Checkbox'
+                        WHEN 'number' THEN 'Number'
+                        WHEN 'relation' THEN 'Relation'
+                    END
+                );
         `,
     ];
 }
@@ -201,7 +279,7 @@ export function runTableMigrations(
     tableId: DatabaseTableId,
     migrationLimitForTest?: number,
 ): void {
-    runSchemaMigrations(db, tableId, "table", migrationLimitForTest);
+    runSchemaMigrations(db, tableId, "Table", migrationLimitForTest);
 }
 
 /**
@@ -214,13 +292,13 @@ export function runJoinTableMigrations(
     tableId: DatabaseTableId,
     migrationLimitForTest?: number,
 ): void {
-    runSchemaMigrations(db, tableId, "join", migrationLimitForTest);
+    runSchemaMigrations(db, tableId, "Join", migrationLimitForTest);
 }
 
 function runSchemaMigrations(
     db: Database,
     tableId: DatabaseTableId,
-    kind: "table" | "join",
+    kind: "Table" | "Join",
     migrationLimitForTest?: number,
 ): void {
     if (migrationLimitForTest) {
@@ -228,8 +306,8 @@ function runSchemaMigrations(
     }
 
     const migrations =
-        kind === "table" ? tableSqliteMigrations(tableId) : joinTableSqliteMigrations(tableId);
-    const description = kind === "table" ? "table" : "join table";
+        kind === "Table" ? tableSqliteMigrations(tableId) : joinTableSqliteMigrations(tableId);
+    const description = kind === "Table" ? "Table" : "join table";
     const migrationLimit = migrationLimitForTest ?? migrations.length;
     const schema = sql.identifier(databaseTableSchemaName(tableId));
     const version = sql`PRAGMA ${schema}.user_version`.selectValue(db, Schema.integer);

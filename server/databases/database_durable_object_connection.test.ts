@@ -340,7 +340,7 @@ describe("registerTables", () => {
         expect(result.tables.get(tableId)).toMatchObject({
             watermark,
             fileSizeInPages: 1,
-            catchUp: {type: "current"},
+            catchUp: {type: "Current"},
         });
     });
 
@@ -359,7 +359,7 @@ describe("registerTables", () => {
 
         expect(result.tables.get(tableId)).toMatchObject({
             watermark: currentWatermark,
-            catchUp: {type: "current"},
+            catchUp: {type: "Current"},
         });
     });
 
@@ -381,7 +381,7 @@ describe("registerTables", () => {
             watermark,
         );
         const table = result.tables.get(tableId)!;
-        assert(table.catchUp.type === "pages");
+        assert(table.catchUp.type === "Pages");
 
         expect({
             indexes: [...table.catchUp.pages.keys()],
@@ -410,8 +410,8 @@ describe("registerTables", () => {
         const stale = await registerHeldPages(conn, new Map([[tableId, overLimit]]), 0);
         const inlineCatchUp = inline.tables.get(tableId)!.catchUp;
         const staleCatchUp = stale.tables.get(tableId)!.catchUp;
-        assert(inlineCatchUp.type === "pages");
-        assert(staleCatchUp.type === "stale");
+        assert(inlineCatchUp.type === "Pages");
+        assert(staleCatchUp.type === "Stale");
 
         expect({
             inlineType: inlineCatchUp.type,
@@ -419,9 +419,9 @@ describe("registerTables", () => {
             staleType: staleCatchUp.type,
             staleCount: staleCatchUp.pageIndexes.size(),
         }).toEqual({
-            inlineType: "pages",
+            inlineType: "Pages",
             inlineCount: registrationCatchUpInlinePageLimit,
-            staleType: "stale",
+            staleType: "Stale",
             staleCount: registrationCatchUpInlinePageLimit + 1,
         });
     });
@@ -445,7 +445,7 @@ describe("registerTables", () => {
         );
         const catchUp = result.tables.get(tableId)?.catchUp;
 
-        expect(catchUp?.type === "stale" ? catchUp.pageIndexes.array() : []).toEqual([1]);
+        expect(catchUp?.type === "Stale" ? catchUp.pageIndexes.array() : []).toEqual([1]);
     });
 
     test("withholds inaccessible tables", async () => {
@@ -464,8 +464,8 @@ describe("registerTables", () => {
         const targetTableId = generateChronologicalId<DatabaseTableId>();
         jest.spyOn(server, "getDatabaseTableAccessEntry").mockImplementation(lookupTableId =>
             lookupTableId === tableId
-                ? {kind: "join", sourceTableId, targetTableId}
-                : {kind: "table", accessPolicy: null},
+                ? {kind: "Join", sourceTableId, targetTableId}
+                : {kind: "Table", accessPolicy: null},
         );
         jest.spyOn(server, "getTableAccessLevelForAccount").mockImplementation(lookupTableId => {
             if (lookupTableId === sourceTableId) return "View";
@@ -906,19 +906,19 @@ describe("per-table realtime filtering", () => {
         jest.spyOn(server, "getDatabaseTableAccessEntry").mockImplementation(lookupTableId => {
             if (lookupTableId === joinTableId) {
                 return {
-                    kind: "join",
+                    kind: "Join",
                     sourceTableId: changedTableId,
                     targetTableId: otherTableId,
                 };
             }
             if (lookupTableId === unrelatedJoinTableId) {
                 return {
-                    kind: "join",
+                    kind: "Join",
                     sourceTableId: unrelatedSourceTableId,
                     targetTableId: unrelatedTargetTableId,
                 };
             }
-            return {kind: "table", accessPolicy: null};
+            return {kind: "Table", accessPolicy: null};
         });
         await registerHeldPages(
             conn,

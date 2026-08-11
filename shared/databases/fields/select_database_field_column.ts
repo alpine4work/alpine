@@ -9,12 +9,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
  */
 export function selectDatabaseFieldColumn(field: DatabaseFieldModel, dataRow: SqlQuery): SqlQuery {
     switch (field.config.type) {
-        case "plainText":
-        case "checkbox":
-        case "number":
+        case "PlainText":
+        case "Checkbox":
+        case "Number":
             return sql`${dataRow}.${field.column()}`;
-        case "relation":
-            assert(field.isType("relation"));
+        case "Relation":
+            assert(field.isType("Relation"));
             return selectDatabaseRelationFieldColumn(field, dataRow);
         default:
             throw exhaustive(field.config);

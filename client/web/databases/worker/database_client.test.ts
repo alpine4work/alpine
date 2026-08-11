@@ -732,7 +732,7 @@ describe("connection epochs", () => {
                                 {
                                     watermark: 1,
                                     fileSizeInPages,
-                                    catchUp: {type: "current"},
+                                    catchUp: {type: "Current"},
                                 },
                             ],
                         ]),
@@ -790,7 +790,7 @@ describe("connection epochs", () => {
                                 {
                                     watermark: 7,
                                     fileSizeInPages: before.fileSizeInPages,
-                                    catchUp: {type: "current"},
+                                    catchUp: {type: "Current"},
                                 },
                             ],
                         ]),
@@ -847,7 +847,7 @@ describe("connection epochs", () => {
                                 {
                                     watermark: 8,
                                     fileSizeInPages: before.fileSizeInPages,
-                                    catchUp: {type: "current"},
+                                    catchUp: {type: "Current"},
                                 },
                             ],
                         ]),
@@ -893,7 +893,7 @@ describe("connection epochs", () => {
                                     watermark: 12,
                                     fileSizeInPages: before.fileSizeInPages,
                                     catchUp: {
-                                        type: "pages",
+                                        type: "Pages",
                                         pages: new Map([
                                             [
                                                 page.pageIndex,
@@ -968,7 +968,7 @@ describe("connection epochs", () => {
                         watermark: 12,
                         fileSizeInPages: before.fileSizeInPages,
                         catchUp: {
-                            type: "pages",
+                            type: "Pages",
                             pages: new Map([
                                 [page.pageIndex, {version: page.version + 1, data: replacement}],
                             ]),
@@ -1014,7 +1014,7 @@ describe("connection epochs", () => {
                                     watermark: 15,
                                     fileSizeInPages: smallerFileSize,
                                     catchUp: {
-                                        type: "stale",
+                                        type: "Stale",
                                         pageIndexes: new TypedFastBitSet([pageIndex]),
                                     },
                                 },
@@ -1055,7 +1055,7 @@ describe("connection epochs", () => {
                                     watermark: 30,
                                     fileSizeInPages: before.fileSizeInPages,
                                     catchUp: {
-                                        type: "stale",
+                                        type: "Stale",
                                         pageIndexes: new TypedFastBitSet([stalePage.pageIndex]),
                                     },
                                 },
@@ -1134,7 +1134,7 @@ describe("connection epochs", () => {
                     {
                         watermark: 40,
                         fileSizeInPages: before.fileSizeInPages,
-                        catchUp: {type: "current"},
+                        catchUp: {type: "Current"},
                     },
                 ],
             ]),
@@ -1154,7 +1154,7 @@ describe("connection epochs", () => {
                                 {
                                     watermark: 41,
                                     fileSizeInPages: before.fileSizeInPages,
-                                    catchUp: {type: "current"},
+                                    catchUp: {type: "Current"},
                                 },
                             ],
                         ]),
@@ -1231,7 +1231,7 @@ describe("connection epochs", () => {
                                 {
                                     watermark: 46,
                                     fileSizeInPages: before.fileSizeInPages,
-                                    catchUp: {type: "current"},
+                                    catchUp: {type: "Current"},
                                 },
                             ],
                         ]),
@@ -1302,7 +1302,7 @@ describe("connection epochs", () => {
                                 {
                                     watermark: 50,
                                     fileSizeInPages: before.fileSizeInPages,
-                                    catchUp: {type: "current"},
+                                    catchUp: {type: "Current"},
                                 },
                             ],
                         ]),
@@ -1371,7 +1371,7 @@ describe("connection epochs", () => {
                     {
                         watermark: 59,
                         fileSizeInPages: before.fileSizeInPages - 1,
-                        catchUp: {type: "current"},
+                        catchUp: {type: "Current"},
                     },
                 ],
             ]),
@@ -3012,7 +3012,7 @@ describe("DatabaseClient — table access levels", () => {
                                 {
                                     watermark: 70,
                                     fileSizeInPages: tablePages.fileSizeInPages,
-                                    catchUp: {type: "current"},
+                                    catchUp: {type: "Current"},
                                 },
                             ],
                         ]),
@@ -3072,7 +3072,7 @@ describe("DatabaseClient — table access levels", () => {
                                 {
                                     watermark: 70,
                                     fileSizeInPages: tablePages.fileSizeInPages,
-                                    catchUp: {type: "current"},
+                                    catchUp: {type: "Current"},
                                 },
                             ],
                         ]),

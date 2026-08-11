@@ -70,22 +70,22 @@ type DatabaseGridViewSelection = {
 } | null;
 
 type SelectionAction =
-    | {type: "click"; rowId: DatabaseRowId; fieldId: DatabaseFieldId}
-    | {type: "blur"}
-    | {type: "enter"}
-    | {type: "clear"}
-    | {type: "type"; character: string}
-    | {type: "select"; rowId: DatabaseRowId; fieldId: DatabaseFieldId}
-    | {type: "deselect"}
-    | {type: "focus"}
-    | {type: "focusout"};
+    | {type: "Click"; rowId: DatabaseRowId; fieldId: DatabaseFieldId}
+    | {type: "Blur"}
+    | {type: "Enter"}
+    | {type: "Clear"}
+    | {type: "Type"; character: string}
+    | {type: "Select"; rowId: DatabaseRowId; fieldId: DatabaseFieldId}
+    | {type: "Deselect"}
+    | {type: "Focus"}
+    | {type: "FocusOut"};
 
 function selectionReducer(
     state: DatabaseGridViewSelection,
     action: SelectionAction,
 ): DatabaseGridViewSelection {
     switch (action.type) {
-        case "click":
+        case "Click":
             return {
                 rowId: action.rowId,
                 fieldId: action.fieldId,
@@ -93,19 +93,19 @@ function selectionReducer(
                 isEditing: true,
                 initialEditValue: null,
             };
-        case "blur":
+        case "Blur":
             if (state == null) return null;
             return {...state, isEditing: false, initialEditValue: null};
-        case "enter":
+        case "Enter":
             if (state == null) return null;
             return {...state, isEditing: true, initialEditValue: null};
-        case "clear":
+        case "Clear":
             if (state == null) return null;
             return {...state, isEditing: true, initialEditValue: ""};
-        case "type":
+        case "Type":
             if (state == null) return null;
             return {...state, isEditing: true, initialEditValue: action.character};
-        case "select":
+        case "Select":
             return {
                 rowId: action.rowId,
                 fieldId: action.fieldId,
@@ -113,12 +113,12 @@ function selectionReducer(
                 isEditing: false,
                 initialEditValue: null,
             };
-        case "deselect":
+        case "Deselect":
             return null;
-        case "focus":
+        case "Focus":
             if (state == null) return null;
             return {...state, isActive: true};
-        case "focusout":
+        case "FocusOut":
             if (state == null) return null;
             return {...state, isActive: false};
     }
@@ -186,7 +186,7 @@ export function DatabaseGridView({
         const firstFieldId = gridFields.fields[0]?.id;
         if (firstFieldId == null) return;
         const rowId = generateChronologicalId<DatabaseRowId>();
-        dispatch({type: "click", rowId, fieldId: firstFieldId});
+        dispatch({type: "Click", rowId, fieldId: firstFieldId});
         startTransition(async () => {
             await conn.executeAction("createRow", {tableId, rowId});
         });
@@ -212,14 +212,14 @@ export function DatabaseGridView({
         );
 
         if (nextRowIndex === rowIndex && nextFieldIndex === fieldIndex) {
-            dispatch({type: "blur"});
+            dispatch({type: "Blur"});
             return;
         }
 
         const nextRow = tree.getItem(nextRowIndex);
         const nextField = assertExists(gridFields.fields[nextFieldIndex]);
         dispatch({
-            type: "select",
+            type: "Select",
             rowId: nextRow.getId(),
             fieldId: nextField.id,
         });
@@ -231,15 +231,15 @@ export function DatabaseGridView({
         if (e.key === "Enter") {
             e.preventDefault();
             e.stopPropagation();
-            dispatch({type: "enter"});
+            dispatch({type: "Enter"});
         } else if (e.key === "Backspace" || e.key === "Delete") {
             e.preventDefault();
             e.stopPropagation();
-            dispatch({type: "clear"});
+            dispatch({type: "Clear"});
         } else if (e.key === "Escape") {
             e.preventDefault();
             e.stopPropagation();
-            dispatch({type: "deselect"});
+            dispatch({type: "Deselect"});
         } else if (
             e.key === "ArrowUp" ||
             e.key === "ArrowDown" ||
@@ -254,7 +254,7 @@ export function DatabaseGridView({
         } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
             e.preventDefault();
             e.stopPropagation();
-            dispatch({type: "type", character: e.key});
+            dispatch({type: "Type", character: e.key});
         }
     });
 
@@ -449,11 +449,11 @@ export function DatabaseGridView({
                 display="flex"
                 flexDirection="column"
                 gap="2"
-                onFocus={() => dispatch({type: "focus"})}
+                onFocus={() => dispatch({type: "Focus"})}
                 onBlur={e => {
                     // Only deactivate if focus moved outside the grid entirely (not between children).
                     if (!e.currentTarget.contains(e.relatedTarget)) {
-                        dispatch({type: "focusout"});
+                        dispatch({type: "FocusOut"});
                     }
                 }}
             >
@@ -729,7 +729,7 @@ function DatabaseGridViewCell({
             initialValue={optimisticValue as DatabaseFieldValue}
             initialEditString={initialEditValue}
             commitValue={commitValue}
-            onClose={() => dispatch({type: "blur"})}
+            onClose={() => dispatch({type: "Blur"})}
             moveSelection={moveSelection}
             onCreateRow={onCreateRow}
         />
@@ -755,14 +755,14 @@ function DatabaseGridViewCell({
                     marginTop: -1,
                     marginBottom: -1,
                 }}
-                onFocus={() => dispatch({type: "select", rowId, fieldId: field.id})}
+                onFocus={() => dispatch({type: "Select", rowId, fieldId: field.id})}
             >
                 <DatabaseGridViewCellContent
                     ref={cellRef}
                     field={field}
                     value={optimisticValue as DatabaseFieldValue}
                     commitValue={commitValue}
-                    onCellClick={() => dispatch({type: "click", rowId, fieldId: field.id})}
+                    onCellClick={() => dispatch({type: "Click", rowId, fieldId: field.id})}
                 />
             </Box>
         </Overlay>

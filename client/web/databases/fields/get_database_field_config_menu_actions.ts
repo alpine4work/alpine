@@ -15,13 +15,13 @@ export function getDatabaseFieldConfigMenuActions(
     args: DatabaseFieldConfigMenuActionsArgs,
 ): MenuActions {
     switch (args.config.type) {
-        case "plainText":
-        case "checkbox":
-        case "relation":
+        case "PlainText":
+        case "Checkbox":
+        case "Relation":
             return [];
-        case "number":
+        case "Number":
             return getDatabaseNumberFieldConfigMenuActions(
-                args as DatabaseFieldConfigMenuActionsArgs<"number">,
+                args as DatabaseFieldConfigMenuActionsArgs<"Number">,
             );
         default:
             throw exhaustive(args.config);

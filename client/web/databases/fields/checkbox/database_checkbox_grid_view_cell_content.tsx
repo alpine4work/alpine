@@ -6,7 +6,7 @@ export function DatabaseCheckboxGridViewCellContent({
     ref,
     value,
     commitValue,
-}: DatabaseGridViewCellContentProps<"checkbox">) {
+}: DatabaseGridViewCellContentProps<"Checkbox">) {
     const isChecked = value === true;
 
     const toggle = () => {

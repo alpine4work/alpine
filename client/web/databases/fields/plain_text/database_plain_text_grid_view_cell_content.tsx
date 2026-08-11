@@ -5,7 +5,7 @@ export function DatabasePlainTextGridViewCellContent({
     ref,
     value,
     onCellClick,
-}: DatabaseGridViewCellContentProps<"plainText">) {
+}: DatabaseGridViewCellContentProps<"PlainText">) {
     return (
         <Box
             ref={ref as React.Ref<HTMLDivElement>}

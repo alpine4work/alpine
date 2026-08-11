@@ -120,7 +120,7 @@ describe("createTable", () => {
         expect(tables).toEqual([
             {
                 id: tableId,
-                kind: "table",
+                kind: "Table",
             },
         ]);
         db.close();
@@ -168,7 +168,7 @@ describe("createTable", () => {
             {
                 name: "Name",
                 column_name: "name",
-                config: DatabaseFieldConfigSqlSchema.serialize({type: "plainText"}),
+                config: DatabaseFieldConfigSqlSchema.serialize({type: "PlainText"}),
             },
         ]);
         expect(table.nameFieldId).toBe(fields[0]!.id);
@@ -496,21 +496,21 @@ function addFieldAndGetId(
     tableId: DatabaseTableId,
     viewId: DatabaseViewId,
     name: string,
-    type: "plainText" | "checkbox" | "number" = "plainText",
+    type: "PlainText" | "Checkbox" | "Number" = "PlainText",
 ) {
     const fieldId = generateChronologicalId<DatabaseFieldId>();
     run(db, "createField", {fieldId, tableId, name, config: getDefaultFieldConfig(type)});
     return {fieldId};
 }
 
-function getDefaultFieldConfig(type: "plainText" | "checkbox" | "number") {
+function getDefaultFieldConfig(type: "PlainText" | "Checkbox" | "Number") {
     switch (type) {
-        case "checkbox":
-            return {type: "checkbox" as const};
-        case "number":
-            return {type: "number" as const, decimalPlaces: null};
-        case "plainText":
-            return {type: "plainText" as const};
+        case "Checkbox":
+            return {type: "Checkbox" as const};
+        case "Number":
+            return {type: "Number" as const, decimalPlaces: null};
+        case "PlainText":
+            return {type: "PlainText" as const};
     }
 }
 
@@ -541,10 +541,10 @@ function addRelationFieldMetadata(
     const fieldId = generateChronologicalId<DatabaseFieldId>();
     const joinTableId = generateChronologicalId<DatabaseTableId>();
     const config = {
-        type: "relation" as const,
+        type: "Relation" as const,
         joinTableId,
-        side: "source" as const,
-        cardinality: "many" as const,
+        side: "Source" as const,
+        cardinality: "Many" as const,
         linkedTableId: tableId,
     };
     const maxPosition = sql`
@@ -745,7 +745,7 @@ describe("listTableIds", () => {
             INSERT INTO
                 _alpine_tables (id, kind)
             VALUES
-                (${joinTableId}, 'join')
+                (${joinTableId}, 'Join')
         `.exec(db);
 
         const {tableIds} = run(db, "listTableIds", {});
@@ -765,7 +765,7 @@ describe("listTables", () => {
             sourceTableId: first.tableId,
             sourceFieldName: "Project",
             targetTableId: second.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
 
         const {tables} = run(db, "listTables", {});
@@ -804,7 +804,7 @@ describe("createRelationField", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "one",
+            cardinality: "One",
         });
 
         const registryRow = sql`
@@ -870,7 +870,7 @@ describe("createRelationField", () => {
         }).toMatchObject({
             registryRow: {
                 id: result.joinTableId,
-                kind: "join",
+                kind: "Join",
             },
             joinRow: {
                 id: result.joinTableId,
@@ -887,20 +887,20 @@ describe("createRelationField", () => {
             sourceField: {
                 name: "Project",
                 config: {
-                    type: "relation",
+                    type: "Relation",
                     joinTableId: result.joinTableId,
-                    side: "source",
-                    cardinality: "one",
+                    side: "Source",
+                    cardinality: "One",
                     linkedTableId: target.tableId,
                 },
             },
             targetField: {
                 name: "Tasks",
                 config: {
-                    type: "relation",
+                    type: "Relation",
                     joinTableId: result.joinTableId,
-                    side: "target",
-                    cardinality: "many",
+                    side: "Target",
+                    cardinality: "Many",
                     linkedTableId: source.tableId,
                 },
             },
@@ -921,7 +921,7 @@ describe("createRelationField", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
 
         const targetField = readFieldById(db, target.tableId, result.targetFieldId);
@@ -938,7 +938,7 @@ describe("createRelationField", () => {
             sourceTableId: table.tableId,
             sourceFieldName: "Related",
             targetTableId: table.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
 
         const fields = sql`
@@ -961,8 +961,8 @@ describe("createRelationField", () => {
             config: DatabaseFieldConfigSqlSchema,
         });
         expect(fields).toMatchObject([
-            {id: result.sourceFieldId, name: "Related", config: {side: "source"}},
-            {id: result.targetFieldId, name: "Tasks", config: {side: "target"}},
+            {id: result.sourceFieldId, name: "Related", config: {side: "Source"}},
+            {id: result.targetFieldId, name: "Tasks", config: {side: "Target"}},
         ]);
         db.close();
     });
@@ -978,7 +978,7 @@ describe("addLink", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const targetRowId = createRowAndGetId(db, target.tableId);
@@ -1009,7 +1009,7 @@ describe("addLink", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "one",
+            cardinality: "One",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const firstTargetRowId = createRowAndGetId(db, target.tableId);
@@ -1049,7 +1049,7 @@ describe("addLink", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const targetRowId = createRowAndGetId(db, target.tableId);
@@ -1074,7 +1074,7 @@ describe("addLink", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "one",
+            cardinality: "One",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const targetRowId = createRowAndGetId(db, target.tableId);
@@ -1110,7 +1110,7 @@ describe("removeLink", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const firstTargetRowId = createRowAndGetId(db, target.tableId);
@@ -1156,7 +1156,7 @@ describe("removeLink", () => {
             sourceTableId: table.tableId,
             sourceFieldName: "Related",
             targetTableId: table.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, table.tableId);
         const targetRowId = createRowAndGetId(db, table.tableId);
@@ -1189,7 +1189,7 @@ describe("listLinkableRows", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const firstTargetRowId = createRowAndGetId(db, target.tableId);
@@ -1233,7 +1233,7 @@ describe("listLinkableRows", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const targetRowId = createRowAndGetId(db, target.tableId);
@@ -1263,7 +1263,7 @@ describe("listLinkableRows", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const targetNameFieldId = readNameFieldId(db, target.tableId);
@@ -1297,7 +1297,7 @@ describe("listLinkableRows", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const targetNameFieldId = readNameFieldId(db, target.tableId);
@@ -1331,7 +1331,7 @@ describe("listLinkableRows", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
 
@@ -1356,7 +1356,7 @@ describe("listLinkedRows", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const targetNameFieldId = readNameFieldId(db, target.tableId);
@@ -1398,7 +1398,7 @@ describe("moveLink", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const targetNameFieldId = readNameFieldId(db, target.tableId);
@@ -1455,7 +1455,7 @@ describe("createAndLinkRow", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const linkedRowId = generateChronologicalId<DatabaseRowId>();
@@ -1487,7 +1487,7 @@ describe("createAndLinkRow", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "one",
+            cardinality: "One",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const firstTargetRowId = createRowAndGetId(db, target.tableId);
@@ -1780,7 +1780,7 @@ describe("getViewRowsPage", () => {
     test("checkbox values are deserialized via the field provider sqlValueSchema", async () => {
         const db = await createDb();
         const {tableId, viewId, tableName} = createTableForTest(db, "T");
-        const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Done", "checkbox");
+        const {fieldId} = addFieldAndGetId(db, tableId, viewId, "Done", "Checkbox");
         const rowId = generateChronologicalId<DatabaseRowId>();
         sql`
             INSERT INTO
@@ -1809,7 +1809,7 @@ describe("getViewRowsPage", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const firstSourceRowId = createRowAndGetId(db, source.tableId);
         const secondSourceRowId = createRowAndGetId(db, source.tableId);
@@ -1870,7 +1870,7 @@ describe("getViewRowsPage", () => {
             target.tableId,
             target.viewId,
             "Score",
-            "number",
+            "Number",
         );
         sql`
             UPDATE ${sql.tableRef(target.tableId, "_alpine_table")}
@@ -1881,7 +1881,7 @@ describe("getViewRowsPage", () => {
             UPDATE ${sql.tableRef(target.tableId, "_alpine_fields")}
             SET
                 config = jsonb (${DatabaseFieldConfigSqlSchema.serialize({
-                type: "number",
+                type: "Number",
                 decimalPlaces: 2,
             })})
             WHERE
@@ -1892,7 +1892,7 @@ describe("getViewRowsPage", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, source.tableId);
         const targetRowId = createRowAndGetId(db, target.tableId);
@@ -1930,7 +1930,7 @@ describe("getViewRowsPage", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const ids = [
             createRowAndGetId(db, source.tableId),
@@ -1956,7 +1956,7 @@ describe("getViewRowsPage", () => {
             sourceTableId: table.tableId,
             sourceFieldName: "Related",
             targetTableId: table.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const sourceRowId = createRowAndGetId(db, table.tableId);
         const targetRowId = createRowAndGetId(db, table.tableId);
@@ -2087,7 +2087,7 @@ describe("createField", () => {
             fieldId,
             tableId,
             name: "Status",
-            config: {type: "plainText"},
+            config: {type: "PlainText"},
         });
 
         const viewFields = sql`
@@ -2131,10 +2131,10 @@ describe("createField", () => {
                 tableId,
                 name: "Links",
                 config: {
-                    type: "relation",
+                    type: "Relation",
                     joinTableId: generateChronologicalId<DatabaseTableId>(),
-                    side: "source",
-                    cardinality: "many",
+                    side: "Source",
+                    cardinality: "Many",
                     linkedTableId: tableId,
                 },
             });
@@ -2153,10 +2153,10 @@ describe("updateFieldConfig", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
         const config = readFieldById(db, source.tableId, relation.sourceFieldId).config;
-        assert(config.type === "relation", "expected relation config");
+        assert(config.type === "Relation", "expected relation config");
 
         expect(() => {
             run(db, "updateFieldConfig", {
@@ -2300,7 +2300,7 @@ describe("renameField", () => {
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
-            cardinality: "many",
+            cardinality: "Many",
         });
 
         run(db, "renameField", {

@@ -961,7 +961,7 @@ async function createServerDatabaseWithTables(
                     INSERT INTO
                         main._alpine_tables (id, kind)
                     VALUES
-                        (${tableId}, 'table')
+                        (${tableId}, 'Table')
                 `.exec(db);
                 database.attach(tableId);
                 runTableMigrations(db, tableId);
@@ -1050,7 +1050,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
                 INSERT INTO
                     main._alpine_tables (id, kind)
                 VALUES
-                    (${staleTableId}, 'table')
+                    (${staleTableId}, 'Table')
             `,
             {allowWrites: "schema+data", getTableAccessLevel: allowAllTableAccess},
         );

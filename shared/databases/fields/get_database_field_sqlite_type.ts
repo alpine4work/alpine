@@ -6,11 +6,11 @@ export type SqliteStorageType = "INTEGER" | "REAL" | "TEXT" | "BLOB";
 /** The SQLite storage type of a column-backed field type's column. */
 export function getDatabaseFieldSqliteType(type: DatabaseColumnBackedFieldType): SqliteStorageType {
     switch (type) {
-        case "plainText":
+        case "PlainText":
             return "TEXT";
-        case "checkbox":
+        case "Checkbox":
             return "INTEGER";
-        case "number":
+        case "Number":
             return "REAL";
         default:
             throw exhaustive(type);

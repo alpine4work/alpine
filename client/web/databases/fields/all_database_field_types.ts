@@ -2,8 +2,8 @@ import type {DatabaseFieldType} from "~/shared/databases/fields/database_field_c
 
 /** All field types, in the order shown in the field type picker. */
 export const allDatabaseFieldTypes: ReadonlyArray<DatabaseFieldType> = [
-    "plainText",
-    "checkbox",
-    "number",
-    "relation",
+    "PlainText",
+    "Checkbox",
+    "Number",
+    "Relation",
 ];

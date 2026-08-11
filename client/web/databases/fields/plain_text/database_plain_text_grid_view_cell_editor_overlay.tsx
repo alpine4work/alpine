@@ -13,7 +13,7 @@ export function DatabasePlainTextGridViewCellEditorOverlay({
     onClose,
     moveSelection,
     onCreateRow,
-}: DatabaseGridViewCellEditorOverlayProps<"plainText">) {
+}: DatabaseGridViewCellEditorOverlayProps<"PlainText">) {
     const [editValue, setEditValue] = useState(initialEditString ?? initialValue);
     const localRef = useRef<HTMLTextAreaElement>(null);
 

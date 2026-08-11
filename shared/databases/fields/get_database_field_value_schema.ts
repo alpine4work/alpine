@@ -7,10 +7,10 @@ import {DatabaseRelationFieldValueSchema} from "~/shared/databases/fields/relati
 import type {Schema} from "~/shared/schema/schema.open_source.js";
 
 const databaseFieldValueSchemas: {[Type in DatabaseFieldType]: Schema<DatabaseFieldValue<Type>>} = {
-    plainText: DatabasePlainTextFieldValueSchema,
-    checkbox: DatabaseCheckboxFieldValueSchema,
-    number: DatabaseNumberFieldValueSchema,
-    relation: DatabaseRelationFieldValueSchema,
+    PlainText: DatabasePlainTextFieldValueSchema,
+    Checkbox: DatabaseCheckboxFieldValueSchema,
+    Number: DatabaseNumberFieldValueSchema,
+    Relation: DatabaseRelationFieldValueSchema,
 };
 
 export function getDatabaseFieldValueSchema<Type extends DatabaseFieldType>(

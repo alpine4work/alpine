@@ -2,7 +2,7 @@ import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_f
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 
 export function selectDatabaseNumberFieldColumnAsString(
-    field: DatabaseFieldModelOfType<"number">,
+    field: DatabaseFieldModelOfType<"Number">,
     dataRow: SqlQuery,
 ): SqlQuery {
     const column = sql`${dataRow}.${field.column()}`;

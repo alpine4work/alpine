@@ -7,11 +7,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
  */
 export function hasDatabaseGridViewCellEditorOverlay(type: DatabaseFieldType): boolean {
     switch (type) {
-        case "plainText":
-        case "number":
-        case "relation":
+        case "PlainText":
+        case "Number":
+        case "Relation":
             return true;
-        case "checkbox":
+        case "Checkbox":
             return false;
         default:
             throw exhaustive(type);
