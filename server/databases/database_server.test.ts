@@ -6,9 +6,8 @@ import {
     runDatabaseDurableObjectSqlMigrations,
 } from "~/server/databases/database_durable_object_sql_migrations.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
-import {noTruncates} from "~/server/databases/test_helpers/no_truncates.js";
-import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
-import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
+import {truncateDatabaseTablePage} from "~/server/databases/test_helpers/truncate_database_table_page.js";
+import {writeDatabasePagesFor} from "~/server/databases/test_helpers/write_database_pages_for.js";
 import type {AccessLevel, LocalAccessPolicy} from "~/shared/access/access_policy.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {type SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
@@ -16,6 +15,7 @@ import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_con
 import {tableSqliteMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {captureResult} from "~/shared/helpers/control/capture_result.open_source.js";
+import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {
@@ -161,7 +161,7 @@ describe("DatabaseServer — storage failure recovery", () => {
                     [tableA, new Map([[0, new Uint8Array(sqlitePageSize)]])],
                     [tableB, new Map([[0, new Uint8Array(sqlitePageSize)]])],
                 ]),
-                noTruncates,
+                emptyMap,
             ),
         );
         execSpy.mockRestore();
@@ -174,7 +174,7 @@ describe("DatabaseServer — storage failure recovery", () => {
             ),
         ];
         const rolledBackSize = server.getFileSize(tableA);
-        const retryVersion = writePagesFor(
+        const retryVersion = writeDatabasePagesFor(
             server,
             tableA,
             new Map([[0, new Uint8Array(sqlitePageSize)]]),
@@ -213,7 +213,7 @@ describe("DatabaseServer — storage failure recovery", () => {
         });
 
         const writeResult = captureResult(() =>
-            writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]])),
+            writeDatabasePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]])),
         );
         execSpy.mockRestore();
         const snapshotVersion = server.executeForTests(
@@ -230,7 +230,7 @@ describe("DatabaseServer — storage failure recovery", () => {
         server.close();
         const reloaded = await DatabaseServer.create(storage);
         openServers.push(reloaded);
-        const nextVersion = writePagesFor(
+        const nextVersion = writeDatabasePagesFor(
             reloaded,
             tableId,
             new Map([[0, new Uint8Array(sqlitePageSize)]]),
@@ -2001,7 +2001,7 @@ describe("DatabaseServer — durable page storage", () => {
         page[0] = 0xab;
         page[sqlitePageSize - 1] = 0xcd;
 
-        writePagesFor(server, tableId, new Map([[0, page]]));
+        writeDatabasePagesFor(server, tableId, new Map([[0, page]]));
 
         const {data: read, version} = server.readPage(tableId, 0)!;
 
@@ -2024,7 +2024,7 @@ describe("DatabaseServer — durable page storage", () => {
 
         expect(server.getFileSize(tableId)).toBe(0);
 
-        writePagesFor(
+        writeDatabasePagesFor(
             server,
             tableId,
             new Map([
@@ -2040,7 +2040,7 @@ describe("DatabaseServer — durable page storage", () => {
         const server = await createServer();
         const tableId = generateId<DatabaseTableId>();
 
-        writePagesFor(
+        writeDatabasePagesFor(
             server,
             tableId,
             new Map([
@@ -2050,7 +2050,7 @@ describe("DatabaseServer — durable page storage", () => {
             ]),
         );
 
-        truncateFor(server, tableId, 1 * sqlitePageSize);
+        truncateDatabaseTablePage(server, tableId, 1 * sqlitePageSize);
 
         // Pages 1 and 2 are tombstoned internally; they surface as missing from readPage.
         // Page 0 survives.
@@ -2065,8 +2065,8 @@ describe("DatabaseServer — durable page storage", () => {
         const server = await createServer();
         const tableId = generateId<DatabaseTableId>();
 
-        writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
-        truncateFor(server, tableId, 0);
+        writeDatabasePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        truncateDatabaseTablePage(server, tableId, 0);
 
         expect(server.readPage(tableId, 0)).toBeNull();
     });
@@ -2075,7 +2075,7 @@ describe("DatabaseServer — durable page storage", () => {
         const server = await createServer();
         const tableId = generateId<DatabaseTableId>();
 
-        writePagesFor(
+        writeDatabasePagesFor(
             server,
             tableId,
             new Map([
@@ -2086,7 +2086,7 @@ describe("DatabaseServer — durable page storage", () => {
         );
 
         expect(server.getFileSize(tableId)).toBe(3 * sqlitePageSize);
-        truncateFor(server, tableId, 2 * sqlitePageSize);
+        truncateDatabaseTablePage(server, tableId, 2 * sqlitePageSize);
         expect(server.getFileSize(tableId)).toBe(2 * sqlitePageSize);
     });
 
@@ -2094,7 +2094,7 @@ describe("DatabaseServer — durable page storage", () => {
         const server = await createServer();
         const tableId = generateId<DatabaseTableId>();
 
-        writePagesFor(
+        writeDatabasePagesFor(
             server,
             tableId,
             new Map([
@@ -2102,11 +2102,11 @@ describe("DatabaseServer — durable page storage", () => {
                 [1, new Uint8Array(sqlitePageSize)],
             ]),
         );
-        truncateFor(server, tableId, 1 * sqlitePageSize);
+        truncateDatabaseTablePage(server, tableId, 1 * sqlitePageSize);
         expect(server.getFileSize(tableId)).toBe(1 * sqlitePageSize);
 
         // Write a page beyond the current file size.
-        writePagesFor(server, tableId, new Map([[3, new Uint8Array(sqlitePageSize)]]));
+        writeDatabasePagesFor(server, tableId, new Map([[3, new Uint8Array(sqlitePageSize)]]));
         expect(server.getFileSize(tableId)).toBe(4 * sqlitePageSize);
     });
 
@@ -2116,7 +2116,7 @@ describe("DatabaseServer — durable page storage", () => {
         const server = await createServer();
         const tableId = generateId<DatabaseTableId>();
 
-        writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        writeDatabasePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
 
         const batchVersion = server.writePages(
             new Map([[tableId, new Map([[2, new Uint8Array(sqlitePageSize)]])]]),
@@ -2135,7 +2135,7 @@ describe("DatabaseServer — durable page storage", () => {
         const tableId = generateId<DatabaseTableId>();
         const initial = new Uint8Array(sqlitePageSize);
         initial[0] = 0x11;
-        writePagesFor(server, tableId, new Map([[2, initial]]));
+        writeDatabasePagesFor(server, tableId, new Map([[2, initial]]));
 
         const replacement = new Uint8Array(sqlitePageSize);
         replacement[0] = 0x22;
@@ -2164,7 +2164,7 @@ describe("DatabaseServer — durable page storage", () => {
         const server = await createServer();
         const tableId = generateId<DatabaseTableId>();
 
-        const returned = writePagesFor(
+        const returned = writeDatabasePagesFor(
             server,
             tableId,
             new Map([[0, new Uint8Array(sqlitePageSize)]]),
@@ -2181,7 +2181,11 @@ describe("DatabaseServer — durable page storage", () => {
         const versions: Array<number> = [];
         for (let i = 0; i < 50; i++) {
             versions.push(
-                writePagesFor(server, tableId, new Map([[i, new Uint8Array(sqlitePageSize)]])),
+                writeDatabasePagesFor(
+                    server,
+                    tableId,
+                    new Map([[i, new Uint8Array(sqlitePageSize)]]),
+                ),
             );
         }
 
@@ -2194,7 +2198,7 @@ describe("DatabaseServer — durable page storage", () => {
         const server = await createServer();
         const tableId = generateId<DatabaseTableId>();
 
-        const writeVersion = writePagesFor(
+        const writeVersion = writeDatabasePagesFor(
             server,
             tableId,
             new Map([
@@ -2202,7 +2206,7 @@ describe("DatabaseServer — durable page storage", () => {
                 [1, new Uint8Array(sqlitePageSize)],
             ]),
         );
-        const truncateVersion = truncateFor(server, tableId, 0);
+        const truncateVersion = truncateDatabaseTablePage(server, tableId, 0);
         expect(truncateVersion).toBeGreaterThan(writeVersion);
     });
 
@@ -2215,8 +2219,8 @@ describe("DatabaseServer — durable page storage", () => {
         const second = new Uint8Array(sqlitePageSize);
         second[0] = 0x22;
 
-        writePagesFor(server, tableId, new Map([[0, first]]));
-        writePagesFor(server, tableId, new Map([[0, second]]));
+        writeDatabasePagesFor(server, tableId, new Map([[0, first]]));
+        writeDatabasePagesFor(server, tableId, new Map([[0, second]]));
 
         const {data} = server.readPage(tableId, 0)!;
         expect(data[0]).toBe(0x22);
@@ -2229,7 +2233,7 @@ describe("DatabaseServer — durable page storage", () => {
         const tableId = generateId<DatabaseTableId>();
 
         for (let i = 0; i < 50; i++) {
-            writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+            writeDatabasePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
         }
         const rowCount = storage.sql
             .exec(
@@ -2252,7 +2256,7 @@ describe("DatabaseServer — durable page storage", () => {
         const tableId = generateId<DatabaseTableId>();
         const first = await DatabaseServer.create(storage);
         openServers.push(first);
-        const seedVersion = writePagesFor(
+        const seedVersion = writeDatabasePagesFor(
             first,
             tableId,
             new Map([[0, new Uint8Array(sqlitePageSize)]]),
@@ -2260,7 +2264,7 @@ describe("DatabaseServer — durable page storage", () => {
 
         const reloaded = await DatabaseServer.create(storage);
         openServers.push(reloaded);
-        const nextVersion = writePagesFor(
+        const nextVersion = writeDatabasePagesFor(
             reloaded,
             tableId,
             new Map([[1, new Uint8Array(sqlitePageSize)]]),
@@ -2274,7 +2278,7 @@ describe("DatabaseServer — durable page storage", () => {
         const tableId = generateId<DatabaseTableId>();
         const first = await DatabaseServer.create(storage);
         openServers.push(first);
-        writePagesFor(first, tableId, new Map([[2, new Uint8Array(sqlitePageSize)]]));
+        writeDatabasePagesFor(first, tableId, new Map([[2, new Uint8Array(sqlitePageSize)]]));
 
         const reloaded = await DatabaseServer.create(storage);
         openServers.push(reloaded);
@@ -2285,7 +2289,7 @@ describe("DatabaseServer — durable page storage", () => {
     test("changedPagesSince reports latest writes and tombstones", async () => {
         const server = await createServer();
         const tableId = generateId<DatabaseTableId>();
-        const initialVersion = writePagesFor(
+        const initialVersion = writeDatabasePagesFor(
             server,
             tableId,
             new Map([
@@ -2310,7 +2314,7 @@ describe("DatabaseServer — durable page storage", () => {
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
         const tableId = generateId<DatabaseTableId>();
-        const version = writePagesFor(
+        const version = writeDatabasePagesFor(
             server,
             tableId,
             new Map([[0, new Uint8Array(sqlitePageSize)]]),
@@ -2337,7 +2341,7 @@ describe("DatabaseServer — durable page storage", () => {
         // Write three pages, then tombstone the middle page by writing a tombstone row
         // directly so we can probe the size query without going through truncate (which
         // would tombstone the trailing pages too).
-        writePagesFor(
+        writeDatabasePagesFor(
             server,
             tableId,
             new Map([
@@ -2379,8 +2383,8 @@ describe("DatabaseServer — durable page storage", () => {
         const pageB = new Uint8Array(sqlitePageSize);
         pageB[0] = 0xb2;
 
-        writePagesFor(server, tableA, new Map([[0, pageA]]));
-        writePagesFor(server, tableB, new Map([[0, pageB]]));
+        writeDatabasePagesFor(server, tableA, new Map([[0, pageA]]));
+        writeDatabasePagesFor(server, tableB, new Map([[0, pageB]]));
 
         expect(server.readPage(tableA, 0)!.data[0]).toBe(0xa1);
         expect(server.readPage(tableB, 0)!.data[0]).toBe(0xb2);
@@ -2391,7 +2395,7 @@ describe("DatabaseServer — durable page storage", () => {
         const tableA = generateId<DatabaseTableId>();
         const tableB = generateId<DatabaseTableId>();
 
-        writePagesFor(
+        writeDatabasePagesFor(
             server,
             tableA,
             new Map([
@@ -2399,7 +2403,7 @@ describe("DatabaseServer — durable page storage", () => {
                 [1, new Uint8Array(sqlitePageSize)],
             ]),
         );
-        writePagesFor(server, tableB, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        writeDatabasePagesFor(server, tableB, new Map([[0, new Uint8Array(sqlitePageSize)]]));
 
         expect(server.getFileSize(tableA)).toBe(2 * sqlitePageSize);
         expect(server.getFileSize(tableB)).toBe(1 * sqlitePageSize);
@@ -2410,9 +2414,21 @@ describe("DatabaseServer — durable page storage", () => {
         const tableA = generateId<DatabaseTableId>();
         const tableB = generateId<DatabaseTableId>();
 
-        const a1 = writePagesFor(server, tableA, new Map([[0, new Uint8Array(sqlitePageSize)]]));
-        const a2 = writePagesFor(server, tableA, new Map([[1, new Uint8Array(sqlitePageSize)]]));
-        const b1 = writePagesFor(server, tableB, new Map([[0, new Uint8Array(sqlitePageSize)]]));
+        const a1 = writeDatabasePagesFor(
+            server,
+            tableA,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
+        const a2 = writeDatabasePagesFor(
+            server,
+            tableA,
+            new Map([[1, new Uint8Array(sqlitePageSize)]]),
+        );
+        const b1 = writeDatabasePagesFor(
+            server,
+            tableB,
+            new Map([[0, new Uint8Array(sqlitePageSize)]]),
+        );
 
         // Strictly monotonic across the entire database, not partitioned per table.
         expect(a2).toBe(a1 + 1);
@@ -2429,7 +2445,7 @@ describe("DatabaseServer — durable page storage", () => {
                 [tableA, new Map([[0, new Uint8Array(sqlitePageSize)]])],
                 [tableB, new Map([[0, new Uint8Array(sqlitePageSize)]])],
             ]),
-            noTruncates,
+            emptyMap,
         );
 
         expect(server.readPage(tableA, 0)!.version).toBe(version);

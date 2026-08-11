@@ -6,6 +6,7 @@ ts_project(
     visibility = ["//server/databases:__pkg__"],
     deps = [
         "//server/databases",
+        "//shared/helpers",
         "//shared/id",
     ],
 )

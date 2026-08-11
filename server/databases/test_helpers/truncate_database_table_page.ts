@@ -6,7 +6,7 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
  * DatabaseServer.writePages} with no page writes. Returns the batch's write
  * version.
  */
-export function truncateFor(
+export function truncateDatabaseTablePage(
     server: DatabaseServer,
     tableId: DatabaseTableId,
     size: number,

@@ -4,8 +4,8 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {TypedFastBitSet} from "typedfastbitset";
 import {DatabaseDurableObjectConnection} from "~/server/databases/database_durable_object_connection.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
-import {truncateFor} from "~/server/databases/test_helpers/truncate_for.js";
-import {writePagesFor} from "~/server/databases/test_helpers/write_pages_for.js";
+import {truncateDatabaseTablePage} from "~/server/databases/test_helpers/truncate_database_table_page.js";
+import {writeDatabasePagesFor} from "~/server/databases/test_helpers/write_database_pages_for.js";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import {
@@ -327,7 +327,7 @@ describe("executeAction", () => {
 
 describe("registerTables", () => {
     test("returns current and advances the table watermark", async () => {
-        writePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
+        writeDatabasePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
         const watermark = server.getSnapshotVersion();
 
         const result = await registerHeldPages(
@@ -344,10 +344,10 @@ describe("registerTables", () => {
     });
 
     test("returns empty catch-up for a quiet table with a lagging watermark", async () => {
-        writePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
+        writeDatabasePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
         const quietTableWatermark = server.getSnapshotVersion();
         const activeTableId = generateId<DatabaseTableId>();
-        writePagesFor(server, activeTableId, new Map([[0, makePage(0xbb)]]));
+        writeDatabasePagesFor(server, activeTableId, new Map([[0, makePage(0xbb)]]));
         const currentWatermark = server.getSnapshotVersion();
 
         const result = await registerHeldPages(
@@ -363,7 +363,7 @@ describe("registerTables", () => {
     });
 
     test("inlines changed held pages", async () => {
-        writePagesFor(
+        writeDatabasePagesFor(
             server,
             tableId,
             new Map([
@@ -372,7 +372,7 @@ describe("registerTables", () => {
             ]),
         );
         const watermark = server.getSnapshotVersion();
-        writePagesFor(server, tableId, new Map([[1, makePage(0xcc)]]));
+        writeDatabasePagesFor(server, tableId, new Map([[1, makePage(0xcc)]]));
 
         const result = await registerHeldPages(
             createConnection(),
@@ -426,7 +426,7 @@ describe("registerTables", () => {
     });
 
     test("folds tombstoned indexes into stale catch-up", async () => {
-        writePagesFor(
+        writeDatabasePagesFor(
             server,
             tableId,
             new Map([
@@ -435,7 +435,7 @@ describe("registerTables", () => {
             ]),
         );
         const watermark = server.getSnapshotVersion();
-        truncateFor(server, tableId, sqlitePageSize);
+        truncateDatabaseTablePage(server, tableId, sqlitePageSize);
 
         const result = await registerHeldPages(
             createConnection(),
