@@ -1,6 +1,9 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseFieldProviderStrings} from "~/shared/databases/fields/database_field_provider_test_helpers.js";
-import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
+import {
+    databaseNumberFieldColumn,
+    parseDatabaseNumberFieldValueString,
+} from "~/shared/databases/fields/database_number_field.js";
 import {sql} from "~/shared/databases/sql.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -9,7 +12,7 @@ let dbCounter = 0;
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-number-${dbCounter++}.sqlite3`, "ct");
-    const check = databaseNumberFieldProvider.generateCheckConstraint(sql.identifier("v"));
+    const check = databaseNumberFieldColumn.generateCheckConstraint(sql.identifier("v"));
     // Match the production DDL: nullable REAL with no NOT NULL clause.
     sql`
         CREATE TABLE t (
@@ -19,9 +22,9 @@ async function createDbWithCheckedColumn() {
     return db;
 }
 
-describe("databaseNumberFieldProvider", () => {
+describe("databaseNumberField", () => {
     test("nullable is true", () => {
-        expect(databaseNumberFieldProvider.nullable).toBe(true);
+        expect(databaseNumberFieldColumn.nullable).toBe(true);
     });
 
     describe("parseString", () => {
@@ -86,7 +89,7 @@ describe("databaseNumberFieldProvider", () => {
             ["1,234,567", 1234567],
             ["$1,234.56", 1234.56],
         ])("parses %j as %s", (input, expected) => {
-            expect(databaseNumberFieldProvider.parseValueString(input)).toEqual({
+            expect(parseDatabaseNumberFieldValueString(input)).toEqual({
                 ok: true,
                 value: expected,
             });
@@ -101,7 +104,7 @@ describe("databaseNumberFieldProvider", () => {
         ])("scales %j as ~0.0314", input => {
             // `3.14 × 0.01` isn't exact in IEEE-754, so use a tolerant compare instead of
             // `toEqual`.
-            const result = databaseNumberFieldProvider.parseValueString(input);
+            const result = parseDatabaseNumberFieldValueString(input);
             expect(result.ok).toBe(true);
             if (result.ok) expect(result.value!).toBeCloseTo(0.0314, 10);
         });
@@ -177,7 +180,7 @@ describe("databaseNumberFieldProvider", () => {
             ["USD ( 3.14% )"],
             ["(USD (3.14%))"],
         ])("rejects %j", input => {
-            expect(databaseNumberFieldProvider.parseValueString(input).ok).toBe(false);
+            expect(parseDatabaseNumberFieldValueString(input).ok).toBe(false);
         });
     });
 
@@ -195,7 +198,6 @@ describe("databaseNumberFieldProvider", () => {
             expect(
                 databaseFieldProviderStrings({
                     db,
-                    provider: databaseNumberFieldProvider,
                     value,
                     config: {type: "number", decimalPlaces},
                 }),

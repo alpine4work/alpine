@@ -12,10 +12,16 @@ import {DatabaseTableAccessPolicyRevisionSchema} from "~/shared/databases/databa
 import {executeSqliteTransaction} from "~/shared/databases/execute_sqlite_transaction.js";
 import {
     DatabaseFieldConfigSchema,
-    getDatabaseFieldProvider,
-    getUnknownDatabaseFieldProvider,
+    assertDatabaseFieldConfigChangeValid,
+    databaseFieldColumn,
+    databaseFieldSqlValueSchema,
+    databaseFieldValueToSql,
+    databaseFieldValueToString,
+    parseDatabaseFieldValueString,
+    selectDatabaseFieldColumn,
+    unknownDatabaseFieldValueToSql,
 } from "~/shared/databases/fields/all_database_field_providers.js";
-import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import {resolveDatabaseRelation} from "~/shared/databases/fields/database_relation_field.js";
 import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
 import {insertJoinLink} from "~/shared/databases/insert_join_link.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
@@ -441,9 +447,8 @@ export const databaseActions = {
                 const field = assertExists(fields[i]);
                 fieldIndexes.set(field.id, fieldIndex);
 
-                const provider = getDatabaseFieldProvider(field.config.type);
-                selectColumns.push(provider.selectColumn(field, dataRow));
-                columnSchemas.push(provider.sqlValueSchema ?? provider.valueSchema);
+                selectColumns.push(selectDatabaseFieldColumn(field, dataRow));
+                columnSchemas.push(databaseFieldSqlValueSchema(field.config.type));
             }
 
             const selectList = sql.join(selectColumns, ", ");
@@ -494,12 +499,11 @@ export const databaseActions = {
         run({db, model}, {tableId, fieldId, rowId, value}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
-            const provider = getDatabaseFieldProvider(field.config.type);
             assert(
-                provider instanceof ColumnBackedDatabaseFieldProvider,
+                databaseFieldColumn(field.config.type) != null,
                 `cannot update virtual field ${fieldId} with updateCellValue`,
             );
-            const valueSql = provider.unknownValueToSql(value);
+            const valueSql = unknownDatabaseFieldValueToSql(field.config.type, value);
             sql`
                 UPDATE ${table.tableRef}
                 SET
@@ -637,8 +641,7 @@ export const databaseActions = {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
             assert(field.isType("relation"));
-            const provider = getDatabaseFieldProvider(field.config.type);
-            const relation = provider.resolveRelation(field);
+            const relation = resolveDatabaseRelation(field);
             const linkedTable = model.getTable(relation.linkedTableId);
             const joinTable = relation.joinTable;
 
@@ -672,8 +675,7 @@ export const databaseActions = {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
             assert(field.isType("relation"));
-            const provider = getDatabaseFieldProvider(field.config.type);
-            const relation = provider.resolveRelation(field);
+            const relation = resolveDatabaseRelation(field);
 
             sql`
                 DELETE FROM ${relation.joinTable.tableRef}
@@ -712,8 +714,7 @@ export const databaseActions = {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
             assert(field.isType("relation"));
-            const provider = getDatabaseFieldProvider(field.config.type);
-            const relation = provider.resolveRelation(field);
+            const relation = resolveDatabaseRelation(field);
 
             assert(table.rowExists(rowId), "row not found");
 
@@ -722,8 +723,7 @@ export const databaseActions = {
             }
             const linkedTable = model.getTable(relation.linkedTableId);
             const linkedNameField = linkedTable.getNameField();
-            const linkedNameProvider = getUnknownDatabaseFieldProvider(linkedNameField.config.type);
-            const linkedNameColumn = linkedNameProvider.selectColumn(
+            const linkedNameColumn = selectDatabaseFieldColumn(
                 linkedNameField,
                 sql.identifier("linked_row"),
             );
@@ -757,14 +757,14 @@ export const databaseActions = {
                     linked_row._id DESC
             `.selectAll(db, {
                 id: Schema.id<DatabaseRowId>(),
-                name: linkedNameProvider.sqlValueSchema ?? linkedNameProvider.valueSchema,
+                name: databaseFieldSqlValueSchema(linkedNameField.config.type),
             });
 
             return {
                 linkedTableName: linkedTable.name,
                 rows: rows.map(row => ({
                     id: row.id,
-                    name: linkedNameProvider.valueToString(row.name, linkedNameField.config),
+                    name: databaseFieldValueToString(linkedNameField.config, row.name),
                 })),
             };
         },
@@ -790,8 +790,7 @@ export const databaseActions = {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
             assert(field.isType("relation"));
-            const provider = getDatabaseFieldProvider(field.config.type);
-            const relation = provider.resolveRelation(field);
+            const relation = resolveDatabaseRelation(field);
 
             assert(table.rowExists(rowId), "row not found");
 
@@ -814,8 +813,7 @@ export const databaseActions = {
             }
             const linkedTable = model.getTable(relation.linkedTableId);
             const linkedNameField = linkedTable.getNameField();
-            const linkedNameProvider = getUnknownDatabaseFieldProvider(linkedNameField.config.type);
-            const linkedNameColumn = linkedNameProvider.selectColumn(
+            const linkedNameColumn = selectDatabaseFieldColumn(
                 linkedNameField,
                 sql.identifier("linked_row"),
             );
@@ -835,14 +833,14 @@ export const databaseActions = {
                     link_row.${relation.our.positionColumn}
             `.selectAll(db, {
                 id: Schema.id<DatabaseRowId>(),
-                name: linkedNameProvider.sqlValueSchema ?? linkedNameProvider.valueSchema,
+                name: databaseFieldSqlValueSchema(linkedNameField.config.type),
                 position: OrderKeySchema,
             });
 
             return {
                 rows: rows.map(row => ({
                     id: row.id,
-                    name: linkedNameProvider.valueToString(row.name, linkedNameField.config),
+                    name: databaseFieldValueToString(linkedNameField.config, row.name),
                     position: row.position,
                 })),
             };
@@ -864,8 +862,7 @@ export const databaseActions = {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
             assert(field.isType("relation"));
-            const provider = getDatabaseFieldProvider(field.config.type);
-            const relation = provider.resolveRelation(field);
+            const relation = resolveDatabaseRelation(field);
 
             sql`
                 UPDATE ${relation.joinTable.tableRef}
@@ -896,22 +893,21 @@ export const databaseActions = {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
             assert(field.isType("relation"));
-            const provider = getDatabaseFieldProvider(field.config.type);
-            const relation = provider.resolveRelation(field);
+            const relation = resolveDatabaseRelation(field);
             const linkedTable = model.getTable(relation.linkedTableId);
 
             assert(table.rowExists(rowId), "row not found");
 
             const linkedNameField = linkedTable.getNameField();
-            const linkedNameProvider = getUnknownDatabaseFieldProvider(linkedNameField.config.type);
+            const linkedNameColumn = databaseFieldColumn(linkedNameField.config.type);
             assert(
-                linkedNameProvider instanceof ColumnBackedDatabaseFieldProvider,
+                linkedNameColumn != null,
                 "linked table name field must be column-backed to create a row by name",
             );
-            const parsedName = linkedNameProvider.parseValueString(name, linkedNameField.config);
+            const parsedName = parseDatabaseFieldValueString(linkedNameField.config, name);
             const nameSql = parsedName.ok
-                ? linkedNameProvider.valueToSql(parsedName.value)
-                : linkedNameProvider.defaultValue;
+                ? databaseFieldValueToSql(linkedNameField.config.type, parsedName.value)
+                : linkedNameColumn.defaultValue;
 
             sql`
                 INSERT INTO
@@ -953,8 +949,7 @@ export const databaseActions = {
                 field.config.type === config.type,
                 `cannot change field type from ${field.config.type} to ${config.type}`,
             );
-            const provider = getUnknownDatabaseFieldProvider(field.config.type);
-            provider.assertConfigChangeValid?.(field.config, config);
+            assertDatabaseFieldConfigChangeValid(field.config, config);
 
             field.updateConfig(config);
 

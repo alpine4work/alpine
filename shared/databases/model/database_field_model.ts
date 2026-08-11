@@ -2,7 +2,7 @@ import {
     DatabaseFieldConfig,
     DatabaseFieldConfigSqlSchema,
     DatabaseFieldType,
-    getDatabaseFieldProvider,
+    renameDatabaseFieldInSchema,
 } from "~/shared/databases/fields/all_database_field_providers.js";
 import {DatabaseFieldRow} from "~/shared/databases/model/database_row_schemas.js";
 import type {DatabaseTableModel} from "~/shared/databases/model/database_table_model.js";
@@ -52,10 +52,8 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
                 id = ${this.id}
         `.exec(this.db);
 
-        const provider = getDatabaseFieldProvider(this.config.type);
-
         const newField = this.table.getField(this.id);
-        provider.renameFieldInSchema(this, newField);
+        renameDatabaseFieldInSchema(this, newField);
 
         return newField;
     }

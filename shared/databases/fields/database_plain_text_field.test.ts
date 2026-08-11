@@ -1,6 +1,7 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+import {parseDatabaseFieldValueString} from "~/shared/databases/fields/all_database_field_providers.js";
 import {databaseFieldProviderStrings} from "~/shared/databases/fields/database_field_provider_test_helpers.js";
-import {databasePlainTextFieldProvider} from "~/shared/databases/fields/database_plain_text_field.js";
+import {databasePlainTextFieldColumn} from "~/shared/databases/fields/database_plain_text_field.js";
 import {sql} from "~/shared/databases/sql.js";
 
 const sqlite3Promise = sqlite3InitModule();
@@ -9,7 +10,7 @@ let dbCounter = 0;
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-plain-text-${dbCounter++}.sqlite3`, "ct");
-    const check = databasePlainTextFieldProvider.generateCheckConstraint(sql.identifier("v"));
+    const check = databasePlainTextFieldColumn.generateCheckConstraint(sql.identifier("v"));
     sql`
         CREATE TABLE t (
             v TEXT NOT NULL DEFAULT '' ${check}
@@ -18,18 +19,18 @@ async function createDbWithCheckedColumn() {
     return db;
 }
 
-describe("databasePlainTextFieldProvider", () => {
+describe("databasePlainTextField", () => {
     describe("parseString", () => {
         test("any input is ok", () => {
-            expect(databasePlainTextFieldProvider.parseValueString("hello")).toEqual({
+            expect(parseDatabaseFieldValueString({type: "plainText"}, "hello")).toEqual({
                 ok: true,
                 value: "hello",
             });
-            expect(databasePlainTextFieldProvider.parseValueString("")).toEqual({
+            expect(parseDatabaseFieldValueString({type: "plainText"}, "")).toEqual({
                 ok: true,
                 value: "",
             });
-            expect(databasePlainTextFieldProvider.parseValueString("  spaces  ")).toEqual({
+            expect(parseDatabaseFieldValueString({type: "plainText"}, "  spaces  ")).toEqual({
                 ok: true,
                 value: "  spaces  ",
             });
@@ -45,7 +46,6 @@ describe("databasePlainTextFieldProvider", () => {
             expect(
                 databaseFieldProviderStrings({
                     db,
-                    provider: databasePlainTextFieldProvider,
                     value,
                     config: {type: "plainText"},
                 }),

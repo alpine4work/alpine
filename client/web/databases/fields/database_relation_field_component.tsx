@@ -41,7 +41,6 @@ import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {databaseRelationFieldProvider} from "~/shared/databases/fields/database_relation_field.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
@@ -784,7 +783,7 @@ function DatabaseRelationCreateRow({query, onPress}: {query: string; onPress: ()
 }
 
 export const databaseRelationFieldComponentProvider = defineDatabaseFieldComponentProvider(
-    databaseRelationFieldProvider,
+    "relation",
     {
         label: "Linked record",
         Icon: LinkSimple,

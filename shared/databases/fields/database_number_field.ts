@@ -1,5 +1,5 @@
-import {ColumnBackedDatabaseFieldProvider} from "~/shared/databases/fields/base/database_field_provider_base.js";
-import {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
+import type {DatabaseFieldColumn} from "~/shared/databases/fields/all_database_field_providers.js";
+import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import type {Result} from "~/shared/helpers/control/result.open_source.js";
@@ -14,61 +14,48 @@ export type DatabaseNumberFieldConfig = SchemaType<typeof DatabaseNumberFieldCon
 export const DatabaseNumberFieldValueSchema = Schema.float.nullable();
 export type DatabaseNumberFieldValue = SchemaType<typeof DatabaseNumberFieldValueSchema>;
 
-export class DatabaseNumberFieldProvider extends ColumnBackedDatabaseFieldProvider<
-    "number",
-    DatabaseNumberFieldValue,
-    DatabaseNumberFieldConfig
-> {
-    static readonly instance = new DatabaseNumberFieldProvider();
+export const databaseNumberFieldColumn: DatabaseFieldColumn = {
+    sqliteType: "REAL",
+    nullable: true,
+    defaultValue: sql`NULL`,
+    generateCheckConstraint: columnName => sql`
+        CHECK (
+            TYPEOF(${columnName}) IN ('real', 'integer', 'null')
+        )
+    `,
+};
 
-    readonly type = "number";
-    readonly valueSchema = DatabaseNumberFieldValueSchema;
-    readonly configSchema = DatabaseNumberFieldConfigSchema;
-    readonly sqliteType = "REAL";
-    readonly nullable = true;
-    readonly defaultValue = sql`NULL`;
+export function databaseNumberFieldValueToString(
+    value: DatabaseNumberFieldValue,
+    config: DatabaseNumberFieldConfig,
+): string {
+    if (value == null) return "";
+    return config.decimalPlaces == null ? String(value) : value.toFixed(config.decimalPlaces);
+}
 
-    generateCheckConstraint(columnName: SqlQuery): SqlQuery {
-        return sql`
-            CHECK (
-                TYPEOF(${columnName}) IN ('real', 'integer', 'null')
-            )
-        `;
-    }
-
-    parseValueString(input: string): Result<number | null, void> {
-        return parseNumberString(input);
-    }
-
-    valueToString(value: number | null, config: DatabaseNumberFieldConfig): string {
-        if (value == null) return "";
-        return config.decimalPlaces == null ? String(value) : value.toFixed(config.decimalPlaces);
-    }
-
-    override _selectColumnAsString(field: DatabaseFieldModelOfType<"number">, dataRow: SqlQuery) {
-        const column = this.selectColumn(field, dataRow);
-        if (field.config.decimalPlaces == null) {
-            return sql`
-                CASE
-                    WHEN ${column} IS NULL THEN ''
-                    ELSE CAST(${column} AS TEXT)
-                END
-            `;
-        }
+export function selectDatabaseNumberFieldColumnAsString(
+    field: DatabaseFieldModelOfType<"number">,
+    dataRow: SqlQuery,
+): SqlQuery {
+    const column = sql`${dataRow}.${field.column()}`;
+    if (field.config.decimalPlaces == null) {
         return sql`
             CASE
                 WHEN ${column} IS NULL THEN ''
-                ELSE PRINTF(
-                    ${`%.${field.config.decimalPlaces}f`},
-                    ${column}
-                )
+                ELSE CAST(${column} AS TEXT)
             END
         `;
     }
+    return sql`
+        CASE
+            WHEN ${column} IS NULL THEN ''
+            ELSE PRINTF(
+                ${`%.${field.config.decimalPlaces}f`},
+                ${column}
+            )
+        END
+    `;
 }
-
-export const databaseNumberFieldProvider: DatabaseNumberFieldProvider =
-    DatabaseNumberFieldProvider.instance;
 
 // -- parseString --------------------------------------------------------------
 
@@ -117,7 +104,7 @@ const usThousandsPattern = /^\d{1,3}(,\d{3})+(\.\d+)?$/;
  * Rejects `Infinity`, `NaN`, leading `%`, multiple `%` signs, and decoration
  * containing digits (a digit in decoration means a number was missed).
  */
-function parseNumberString(input: string): Result<number | null, void> {
+export function parseDatabaseNumberFieldValueString(input: string): Result<number | null, void> {
     let s = input.trim();
     if (s === "") return {ok: true, value: null};
 

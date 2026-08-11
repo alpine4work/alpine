@@ -10,7 +10,10 @@ import {
 } from "~/client/web/databases/fields/database_field_component_provider.js";
 import {Box} from "~/client/web/design/box.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {databaseNumberFieldProvider} from "~/shared/databases/fields/database_number_field.js";
+import {
+    databaseNumberFieldValueToString,
+    parseDatabaseNumberFieldValueString,
+} from "~/shared/databases/fields/database_number_field.js";
 
 function DatabaseNumberGridViewCellContent({
     ref,
@@ -31,7 +34,7 @@ function DatabaseNumberGridViewCellContent({
             color="grey-100"
             onClick={onCellClick}
         >
-            {databaseNumberFieldProvider.valueToString(value, field.config)}
+            {databaseNumberFieldValueToString(value, field.config)}
         </Box>
     );
 }
@@ -60,7 +63,7 @@ function DatabaseNumberGridViewCellEditorOverlay({
     }, []);
 
     const tryCommit = (raw: string) => {
-        const parsed = databaseNumberFieldProvider.parseValueString(raw);
+        const parsed = parseDatabaseNumberFieldValueString(raw);
         if (parsed.ok) commitValue(parsed.value);
     };
 
@@ -118,26 +121,23 @@ const decimalPlacesOptions: ReadonlyArray<{label: string; value: number | null}>
     {label: "6", value: 6},
 ];
 
-export const databaseNumberFieldComponentProvider = defineDatabaseFieldComponentProvider(
-    databaseNumberFieldProvider,
-    {
-        label: "Number",
-        Icon: Hash,
-        GridViewCellContent: DatabaseNumberGridViewCellContent,
-        GridViewCellEditorOverlay: DatabaseNumberGridViewCellEditorOverlay,
-        getConfigMenuActions: ({config, onCommit}) => [
-            {
-                hasChildren: true,
-                key: "decimal-places",
-                label: "Decimal places",
-                actions: decimalPlacesOptions.map(option => ({
-                    label: option.label,
-                    isSelected: option.value === config.decimalPlaces,
-                    onPress: () => {
-                        onCommit({type: "number", decimalPlaces: option.value});
-                    },
-                })),
-            },
-        ],
-    },
-);
+export const databaseNumberFieldComponentProvider = defineDatabaseFieldComponentProvider("number", {
+    label: "Number",
+    Icon: Hash,
+    GridViewCellContent: DatabaseNumberGridViewCellContent,
+    GridViewCellEditorOverlay: DatabaseNumberGridViewCellEditorOverlay,
+    getConfigMenuActions: ({config, onCommit}) => [
+        {
+            hasChildren: true,
+            key: "decimal-places",
+            label: "Decimal places",
+            actions: decimalPlacesOptions.map(option => ({
+                label: option.label,
+                isSelected: option.value === config.decimalPlaces,
+                onPress: () => {
+                    onCommit({type: "number", decimalPlaces: option.value});
+                },
+            })),
+        },
+    ],
+});

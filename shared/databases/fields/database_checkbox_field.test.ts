@@ -1,5 +1,6 @@
 import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import {databaseCheckboxFieldProvider} from "~/shared/databases/fields/database_checkbox_field.js";
+import {parseDatabaseFieldValueString} from "~/shared/databases/fields/all_database_field_providers.js";
+import {databaseCheckboxFieldColumn} from "~/shared/databases/fields/database_checkbox_field.js";
 import {databaseFieldProviderStrings} from "~/shared/databases/fields/database_field_provider_test_helpers.js";
 import {sql} from "~/shared/databases/sql.js";
 
@@ -9,7 +10,7 @@ let dbCounter = 0;
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-checkbox-${dbCounter++}.sqlite3`, "ct");
-    const check = databaseCheckboxFieldProvider.generateCheckConstraint(sql.identifier("v"));
+    const check = databaseCheckboxFieldColumn.generateCheckConstraint(sql.identifier("v"));
     sql`
         CREATE TABLE t (
             v INTEGER NOT NULL DEFAULT 0 ${check}
@@ -18,7 +19,7 @@ async function createDbWithCheckedColumn() {
     return db;
 }
 
-describe("databaseCheckboxFieldProvider", () => {
+describe("databaseCheckboxField", () => {
     describe("parseString", () => {
         test.each([
             ["", false],
@@ -55,7 +56,7 @@ describe("databaseCheckboxFieldProvider", () => {
             ["arbitrary text", true],
             ["  yes  ", true],
         ])("parses %j as %s", (input, expected) => {
-            expect(databaseCheckboxFieldProvider.parseValueString(input)).toEqual({
+            expect(parseDatabaseFieldValueString({type: "checkbox"}, input)).toEqual({
                 ok: true,
                 value: expected,
             });
@@ -71,7 +72,6 @@ describe("databaseCheckboxFieldProvider", () => {
             expect(
                 databaseFieldProviderStrings({
                     db,
-                    provider: databaseCheckboxFieldProvider,
                     value,
                     config: {type: "checkbox"},
                 }),

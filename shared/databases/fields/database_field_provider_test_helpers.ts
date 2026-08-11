@@ -1,27 +1,27 @@
-import type {DatabaseFieldType} from "~/shared/databases/fields/all_database_field_providers.js";
-import type {DatabaseFieldProviderBase} from "~/shared/databases/fields/base/database_field_provider_base.js";
+import {
+    type DatabaseFieldConfig,
+    type DatabaseFieldType,
+    type DatabaseFieldValue,
+    databaseFieldSqlValueSchema,
+    databaseFieldValueToString,
+    selectDatabaseFieldColumnAsString,
+} from "~/shared/databases/fields/all_database_field_providers.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {sql} from "~/shared/databases/sql.js";
 import type {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {Schema} from "~/shared/schema/schema.open_source.js";
 
-export function databaseFieldProviderStrings<
-    Type extends DatabaseFieldType,
-    Value,
-    Config extends {type: Type},
->({
+export function databaseFieldProviderStrings<Type extends DatabaseFieldType>({
     db,
-    provider,
-    value,
     config,
+    value,
 }: {
     db: SqliteDatabase;
-    provider: DatabaseFieldProviderBase<Type, Value, Config>;
-    value: Value;
-    config: Config;
+    config: DatabaseFieldConfig<Type>;
+    value: DatabaseFieldValue<Type>;
 }): {valueToString: string; selectColumnAsString: string | null} {
     sql` CREATE TEMP TABLE _field_provider_string_test (v) `.exec(db);
-    const schema = provider.sqlValueSchema ?? provider.valueSchema;
+    const schema = databaseFieldSqlValueSchema(config.type);
     sql`
         INSERT INTO
             _field_provider_string_test (v)
@@ -32,16 +32,19 @@ export function databaseFieldProviderStrings<
     const field = createTestField(config);
     const actual = sql`
         SELECT
-            ${provider.selectColumnAsString(field, sql.identifier("_field_provider_string_test"))}
+            ${selectDatabaseFieldColumnAsString(
+            field,
+            sql.identifier("_field_provider_string_test"),
+        )}
         FROM
             _field_provider_string_test
     `.selectValue(db, Schema.string.nullable());
 
-    return {valueToString: provider.valueToString(value, config), selectColumnAsString: actual};
+    return {valueToString: databaseFieldValueToString(config, value), selectColumnAsString: actual};
 }
 
-function createTestField<Type extends DatabaseFieldType, Config extends {type: Type}>(
-    config: Config,
+function createTestField<Type extends DatabaseFieldType>(
+    config: DatabaseFieldConfig<Type>,
 ): DatabaseFieldModel {
     return {
         config,
@@ -51,5 +54,5 @@ function createTestField<Type extends DatabaseFieldType, Config extends {type: T
         isType(type: DatabaseFieldType) {
             return type === config.type;
         },
-    } as DatabaseFieldModel;
+    } as unknown as DatabaseFieldModel;
 }
