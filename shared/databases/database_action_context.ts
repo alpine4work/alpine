@@ -46,8 +46,8 @@ export interface DatabaseServerTableStore {
     ): boolean;
     /**
      * Whether any registered table's SQLite `table_name` equals `tableName`. Backs
-     * `formatUniqueTableName`'s uniqueness probe; pass `excludeTableId` when renaming
-     * so the table's own row doesn't count.
+     * `formatUniqueTableSqlName`'s uniqueness probe; pass `excludeTableId` when
+     * renaming so the table's own row doesn't count.
      */
     isTableNameTaken(tableName: string, excludeTableId?: DatabaseTableId): boolean;
 }

@@ -115,9 +115,9 @@ export class DatabaseModel {
      * main row is what attach validates against, and the store row is what the
      * authorizer resolves the new schema's access from — both must exist by the time
      * any statement can touch the schema. The registration carries the resolved SQLite
-     * `tableName` (see `formatUniqueTableName`), so the name-uniqueness probe covers
-     * the table from this moment, plus the table's access metadata (a policy copy, or
-     * a join file's two sides).
+     * `tableName` (see `formatUniqueTableSqlName`), so the name-uniqueness probe
+     * covers the table from this moment, plus the table's access metadata (a policy
+     * copy, or a join file's two sides).
      */
     registerTable(tableId: DatabaseTableId, registration: DatabaseServerTableRegistration) {
         sql`
@@ -133,7 +133,7 @@ export class DatabaseModel {
     }
 
     /**
-     * `tableName` is resolved by the calling action via `formatUniqueTableName`
+     * `tableName` is resolved by the calling action via `formatUniqueTableSqlName`
      * (alongside the hash it registered the table with).
      */
     createTable(tableId: DatabaseTableId, {name, tableName}: {name: string; tableName: string}) {
@@ -198,7 +198,7 @@ export class DatabaseModel {
     }
 
     /**
-     * `tableName` is resolved by the calling action via `formatUniqueTableName`
+     * `tableName` is resolved by the calling action via `formatUniqueTableSqlName`
      * (alongside the hash it registered the join table with).
      */
     createJoinTable(

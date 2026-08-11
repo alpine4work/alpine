@@ -1,4 +1,4 @@
-import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
+import {formatUniqueTableSqlName} from "~/shared/databases/format_unique_table_sql_name.js";
 import type {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {DatabaseJoinTableRow} from "~/shared/databases/model/database_row_schemas.js";
 import {DatabaseSchemaScopedBaseModel} from "~/shared/databases/model/database_schema_scoped_base_model.js";
@@ -67,7 +67,7 @@ export class DatabaseJoinTableModel extends DatabaseSchemaScopedBaseModel {
             .getTable(this.targetTableId)
             .getField(this.targetFieldId).humanName;
 
-        const joinTableName = formatUniqueTableName({
+        const joinTableName = formatUniqueTableSqlName({
             model: this.root,
             name: `${sourceName} ${targetName}`,
             excludeTableId: this.id,

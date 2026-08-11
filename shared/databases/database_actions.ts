@@ -21,7 +21,7 @@ import {resolveDatabaseRelation} from "~/shared/databases/fields/relation/resolv
 import {selectDatabaseFieldColumn} from "~/shared/databases/fields/select_database_field_column.js";
 import {serializeDatabaseFieldValueToSql} from "~/shared/databases/fields/serialize_database_field_value_to_sql.js";
 import {serializeUnknownDatabaseFieldValueToSql} from "~/shared/databases/fields/serialize_unknown_database_field_value_to_sql.js";
-import {formatUniqueTableName} from "~/shared/databases/format_unique_table_name.js";
+import {formatUniqueTableSqlName} from "~/shared/databases/format_unique_table_sql_name.js";
 import {insertJoinLink} from "~/shared/databases/insert_join_link.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
@@ -225,7 +225,7 @@ export const databaseActions = {
         internalOnly: true,
         run({db, server, model}, {tableId, humanName, accessPolicy, policyRevision}) {
             // Resolve the unique SQLite table name before registering the new table.
-            const tableName = formatUniqueTableName({model, name: humanName});
+            const tableName = formatUniqueTableSqlName({model, name: humanName});
 
             // Register the table, then attach + migrate its per-db file before writing any of
             // the table's data or metadata into it. `attach` is a no-op if already attached.
@@ -271,7 +271,7 @@ export const databaseActions = {
             }
             // Resolve the unique SQLite table name before renaming, excluding this table so a
             // rename to a slug variant of its current name resolves to that name.
-            const tableName = formatUniqueTableName({
+            const tableName = formatUniqueTableSqlName({
                 model,
                 name: humanName,
                 excludeTableId: tableId,
@@ -583,7 +583,7 @@ export const databaseActions = {
             // The join table is named after its two relation fields, created below as
             // `sourceFieldHumanName` and the source table's name. Resolved before the join
             // table is registered so the uniqueness probe doesn't see its own row.
-            const joinTableName = formatUniqueTableName({
+            const joinTableName = formatUniqueTableSqlName({
                 model,
                 name: `${sourceFieldHumanName} ${sourceTable.humanName}`,
             });
