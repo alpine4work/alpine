@@ -1,8 +1,10 @@
 diff --git a/ext/wasm/GNUmakefile b/ext/wasm/GNUmakefile
 --- a/ext/wasm/GNUmakefile
 +++ b/ext/wasm/GNUmakefile
-@@ -289,7 +289,7 @@ c-pp.D.64bit = -Dbits64
+@@ -289,7 +289,9 @@ c-pp.D.64bit = -Dbits64
  ifeq (1,1)
++# Alpine builds SQLite on macOS. BSD sed requires an explicit empty backup
++# suffix for in-place edits, but GNU sed does not.
  define b.strip-js-emcc-bindings
  echo "$(1) $(emo.garbage) Stripping export wrappers."; \
 -sed -i -e '/var _sqlite3.*makeInvalidEarly.*;/d' \

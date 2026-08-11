@@ -1249,6 +1249,9 @@ export class Database {
    *
    * Note: pagers created by ATTACH after this call do not inherit the hook;
    * re-call `pageAccessHook()` after each ATTACH.
+   *
+   * Alpine adds this API to SQLite to invalidate reactive queries after their
+   * database pages change. The published SQLite types do not include it.
    */
   pageAccessHook(
     callback:
@@ -2547,6 +2550,11 @@ export type Sqlite3Static = {
  * NOTE: The omission of the function parameter list from this declaration is
  * intentional. Please do not reintroduce the removed details. See
  * https://github.com/sqlite/sqlite-wasm/pull/129 for details.
+ */
+/**
+ * Alpine supplies a precompiled WASM module to sandboxed Workers. The default
+ * loader cannot fetch or compile the module in this environment. The SQLite
+ * runtime accepts this Emscripten hook, but the published declaration does not.
  */
 export default function init(config?: {
   instantiateWasm?: (

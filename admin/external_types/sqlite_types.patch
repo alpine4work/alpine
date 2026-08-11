@@ -1,6 +1,6 @@
 --- sqlite3.d.mts
 +++ sqlite3.d.mts
-@@ -1240,3 +1240,21 @@
+@@ -1240,3 +1240,24 @@
    /** Instance method version of {@link checkRc()}. */
    checkRc: (resultCode: number) => this;
 +
@@ -13,6 +13,9 @@
 +   *
 +   * Note: pagers created by ATTACH after this call do not inherit the hook;
 +   * re-call `pageAccessHook()` after each ATTACH.
++   *
++   * Alpine adds this API to SQLite to invalidate reactive queries after their
++   * database pages change. The published SQLite types do not include it.
 +   */
 +  pageAccessHook(
 +    callback:

@@ -2,7 +2,7 @@ import {evaluateAccessPolicy} from "~/server/access/evaluate_access_policy.js";
 import {validateAccessPolicyUpdateForServer} from "~/server/access/validate_access_policy_update_for_server.js";
 import type {ServerActionContext} from "~/server/context/server_action_context.js";
 import {fetchDatabaseGroupAction} from "~/server/databases/data/fetch_database_action.js";
-import {DatabaseTablesTable} from "~/server/databases/data/internal/database_tables_table.js";
+import {DatabasesRynamo} from "~/server/databases/data/internal/databases_rynamo.js";
 import {resolveDatabaseTableAccessPolicyReplica} from "~/server/databases/data/resolve_database_table_access_policy_replica.js";
 import type {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoItem} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -66,7 +66,7 @@ export async function createDatabaseTable(
         },
     });
 
-    const {getEvent, transactionEntry} = DatabaseTablesTable.transactionCreateItemWithEvent({
+    const {getEvent, transactionEntry} = DatabasesRynamo.transactionCreateItemWithEvent({
         partitionType: "Table",
         sortRangeType: "Attributes",
         tableId,
@@ -110,7 +110,7 @@ export async function updateDatabaseTableAccessPolicy(
     const sessionContext = context.actor.authorizeSession();
 
     const {getEvent, spaceId} = await sessionContext.dynamo.retryTransaction(async context => {
-        const item = await DatabaseTablesTable.getItemIfExists(
+        const item = await DatabasesRynamo.getItemIfExists(
             context,
             {partitionType: "Table", sortRangeType: "Attributes", tableId},
             {consistency: "Strong"},
@@ -142,7 +142,7 @@ export async function updateDatabaseTableAccessPolicy(
             accessPolicy.type === "Local"
                 ? accessPolicy
                 : {type: "Site", siteId: accessPolicy.siteId};
-        const tableEntry = DatabaseTablesTable.transactionDirectlyUpdateItemWithEvent(
+        const tableEntry = DatabasesRynamo.transactionDirectlyUpdateItemWithEvent(
             item.update({accessPolicy: storedAccessPolicy}),
         );
 
@@ -179,7 +179,7 @@ export async function getDatabaseTableMetadataItem(
     tableId: DatabaseTableId,
     {consistency}: {consistency: DatabaseTableMetadataReadConsistency},
 ): Promise<RynamoItem<DatabaseTableMetadataModel>> {
-    const item = await DatabaseTablesTable.getRealtimeItemIfExists(
+    const item = await DatabasesRynamo.getRealtimeItemIfExists(
         context,
         {
             partitionType: "Table",
@@ -224,7 +224,7 @@ export async function getDatabaseTableMetadataRealtimeEvent(
     deniedTableIds: ReadonlyArray<DatabaseTableId>;
 }> {
     const eventStubs = events.map(eventStub => {
-        const itemKey = DatabaseTablesTable.deserializeOpaqueItemKey(eventStub.item.key);
+        const itemKey = DatabasesRynamo.deserializeOpaqueItemKey(eventStub.item.key);
 
         if (itemKey.partitionType === "Table" && itemKey.sortRangeType === "Attributes") {
             return {...eventStub, itemKey};
@@ -234,7 +234,7 @@ export async function getDatabaseTableMetadataRealtimeEvent(
             "Can\u2019t get realtime event for item that\u2019s not associated with the designated database group",
         );
     });
-    const actualEvents = (await DatabaseTablesTable.getRealtimeEvent(
+    const actualEvents = (await DatabasesRynamo.getRealtimeEvent(
         context,
         eventStubs,
     )) as ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>;
@@ -351,7 +351,7 @@ export async function createDatabaseTableMetadataForTest(
 ): Promise<void> {
     assert(process.env.NODE_ENV === "test");
 
-    await DatabaseTablesTable.updateItem(
+    await DatabasesRynamo.updateItem(
         context,
         {partitionType: "Table", sortRangeType: "Attributes", tableId},
         item =>
