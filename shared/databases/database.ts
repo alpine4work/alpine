@@ -874,7 +874,7 @@ export class Database {
                             main._alpine_tables
                         WHERE
                             id = ${tableId}
-                    `.selectValueIfExists(this.db, Schema.enum(["table", "join"])),
+                    `.selectValueIfExists(this.db, Schema.enum(["Table", "Join"])),
                 );
                 if (!kindResult.ok || kindResult.value === null) return false;
                 const kind = kindResult.value;
@@ -955,10 +955,10 @@ export class Database {
      */
     private assertAttachedTableMigrationsAreCurrent(
         tableId: DatabaseTableId,
-        kind: "table" | "join",
+        kind: "Table" | "Join",
     ): void {
         const migrationCount =
-            kind === "table"
+            kind === "Table"
                 ? tableSqliteMigrations(tableId).length
                 : joinTableSqliteMigrations(tableId).length;
         const schema = sql.identifier(databaseTableSchemaName(tableId));

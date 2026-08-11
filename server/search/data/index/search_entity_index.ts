@@ -2559,6 +2559,7 @@ function spotCheckSearchEntityAccess(
             mentionEntityId = null;
             break;
         case "DatabaseTable":
+            // TODO(alex, #databases): Make database tables mentionable.
             mentionEntityId = null;
             break;
         case "Document":

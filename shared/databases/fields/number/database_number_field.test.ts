@@ -8,10 +8,14 @@ import {sql} from "~/shared/databases/sql.js";
 const sqlite3Promise = sqlite3InitModule();
 let dbCounter = 0;
 
+/**
+ * Creates a number table with the production storage constraint. The tests use
+ * this table to compare application formatting with SQLite formatting.
+ */
 async function createDbWithCheckedColumn() {
     const sqlite3 = await sqlite3Promise;
     const db = new sqlite3.oo1.DB(`/test-number-${dbCounter++}.sqlite3`, "ct");
-    const check = generateDatabaseFieldCheckConstraint("number", sql.identifier("v"));
+    const check = generateDatabaseFieldCheckConstraint("Number", sql.identifier("v"));
     // Match the production DDL: nullable REAL with no NOT NULL clause.
     sql`
         CREATE TABLE t (
@@ -23,7 +27,7 @@ async function createDbWithCheckedColumn() {
 
 describe("databaseNumberField", () => {
     test("nullable is true", () => {
-        expect(isDatabaseFieldNullable("number")).toBe(true);
+        expect(isDatabaseFieldNullable("Number")).toBe(true);
     });
 
     describe("parseString", () => {
@@ -198,7 +202,7 @@ describe("databaseNumberField", () => {
                 getDatabaseFieldStrings({
                     db,
                     value,
-                    config: {type: "number", decimalPlaces},
+                    config: {type: "Number", decimalPlaces},
                 }),
             ).toEqual({valueToString: expected, selectColumnAsString: expected});
             db.close();

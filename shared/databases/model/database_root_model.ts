@@ -79,7 +79,7 @@ export class DatabaseModel {
         `.selectValues(this.db, Schema.id<DatabaseTableId>());
     }
 
-    tableExists(tableId: DatabaseTableId, kind: DatabaseTableKind = "table") {
+    tableExists(tableId: DatabaseTableId, kind: DatabaseTableKind = "Table") {
         return sql`
             SELECT
                 1
@@ -171,14 +171,14 @@ export class DatabaseModel {
         `.exec(this.db);
 
         const defaultView = table.createView(defaultViewId, "Grid view");
-        const nameField = table.createField(nameFieldId, "Name", {type: "plainText"});
+        const nameField = table.createField(nameFieldId, "Name", {type: "PlainText"});
         table.appendFieldToAllViews(nameField);
 
         return {table, nameField, defaultView};
     }
 
     getJoinTable(tableId: DatabaseTableId) {
-        assert(this.tableExists(tableId, "join"));
+        assert(this.tableExists(tableId, "Join"));
         const row = sql`
             SELECT
                 id,
@@ -206,8 +206,8 @@ export class DatabaseModel {
         target: DatabaseFieldModel,
         {tableName: joinTableName}: {tableName: string},
     ) {
-        assert(source.config.type === "relation", "source field is not a relation field");
-        assert(target.config.type === "relation", "target field is not a relation field");
+        assert(source.config.type === "Relation", "source field is not a relation field");
+        assert(target.config.type === "Relation", "target field is not a relation field");
         assert(source.config.joinTableId === target.config.joinTableId, "join table mismatch");
         assert(source.config.linkedTableId === target.table.id, "source linked table mismatch");
         assert(target.config.linkedTableId === source.table.id, "target linked table mismatch");

@@ -40,7 +40,7 @@ export type DatabaseGridViewColumn = DatabaseGridViewField & {
 /**
  * The description of a new field committed from the field creation UI. For
  * relation fields the creation UI generates the `joinTableId` and always uses
- * `side: "source"` (the symmetric target field is created by the server).
+ * `side: "Source"` (the symmetric target field is created by the server).
  */
 export type DatabaseGridViewNewField = {
     readonly name: string;
@@ -48,11 +48,11 @@ export type DatabaseGridViewNewField = {
 };
 
 type DatabaseGridViewFieldOptimisticAction =
-    | {type: "create"; field: DatabaseGridViewField}
-    | {type: "rename"; fieldId: DatabaseFieldId; name: string}
-    | {type: "resize"; fieldId: DatabaseFieldId; width: number}
-    | {type: "updateConfig"; fieldId: DatabaseFieldId; config: DatabaseFieldConfig}
-    | {type: "updateVisibility"; fieldId: DatabaseFieldId; position: OrderKey; isHidden: boolean};
+    | {type: "Create"; field: DatabaseGridViewField}
+    | {type: "Rename"; fieldId: DatabaseFieldId; name: string}
+    | {type: "Resize"; fieldId: DatabaseFieldId; width: number}
+    | {type: "UpdateConfig"; fieldId: DatabaseFieldId; config: DatabaseFieldConfig}
+    | {type: "UpdateVisibility"; fieldId: DatabaseFieldId; position: OrderKey; isHidden: boolean};
 
 type ResizingState = {
     readonly fieldId: DatabaseFieldId;
@@ -117,23 +117,23 @@ export function useGridViewFields({
             action: DatabaseGridViewFieldOptimisticAction,
         ) => {
             switch (action.type) {
-                case "create":
+                case "Create":
                     return prev.some(f => f.id === action.field.id)
                         ? prev
                         : [...prev, action.field];
-                case "rename":
+                case "Rename":
                     return prev.map(f =>
                         f.id === action.fieldId ? {...f, humanName: action.name} : f,
                     );
-                case "resize":
+                case "Resize":
                     return prev.map(f =>
                         f.id === action.fieldId ? {...f, width: action.width} : f,
                     );
-                case "updateConfig":
+                case "UpdateConfig":
                     return prev.map(f =>
                         f.id === action.fieldId ? {...f, config: action.config} : f,
                     );
-                case "updateVisibility":
+                case "UpdateVisibility":
                     return prev
                         .map(f =>
                             f.id === action.fieldId
@@ -167,7 +167,7 @@ export function useGridViewFields({
         const fieldId = addingFieldId;
         setAddingFieldId(null);
 
-        if (config.type === "relation") {
+        if (config.type === "Relation") {
             startTransition(async () => {
                 await conn.executeAction("createRelationField", {
                     joinTableId: config.joinTableId,
@@ -184,7 +184,7 @@ export function useGridViewFields({
         const addPosition = generateOrderKeyBetween(lastVisible?.position ?? null, null);
         startTransition(async () => {
             applyOptimisticField({
-                type: "create",
+                type: "Create",
                 field: {
                     id: fieldId,
                     humanName: name,
@@ -246,7 +246,7 @@ export function useGridViewFields({
             {
                 id: addingFieldId,
                 humanName: "",
-                config: {type: "plainText"},
+                config: {type: "PlainText"},
                 position: generateOrderKeyBetween(lastField?.position ?? null, null),
                 width: databaseViewDefaultColumnWidth,
                 hidden: false,
@@ -299,7 +299,7 @@ export function useGridViewFields({
                 const finalWidth = Math.max(60, Math.min(1200, Math.round(startWidth + delta)));
                 setResizingState(null);
                 startTransition(async () => {
-                    applyOptimisticField({type: "resize", fieldId, width: finalWidth});
+                    applyOptimisticField({type: "Resize", fieldId, width: finalWidth});
                     await conn.executeAction("resizeField", {
                         tableId,
                         viewId,
@@ -318,7 +318,7 @@ export function useGridViewFields({
         const trimmed = name.trim();
         if (trimmed === "") return;
         startTransition(async () => {
-            applyOptimisticField({type: "rename", fieldId, name: trimmed});
+            applyOptimisticField({type: "Rename", fieldId, name: trimmed});
             await conn.executeAction("renameField", {tableId, fieldId, humanName: trimmed});
         });
     });
@@ -326,7 +326,7 @@ export function useGridViewFields({
     const updateFieldVisibility = useEvent(
         (fieldId: DatabaseFieldId, position: OrderKey, isHidden: boolean) => {
             startTransition(async () => {
-                applyOptimisticField({type: "updateVisibility", fieldId, position, isHidden});
+                applyOptimisticField({type: "UpdateVisibility", fieldId, position, isHidden});
                 await conn.executeAction("updateFieldViewVisibility", {
                     tableId,
                     viewId,
@@ -340,7 +340,7 @@ export function useGridViewFields({
 
     const updateFieldConfig = useEvent((fieldId: DatabaseFieldId, config: DatabaseFieldConfig) => {
         startTransition(async () => {
-            applyOptimisticField({type: "updateConfig", fieldId, config});
+            applyOptimisticField({type: "UpdateConfig", fieldId, config});
             await conn.executeAction("updateFieldConfig", {tableId, fieldId, config});
         });
     });

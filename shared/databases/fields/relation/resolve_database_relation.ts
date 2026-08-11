@@ -6,19 +6,21 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 /**
  * Resolves a relation field against its join table, validating the field's config
  * against the join table's topology and returning the column names for the field's
- * own side (`our`) and the linked side (`their`).
+ * own side (`our`) and the linked side (`their`). Relation queries use this one
+ * validated orientation so source-side and target-side fields cannot select the
+ * wrong join columns.
  */
-export function resolveDatabaseRelation(field: DatabaseFieldModelOfType<"relation">) {
+export function resolveDatabaseRelation(field: DatabaseFieldModelOfType<"Relation">) {
     const joinTable = field.root.getJoinTable(field.config.joinTableId);
 
     let linkedTableId: DatabaseTableId | null = null;
     switch (field.config.side) {
-        case "source":
+        case "Source":
             assert(joinTable.sourceTableId === field.table.id, "relation source table mismatch");
             assert(joinTable.sourceFieldId === field.id, "relation source field mismatch");
             linkedTableId = joinTable.targetTableId;
             break;
-        case "target":
+        case "Target":
             assert(joinTable.targetTableId === field.table.id, "relation target table mismatch");
             assert(joinTable.targetFieldId === field.id, "relation target field mismatch");
             linkedTableId = joinTable.sourceTableId;
@@ -42,8 +44,8 @@ export function resolveDatabaseRelation(field: DatabaseFieldModelOfType<"relatio
         config: field.config,
         joinTable,
         linkedTableId,
-        our: field.config.side === "source" ? sourceColumnNames : targetColumnNames,
-        their: field.config.side === "source" ? targetColumnNames : sourceColumnNames,
+        our: field.config.side === "Source" ? sourceColumnNames : targetColumnNames,
+        their: field.config.side === "Source" ? targetColumnNames : sourceColumnNames,
     };
 }
 

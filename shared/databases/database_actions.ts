@@ -229,7 +229,7 @@ export const databaseActions = {
 
             // Register the table, then attach + migrate its per-db file before writing any of
             // the table's data or metadata into it. `attach` is a no-op if already attached.
-            model.registerTable(tableId, {kind: "table", tableName, accessPolicy});
+            model.registerTable(tableId, {kind: "Table", tableName, accessPolicy});
             server().tables.setTableAccessPolicy(tableId, accessPolicy, policyRevision);
             server().attach(tableId);
             runTableMigrations(db, tableId);
@@ -288,7 +288,7 @@ export const databaseActions = {
         }),
         writeLevel: "none",
         run({model}) {
-            return {tableIds: model.getTableIds("table")};
+            return {tableIds: model.getTableIds("Table")};
         },
     }),
 
@@ -305,7 +305,7 @@ export const databaseActions = {
         writeLevel: "none",
         run({model}) {
             return {
-                tables: model.getTableIds("table").map(tableId => ({
+                tables: model.getTableIds("Table").map(tableId => ({
                     id: tableId,
                     humanName: model.getTable(tableId).humanName,
                 })),
@@ -364,7 +364,7 @@ export const databaseActions = {
             const {table, view} = model.resolveTableOrViewId(tableOrViewId);
             const fields = view.getFieldsWithViewMetadata().map(field => {
                 const linkedTableReadAccess =
-                    field.config.type === "relation"
+                    field.config.type === "Relation"
                         ? hasAccessLevel(getTableAccessLevel(field.config.linkedTableId), "View")
                         : null;
                 return {...field, linkedTableReadAccess};
@@ -546,7 +546,7 @@ export const databaseActions = {
         output: Schema.object({}),
         writeLevel: "schema+data",
         run({model}, {fieldId, tableId, humanName, config}) {
-            assert(config.type !== "relation", "use createRelationField to create relation fields");
+            assert(config.type !== "Relation", "use createRelationField to create relation fields");
 
             const table = model.getTable(tableId);
             const field = table.createField(fieldId, humanName, config);
@@ -562,7 +562,7 @@ export const databaseActions = {
             sourceTableId: Schema.id<DatabaseTableId>(),
             sourceFieldHumanName: LabelStringSchema,
             targetTableId: Schema.id<DatabaseTableId>(),
-            cardinality: Schema.enum(["one", "many"]),
+            cardinality: Schema.enum(["One", "Many"]),
         }),
         output: Schema.object({
             joinTableId: Schema.id<DatabaseTableId>(),
@@ -592,7 +592,7 @@ export const databaseActions = {
             // access from its two sides while this action's own statements (migrations, the
             // `_alpine_join_table` insert) touch it.
             model.registerTable(joinTableId, {
-                kind: "join",
+                kind: "Join",
                 tableName: joinTableName,
                 sourceTableId,
                 targetTableId,
@@ -601,19 +601,19 @@ export const databaseActions = {
             runJoinTableMigrations(db, joinTableId);
 
             const sourceField = sourceTable.createField(sourceFieldId, sourceFieldHumanName, {
-                type: "relation",
+                type: "Relation",
                 joinTableId,
-                side: "source",
+                side: "Source",
                 cardinality,
                 linkedTableId: targetTable.id,
             });
             sourceTable.appendFieldToAllViews(sourceField);
 
             const targetField = targetTable.createField(targetFieldId, sourceTable.humanName, {
-                type: "relation",
+                type: "Relation",
                 joinTableId,
-                side: "target",
-                cardinality: "many",
+                side: "Target",
+                cardinality: "Many",
                 linkedTableId: sourceTable.id,
             });
             targetTable.appendFieldToAllViews(targetField);
@@ -642,7 +642,7 @@ export const databaseActions = {
         run({db, model}, {tableId, fieldId, rowId, linkedRowId}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
-            assert(field.isType("relation"));
+            assert(field.isType("Relation"));
             const relation = resolveDatabaseRelation(field);
             const linkedTable = model.getTable(relation.linkedTableId);
             const joinTable = relation.joinTable;
@@ -650,7 +650,7 @@ export const databaseActions = {
             assert(table.rowExists(rowId), "row not found");
             assert(linkedTable.rowExists(linkedRowId), "linked row not found");
 
-            if (relation.config.cardinality === "one") {
+            if (relation.config.cardinality === "One") {
                 sql`
                     DELETE FROM ${joinTable.tableRef}
                     WHERE
@@ -676,7 +676,7 @@ export const databaseActions = {
         run({db, model}, {tableId, fieldId, rowId, linkedRowId}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
-            assert(field.isType("relation"));
+            assert(field.isType("Relation"));
             const relation = resolveDatabaseRelation(field);
 
             sql`
@@ -715,7 +715,7 @@ export const databaseActions = {
         run({db, model, getTableAccessLevel}, {tableId, fieldId, rowId, search}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
-            assert(field.isType("relation"));
+            assert(field.isType("Relation"));
             const relation = resolveDatabaseRelation(field);
 
             assert(table.rowExists(rowId), "row not found");
@@ -791,7 +791,7 @@ export const databaseActions = {
         run({db, model, getTableAccessLevel}, {tableId, fieldId, rowId}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
-            assert(field.isType("relation"));
+            assert(field.isType("Relation"));
             const relation = resolveDatabaseRelation(field);
 
             assert(table.rowExists(rowId), "row not found");
@@ -863,7 +863,7 @@ export const databaseActions = {
         run({db, model}, {tableId, fieldId, rowId, linkedRowId, position}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
-            assert(field.isType("relation"));
+            assert(field.isType("Relation"));
             const relation = resolveDatabaseRelation(field);
 
             sql`
@@ -894,7 +894,7 @@ export const databaseActions = {
         run({db, model}, {tableId, fieldId, rowId, linkedRowId, name}) {
             const table = model.getTable(tableId);
             const field = table.getField(fieldId);
-            assert(field.isType("relation"));
+            assert(field.isType("Relation"));
             const relation = resolveDatabaseRelation(field);
             const linkedTable = model.getTable(relation.linkedTableId);
 
@@ -920,7 +920,7 @@ export const databaseActions = {
                     )
             `.exec(db);
 
-            if (relation.config.cardinality === "one") {
+            if (relation.config.cardinality === "One") {
                 sql`
                     DELETE FROM ${relation.joinTable.tableRef}
                     WHERE
@@ -951,12 +951,12 @@ export const databaseActions = {
                 `cannot change field type from ${field.config.type} to ${config.type}`,
             );
             switch (field.config.type) {
-                case "plainText":
-                case "checkbox":
-                case "number":
+                case "PlainText":
+                case "Checkbox":
+                case "Number":
                     break;
-                case "relation":
-                    assert(config.type === "relation", "cannot change field type");
+                case "Relation":
+                    assert(config.type === "Relation", "cannot change field type");
                     assertDatabaseRelationFieldConfigChangeValid(field.config, config);
                     break;
                 default:

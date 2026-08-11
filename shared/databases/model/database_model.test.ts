@@ -63,7 +63,7 @@ function createTable(model: DatabaseModel, tableId: DatabaseTableId, name: strin
     // migrate the per-table file, then create the metadata.
     const tableName = formatUniqueTableSqlName({model, name});
     model.registerTable(tableId, {
-        kind: "table",
+        kind: "Table",
         tableName,
         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
     });
@@ -89,7 +89,7 @@ function createJoinTableWithUniqueName(
         name: `${sourceField.humanName} ${targetField.humanName}`,
     });
     model.registerTable(joinTableId, {
-        kind: "join",
+        kind: "Join",
         tableName,
         sourceTableId: sourceField.table.id,
         targetTableId: targetField.table.id,
@@ -107,17 +107,17 @@ function createRelation(model: DatabaseModel) {
     attachTableDb(model.db, joinTableId);
 
     const sourceField = source.createField(generateId<DatabaseFieldId>(), "Project", {
-        type: "relation",
+        type: "Relation",
         joinTableId,
-        side: "source",
-        cardinality: "many",
+        side: "Source",
+        cardinality: "Many",
         linkedTableId: target.id,
     });
     const targetField = target.createField(generateId<DatabaseFieldId>(), "Tasks", {
-        type: "relation",
+        type: "Relation",
         joinTableId,
-        side: "target",
-        cardinality: "many",
+        side: "Target",
+        cardinality: "Many",
         linkedTableId: source.id,
     });
     const joinRow = createJoinTableWithUniqueName(model, joinTableId, sourceField, targetField);
@@ -165,7 +165,7 @@ describe("DatabaseModel", () => {
         table.createView(secondViewId, "Second view");
 
         const field = table.createField(generateId<DatabaseFieldId>(), "Status", {
-            type: "plainText",
+            type: "PlainText",
         });
         table.appendFieldToAllViews(field);
 
@@ -220,17 +220,17 @@ describe("DatabaseModel", () => {
         attachTableDb(db, joinTableId);
 
         const sourceField = table.createField(generateId<DatabaseFieldId>(), "Related", {
-            type: "relation",
+            type: "Relation",
             joinTableId,
-            side: "source",
-            cardinality: "many",
+            side: "Source",
+            cardinality: "Many",
             linkedTableId: table.id,
         });
         const targetField = table.createField(generateId<DatabaseFieldId>(), "Tasks", {
-            type: "relation",
+            type: "Relation",
             joinTableId,
-            side: "target",
-            cardinality: "many",
+            side: "Target",
+            cardinality: "Many",
             linkedTableId: table.id,
         });
 

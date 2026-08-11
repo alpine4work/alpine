@@ -9,10 +9,10 @@ import type {Schema} from "~/shared/schema/schema.open_source.js";
 const databaseFieldSqlValueSchemas: {
     [Type in DatabaseFieldType]: Schema<DatabaseFieldValue<Type>>;
 } = {
-    plainText: DatabasePlainTextFieldValueSchema,
-    checkbox: SqlBooleanSchema,
-    number: DatabaseNumberFieldValueSchema,
-    relation: DatabaseRelationFieldSqlValueSchema,
+    PlainText: DatabasePlainTextFieldValueSchema,
+    Checkbox: SqlBooleanSchema,
+    Number: DatabaseNumberFieldValueSchema,
+    Relation: DatabaseRelationFieldSqlValueSchema,
 };
 
 /**

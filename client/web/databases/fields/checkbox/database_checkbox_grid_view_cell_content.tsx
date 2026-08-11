@@ -1,0 +1,39 @@
+import type {DatabaseGridViewCellContentProps} from "~/client/web/databases/fields/database_grid_view_cell_props.js";
+import {Box} from "~/client/web/design/box.js";
+import {CheckboxIcon} from "~/client/web/design/checkbox_icon.js";
+
+export function DatabaseCheckboxGridViewCellContent({
+    ref,
+    value,
+    commitValue,
+}: DatabaseGridViewCellContentProps<"Checkbox">) {
+    const isChecked = value === true;
+
+    const toggle = () => {
+        commitValue(!isChecked);
+    };
+
+    return (
+        <Box
+            ref={ref as React.Ref<HTMLDivElement>}
+            tabIndex={-1}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            height="full"
+            onClick={e => {
+                e.stopPropagation();
+                toggle();
+            }}
+            onKeyDown={e => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggle();
+                }
+            }}
+        >
+            <CheckboxIcon isChecked={isChecked} />
+        </Box>
+    );
+}

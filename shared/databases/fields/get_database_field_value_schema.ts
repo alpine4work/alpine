@@ -7,12 +7,17 @@ import {DatabaseRelationFieldValueSchema} from "~/shared/databases/fields/relati
 import type {Schema} from "~/shared/schema/schema.open_source.js";
 
 const databaseFieldValueSchemas: {[Type in DatabaseFieldType]: Schema<DatabaseFieldValue<Type>>} = {
-    plainText: DatabasePlainTextFieldValueSchema,
-    checkbox: DatabaseCheckboxFieldValueSchema,
-    number: DatabaseNumberFieldValueSchema,
-    relation: DatabaseRelationFieldValueSchema,
+    PlainText: DatabasePlainTextFieldValueSchema,
+    Checkbox: DatabaseCheckboxFieldValueSchema,
+    Number: DatabaseNumberFieldValueSchema,
+    Relation: DatabaseRelationFieldValueSchema,
 };
 
+/**
+ * Returns the application-value schema for a field type. This central mapping lets
+ * generic field code validate values without losing the value type that
+ * corresponds to the field type.
+ */
 export function getDatabaseFieldValueSchema<Type extends DatabaseFieldType>(
     type: Type,
 ): Schema<DatabaseFieldValue<Type>> {

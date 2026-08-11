@@ -32,7 +32,7 @@ test("round-trips registration catch-up pages and table access", () => {
                     watermark: 42,
                     fileSizeInPages: 3,
                     catchUp: {
-                        type: "pages" as const,
+                        type: "Pages" as const,
                         pages: new Map([[2, {version: 42, data: new Uint8Array([1, 2, 3])}]]),
                     },
                 },
@@ -48,7 +48,7 @@ test("round-trips registration catch-up pages and table access", () => {
         tableAccess: roundTripped.tableAccess.get(databaseMainTableId),
     }).toMatchObject({
         catchUp: {
-            type: "pages",
+            type: "Pages",
             pages: new Map([[2, {version: 42}]]),
         },
         tableAccess: "Manage",
@@ -65,7 +65,7 @@ test("round-trips a stale registration bitset", () => {
                     watermark: 43,
                     fileSizeInPages: 4,
                     catchUp: {
-                        type: "stale" as const,
+                        type: "Stale" as const,
                         pageIndexes: new TypedFastBitSet([1, 3]),
                     },
                 },
@@ -77,7 +77,7 @@ test("round-trips a stale registration bitset", () => {
     const roundTripped = resultSchema.deserialize(resultSchema.serialize(result));
     const catchUp = roundTripped.tables.get(databaseMainTableId)?.catchUp;
 
-    expect(catchUp?.type === "stale" ? catchUp.pageIndexes.array() : null).toEqual([1, 3]);
+    expect(catchUp?.type === "Stale" ? catchUp.pageIndexes.array() : null).toEqual([1, 3]);
 });
 
 test("round-trips the realtime batch version independently of page diffs", () => {

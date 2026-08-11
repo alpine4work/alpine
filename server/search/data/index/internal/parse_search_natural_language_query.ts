@@ -1366,6 +1366,9 @@ function advanceEntityTypeIfPossible(state: SearchNaturalLanguageParserState): {
         };
     }
 
+    // TODO(alex, #databases): Parse "database", "table", and related terms from a
+    // natural language query as `DatabaseTable`.
+
     // Messages or comments (standalone - could be chat or document)
     if (
         matchTerms.messages.isFuzzyMatch(state.term) ||

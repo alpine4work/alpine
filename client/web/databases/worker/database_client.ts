@@ -831,9 +831,9 @@ export class DatabaseClient {
                 `registration response references unknown table ${tableId}`,
             );
             switch (result.catchUp.type) {
-                case "current":
+                case "Current":
                     break;
-                case "pages":
+                case "Pages":
                     for (const [pageIndex, {version, data}] of result.catchUp.pages) {
                         if (store.writePageIfNewer(pageIndex, version, data)) {
                             this.addPageToInvalidate(tableId, pageIndex);
@@ -841,7 +841,7 @@ export class DatabaseClient {
                         }
                     }
                     break;
-                case "stale": {
+                case "Stale": {
                     // Unlike inline pages, stale page indexes have no versions with which to resolve a
                     // race against a newer realtime event.
                     if (result.watermark < store.getWatermark()) break;

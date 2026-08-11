@@ -75,6 +75,95 @@ export const databaseDurableObjectSqlMigrations: ReadonlyArray<DatabaseDurableOb
                 ADD COLUMN access_policy_source_version INTEGER NOT NULL DEFAULT -1
             `.exec(db);
         },
+        db => {
+            sql`
+                ALTER TABLE database_table_pages
+                RENAME TO database_table_pages_camel_case
+            `.exec(db);
+            sql`
+                ALTER TABLE database_tables
+                RENAME TO database_tables_camel_case
+            `.exec(db);
+            sql`
+                CREATE TABLE database_tables (
+                    sqlite_id INTEGER PRIMARY KEY,
+                    table_id TEXT NOT NULL UNIQUE,
+                    kind TEXT,
+                    table_name TEXT UNIQUE,
+                    schema_version INTEGER,
+                    access_policy TEXT,
+                    source_table_id TEXT,
+                    target_table_id TEXT,
+                    file_size_in_pages INTEGER NOT NULL DEFAULT 0,
+                    last_version INTEGER NOT NULL DEFAULT 0,
+                    access_policy_table_version INTEGER NOT NULL DEFAULT -1,
+                    access_policy_source_version INTEGER NOT NULL DEFAULT -1,
+                    CHECK (
+                        CASE kind
+                            WHEN 'Table' THEN table_name IS NOT NULL
+                            AND schema_version IS NOT NULL
+                            AND source_table_id IS NULL
+                            AND target_table_id IS NULL
+                            WHEN 'Join' THEN table_name IS NOT NULL
+                            AND schema_version IS NOT NULL
+                            AND access_policy IS NULL
+                            AND source_table_id IS NOT NULL
+                            AND target_table_id IS NOT NULL
+                            ELSE kind IS NULL
+                            AND table_name IS NULL
+                            AND schema_version IS NULL
+                            AND source_table_id IS NULL
+                            AND target_table_id IS NULL
+                        END
+                    )
+                )
+            `.exec(db);
+            sql`
+                INSERT INTO
+                    database_tables
+                SELECT
+                    sqlite_id,
+                    table_id,
+                    CASE kind
+                        WHEN 'table' THEN 'Table'
+                        WHEN 'join' THEN 'Join'
+                    END,
+                    table_name,
+                    schema_version,
+                    access_policy,
+                    source_table_id,
+                    target_table_id,
+                    file_size_in_pages,
+                    last_version,
+                    access_policy_table_version,
+                    access_policy_source_version
+                FROM
+                    database_tables_camel_case
+            `.exec(db);
+            sql`
+                CREATE TABLE database_table_pages (
+                    sqlite_id INTEGER NOT NULL,
+                    page_index INTEGER NOT NULL,
+                    version INTEGER NOT NULL,
+                    data BLOB,
+                    PRIMARY KEY (sqlite_id, page_index),
+                    FOREIGN KEY (sqlite_id) REFERENCES database_tables (sqlite_id)
+                ) WITHOUT ROWID
+            `.exec(db);
+            sql`
+                INSERT INTO
+                    database_table_pages
+                SELECT
+                    *
+                FROM
+                    database_table_pages_camel_case
+            `.exec(db);
+            sql`DROP TABLE database_table_pages_camel_case`.exec(db);
+            sql`DROP TABLE database_tables_camel_case`.exec(db);
+            sql`
+                CREATE INDEX database_table_pages_by_version ON database_table_pages (sqlite_id, version)
+            `.exec(db);
+        },
     ];
 
 export function runDatabaseDurableObjectSqlMigrations(storage: DurableObjectStorage): void {

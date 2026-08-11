@@ -7,7 +7,7 @@ import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 describe("DatabaseFieldConfigSqlSchema", () => {
     test("round-trips a number config with decimalPlaces", () => {
-        const config = {type: "number" as const, decimalPlaces: 2};
+        const config = {type: "Number" as const, decimalPlaces: 2};
         const serialized = DatabaseFieldConfigSqlSchema.serialize(config);
         expect(typeof serialized).toBe("string");
         const deserialized = DatabaseFieldConfigSqlSchema.deserialize(serialized);
@@ -15,7 +15,7 @@ describe("DatabaseFieldConfigSqlSchema", () => {
     });
 
     test("round-trips a number config with null decimalPlaces", () => {
-        const config = {type: "number" as const, decimalPlaces: null};
+        const config = {type: "Number" as const, decimalPlaces: null};
         const deserialized = DatabaseFieldConfigSqlSchema.deserialize(
             DatabaseFieldConfigSqlSchema.serialize(config),
         );
@@ -23,8 +23,8 @@ describe("DatabaseFieldConfigSqlSchema", () => {
     });
 
     test("round-trips plainText and checkbox configs", () => {
-        const plain = {type: "plainText" as const};
-        const checkbox = {type: "checkbox" as const};
+        const plain = {type: "PlainText" as const};
+        const checkbox = {type: "Checkbox" as const};
         expect(
             DatabaseFieldConfigSqlSchema.deserialize(DatabaseFieldConfigSqlSchema.serialize(plain)),
         ).toEqual(plain);
@@ -37,10 +37,10 @@ describe("DatabaseFieldConfigSqlSchema", () => {
 
     test("round-trips relation configs", () => {
         const config = {
-            type: "relation" as const,
+            type: "Relation" as const,
             joinTableId: generateId<DatabaseTableId>(),
-            side: "source" as const,
-            cardinality: "many" as const,
+            side: "Source" as const,
+            cardinality: "Many" as const,
             linkedTableId: generateId<DatabaseTableId>(),
         };
         const deserialized = DatabaseFieldConfigSqlSchema.deserialize(
@@ -52,7 +52,7 @@ describe("DatabaseFieldConfigSqlSchema", () => {
 
 describe("DatabaseFieldConfigSchema", () => {
     test("accepts concrete field configs", () => {
-        const config = {type: "checkbox" as const};
+        const config = {type: "Checkbox" as const};
         const serialized = DatabaseFieldConfigSchema.serialize(config);
         expect(DatabaseFieldConfigSchema.deserialize(serialized)).toEqual(config);
     });

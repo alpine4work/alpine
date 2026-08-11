@@ -31,10 +31,10 @@ export type DatabaseFieldConfig<Type extends DatabaseFieldType = DatabaseFieldTy
 >;
 
 export const DatabaseFieldConfigSchema = Schema.union({
-    plainText: DatabasePlainTextFieldConfigSchema,
-    checkbox: DatabaseCheckboxFieldConfigSchema,
-    number: DatabaseNumberFieldConfigSchema,
-    relation: DatabaseRelationFieldConfigSchema,
+    PlainText: DatabasePlainTextFieldConfigSchema,
+    Checkbox: DatabaseCheckboxFieldConfigSchema,
+    Number: DatabaseNumberFieldConfigSchema,
+    Relation: DatabaseRelationFieldConfigSchema,
 });
 
 export const DatabaseFieldConfigSqlSchema = SqlJsonSchema(DatabaseFieldConfigSchema);

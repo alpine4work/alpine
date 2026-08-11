@@ -59,9 +59,9 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
         // Apply the schema changes the rename implies: column-backed fields rename their
         // column; relation fields rename their join table's file.
         switch (newField.config.type) {
-            case "plainText":
-            case "checkbox":
-            case "number":
+            case "PlainText":
+            case "Checkbox":
+            case "Number":
                 sql`
                     ALTER TABLE ${this.table.tableRef}
                     RENAME COLUMN ${sql.identifier(this.sqlName)} TO ${sql.identifier(
@@ -69,8 +69,8 @@ export class DatabaseFieldModel extends DatabaseTableScopedBaseModel {
                     )}
                 `.exec(this.db);
                 break;
-            case "relation":
-                assert(newField.isType("relation"));
+            case "Relation":
+                assert(newField.isType("Relation"));
                 resolveDatabaseRelation(newField).joinTable.ensureTableNameIsUpToDate();
                 break;
             default:

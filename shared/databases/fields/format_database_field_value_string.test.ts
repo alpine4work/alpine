@@ -25,10 +25,10 @@ describe("formatDatabaseFieldValueString", () => {
         ];
 
         const config = {
-            type: "relation" as const,
+            type: "Relation" as const,
             joinTableId: generateId<DatabaseTableId>(),
-            side: "source" as const,
-            cardinality: "many" as const,
+            side: "Source" as const,
+            cardinality: "Many" as const,
             linkedTableId: generateId<DatabaseTableId>(),
         };
 

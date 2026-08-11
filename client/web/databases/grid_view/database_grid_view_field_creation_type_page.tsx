@@ -1,10 +1,9 @@
 import {CaretRight} from "phosphor-react";
 import {type Ref, useImperativeHandle, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
-import {
-    type DatabaseFieldComponentProvider,
-    databaseFieldComponentProviders,
-} from "~/client/web/databases/fields/database_field_component_providers.js";
+import {allDatabaseFieldTypes} from "~/client/web/databases/fields/all_database_field_types.js";
+import {getDatabaseFieldIcon} from "~/client/web/databases/fields/get_database_field_icon.js";
+import {getDatabaseFieldLabel} from "~/client/web/databases/fields/get_database_field_label.js";
 import {DatabaseGridViewFieldCreationPageRef} from "~/client/web/databases/grid_view/database_grid_view_field_creation_page_ref.js";
 import {DatabaseGridViewNewField} from "~/client/web/databases/use_grid_view_fields.js";
 import {Box} from "~/client/web/design/box.js";
@@ -14,6 +13,7 @@ import {
     DatabaseFieldConfig,
     DatabaseFieldType,
 } from "~/shared/databases/fields/database_field_config.js";
+import {DatabaseColumnBackedFieldType} from "~/shared/databases/fields/is_database_field_column_backed.js";
 
 /**
  * The first page of the field creation popover: the list of field types. Up and
@@ -34,15 +34,15 @@ export function DatabaseGridViewFieldCreationTypePage({
 }) {
     const [highlightedIndex, setHighlightedIndex] = useState(0);
 
-    const commitProvider = useEvent((provider: DatabaseFieldComponentProvider) => {
-        if (provider.type === "relation") {
+    const commitFieldType = useEvent((type: DatabaseFieldType) => {
+        if (type === "Relation") {
             onPickRelation();
             return;
         }
         // An empty name defaults to the field type's label.
         onCommit({
-            name: name.trim() || provider.label,
-            config: getDefaultDatabaseFieldConfig(provider.type),
+            name: name.trim() || getDatabaseFieldLabel(type),
+            config: getDefaultDatabaseFieldConfig(type),
         });
     });
 
@@ -51,24 +51,24 @@ export function DatabaseGridViewFieldCreationTypePage({
             if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
             event.preventDefault();
             event.stopPropagation();
-            const count = databaseFieldComponentProviders.length;
+            const count = allDatabaseFieldTypes.length;
             const delta = event.key === "ArrowDown" ? 1 : -1;
             setHighlightedIndex(index => (index + delta + count) % count);
         },
         onNameInputEnter() {
-            const provider = databaseFieldComponentProviders[highlightedIndex];
-            if (provider != null) commitProvider(provider);
+            const type = allDatabaseFieldTypes[highlightedIndex];
+            if (type != null) commitFieldType(type);
         },
     }));
 
     return (
         <Box role="listbox" aria-label="Field type" padding="1">
-            {databaseFieldComponentProviders.map((provider, index) => (
+            {allDatabaseFieldTypes.map((type, index) => (
                 <DatabaseGridViewFieldCreationTypeOption
-                    key={provider.type}
-                    provider={provider}
+                    key={type}
+                    type={type}
                     isHighlighted={index === highlightedIndex}
-                    onSelect={() => commitProvider(provider)}
+                    onSelect={() => commitFieldType(type)}
                 />
             ))}
         </Box>
@@ -76,18 +76,18 @@ export function DatabaseGridViewFieldCreationTypePage({
 }
 
 function DatabaseGridViewFieldCreationTypeOption({
-    provider,
+    type,
     isHighlighted,
     onSelect,
 }: {
-    provider: DatabaseFieldComponentProvider;
+    type: DatabaseFieldType;
     isHighlighted: boolean;
     onSelect: () => void;
 }) {
     const {hoverProps, isHovered} = useHover({});
     // `preventFocusOnPress` so pressing an option doesn't blur the focused name input.
     const {pressProps, isPressed} = usePress({onPress: onSelect, preventFocusOnPress: true});
-    const Icon = provider.Icon;
+    const Icon = getDatabaseFieldIcon(type);
     return (
         <FocusRing offset="inset" isVisible={isHighlighted}>
             <Box
@@ -105,8 +105,8 @@ function DatabaseGridViewFieldCreationTypeOption({
                 backgroundColor={isPressed ? "grey-10" : isHovered ? "grey-5" : undefined}
             >
                 <Icon size={14} />
-                <Box fontStyle="truncate">{provider.label}</Box>
-                {provider.type === "relation" && (
+                <Box fontStyle="truncate">{getDatabaseFieldLabel(type)}</Box>
+                {type === "Relation" && (
                     <Box marginLeft="auto" display="flex" alignItems="center" color="grey-50">
                         <CaretRight size={12} />
                     </Box>
@@ -116,15 +116,13 @@ function DatabaseGridViewFieldCreationTypeOption({
     );
 }
 
-function getDefaultDatabaseFieldConfig(
-    type: Exclude<DatabaseFieldType, "relation">,
-): DatabaseFieldConfig {
+function getDefaultDatabaseFieldConfig(type: DatabaseColumnBackedFieldType): DatabaseFieldConfig {
     switch (type) {
-        case "checkbox":
-            return {type: "checkbox"};
-        case "number":
-            return {type: "number", decimalPlaces: null};
-        case "plainText":
-            return {type: "plainText"};
+        case "Checkbox":
+            return {type: "Checkbox"};
+        case "Number":
+            return {type: "Number", decimalPlaces: null};
+        case "PlainText":
+            return {type: "PlainText"};
     }
 }

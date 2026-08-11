@@ -102,6 +102,30 @@ describe("sqlite migrations", () => {
         });
     }
 
+    test("main migration converts table kinds to PascalCase", async () => {
+        const db = await createDb();
+        const tableId = generateId<DatabaseTableId>();
+        runMainMigrations(db, 1);
+        sql`
+            INSERT INTO
+                _alpine_tables (id, kind)
+            VALUES
+                (${tableId}, 'table')
+        `.exec(db);
+
+        runMainMigrations(db);
+
+        expect(
+            sql`
+                SELECT
+                    kind
+                FROM
+                    _alpine_tables
+            `.selectValue(db, Schema.string),
+        ).toBe("Table");
+        db.close();
+    });
+
     const tableId = generateId<DatabaseTableId>();
     const tableMigrations = tableSqliteMigrations(tableId);
 
@@ -121,6 +145,74 @@ describe("sqlite migrations", () => {
             db.close();
         });
     }
+
+    test("table migration converts field config values to PascalCase", async () => {
+        const db = await createDb();
+        const migrationTableId = generateId<DatabaseTableId>();
+        const plainTextFieldId = generateId();
+        const checkboxFieldId = generateId();
+        const numberFieldId = generateId();
+        const relationFieldId = generateId();
+        attachTableDb(db, migrationTableId);
+        runTableMigrations(db, migrationTableId, 1);
+        const fields = sql.tableRef(migrationTableId, "_alpine_fields");
+        sql`
+            INSERT INTO
+                ${fields} (id, name, column_name, config)
+            VALUES
+                (
+                    ${plainTextFieldId},
+                    'Text',
+                    'a',
+                    jsonb ('{"type":"plainText"}')
+                ),
+                (
+                    ${checkboxFieldId},
+                    'Done',
+                    'b',
+                    jsonb ('{"type":"checkbox"}')
+                ),
+                (
+                    ${numberFieldId},
+                    'Estimate',
+                    'c',
+                    jsonb ('{"type":"number"}')
+                ),
+                (
+                    ${relationFieldId},
+                    'Related',
+                    'd',
+                    jsonb (
+                        '{"type":"relation","side":"source","cardinality":"many"}'
+                    )
+                )
+        `.exec(db);
+
+        runTableMigrations(db, migrationTableId);
+
+        expect(
+            sql`
+                SELECT
+                    config ->> 'type' AS type,
+                    config ->> 'side' AS side,
+                    config ->> 'cardinality' AS cardinality
+                FROM
+                    ${fields}
+                ORDER BY
+                    column_name
+            `.selectAll(db, {
+                type: Schema.string,
+                side: Schema.string.nullable(),
+                cardinality: Schema.string.nullable(),
+            }),
+        ).toEqual([
+            {type: "PlainText", side: null, cardinality: null},
+            {type: "Checkbox", side: null, cardinality: null},
+            {type: "Number", side: null, cardinality: null},
+            {type: "Relation", side: "Source", cardinality: "Many"},
+        ]);
+        db.close();
+    });
 
     const joinTableId = generateId<DatabaseTableId>();
     const joinTableMigrations = joinTableSqliteMigrations(joinTableId);

@@ -2,14 +2,17 @@ import type {DatabaseColumnBackedFieldType} from "~/shared/databases/fields/is_d
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
-/** The SQL default value of a column-backed field type's column. */
+/**
+ * Returns the SQL default value for a column-backed field type. Schema creation
+ * uses this mapping so new required columns always start with a valid value.
+ */
 export function getDatabaseFieldDefaultValue(type: DatabaseColumnBackedFieldType): SqlQuery {
     switch (type) {
-        case "plainText":
+        case "PlainText":
             return sql`''`;
-        case "checkbox":
+        case "Checkbox":
             return sql`0`;
-        case "number":
+        case "Number":
             return sql`NULL`;
         default:
             throw exhaustive(type);

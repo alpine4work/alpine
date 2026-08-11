@@ -235,7 +235,7 @@ async function setupTestDatabase(): Promise<{
                     {
                         watermark: 1,
                         fileSizeInPages: fileSizesInPages.get(tableId)!,
-                        catchUp: {type: "current" as const},
+                        catchUp: {type: "Current" as const},
                     },
                 ]),
             ),

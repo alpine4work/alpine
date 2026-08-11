@@ -459,7 +459,7 @@ describe("DatabaseServer", () => {
                 FROM
                     sqlite_schema
                 WHERE
-                    type = 'table'
+                    type = 'Table'
                     AND name IN ('t1', 't2', 't3')
                 ORDER BY
                     name
@@ -1215,7 +1215,7 @@ describe("DatabaseServer — per-table storage", () => {
         expect(tables).toEqual([
             {
                 id: result.tableId,
-                kind: "table",
+                kind: "Table",
             },
         ]);
 
@@ -1323,7 +1323,7 @@ describe("DatabaseServer — per-table storage", () => {
                 sourceTableId: source.tableId,
                 sourceFieldHumanName: "Project",
                 targetTableId: target.tableId,
-                cardinality: "many",
+                cardinality: "Many",
             },
         }).result;
         server1.close();
@@ -1443,7 +1443,7 @@ describe("DatabaseServer — per-table access", () => {
                     fieldId: generateId<DatabaseFieldId>(),
                     tableId,
                     humanName: "Notes",
-                    config: {type: "plainText"},
+                    config: {type: "PlainText"},
                 },
             }),
         ).toThrow(`Permission denied for insert on database table ${tableId}`);
@@ -1465,7 +1465,7 @@ describe("DatabaseServer — per-table access", () => {
                     fieldId: generateId<DatabaseFieldId>(),
                     tableId,
                     humanName: "Notes",
-                    config: {type: "plainText"},
+                    config: {type: "PlainText"},
                 },
             }),
         ).not.toThrow();
@@ -1580,7 +1580,7 @@ describe("DatabaseServer — per-table access", () => {
                 sourceTableId: tasks.tableId,
                 sourceFieldHumanName: "Assignee",
                 targetTableId: people.tableId,
-                cardinality: "many",
+                cardinality: "Many",
             },
         }).result;
         const taskRowId = generateChronologicalId<DatabaseRowId>();
@@ -1696,7 +1696,7 @@ describe("DatabaseServer — per-table access", () => {
                     sourceTableId: scenario.tasks.tableId,
                     sourceFieldHumanName: "Reviewer",
                     targetTableId: scenario.people.tableId,
-                    cardinality: "many",
+                    cardinality: "Many",
                 },
             },
         );
@@ -1820,7 +1820,7 @@ describe("DatabaseServer — per-table access", () => {
                     sourceTableId: scenario.tasks.tableId,
                     sourceFieldHumanName: "Reviewer",
                     targetTableId: scenario.people.tableId,
-                    cardinality: "many",
+                    cardinality: "Many",
                 },
             }),
         ).toThrow(`Permission denied for insert on database table ${scenario.people.tableId}`);
@@ -1917,6 +1917,39 @@ describe("DatabaseServer — built-in SQLite migrations", () => {
         expect([...storage.sql.exec("SELECT version FROM _migrations")]).toEqual([
             {version: 1},
             {version: 2},
+            {version: 3},
+        ]);
+    });
+
+    test("converts stored table kinds to PascalCase", () => {
+        const storage = createStorage();
+        storage.sql.exec("CREATE TABLE _migrations (version INTEGER PRIMARY KEY)");
+        databaseDurableObjectSqlMigrations[0]!(storage.sql);
+        storage.sql.exec("INSERT INTO _migrations (version) VALUES (1)");
+        databaseDurableObjectSqlMigrations[1]!(storage.sql);
+        storage.sql.exec("INSERT INTO _migrations (version) VALUES (2)");
+        storage.sql.exec(`
+            INSERT INTO database_tables (
+                sqlite_id,
+                table_id,
+                kind,
+                table_name,
+                schema_version,
+                access_policy
+            ) VALUES (1, 'table-id', 'table', 'tasks', 1, '{}')
+        `);
+        storage.sql.exec(`
+            INSERT INTO database_table_pages (sqlite_id, page_index, version, data)
+            VALUES (1, 0, 1, X'01')
+        `);
+
+        runDatabaseDurableObjectSqlMigrations(storage);
+
+        expect([...storage.sql.exec("SELECT kind FROM database_tables")]).toEqual([
+            {kind: "Table"},
+        ]);
+        expect([...storage.sql.exec("SELECT sqlite_id FROM database_table_pages")]).toEqual([
+            {sqlite_id: 1},
         ]);
     });
 });

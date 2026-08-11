@@ -8,6 +8,10 @@ import {parseDatabaseNumberFieldValueString} from "~/shared/databases/fields/num
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import type {Result} from "~/shared/helpers/control/result.open_source.js";
 
+/**
+ * Parses text as a typed field value. Import and paste paths use this dispatcher
+ * to apply the correct parsing rules without duplicating field-type logic.
+ */
 export function parseDatabaseFieldValueString<Type extends DatabaseFieldType>(
     config: DatabaseFieldConfig<Type>,
     input: string,
@@ -17,13 +21,13 @@ export function parseDatabaseFieldValueString(
     input: string,
 ): Result<DatabaseFieldValue, void> {
     switch (config.type) {
-        case "plainText":
+        case "PlainText":
             return {ok: true, value: input};
-        case "checkbox":
+        case "Checkbox":
             return {ok: true, value: parseDatabaseCheckboxFieldValueString(input)};
-        case "number":
+        case "Number":
             return parseDatabaseNumberFieldValueString(input);
-        case "relation":
+        case "Relation":
             // TODO(alex, #databases): implement this
             return {ok: false, error: undefined};
         default:

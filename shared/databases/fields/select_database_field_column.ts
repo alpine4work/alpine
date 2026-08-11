@@ -5,16 +5,18 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
- * The SQL expression selecting a field's typed value for a row of `dataRow`.
+ * Returns the SQL expression that selects a typed field value from `dataRow`.
+ * Callers use one function for physical columns and virtual relation fields, so
+ * they do not need to know how each field type is stored.
  */
 export function selectDatabaseFieldColumn(field: DatabaseFieldModel, dataRow: SqlQuery): SqlQuery {
     switch (field.config.type) {
-        case "plainText":
-        case "checkbox":
-        case "number":
+        case "PlainText":
+        case "Checkbox":
+        case "Number":
             return sql`${dataRow}.${field.column()}`;
-        case "relation":
-            assert(field.isType("relation"));
+        case "Relation":
+            assert(field.isType("Relation"));
             return selectDatabaseRelationFieldColumn(field, dataRow);
         default:
             throw exhaustive(field.config);

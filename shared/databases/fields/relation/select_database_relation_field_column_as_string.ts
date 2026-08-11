@@ -4,8 +4,13 @@ import {selectDatabaseFieldColumnAsString} from "~/shared/databases/fields/selec
 import type {DatabaseFieldModelOfType} from "~/shared/databases/model/database_field_model.js";
 import {type SqlQuery, sql} from "~/shared/databases/sql.js";
 
+/**
+ * Returns a SQL expression that formats an ordered relation as display text. The
+ * expression applies the same joins and access rules as the typed relation
+ * selector while it produces text for generic field queries.
+ */
 export function selectDatabaseRelationFieldColumnAsString(
-    field: DatabaseFieldModelOfType<"relation">,
+    field: DatabaseFieldModelOfType<"Relation">,
     dataRow: SqlQuery,
 ): SqlQuery {
     const relation = resolveDatabaseRelation(field);

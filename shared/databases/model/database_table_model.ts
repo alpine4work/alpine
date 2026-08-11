@@ -261,7 +261,7 @@ export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
             FROM
                 ${this.schema}._alpine_fields
             WHERE
-                config ->> 'type' = 'relation'
+                config ->> 'type' = 'Relation'
         `.selectValues(this.db, Schema.id<DatabaseTableId>());
 
         return joinTableIds.map(joinTableId => this.root.getJoinTable(joinTableId));
