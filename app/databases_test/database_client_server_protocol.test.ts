@@ -1165,18 +1165,19 @@ test("a reactive query reverts when an optimistic mutation fails to send", async
     await settle();
 
     // Direct reads serve the durable truth (no row); the watcher must converge to the
-    // same result instead of keeping the phantom optimistic row. A delayed failure is
-    // covered by the client unit test, where the watcher emits both the optimistic and
-    // reverted states.
+    // same result instead of keeping the phantom optimistic row. The mutation and
+    // rollback invalidations can coalesce or run separately, so only the final
+    // reactive result is significant. A delayed failure is covered by the client unit
+    // test, where the watcher emits both the optimistic and reverted states.
     expect({
         directRowIds: await selectRowIds(client, table),
-        reactiveRowIds: client.reactiveUpdates.map(
-            update => (update.output as {rows: Array<{_id: DatabaseRowId}>}).rows,
-        ),
+        lastReactiveRowIds: (
+            client.reactiveUpdates.at(-1)!.output as {rows: Array<{_id: DatabaseRowId}>}
+        ).rows,
         reportedErrors: client.reportedErrors,
     }).toEqual({
         directRowIds: [],
-        reactiveRowIds: [[]],
+        lastReactiveRowIds: [],
         reportedErrors: ["synthetic network failure"],
     });
 });

@@ -23,7 +23,6 @@ import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/
 import {
     getSearchEntityIfPossible,
     getSearchEntityIndexesForTest,
-    indexDatabaseTableSearchEntity,
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,

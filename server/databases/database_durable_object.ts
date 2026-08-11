@@ -225,7 +225,7 @@ class DatabaseGroupDurableObject {
         // reconcile.
         const tableIds = this.server
             .listDatabaseTables()
-            .filter(table => table.kind === "table" && table.tableId !== databaseMainTableId)
+            .filter(table => table.kind === "Table" && table.tableId !== databaseMainTableId)
             .map(table => table.tableId);
 
         // Sequential batches bound the request payloads and the DynamoDB read burst for
