@@ -363,12 +363,14 @@ class SearchEntityReadState {
         return this._dependencyIds;
     }
 
-    public get context(): ServerSystemActionContext {
-        return this._context;
-    }
-
     public getSpaceId(): SpaceId {
         return this._context.actor.getSpaceId();
+    }
+
+    public getDatabaseTableMetadataForSearchIndex(tableId: DatabaseTableId) {
+        this._recordDependencyId(`DatabaseTable:${tableId}:Name`);
+
+        return getDatabaseTableMetadataForSearchIndex(this._context, tableId);
     }
 
     /**
@@ -1524,7 +1526,7 @@ async function getDatabaseTableSearchEntity(
     tableId: DatabaseTableId,
 ): Promise<SearchEntity> {
     const spaceId = state.getSpaceId();
-    const table = await getDatabaseTableMetadataForSearchIndex(state.context, tableId);
+    const table = await state.getDatabaseTableMetadataForSearchIndex(tableId);
     assert(table.spaceId === spaceId);
     const id: SearchDynamicEntityId = `DatabaseTable:${tableId}`;
 
