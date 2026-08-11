@@ -71,7 +71,6 @@ import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {
     ContentEditorClientId,
@@ -153,7 +152,7 @@ test("database table search result respects its access policy", async () => {
     const space = await TestSpace.create(context);
     const creator = await space.createSession();
     const other = await space.createSession();
-    const tableId = generateChronologicalId<DatabaseTableId>();
+    const tableId = generateId<DatabaseTableId>();
 
     await indexDatabaseTableSearchEntity(creator.action(), {
         spaceId: space.id,
@@ -187,7 +186,7 @@ test("database table search result can appear by affinity", async () => {
     const space = await TestSpace.create(context);
     const creator = await space.createSession();
     const other = await space.createSession();
-    const tableId = generateChronologicalId<DatabaseTableId>();
+    const tableId = generateId<DatabaseTableId>();
 
     await indexDatabaseTableSearchEntity(creator.action(), {
         spaceId: space.id,

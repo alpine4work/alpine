@@ -20,7 +20,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     DatabaseGroupId,
     DatabaseTableId,
@@ -38,7 +38,7 @@ export async function createDatabaseTable(
     await authorizeSpaceAccess(sessionContext, spaceId, "Member");
 
     const databaseGroupId = await assignDatabaseGroupIdForSpace(sessionContext, spaceId);
-    const tableId = generateChronologicalId<DatabaseTableId>();
+    const tableId = generateId<DatabaseTableId>();
     const accessPolicy = databaseTableAccessPolicyForCreator(sessionContext.actor.getAccountId());
 
     // Create the backing table before publishing metadata. These stores cannot share a

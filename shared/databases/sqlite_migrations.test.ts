@@ -13,7 +13,7 @@ import {
     runTableMigrations,
     tableSqliteMigrations,
 } from "~/shared/databases/sqlite_migrations.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 import {Schema} from "~/shared/schema/schema.open_source.js";
 
@@ -102,7 +102,7 @@ describe("sqlite migrations", () => {
         });
     }
 
-    const tableId = generateChronologicalId<DatabaseTableId>();
+    const tableId = generateId<DatabaseTableId>();
     const tableMigrations = tableSqliteMigrations(tableId);
 
     for (let i = 1; i <= tableMigrations.length; i++) {
@@ -122,7 +122,7 @@ describe("sqlite migrations", () => {
         });
     }
 
-    const joinTableId = generateChronologicalId<DatabaseTableId>();
+    const joinTableId = generateId<DatabaseTableId>();
     const joinTableMigrations = joinTableSqliteMigrations(joinTableId);
 
     for (let i = 1; i <= joinTableMigrations.length; i++) {

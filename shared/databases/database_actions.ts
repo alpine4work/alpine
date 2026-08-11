@@ -27,7 +27,7 @@ import {runJoinTableMigrations, runTableMigrations} from "~/shared/databases/sql
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     DatabaseFieldId,
     DatabaseRowId,
@@ -571,8 +571,8 @@ export const databaseActions = {
             const sourceTable = model.getTable(sourceTableId);
             const targetTable = model.getTable(targetTableId);
 
-            const sourceFieldId = generateChronologicalId<DatabaseFieldId>();
-            const targetFieldId = generateChronologicalId<DatabaseFieldId>();
+            const sourceFieldId = generateId<DatabaseFieldId>();
+            const targetFieldId = generateId<DatabaseFieldId>();
 
             // The join table is named after its two relation fields, created below as
             // `sourceFieldName` and the source table's name. Resolved before the join table is

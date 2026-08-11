@@ -15,7 +15,6 @@ import {DatabaseActionObjectSchema} from "~/shared/databases/database_actions.js
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     DatabaseGroupId,
@@ -23,7 +22,7 @@ import type {
     DatabaseViewId,
 } from "~/shared/id/types/id_types.open_source.js";
 
-const createdViewId = generateChronologicalId<DatabaseViewId>();
+const createdViewId = generateId<DatabaseViewId>();
 const failedBackingTableName = "Failed backing table";
 let failedCreationTableId: DatabaseTableId | undefined;
 const context = createTestContext({
@@ -87,7 +86,7 @@ test("updating a database table access policy requires Manage access", async () 
     const databaseGroupId = generateId<DatabaseGroupId>();
     const space = await TestSpace.create(context, {databaseGroupId});
     const [owner, editor] = await space.createSessions(2);
-    const tableId = generateChronologicalId<DatabaseTableId>();
+    const tableId = generateId<DatabaseTableId>();
     const originalAccessPolicy: LocalAccessPolicy = {
         type: "Local",
         accountGrantById: new Map([
@@ -123,7 +122,7 @@ test("database table access policy updates enforce manager generations", async (
     const databaseGroupId = generateId<DatabaseGroupId>();
     const space = await TestSpace.create(context, {databaseGroupId});
     const [owner, juniorManager] = await space.createSessions(2);
-    const tableId = generateChronologicalId<DatabaseTableId>();
+    const tableId = generateId<DatabaseTableId>();
     const originalAccessPolicy: LocalAccessPolicy = {
         type: "Local",
         accountGrantById: new Map([
@@ -161,7 +160,7 @@ test("database table realtime events cannot cross database groups", async () => 
     const otherDatabaseGroupId = generateId<DatabaseGroupId>();
     const space = await TestSpace.create(context, {databaseGroupId});
     const session = await space.createSession();
-    const tableId = generateChronologicalId<DatabaseTableId>();
+    const tableId = generateId<DatabaseTableId>();
     const accessPolicy: LocalAccessPolicy = {
         type: "Local",
         accountGrantById: new Map([[session.account.id, {level: "Manage", generation: 0}]]),

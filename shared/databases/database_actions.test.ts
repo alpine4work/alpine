@@ -25,6 +25,7 @@ import {
     type OrderKey,
     generateOrderKeyBetween,
 } from "~/shared/helpers/sort/order_key.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId, isId} from "~/shared/id/id.open_source.js";
 import type {
@@ -95,7 +96,7 @@ function run<N extends DatabaseActionName>(
 
 function createTableForTest(db: Database, name: string): DatabaseActionOutput<"createTable"> {
     return run(db, "createTable", {
-        tableId: generateChronologicalId<DatabaseTableId>(),
+        tableId: generateId<DatabaseTableId>(),
         name,
         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
         policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
@@ -498,7 +499,7 @@ function addFieldAndGetId(
     name: string,
     type: "plainText" | "checkbox" | "number" = "plainText",
 ) {
-    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    const fieldId = generateId<DatabaseFieldId>();
     run(db, "createField", {fieldId, tableId, name, config: getDefaultFieldConfig(type)});
     return {fieldId};
 }
@@ -538,8 +539,8 @@ function addRelationFieldMetadata(
     viewId: DatabaseViewId,
     name = "Links",
 ) {
-    const fieldId = generateChronologicalId<DatabaseFieldId>();
-    const joinTableId = generateChronologicalId<DatabaseTableId>();
+    const fieldId = generateId<DatabaseFieldId>();
+    const joinTableId = generateId<DatabaseTableId>();
     const config = {
         type: "relation" as const,
         joinTableId,
@@ -723,7 +724,7 @@ describe("listTableIds", () => {
 
         const {tableIds} = run(db, "listTableIds", {});
 
-        expect(tableIds).toEqual([first.tableId, second.tableId]);
+        expect(tableIds).toEqual([first.tableId, second.tableId].sort(defaultCompareStrings));
         db.close();
     });
 
@@ -739,7 +740,7 @@ describe("listTableIds", () => {
     test("filters out join table ids", async () => {
         const db = await createDb();
         const table = createTableForTest(db, "Tasks");
-        const joinTableId = generateChronologicalId<DatabaseTableId>();
+        const joinTableId = generateId<DatabaseTableId>();
 
         sql`
             INSERT INTO
@@ -761,7 +762,7 @@ describe("listTables", () => {
         const first = createTableForTest(db, "Tasks");
         const second = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: first.tableId,
             sourceFieldName: "Project",
             targetTableId: second.tableId,
@@ -770,10 +771,12 @@ describe("listTables", () => {
 
         const {tables} = run(db, "listTables", {});
 
-        expect(tables).toEqual([
-            {id: first.tableId, name: "Tasks"},
-            {id: second.tableId, name: "Projects"},
-        ]);
+        expect(tables).toEqual(
+            [
+                {id: first.tableId, name: "Tasks"},
+                {id: second.tableId, name: "Projects"},
+            ].sort((table1, table2) => defaultCompareStrings(table1.id, table2.id)),
+        );
         expect(tables.map(table => table.id)).not.toContain(relation.joinTableId);
         db.close();
     });
@@ -784,14 +787,14 @@ describe("createRelationField", () => {
         const db = await createDb();
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
-        const sourceSecondViewId = generateChronologicalId<DatabaseViewId>();
+        const sourceSecondViewId = generateId<DatabaseViewId>();
         sql`
             INSERT INTO
                 ${sql.tableRef(source.tableId, "_alpine_views")} (id, name)
             VALUES
                 (${sourceSecondViewId}, 'Other view')
         `.exec(db);
-        const targetSecondViewId = generateChronologicalId<DatabaseViewId>();
+        const targetSecondViewId = generateId<DatabaseViewId>();
         sql`
             INSERT INTO
                 ${sql.tableRef(target.tableId, "_alpine_views")} (id, name)
@@ -800,7 +803,7 @@ describe("createRelationField", () => {
         `.exec(db);
 
         const result = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -917,7 +920,7 @@ describe("createRelationField", () => {
         const target = createTableForTest(db, "Projects");
 
         const result = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -934,7 +937,7 @@ describe("createRelationField", () => {
         const table = createTableForTest(db, "Tasks");
 
         const result = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: table.tableId,
             sourceFieldName: "Related",
             targetTableId: table.tableId,
@@ -974,7 +977,7 @@ describe("addLink", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1005,7 +1008,7 @@ describe("addLink", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1045,7 +1048,7 @@ describe("addLink", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1070,7 +1073,7 @@ describe("addLink", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1106,7 +1109,7 @@ describe("removeLink", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1152,7 +1155,7 @@ describe("removeLink", () => {
         const db = await createDb();
         const table = createTableForTest(db, "Tasks");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: table.tableId,
             sourceFieldName: "Related",
             targetTableId: table.tableId,
@@ -1185,7 +1188,7 @@ describe("listLinkableRows", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1229,7 +1232,7 @@ describe("listLinkableRows", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1259,7 +1262,7 @@ describe("listLinkableRows", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1293,7 +1296,7 @@ describe("listLinkableRows", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1327,7 +1330,7 @@ describe("listLinkableRows", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1352,7 +1355,7 @@ describe("listLinkedRows", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1394,7 +1397,7 @@ describe("moveLink", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1451,7 +1454,7 @@ describe("createAndLinkRow", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1483,7 +1486,7 @@ describe("createAndLinkRow", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1805,7 +1808,7 @@ describe("getViewRowsPage", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1888,7 +1891,7 @@ describe("getViewRowsPage", () => {
                 id = ${scoreFieldId}
         `.exec(db);
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1926,7 +1929,7 @@ describe("getViewRowsPage", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -1952,7 +1955,7 @@ describe("getViewRowsPage", () => {
         const db = await createDb();
         const table = createTableForTest(db, "Tasks");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: table.tableId,
             sourceFieldName: "Related",
             targetTableId: table.tableId,
@@ -2074,14 +2077,14 @@ describe("createField", () => {
     test("adds the field to all views in the table", async () => {
         const db = await createDb();
         const {tableId, viewId} = createTableForTest(db, "T");
-        const secondViewId = generateChronologicalId<DatabaseViewId>();
+        const secondViewId = generateId<DatabaseViewId>();
         sql`
             INSERT INTO
                 ${sql.tableRef(tableId, "_alpine_views")} (id, name)
             VALUES
                 (${secondViewId}, 'Second view')
         `.exec(db);
-        const fieldId = generateChronologicalId<DatabaseFieldId>();
+        const fieldId = generateId<DatabaseFieldId>();
 
         run(db, "createField", {
             fieldId,
@@ -2123,7 +2126,7 @@ describe("createField", () => {
     test("rejects relation fields", async () => {
         const db = await createDb();
         const {tableId} = createTableForTest(db, "T");
-        const fieldId = generateChronologicalId<DatabaseFieldId>();
+        const fieldId = generateId<DatabaseFieldId>();
 
         expect(() => {
             run(db, "createField", {
@@ -2132,7 +2135,7 @@ describe("createField", () => {
                 name: "Links",
                 config: {
                     type: "relation",
-                    joinTableId: generateChronologicalId<DatabaseTableId>(),
+                    joinTableId: generateId<DatabaseTableId>(),
                     side: "source",
                     cardinality: "many",
                     linkedTableId: tableId,
@@ -2149,7 +2152,7 @@ describe("updateFieldConfig", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,
@@ -2164,7 +2167,7 @@ describe("updateFieldConfig", () => {
                 fieldId: relation.sourceFieldId,
                 config: {
                     ...config,
-                    linkedTableId: generateChronologicalId<DatabaseTableId>(),
+                    linkedTableId: generateId<DatabaseTableId>(),
                 },
             });
         }).toThrow("cannot update relation field linkedTableId");
@@ -2296,7 +2299,7 @@ describe("renameField", () => {
         const source = createTableForTest(db, "Tasks");
         const target = createTableForTest(db, "Projects");
         const relation = run(db, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             sourceTableId: source.tableId,
             sourceFieldName: "Project",
             targetTableId: target.tableId,

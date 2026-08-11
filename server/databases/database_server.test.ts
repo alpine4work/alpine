@@ -57,7 +57,7 @@ const testContext = {
 
 function createTableInputForTest(name: string) {
     return {
-        tableId: generateChronologicalId<DatabaseTableId>(),
+        tableId: generateId<DatabaseTableId>(),
         name,
         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
         policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
@@ -135,8 +135,8 @@ describe("DatabaseServer — storage failure recovery", () => {
         const storage = createStorage();
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
-        const tableA = generateChronologicalId<DatabaseTableId>();
-        const tableB = generateChronologicalId<DatabaseTableId>();
+        const tableA = generateId<DatabaseTableId>();
+        const tableB = generateId<DatabaseTableId>();
         const exec = storage.sql.exec.bind(storage.sql);
         let pageWriteCount = 0;
         const execSpy = jest
@@ -199,7 +199,7 @@ describe("DatabaseServer — storage failure recovery", () => {
         const storage = createStorage();
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const exec = storage.sql.exec.bind(storage.sql);
         const execSpy = jest.spyOn(storage.sql, "exec").mockImplementation((...args) => {
             if (
@@ -1078,7 +1078,7 @@ describe("DatabaseServer", () => {
                 server.executeAction(deniedContext, {
                     name: "syncTableMetadata",
                     input: {
-                        tableId: generateChronologicalId<DatabaseTableId>(),
+                        tableId: generateId<DatabaseTableId>(),
                         name: "Tasks",
                         accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
                         policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
@@ -1121,7 +1121,7 @@ describe("DatabaseServer", () => {
                     getPossiblyBotAccountIdIfExists: () => creator,
                 },
             };
-            const tableId = generateChronologicalId<DatabaseTableId>();
+            const tableId = generateId<DatabaseTableId>();
 
             const {result} = server.executeAction<"createTable">(appServiceSession, {
                 name: "createTable",
@@ -1319,7 +1319,7 @@ describe("DatabaseServer — per-table storage", () => {
         const relation = server1.executeAction<"createRelationField">(testContext, {
             name: "createRelationField",
             input: {
-                joinTableId: generateChronologicalId<DatabaseTableId>(),
+                joinTableId: generateId<DatabaseTableId>(),
                 sourceTableId: source.tableId,
                 sourceFieldName: "Project",
                 targetTableId: target.tableId,
@@ -1374,7 +1374,7 @@ describe("DatabaseServer — per-table access", () => {
         name: string,
         accessPolicy: LocalAccessPolicy,
     ): {tableId: DatabaseTableId; tableName: string} {
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const {result} = server.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {
@@ -1440,7 +1440,7 @@ describe("DatabaseServer — per-table access", () => {
             server.executeAction(createSessionContext(viewer), {
                 name: "createField",
                 input: {
-                    fieldId: generateChronologicalId<DatabaseFieldId>(),
+                    fieldId: generateId<DatabaseFieldId>(),
                     tableId,
                     name: "Notes",
                     config: {type: "plainText"},
@@ -1462,7 +1462,7 @@ describe("DatabaseServer — per-table access", () => {
             server.executeAction(createSessionContext(editor), {
                 name: "createField",
                 input: {
-                    fieldId: generateChronologicalId<DatabaseFieldId>(),
+                    fieldId: generateId<DatabaseFieldId>(),
                     tableId,
                     name: "Notes",
                     config: {type: "plainText"},
@@ -1572,7 +1572,7 @@ describe("DatabaseServer — per-table access", () => {
                 [editBoth, "Edit"],
             ]),
         );
-        const joinTableId = generateChronologicalId<DatabaseTableId>();
+        const joinTableId = generateId<DatabaseTableId>();
         const relation = server.executeAction<"createRelationField">(testContext, {
             name: "createRelationField",
             input: {
@@ -1685,7 +1685,7 @@ describe("DatabaseServer — per-table access", () => {
 
     test("createRelationField succeeds with Edit on both sides", async () => {
         const scenario = await createLinkedTablesScenario();
-        const joinTableId = generateChronologicalId<DatabaseTableId>();
+        const joinTableId = generateId<DatabaseTableId>();
 
         const {result} = scenario.server.executeAction<"createRelationField">(
             createSessionContext(scenario.editBoth),
@@ -1816,7 +1816,7 @@ describe("DatabaseServer — per-table access", () => {
             scenario.server.executeAction(createSessionContext(scenario.viewPeople), {
                 name: "createRelationField",
                 input: {
-                    joinTableId: generateChronologicalId<DatabaseTableId>(),
+                    joinTableId: generateId<DatabaseTableId>(),
                     sourceTableId: scenario.tasks.tableId,
                     sourceFieldName: "Reviewer",
                     targetTableId: scenario.people.tableId,
@@ -1836,7 +1836,7 @@ describe("DatabaseServer — table access levels", () => {
         const readable = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {
-                tableId: generateChronologicalId<DatabaseTableId>(),
+                tableId: generateId<DatabaseTableId>(),
                 name: "Readable",
                 accessPolicy: {
                     type: "Local",
@@ -1850,7 +1850,7 @@ describe("DatabaseServer — table access levels", () => {
         const hidden = server1.executeAction<"createTable">(testContext, {
             name: "createTable",
             input: {
-                tableId: generateChronologicalId<DatabaseTableId>(),
+                tableId: generateId<DatabaseTableId>(),
                 name: "Hidden",
                 accessPolicy: databaseTableAccessPolicyForCreator(testAccountId),
                 policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},
@@ -1934,7 +1934,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("stores, updates, and removes table access policies", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const firstPolicy = {
             type: "Local" as const,
             accountGrantById: new Map(),
@@ -1965,7 +1965,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("rejects access-policy replicas with an older composite revision", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const newerPolicy = databaseTableAccessPolicyForCreator(testAccountId);
         const stalePolicy = {...newerPolicy, defaultGrant: {level: "View" as const}};
 
@@ -1995,7 +1995,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("write pages, read them back", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         const page = new Uint8Array(sqlitePageSize);
         page[0] = 0xab;
@@ -2013,14 +2013,14 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("readPage returns null for unwritten index", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         expect(server.readPage(tableId, 99)).toBeNull();
     });
 
     test("getFileSize reflects written pages", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         expect(server.getFileSize(tableId)).toBe(0);
 
@@ -2038,7 +2038,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("truncate makes pages at or beyond the threshold disappear", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         writePagesFor(
             server,
@@ -2063,7 +2063,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("readPage returns null after truncate", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
         truncateFor(server, tableId, 0);
@@ -2073,7 +2073,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("getFileSize is correct after truncate", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         writePagesFor(
             server,
@@ -2092,7 +2092,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("writePages after truncate correctly extends file size", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         writePagesFor(
             server,
@@ -2114,7 +2114,7 @@ describe("DatabaseServer — durable page storage", () => {
         // Pin the contract that one writePages call produces exactly one version,
         // regardless of whether it carries pages, truncates, or both.
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
 
@@ -2132,7 +2132,7 @@ describe("DatabaseServer — durable page storage", () => {
         const storage = createStorage();
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const initial = new Uint8Array(sqlitePageSize);
         initial[0] = 0x11;
         writePagesFor(server, tableId, new Map([[2, initial]]));
@@ -2162,7 +2162,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("writePages returns the version it stamped onto the rows", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         const returned = writePagesFor(
             server,
@@ -2176,7 +2176,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("consecutive writes have strictly increasing versions", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         const versions: Array<number> = [];
         for (let i = 0; i < 50; i++) {
@@ -2192,7 +2192,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("truncate version is strictly greater than prior writePages version", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         const writeVersion = writePagesFor(
             server,
@@ -2208,7 +2208,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("readPage returns the latest version when a page is rewritten", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         const first = new Uint8Array(sqlitePageSize);
         first[0] = 0x11;
@@ -2226,7 +2226,7 @@ describe("DatabaseServer — durable page storage", () => {
         const storage = createStorage();
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         for (let i = 0; i < 50; i++) {
             writePagesFor(server, tableId, new Map([[0, new Uint8Array(sqlitePageSize)]]));
@@ -2249,7 +2249,7 @@ describe("DatabaseServer — durable page storage", () => {
         // same storage (simulating a Durable Object restart). The next write must produce
         // a version strictly greater than the previously-persisted one.
         const storage = createStorage();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const first = await DatabaseServer.create(storage);
         openServers.push(first);
         const seedVersion = writePagesFor(
@@ -2271,7 +2271,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("getFileSize recovers per-table metadata on cold load", async () => {
         const storage = createStorage();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const first = await DatabaseServer.create(storage);
         openServers.push(first);
         writePagesFor(first, tableId, new Map([[2, new Uint8Array(sqlitePageSize)]]));
@@ -2284,7 +2284,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("changedPagesSince reports latest writes and tombstones", async () => {
         const server = await createServer();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const initialVersion = writePagesFor(
             server,
             tableId,
@@ -2309,7 +2309,7 @@ describe("DatabaseServer — durable page storage", () => {
         const storage = createStorage();
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const version = writePagesFor(
             server,
             tableId,
@@ -2330,7 +2330,7 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("getFileSize ignores tombstones in the interior of the file", async () => {
         const storage = createStorage();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
 
@@ -2371,8 +2371,8 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("pages from different tables are isolated", async () => {
         const server = await createServer();
-        const tableA = generateChronologicalId<DatabaseTableId>();
-        const tableB = generateChronologicalId<DatabaseTableId>();
+        const tableA = generateId<DatabaseTableId>();
+        const tableB = generateId<DatabaseTableId>();
 
         const pageA = new Uint8Array(sqlitePageSize);
         pageA[0] = 0xa1;
@@ -2388,8 +2388,8 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("file size is tracked per table", async () => {
         const server = await createServer();
-        const tableA = generateChronologicalId<DatabaseTableId>();
-        const tableB = generateChronologicalId<DatabaseTableId>();
+        const tableA = generateId<DatabaseTableId>();
+        const tableB = generateId<DatabaseTableId>();
 
         writePagesFor(
             server,
@@ -2407,8 +2407,8 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("versions are global across tables", async () => {
         const server = await createServer();
-        const tableA = generateChronologicalId<DatabaseTableId>();
-        const tableB = generateChronologicalId<DatabaseTableId>();
+        const tableA = generateId<DatabaseTableId>();
+        const tableB = generateId<DatabaseTableId>();
 
         const a1 = writePagesFor(server, tableA, new Map([[0, new Uint8Array(sqlitePageSize)]]));
         const a2 = writePagesFor(server, tableA, new Map([[1, new Uint8Array(sqlitePageSize)]]));
@@ -2421,8 +2421,8 @@ describe("DatabaseServer — durable page storage", () => {
 
     test("multi-table writePages stamps every page with the same version", async () => {
         const server = await createServer();
-        const tableA = generateChronologicalId<DatabaseTableId>();
-        const tableB = generateChronologicalId<DatabaseTableId>();
+        const tableA = generateId<DatabaseTableId>();
+        const tableB = generateId<DatabaseTableId>();
 
         const version = server.writePages(
             new Map([
@@ -2440,7 +2440,7 @@ describe("DatabaseServer — durable page storage", () => {
         const storage = createStorage();
         const server = await DatabaseServer.create(storage);
         openServers.push(server);
-        const unknown = generateChronologicalId<DatabaseTableId>();
+        const unknown = generateId<DatabaseTableId>();
 
         expect(server.readPage(unknown, 0)).toBeNull();
 

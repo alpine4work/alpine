@@ -6,7 +6,7 @@ import {runMainMigrations, runTableMigrations} from "~/shared/databases/sqlite_m
 import {DatabaseTableNotAttachedError} from "~/shared/databases/table_not_attached_error.js";
 import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 // ---------------------------------------------------------------------------
@@ -529,7 +529,7 @@ describe("Database — per-table access", () => {
         otherTableId: DatabaseTableId;
     }> {
         const {database} = await createDatabase();
-        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        const otherTableId = generateId<DatabaseTableId>();
         database.attach(otherTableId);
         database.executeSql(
             sql`CREATE TABLE ${sql.tableRef(otherTableId, "things")} (id INTEGER PRIMARY KEY)`,
@@ -684,7 +684,7 @@ describe("Database — per-table access", () => {
 describe("Database — attach", () => {
     test("attaches a fresh table and reports reads under the new tableId", async () => {
         const {database, storage} = await createDatabase();
-        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        const otherTableId = generateId<DatabaseTableId>();
 
         database.attach(otherTableId);
 
@@ -729,7 +729,7 @@ describe("Database — attach", () => {
 
     test("rejects re-attaching the same table", async () => {
         const {database} = await createDatabase();
-        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        const otherTableId = generateId<DatabaseTableId>();
 
         database.attach(otherTableId);
 
@@ -738,11 +738,11 @@ describe("Database — attach", () => {
 
     test("after attach, normal writeLevel still bans further ATTACH", async () => {
         const {database} = await createDatabase();
-        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        const otherTableId = generateId<DatabaseTableId>();
 
         database.attach(otherTableId);
 
-        const yetAnother = generateChronologicalId<DatabaseTableId>();
+        const yetAnother = generateId<DatabaseTableId>();
         expect(() =>
             database.executeSql(
                 sql`ATTACH DATABASE ${`/${yetAnother}`} AS ${sql.identifier(yetAnother)}`,
@@ -756,7 +756,7 @@ describe("Database — attach", () => {
 
     test("attaches a fresh table mid-execute and round-trips a write", async () => {
         const {database, storage} = await createDatabase();
-        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        const otherTableId = generateId<DatabaseTableId>();
 
         // A server-only action like createTable attaches its own per-db file partway
         // through an in-flight execute.
@@ -792,7 +792,7 @@ describe("Database — attach", () => {
 
     test("tracks writes to a mid-execute attached schema under its tableId", async () => {
         const {database} = await createDatabase();
-        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        const otherTableId = generateId<DatabaseTableId>();
 
         const {writtenPages} = database.execute(
             db => {
@@ -809,7 +809,7 @@ describe("Database — attach", () => {
 
     test("isAttached reflects attach state; attachIfNeeded is idempotent", async () => {
         const {database} = await createDatabase();
-        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        const otherTableId = generateId<DatabaseTableId>();
 
         database.attachIfNeeded(otherTableId);
         database.attachIfNeeded(otherTableId);
@@ -819,7 +819,7 @@ describe("Database — attach", () => {
 
     test("detachTableIfAttached detaches and drops buffered writes to the table", async () => {
         const {database} = await createDatabase();
-        const otherTableId = generateChronologicalId<DatabaseTableId>();
+        const otherTableId = generateId<DatabaseTableId>();
         database.attach(otherTableId);
         database.executeSql(
             sql`CREATE TABLE ${sql.tableRef(otherTableId, "items")} (id INTEGER PRIMARY KEY)`,
@@ -838,16 +838,14 @@ describe("Database — attach", () => {
     test("detachTableIfAttached is a no-op for an unattached table", async () => {
         const {database} = await createDatabase();
 
-        expect(database.detachTableIfAttached(generateChronologicalId<DatabaseTableId>())).toBe(
-            true,
-        );
+        expect(database.detachTableIfAttached(generateId<DatabaseTableId>())).toBe(true);
     });
 });
 
 describe("Database — unattached per-db file detection", () => {
     test("a query against an unattached per-db file throws TableNotAttachedError", async () => {
         const {database} = await createDatabase();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         // The table's file was never attached, so name resolution fails with "no such
         // table" — surfaced as TableNotAttachedError so the client attaches the file on
@@ -867,7 +865,7 @@ describe("Database — unattached per-db file detection", () => {
 
     test("the unknown database DDL error shape also becomes TableNotAttachedError", async () => {
         const {database} = await createDatabaseWithSchema(sql`CREATE TABLE items (x INTEGER)`);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         // CREATE INDEX against an unattached schema reports "unknown database" rather than
         // "no such table"; both must be detected.
@@ -881,7 +879,7 @@ describe("Database — unattached per-db file detection", () => {
 
     test("a missing inner table in an ATTACHED file throws the raw error, not TableNotAttachedError", async () => {
         const {database} = await createDatabase();
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         // Attaching an empty store succeeds (valid empty DB). The inner \_alpine_table
         // genuinely doesn't exist, so this is a real error and must NOT be masked as an
@@ -905,7 +903,7 @@ describe("Database — unattached per-db file detection", () => {
         const storage = new InMemoryStorage();
         const database = await Database.create(storage, {server: testServerOptions()});
         openDatabases.push(database);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         // The canonical server attaches every per-db file it touches, so an unattached
         // reference there is a genuine bug, not a fallback signal.
@@ -953,7 +951,7 @@ async function createServerDatabaseWithTables(
 
     const tableIds: Array<DatabaseTableId> = [];
     for (let i = 0; i < count; i++) {
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         tableIds.push(tableId);
         database.execute(
             db => {
@@ -1022,7 +1020,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
 
     test("attach-on-miss refuses a table missing from the registry", async () => {
         const {database} = await createServerDatabaseWithTables(1, 115);
-        const unregisteredTableId = generateChronologicalId<DatabaseTableId>();
+        const unregisteredTableId = generateId<DatabaseTableId>();
 
         // Attaching an unregistered name would create a phantom empty file; the original
         // name-resolution error must surface instead.
@@ -1042,7 +1040,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
 
     test("attach-on-miss asserts the re-attached file is migration-current", async () => {
         const {database} = await createServerDatabaseWithTables(0, 115);
-        const staleTableId = generateChronologicalId<DatabaseTableId>();
+        const staleTableId = generateId<DatabaseTableId>();
         // Register the table without ever migrating its file — the post-bootstrap
         // invariant attach-on-miss depends on is broken, which must be loud.
         database.executeSql(
@@ -1095,7 +1093,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
             `,
             {allowWrites: "none", getTableAccessLevel: allowAllTableAccess},
         );
-        database.attach(generateChronologicalId<DatabaseTableId>());
+        database.attach(generateId<DatabaseTableId>());
 
         expect({a: database.isAttached(tableA), b: database.isAttached(tableB)}).toEqual({
             a: true,
@@ -1107,7 +1105,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
         // Threshold 2 = main + 1: the only eviction candidate is pinned mid-txn.
         const {database, tableIds} = await createServerDatabaseWithTables(1, 2);
         const tableA = tableIds[0]!;
-        const tableB = generateChronologicalId<DatabaseTableId>();
+        const tableB = generateId<DatabaseTableId>();
 
         database.execute(
             db => {
@@ -1140,7 +1138,7 @@ describe("Database — client attach-on-miss", () => {
         const storage = new InMemoryStorage();
         const first = await Database.create(storage);
         openDatabases.push(first);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         first.attach(tableId);
         first.executeSql(
             sql`CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY)`,

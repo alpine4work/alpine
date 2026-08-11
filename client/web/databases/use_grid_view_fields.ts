@@ -12,7 +12,7 @@ import {
     type OrderKey,
     generateOrderKeyBetween,
 } from "~/shared/helpers/sort/order_key.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     DatabaseFieldId,
     DatabaseTableId,
@@ -155,7 +155,7 @@ export function useGridViewFields({
     const [addingFieldId, setAddingFieldId] = useState<DatabaseFieldId | null>(null);
 
     const startAddingField = useEvent(() => {
-        setAddingFieldId(generateChronologicalId<DatabaseFieldId>());
+        setAddingFieldId(generateId<DatabaseFieldId>());
     });
 
     const cancelAddingField = useEvent(() => setAddingFieldId(null));

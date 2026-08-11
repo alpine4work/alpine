@@ -78,7 +78,7 @@ function createPolicyRevisionForTest() {
 
 function createTableInputForTest(name: string) {
     return {
-        tableId: generateChronologicalId<DatabaseTableId>(),
+        tableId: generateId<DatabaseTableId>(),
         name,
         // Grant every space member Manage so the test clients — which connect as ordinary
         // sessions and are now subject to per-table access — can read and write these
@@ -520,7 +520,7 @@ test("a schema change made while disconnected is visible after reconnecting", as
     await settle();
 
     reader.goOffline();
-    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    const fieldId = generateId<DatabaseFieldId>();
     await executeAction(writer, "createField", {
         fieldId,
         tableId: table.tableId,
@@ -606,7 +606,7 @@ test("a schema change from another client is visible to an attached peer", async
 
     const rowId = generateChronologicalId<DatabaseRowId>();
     await executeAction(writer, "createRow", {tableId: table.tableId, rowId});
-    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    const fieldId = generateId<DatabaseFieldId>();
     await executeAction(writer, "createField", {
         fieldId,
         tableId: table.tableId,
@@ -680,10 +680,10 @@ test("server-side action errors reject the caller", async () => {
     // server throw, and the error surfaces to the calling client.
     await expect(
         executeAction(client, "createRelationField", {
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
-            sourceTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
+            sourceTableId: generateId<DatabaseTableId>(),
             sourceFieldName: "Link",
-            targetTableId: generateChronologicalId<DatabaseTableId>(),
+            targetTableId: generateId<DatabaseTableId>(),
             cardinality: "many",
         }),
     ).rejects.toThrow();
@@ -988,7 +988,7 @@ test("registration catch-up is not discarded when a realtime event races the res
         "createTable",
         createTableInputForTest("Projects"),
     );
-    const fieldId = generateChronologicalId<DatabaseFieldId>();
+    const fieldId = generateId<DatabaseFieldId>();
     await executeInternalAction(databaseGroupId, "createField", {
         fieldId,
         tableId: table.tableId,

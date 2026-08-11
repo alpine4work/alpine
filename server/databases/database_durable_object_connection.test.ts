@@ -17,7 +17,6 @@ import type {RynamoEvent, RynamoEventStub} from "~/shared/dynamo/rynamo_types.js
 import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     DatabaseGroupId,
@@ -33,7 +32,7 @@ let tableId: DatabaseTableId;
 
 beforeEach(async () => {
     server = await DatabaseServer.create(new DurableObjectStorage(new MemoryStorage()) as any);
-    tableId = generateChronologicalId<DatabaseTableId>();
+    tableId = generateId<DatabaseTableId>();
     // These page-mechanics tests aren't about access, so grant every table. Access
     // filtering itself has dedicated tests (see `createUntrustedContext`).
     jest.spyOn(server, "getTableAccessLevelForAccount").mockReturnValue("Manage");
@@ -347,7 +346,7 @@ describe("registerTables", () => {
     test("returns empty catch-up for a quiet table with a lagging watermark", async () => {
         writePagesFor(server, tableId, new Map([[0, makePage(0xaa)]]));
         const quietTableWatermark = server.getSnapshotVersion();
-        const activeTableId = generateChronologicalId<DatabaseTableId>();
+        const activeTableId = generateId<DatabaseTableId>();
         writePagesFor(server, activeTableId, new Map([[0, makePage(0xbb)]]));
         const currentWatermark = server.getSnapshotVersion();
 
@@ -460,8 +459,8 @@ describe("registerTables", () => {
     });
 
     test("reports join-side access", async () => {
-        const sourceTableId = generateChronologicalId<DatabaseTableId>();
-        const targetTableId = generateChronologicalId<DatabaseTableId>();
+        const sourceTableId = generateId<DatabaseTableId>();
+        const targetTableId = generateId<DatabaseTableId>();
         jest.spyOn(server, "getDatabaseTableAccessEntry").mockImplementation(lookupTableId =>
             lookupTableId === tableId
                 ? {kind: "join", sourceTableId, targetTableId}
@@ -505,7 +504,7 @@ describe("connection authorization and metadata", () => {
                 version: 1,
                 model: {
                     databaseGroupId,
-                    tableId: generateChronologicalId<DatabaseTableId>(),
+                    tableId: generateId<DatabaseTableId>(),
                     spaceId: generateId(),
                     name: "Roadmap",
                     isDeleted: false,
@@ -633,7 +632,7 @@ describe("per-table realtime filtering", () => {
     }
 
     test("PagesChanged drops readable but unsubscribed tables", async () => {
-        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const readableTableId = generateId<DatabaseTableId>();
         const conn = createFilteringConnection(new Map([[readableTableId, "View"]]));
 
         const event = await conn.transformEvent(createUntrustedContext(), {
@@ -671,7 +670,7 @@ describe("per-table realtime filtering", () => {
     });
 
     test("PagesChanged emits a snapshot stub when all table diffs are outside the bitset", async () => {
-        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const readableTableId = generateId<DatabaseTableId>();
         const conn = createFilteringConnection(new Map([[readableTableId, "View"]]));
         await registerHeldPages(conn, new Map([[readableTableId, [0]]]));
 
@@ -690,7 +689,7 @@ describe("per-table realtime filtering", () => {
     });
 
     test("PagesChanged materializes a new page and adds it to the subscription", async () => {
-        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const readableTableId = generateId<DatabaseTableId>();
         const conn = createFilteringConnection(new Map([[readableTableId, "View"]]));
         await registerHeldPages(conn, new Map([[readableTableId, [0]]]));
 
@@ -800,7 +799,7 @@ describe("per-table realtime filtering", () => {
     });
 
     test("access revocation removes the subscription even if access is later restored", async () => {
-        const readableTableId = generateChronologicalId<DatabaseTableId>();
+        const readableTableId = generateId<DatabaseTableId>();
         const levelByTableId = new Map<DatabaseTableId, AccessLevel | null>([
             [readableTableId, "View"],
         ]);
@@ -829,8 +828,8 @@ describe("per-table realtime filtering", () => {
     });
 
     test("PagesChanged withholds diffs for tables without read access", async () => {
-        const readableTableId = generateChronologicalId<DatabaseTableId>();
-        const hiddenTableId = generateChronologicalId<DatabaseTableId>();
+        const readableTableId = generateId<DatabaseTableId>();
+        const hiddenTableId = generateId<DatabaseTableId>();
         const conn = createFilteringConnection(new Map([[readableTableId, "View"]]));
         const mutationId = generateId<DatabaseMutationId>();
         await registerHeldPages(
@@ -859,8 +858,8 @@ describe("per-table realtime filtering", () => {
     });
 
     test("TableMetadataChanged carries the access delta", async () => {
-        const visibleTableId = generateChronologicalId<DatabaseTableId>();
-        const deniedTableId = generateChronologicalId<DatabaseTableId>();
+        const visibleTableId = generateId<DatabaseTableId>();
+        const deniedTableId = generateId<DatabaseTableId>();
         const conn = createFilteringConnection(new Map([[visibleTableId, "Edit"]]));
         const visibleEvent = {
             type: "PutItem",
@@ -890,12 +889,12 @@ describe("per-table realtime filtering", () => {
     });
 
     test("TableMetadataChanged recomputes subscribed joins touching a changed table", async () => {
-        const changedTableId = generateChronologicalId<DatabaseTableId>();
-        const otherTableId = generateChronologicalId<DatabaseTableId>();
-        const joinTableId = generateChronologicalId<DatabaseTableId>();
-        const unrelatedJoinTableId = generateChronologicalId<DatabaseTableId>();
-        const unrelatedSourceTableId = generateChronologicalId<DatabaseTableId>();
-        const unrelatedTargetTableId = generateChronologicalId<DatabaseTableId>();
+        const changedTableId = generateId<DatabaseTableId>();
+        const otherTableId = generateId<DatabaseTableId>();
+        const joinTableId = generateId<DatabaseTableId>();
+        const unrelatedJoinTableId = generateId<DatabaseTableId>();
+        const unrelatedSourceTableId = generateId<DatabaseTableId>();
+        const unrelatedTargetTableId = generateId<DatabaseTableId>();
         const accessLevelByTableId = new Map<DatabaseTableId, AccessLevel | null>([
             [changedTableId, "View"],
             [otherTableId, null],

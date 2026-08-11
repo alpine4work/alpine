@@ -16,7 +16,6 @@ import {TestSite} from "~/server/sites/test_helpers/test_site.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
@@ -296,7 +295,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
                 databaseGroupId: generateId<DatabaseGroupId>(),
             });
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-            const databaseTableId = generateChronologicalId<DatabaseTableId>();
+            const databaseTableId = generateId<DatabaseTableId>();
 
             await expect(
                 getSearchEntity(
@@ -313,7 +312,7 @@ const testCasesBySearchEntityType: {[Key in SearchDynamicEntityIdObject["type"]]
             const session = await space.createSession();
             const site = await TestSite.create(session, {access: "Private"});
             const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
-            const tableId = generateChronologicalId<DatabaseTableId>();
+            const tableId = generateId<DatabaseTableId>();
 
             await createDatabaseTableMetadataForTest(space.systemAction(), {
                 databaseGroupId,

@@ -99,21 +99,21 @@ function createJoinTableWithUniqueName(
 }
 
 function createRelation(model: DatabaseModel) {
-    const sourceId = generateChronologicalId<DatabaseTableId>();
-    const targetId = generateChronologicalId<DatabaseTableId>();
-    const joinTableId = generateChronologicalId<DatabaseTableId>();
+    const sourceId = generateId<DatabaseTableId>();
+    const targetId = generateId<DatabaseTableId>();
+    const joinTableId = generateId<DatabaseTableId>();
     const source = createTable(model, sourceId, "Tasks").table;
     const target = createTable(model, targetId, "Projects").table;
     attachTableDb(model.db, joinTableId);
 
-    const sourceField = source.createField(generateChronologicalId<DatabaseFieldId>(), "Project", {
+    const sourceField = source.createField(generateId<DatabaseFieldId>(), "Project", {
         type: "relation",
         joinTableId,
         side: "source",
         cardinality: "many",
         linkedTableId: target.id,
     });
-    const targetField = target.createField(generateChronologicalId<DatabaseFieldId>(), "Tasks", {
+    const targetField = target.createField(generateId<DatabaseFieldId>(), "Tasks", {
         type: "relation",
         joinTableId,
         side: "target",
@@ -136,7 +136,7 @@ describe("DatabaseModel", () => {
     test("createTable creates a default view containing the Name field", async () => {
         const db = await createDb();
         const model = createTestModel(db);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         const {table, nameField, defaultView} = createTable(model, tableId, "Tasks");
 
@@ -159,12 +159,12 @@ describe("DatabaseModel", () => {
     test("appendFieldToAllViews adds a field to every table view", async () => {
         const db = await createDb();
         const model = createTestModel(db);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         const {table} = createTable(model, tableId, "Tasks");
-        const secondViewId = generateChronologicalId<DatabaseViewId>();
+        const secondViewId = generateId<DatabaseViewId>();
         table.createView(secondViewId, "Second view");
 
-        const field = table.createField(generateChronologicalId<DatabaseFieldId>(), "Status", {
+        const field = table.createField(generateId<DatabaseFieldId>(), "Status", {
             type: "plainText",
         });
         table.appendFieldToAllViews(field);
@@ -214,23 +214,19 @@ describe("DatabaseModel", () => {
     test("createJoinTable disambiguates self-relation columns", async () => {
         const db = await createDb();
         const model = createTestModel(db);
-        const tableId = generateChronologicalId<DatabaseTableId>();
-        const joinTableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
+        const joinTableId = generateId<DatabaseTableId>();
         const table = createTable(model, tableId, "Tasks").table;
         attachTableDb(db, joinTableId);
 
-        const sourceField = table.createField(
-            generateChronologicalId<DatabaseFieldId>(),
-            "Related",
-            {
-                type: "relation",
-                joinTableId,
-                side: "source",
-                cardinality: "many",
-                linkedTableId: table.id,
-            },
-        );
-        const targetField = table.createField(generateChronologicalId<DatabaseFieldId>(), "Tasks", {
+        const sourceField = table.createField(generateId<DatabaseFieldId>(), "Related", {
+            type: "relation",
+            joinTableId,
+            side: "source",
+            cardinality: "many",
+            linkedTableId: table.id,
+        });
+        const targetField = table.createField(generateId<DatabaseFieldId>(), "Tasks", {
             type: "relation",
             joinTableId,
             side: "target",

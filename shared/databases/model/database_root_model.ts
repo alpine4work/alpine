@@ -19,7 +19,7 @@ import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {SqliteDatabase} from "~/shared/databases/sqlite.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import {
     DatabaseFieldId,
     DatabaseTableId,
@@ -137,8 +137,8 @@ export class DatabaseModel {
      * (alongside the hash it registered the table with).
      */
     createTable(tableId: DatabaseTableId, {name, tableName}: {name: string; tableName: string}) {
-        const defaultViewId = generateChronologicalId<DatabaseViewId>();
-        const nameFieldId = generateChronologicalId<DatabaseFieldId>();
+        const defaultViewId = generateId<DatabaseViewId>();
+        const nameFieldId = generateId<DatabaseFieldId>();
 
         // The caller (the createTable action) registered the table in main's
         // `_alpine_tables` (see `registerTable`) and migrated its per-db file before this

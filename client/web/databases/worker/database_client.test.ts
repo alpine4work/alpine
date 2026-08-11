@@ -26,7 +26,6 @@ import {diffPage} from "~/shared/databases/page_diff.js";
 import {SqlQuery, databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId, sqlitePageSize} from "~/shared/databases/sqlite_constants.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseMutationId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
@@ -355,7 +354,7 @@ describe("execute — mutations", () => {
 
     test("references to an unattached, uncached table fall back to the server", async () => {
         const client = await DatabaseClient.create(createInMemoryOpfsDirectoryHandle());
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
 
         let serverCalled = false;
         const conn = makeDatabaseClientConnection({
@@ -819,7 +818,7 @@ describe("connection epochs", () => {
         const client = await DatabaseClient.create(dir);
         client.executeLocallyForTests(sql`CREATE TABLE t (id INTEGER PRIMARY KEY)`);
         client.commitOptimisticPagesForTests();
-        const revokedTableId = generateChronologicalId<DatabaseTableId>();
+        const revokedTableId = generateId<DatabaseTableId>();
         await client.attachTableForTests(revokedTableId);
         const before = await extractOpfsPages(dir);
         const pendingConn = makeDatabaseClientConnection({
@@ -1479,7 +1478,7 @@ describe("writePageDiffsFromRealtime", () => {
     test("leaves a resized table detached when a stale diff tombstones its header", async () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         await client.attachTableForTests(tableId);
         client.executeLocallyForTests(sql`
             CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY)
@@ -1855,8 +1854,8 @@ describe("server fallback", () => {
 
 describe("executeActionWithTracking", () => {
     test("converges after one extra fallback reveals a second table dependency", async () => {
-        const firstTableId = generateChronologicalId<DatabaseTableId>();
-        const secondTableId = generateChronologicalId<DatabaseTableId>();
+        const firstTableId = generateId<DatabaseTableId>();
+        const secondTableId = generateId<DatabaseTableId>();
         const sourceDir = createInMemoryOpfsDirectoryHandle();
         const source = await DatabaseClient.create(sourceDir);
         await source.attachTableForTests(firstTableId);
@@ -2980,7 +2979,7 @@ describe("DatabaseClient — table access levels", () => {
      * committed to the local OPFS store.
      */
     async function attachItemsTable(client: DatabaseClient): Promise<DatabaseTableId> {
-        const tableId = generateChronologicalId<DatabaseTableId>();
+        const tableId = generateId<DatabaseTableId>();
         await client.attachTableForTests(tableId);
         client.executeLocallyForTests(sql`
             CREATE TABLE ${sql.tableRef(tableId, "items")} (id INTEGER PRIMARY KEY)
@@ -2999,7 +2998,7 @@ describe("DatabaseClient — table access levels", () => {
         const dir = createInMemoryOpfsDirectoryHandle();
         const client = await DatabaseClient.create(dir);
         const tableId = await attachItemsTable(client);
-        const hiddenTableId = generateChronologicalId<DatabaseTableId>();
+        const hiddenTableId = generateId<DatabaseTableId>();
         const tablePages = await extractOpfsTablePages(dir, tableId);
         client.beginDisconnectedConnectionEpoch();
         await client.ensureCachedTablesRegistered(
@@ -3028,7 +3027,7 @@ describe("DatabaseClient — table access levels", () => {
         expect({
             readable: client.getTableAccessLevel(tableId),
             hidden: client.getTableAccessLevel(hiddenTableId),
-            unknown: client.getTableAccessLevel(generateChronologicalId<DatabaseTableId>()),
+            unknown: client.getTableAccessLevel(generateId<DatabaseTableId>()),
         }).toEqual({readable: "View", hidden: null, unknown: "Manage"});
 
         client.close();

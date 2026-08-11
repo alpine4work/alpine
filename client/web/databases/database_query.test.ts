@@ -26,10 +26,7 @@ import {databaseViewTargetRowsPerPage} from "~/shared/databases/sqlite_constants
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {InMemoryDatabaseServerTableStore} from "~/shared/databases/test_helpers/in_memory_database_server_table_store.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
-import {
-    generateChronologicalId,
-    unsafelyConstructChronologicalId,
-} from "~/shared/id/chronological_id.open_source.js";
+import {unsafelyConstructChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {
     AccountId,
@@ -185,7 +182,7 @@ async function buildSchemaSeed(name: string): Promise<{
         {
             name: "createTable",
             input: {
-                tableId: generateChronologicalId<DatabaseTableId>(),
+                tableId: generateId<DatabaseTableId>(),
                 name,
                 accessPolicy: databaseTableAccessPolicyForCreator(creatorId),
                 policyRevision: {tableMetadataVersion: 1, sourcePolicyVersion: 0},

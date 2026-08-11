@@ -3,7 +3,7 @@ import {
     DatabaseFieldConfigSqlSchema,
     getDatabaseFieldProvider,
 } from "~/shared/databases/fields/all_database_field_providers.js";
-import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
+import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
 describe("databaseFieldProviders registry", () => {
@@ -52,10 +52,10 @@ describe("DatabaseFieldConfigSqlSchema", () => {
     test("round-trips relation configs", () => {
         const config = {
             type: "relation" as const,
-            joinTableId: generateChronologicalId<DatabaseTableId>(),
+            joinTableId: generateId<DatabaseTableId>(),
             side: "source" as const,
             cardinality: "many" as const,
-            linkedTableId: generateChronologicalId<DatabaseTableId>(),
+            linkedTableId: generateId<DatabaseTableId>(),
         };
         const deserialized = DatabaseFieldConfigSqlSchema.deserialize(
             DatabaseFieldConfigSqlSchema.serialize(config),
