@@ -19,11 +19,11 @@ import {LanguageModelsNoopDevelopmentContextModule} from "~/server/language_mode
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {opensearchClientExecuteOperationTestCounter} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
-import {indexDatabaseTableSearchEntity} from "~/server/search/data/index/index_database_table_search_entity.js";
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
     getSearchEntityIfPossible,
     getSearchEntityIndexesForTest,
+    indexDatabaseTableSearchEntity,
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
