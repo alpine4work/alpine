@@ -36,6 +36,7 @@ import {
     parseAgentWebTaskPage,
 } from "~/server/agents/web/pages/agent_web_task_page.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
+import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
@@ -58,36 +59,46 @@ export async function callAgentWebCreateTool(
     | {isError: true; response: string}
 > {
     return await context.span.withSpan("Call agent web create tool", async span => {
-        const additionalOutput: Array<string> = [];
+        return await withInstrumentedAgentWebSessionStorage(
+            span,
+            context.storage,
+            async storage => {
+                const additionalOutput: Array<string> = [];
 
-        try {
-            const result = await actuallyCallAgentWebCreateTool({...context, span}, options, {
-                addAdditionalOutput: output => additionalOutput.push(output.trim()),
-            });
+                try {
+                    const result = await actuallyCallAgentWebCreateTool(
+                        {...context, span, storage},
+                        options,
+                        {
+                            addAdditionalOutput: output => additionalOutput.push(output.trim()),
+                        },
+                    );
 
-            let {response} = result;
+                    let {response} = result;
 
-            if (additionalOutput.length > 0) {
-                response += `\n\n${additionalOutput.join("\n\n")}`;
-            }
+                    if (additionalOutput.length > 0) {
+                        response += `\n\n${additionalOutput.join("\n\n")}`;
+                    }
 
-            return {isError: false, response, pageLink: result.pageLink};
-        } catch (error) {
-            span.addException(error);
+                    return {isError: false, response, pageLink: result.pageLink};
+                } catch (error) {
+                    span.addException(error);
 
-            const type = parseCallAgentWebCreateToolType(options.type);
+                    const type = parseCallAgentWebCreateToolType(options.type);
 
-            let response = printAgentWebError(
-                `Couldn\u2019t create${type !== null ? ` ${type}` : ""}`,
-                error,
-            );
+                    let response = printAgentWebError(
+                        `Couldn\u2019t create${type !== null ? ` ${type}` : ""}`,
+                        error,
+                    );
 
-            if (additionalOutput.length > 0) {
-                response += `\n\n${additionalOutput.join("\n\n")}`;
-            }
+                    if (additionalOutput.length > 0) {
+                        response += `\n\n${additionalOutput.join("\n\n")}`;
+                    }
 
-            return {isError: true, response};
-        }
+                    return {isError: true, response};
+                }
+            },
+        );
     });
 }
 

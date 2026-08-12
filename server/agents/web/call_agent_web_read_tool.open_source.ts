@@ -87,6 +87,7 @@ import {
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
+import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible} from "~/shared/api/content/parse_api_content_from_markdown_url_if_possible.open_source.js";
@@ -115,24 +116,33 @@ export async function callAgentWebReadTool(
     | {isError: true; response: string}
 > {
     return await context.span.withSpan("Call agent web read tool", async span => {
-        try {
-            const {pageLink, response} = await actuallyCallAgentWebReadTool(
-                {...context, span},
-                options,
-            );
+        return await withInstrumentedAgentWebSessionStorage(
+            span,
+            context.storage,
+            async storage => {
+                try {
+                    const {pageLink, response} = await actuallyCallAgentWebReadTool(
+                        {...context, span, storage},
+                        options,
+                    );
 
-            return {
-                isError: false,
-                response,
-                pageLink,
-            };
-        } catch (error) {
-            span.addException(error);
-            return {
-                isError: true,
-                response: printAgentWebError(`Couldn\u2019t read ${quote(options.path)}`, error),
-            };
-        }
+                    return {
+                        isError: false,
+                        response,
+                        pageLink,
+                    };
+                } catch (error) {
+                    span.addException(error);
+                    return {
+                        isError: true,
+                        response: printAgentWebError(
+                            `Couldn\u2019t read ${quote(options.path)}`,
+                            error,
+                        ),
+                    };
+                }
+            },
+        );
     });
 }
 
@@ -319,15 +329,21 @@ export async function independentlyCallAgentWebReadToolWithoutTruncation(
     },
 ): Promise<string> {
     return await context.span.withSpan("Call agent web read tool (independently)", async span => {
-        try {
-            return await actuallyIndependentlyCallAgentWebReadToolWithoutTruncation(
-                {...context, span},
-                options,
-            );
-        } catch (error) {
-            span.addException(error);
-            return printAgentWebError("Couldn\u2019t read", error);
-        }
+        return await withInstrumentedAgentWebSessionStorage(
+            span,
+            context.storage,
+            async storage => {
+                try {
+                    return await actuallyIndependentlyCallAgentWebReadToolWithoutTruncation(
+                        {...context, span, storage},
+                        options,
+                    );
+                } catch (error) {
+                    span.addException(error);
+                    return printAgentWebError("Couldn\u2019t read", error);
+                }
+            },
+        );
     });
 }
 

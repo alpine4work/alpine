@@ -155,6 +155,10 @@ ClaudeAgentSandbox.outboundByHost = {
                     assert(event.data["service.name"] === "ClaudeAgentService");
                     assert(event.data["meta.untrusted"] === true);
 
+                    // Make sure to add the container ID to logged events. So we can correlate events
+                    // coming from the same container.
+                    event.data["cloudflare.containers.id"] = ctx.containerId;
+
                     return {
                         time: serializeDateString(new Date(event.time)),
                         data: event.data,
@@ -169,15 +173,27 @@ ClaudeAgentSandbox.outboundByHost = {
             kinesisClient
                 ? sendTracerEventsToKinesis(
                       kinesisClient,
-                      events.map(
-                          (event): KinesisPutRecordsRequestEntry => ({
+                      events.map((event): KinesisPutRecordsRequestEntry => {
+                          // Make sure every event coming from the sandbox sets `meta.untrusted` to true and
+                          // set the right `service.name`. We can't trust events coming from the sandbox
+                          // because Claude might discover how to send events and start sending us trash
+                          // events. This way if we suspect incorrect events, we can easily filter them out
+                          // on the server.
+                          assert(event.data["service.name"] === "ClaudeAgentService");
+                          assert(event.data["meta.untrusted"] === true);
+
+                          // Make sure to add the container ID to logged events. So we can correlate events
+                          // coming from the same container.
+                          event.data["cloudflare.containers.id"] = ctx.containerId;
+
+                          return {
                               data: convertTracerEventFlatDataToKinesisData(event),
                               partitionKey:
                                   (event.data["trace.trace_id"] as string | undefined) ??
                                   (event.data["trace.span_id"] as string | undefined) ??
                                   generateId(),
-                          }),
-                      ),
+                          };
+                      }),
                   )
                 : null,
         ]);

@@ -48,6 +48,7 @@ import {
     updateAgentWebTaskSubtasksPage,
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
+import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
     FailedPreconditionError,
@@ -75,29 +76,42 @@ export async function callAgentWebUpdateTool(
     },
 ): Promise<{isError: boolean; response: string}> {
     return await context.span.withSpan("Call agent web update tool", async span => {
-        let isError: boolean;
-        let response: string;
-        const additionalOutput: Array<string> = [];
+        return await withInstrumentedAgentWebSessionStorage(
+            span,
+            context.storage,
+            async storage => {
+                let isError: boolean;
+                let response: string;
+                const additionalOutput: Array<string> = [];
 
-        try {
-            response = await actuallyCallAgentWebUpdateTool({...context, span}, options, {
-                addAdditionalOutput: output => additionalOutput.push(output.trim()),
-            });
+                try {
+                    response = await actuallyCallAgentWebUpdateTool(
+                        {...context, span, storage},
+                        options,
+                        {
+                            addAdditionalOutput: output => additionalOutput.push(output.trim()),
+                        },
+                    );
 
-            isError = false;
-        } catch (error) {
-            span.addException(error);
+                    isError = false;
+                } catch (error) {
+                    span.addException(error);
 
-            response = printAgentWebError(`Couldn\u2019t update ${quote(options.path)}`, error);
+                    response = printAgentWebError(
+                        `Couldn\u2019t update ${quote(options.path)}`,
+                        error,
+                    );
 
-            isError = true;
-        }
+                    isError = true;
+                }
 
-        if (additionalOutput.length > 0) {
-            response += `\n\n${additionalOutput.join("\n\n")}`;
-        }
+                if (additionalOutput.length > 0) {
+                    response += `\n\n${additionalOutput.join("\n\n")}`;
+                }
 
-        return {isError, response};
+                return {isError, response};
+            },
+        );
     });
 }
 

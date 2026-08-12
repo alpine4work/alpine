@@ -7,6 +7,7 @@ import {
 import {binarySearchGreaterThanOrEqual} from "~/server/agents/web/internal/binary_search_greater_than_or_equal.open_source.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
+import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
@@ -23,22 +24,31 @@ export async function callAgentWebFindTool(
     },
 ): Promise<{isError: boolean; response: string}> {
     return await context.span.withSpan("Call agent web find tool", async span => {
-        try {
-            return {
-                isError: false,
-                response: await actuallyCallAgentWebFindTool({...context, span}, options),
-            };
-        } catch (error) {
-            span.addException(error);
+        return await withInstrumentedAgentWebSessionStorage(
+            span,
+            context.storage,
+            async storage => {
+                try {
+                    return {
+                        isError: false,
+                        response: await actuallyCallAgentWebFindTool(
+                            {...context, span, storage},
+                            options,
+                        ),
+                    };
+                } catch (error) {
+                    span.addException(error);
 
-            return {
-                isError: true,
-                response: printAgentWebError(
-                    `Couldn\u2019t find pattern in ${quote(options.path)}`,
-                    error,
-                ),
-            };
-        }
+                    return {
+                        isError: true,
+                        response: printAgentWebError(
+                            `Couldn\u2019t find pattern in ${quote(options.path)}`,
+                            error,
+                        ),
+                    };
+                }
+            },
+        );
     });
 }
 

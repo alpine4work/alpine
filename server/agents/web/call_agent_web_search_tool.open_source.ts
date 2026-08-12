@@ -15,6 +15,7 @@ import {
     zipApiSearchResultMatches,
 } from "~/server/agents/web/internal/zip_api_search_result_matches.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
+import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -43,19 +44,28 @@ export async function callAgentWebSearchTool(
     options: {query: string; limit?: number},
 ): Promise<{isError: boolean; response: string}> {
     return await context.span.withSpan("Call agent web search tool", async span => {
-        try {
-            return {
-                isError: false,
-                response: await actuallyCallAgentWebSearchTool({...context, span}, options),
-            };
-        } catch (error) {
-            span.addException(error);
+        return await withInstrumentedAgentWebSessionStorage(
+            span,
+            context.storage,
+            async storage => {
+                try {
+                    return {
+                        isError: false,
+                        response: await actuallyCallAgentWebSearchTool(
+                            {...context, span, storage},
+                            options,
+                        ),
+                    };
+                } catch (error) {
+                    span.addException(error);
 
-            return {
-                isError: true,
-                response: printAgentWebError(`Couldn\u2019t search`, error),
-            };
-        }
+                    return {
+                        isError: true,
+                        response: printAgentWebError(`Couldn\u2019t search`, error),
+                    };
+                }
+            },
+        );
     });
 }
 

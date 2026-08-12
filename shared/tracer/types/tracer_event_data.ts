@@ -1862,6 +1862,39 @@ export type TracerEventData = {
                 readonly previousUsedMillicents?: number;
             };
         };
+
+        /** Data regarding the agent web system. */
+        readonly web?: {
+            /** Data regarding the agent web session storage. */
+            readonly storage?: {
+                /** How much time did we spend in session storage requests? */
+                readonly totalDurationMs?: number;
+
+                /** How many collection get calls were made? */
+                readonly totalGetCallCount?: number;
+
+                /** How much time was spent in collection get calls? */
+                readonly totalGetDurationMs?: number;
+
+                /** How many collection put calls were made? */
+                readonly totalPutCallCount?: number;
+
+                /** How much time was spent in collection put calls? */
+                readonly totalPutDurationMs?: number;
+
+                /** How many collection delete calls were made? */
+                readonly totalDeleteCallCount?: number;
+
+                /** How much time was spent in collection delete calls? */
+                readonly totalDeleteDurationMs?: number;
+
+                /** How many collection list calls were made? */
+                readonly totalListCallCount?: number;
+
+                /** How much time was spent in collection list calls? */
+                readonly totalListDurationMs?: number;
+            };
+        };
     };
 
     readonly billing?: {

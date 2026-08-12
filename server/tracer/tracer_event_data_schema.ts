@@ -634,6 +634,19 @@ const TracerEventDataSchema = {
                 previousUsedMillicents: Schema.integer,
             },
         },
+        web: {
+            storage: {
+                totalDurationMs: Schema.float,
+                totalGetCallCount: Schema.integer,
+                totalGetDurationMs: Schema.float,
+                totalPutCallCount: Schema.integer,
+                totalPutDurationMs: Schema.float,
+                totalDeleteCallCount: Schema.integer,
+                totalDeleteDurationMs: Schema.float,
+                totalListCallCount: Schema.integer,
+                totalListDurationMs: Schema.float,
+            },
+        },
     },
     billing: {
         createdStripeCustomer: Schema.boolean,
