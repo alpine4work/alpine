@@ -31,8 +31,15 @@ test("interleaves activity with comments chronologically", async ({
     await page.goto(`/task/${task.id}`);
 
     const createdRow = page.getByText("created the task");
-    const commentRow = page.getByText("Comment between updates");
+    const commentRow = page
+        .getByTestId(`MessageView:${task.id}:0`)
+        .getByText("Comment between updates");
     const priorityRow = page.getByText("set the priority to high");
+
+    // Leading activity spacing can push the comment section below the fold. Scroll the
+    // comment into view first so the virtualized list keeps the surrounding activity
+    // mounted for measurement.
+    await commentRow.scrollIntoViewIfNeeded();
     await expect(createdRow).toBeVisible();
     await expect(commentRow).toBeVisible();
     await expect(priorityRow).toBeVisible();
@@ -42,6 +49,169 @@ test("interleaves activity with comments chronologically", async ({
     const priorityBox = assertExists(await priorityRow.boundingBox());
     expect(createdBox.y).toBeLessThan(commentBox.y);
     expect(commentBox.y).toBeLessThan(priorityBox.y);
+});
+
+test("weaves activity between surrounding comments in time order", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const masonSession = await space.createSession({name: "Mason Clay"});
+    const cassSession = await space.createSession({name: "Cass Cade"});
+    const collection = await TestTaskCollection.create(masonSession, {
+        name: "Bugs",
+        access: "Public",
+    });
+
+    // Fixed times so the comment/activity/comment sandwich is unambiguous.
+    const firstCommentTime = new Date("2026-08-12T10:00:00.000Z");
+    const notesTime = new Date("2026-08-12T10:00:30.000Z");
+    const assigneeTime = new Date("2026-08-12T10:00:45.000Z");
+    const secondCommentTime = new Date("2026-08-12T10:01:00.000Z");
+    const creationTime = firstCommentTime.getTime() - 20 * 60 * 1000;
+
+    const task = await TestTask.create(masonSession, {
+        title: "Weave between comments",
+        collections: collection,
+        time: [creationTime, 0],
+        overrideCommittedTimeForTest: new Date(creationTime),
+    });
+    await task.createComment(masonSession, "First comment before the activity run", {
+        overrideCreatedTime: firstCommentTime,
+    });
+    await task.typeNotes(masonSession, "Captured the nested-table repro in notes.", {
+        overrideUpdatedTimeForTest: notesTime,
+    });
+    await task.updateAssignee(masonSession, cassSession, {
+        time: [assigneeTime.getTime(), 0],
+        overrideCommittedTimeForTest: assigneeTime,
+    });
+    await task.createComment(masonSession, "Second comment after the activity run", {
+        overrideCreatedTime: secondCommentTime,
+    });
+    await ProcessContextModule.waitForTestTasks();
+    await context.waitForSqsProcessJobs();
+
+    // View as Cass so Mason's author chrome is a name rather than "You".
+    await services.signIn(browserContext, cassSession);
+    await page.goto(`/task/${task.id}`);
+
+    const firstComment = page.getByTestId(`MessageView:${task.id}:0`);
+    const secondComment = page.getByTestId(`MessageView:${task.id}:1`);
+    const notesRow = page.getByText("updated the notes");
+    const assigneeRow = page.getByText("assigned the task to");
+
+    await secondComment.scrollIntoViewIfNeeded();
+    await expect(firstComment.getByText("First comment before the activity run")).toBeVisible();
+    await expect(secondComment.getByText("Second comment after the activity run")).toBeVisible();
+    await expect(notesRow).toBeVisible();
+    await expect(assigneeRow).toBeVisible();
+
+    const firstCommentBox = assertExists(await firstComment.boundingBox());
+    const notesBox = assertExists(await notesRow.boundingBox());
+    const assigneeBox = assertExists(await assigneeRow.boundingBox());
+    const secondCommentBox = assertExists(await secondComment.boundingBox());
+
+    expect(firstCommentBox.y).toBeLessThan(notesBox.y);
+    expect(notesBox.y).toBeLessThan(assigneeBox.y);
+    expect(assigneeBox.y).toBeLessThan(secondCommentBox.y);
+});
+
+test("does not merge same-author comments when activity sits between them", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const masonSession = await space.createSession({name: "Mason Clay"});
+    const cassSession = await space.createSession({name: "Cass Cade"});
+    const collection = await TestTaskCollection.create(masonSession, {
+        name: "Bugs",
+        access: "Public",
+    });
+
+    // Within the five-minute merge window — without the activity break these would
+    // merge.
+    const firstCommentTime = new Date("2026-08-12T10:00:00.000Z");
+    const notesTime = new Date("2026-08-12T10:00:30.000Z");
+    const assigneeTime = new Date("2026-08-12T10:00:45.000Z");
+    const secondCommentTime = new Date("2026-08-12T10:01:00.000Z");
+    const creationTime = firstCommentTime.getTime() - 20 * 60 * 1000;
+
+    const task = await TestTask.create(masonSession, {
+        title: "Split merge across activity",
+        collections: collection,
+        time: [creationTime, 0],
+        overrideCommittedTimeForTest: new Date(creationTime),
+    });
+    await task.createComment(masonSession, "Comment before the field updates", {
+        overrideCreatedTime: firstCommentTime,
+    });
+    await task.typeNotes(masonSession, "Notes written between the two comments.", {
+        overrideUpdatedTimeForTest: notesTime,
+    });
+    await task.updateAssignee(masonSession, cassSession, {
+        time: [assigneeTime.getTime(), 0],
+        overrideCommittedTimeForTest: assigneeTime,
+    });
+    await task.createComment(masonSession, "Comment after the field updates", {
+        overrideCreatedTime: secondCommentTime,
+    });
+    await ProcessContextModule.waitForTestTasks();
+    await context.waitForSqsProcessJobs();
+
+    await services.signIn(browserContext, cassSession);
+    await page.goto(`/task/${task.id}`);
+
+    const firstComment = page.getByTestId(`MessageView:${task.id}:0`);
+    const secondComment = page.getByTestId(`MessageView:${task.id}:1`);
+
+    // MessageView renders the author's full name (not the short name used in activity
+    // rows). Both comments must show it; the activity run is a visual break.
+    await expect(firstComment.getByText("Mason Clay", {exact: true})).toBeVisible();
+    await expect(secondComment.getByText("Mason Clay", {exact: true})).toBeVisible();
+    await expect(page.getByText("updated the notes")).toBeVisible();
+    await expect(page.getByText("assigned the task to")).toBeVisible();
+});
+
+test("still merges same-author comments when nothing sits between them", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const masonSession = await space.createSession({name: "Mason Clay"});
+    const cassSession = await space.createSession({name: "Cass Cade"});
+    const collection = await TestTaskCollection.create(masonSession, {
+        name: "Bugs",
+        access: "Public",
+    });
+
+    const firstCommentTime = new Date("2026-08-12T10:00:00.000Z");
+    const secondCommentTime = new Date("2026-08-12T10:01:00.000Z");
+    const creationTime = firstCommentTime.getTime() - 20 * 60 * 1000;
+
+    const task = await TestTask.create(masonSession, {
+        title: "Merge without activity",
+        collections: collection,
+        time: [creationTime, 0],
+        overrideCommittedTimeForTest: new Date(creationTime),
+    });
+    await task.createComment(masonSession, "First of two adjacent comments", {
+        overrideCreatedTime: firstCommentTime,
+    });
+    await task.createComment(masonSession, "Second of two adjacent comments", {
+        overrideCreatedTime: secondCommentTime,
+    });
+    await ProcessContextModule.waitForTestTasks();
+
+    await services.signIn(browserContext, cassSession);
+    await page.goto(`/task/${task.id}`);
+
+    const firstComment = page.getByTestId(`MessageView:${task.id}:0`);
+    const secondComment = page.getByTestId(`MessageView:${task.id}:1`);
+
+    await expect(firstComment.getByText("Mason Clay", {exact: true})).toBeVisible();
+    // No intervening activity, so the second comment stays merged into the first.
+    await expect(secondComment.getByText("Mason Clay", {exact: true})).toBeHidden();
 });
 
 test("merges consecutive same-field updates into one item with the final value", async ({

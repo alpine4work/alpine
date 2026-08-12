@@ -64,6 +64,12 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
     shouldAddMarginBottom = false,
+    /**
+     * Visual breaks (e.g. task activity between comments) that should prevent
+     * avatar/name merging even when the adjacent messages would otherwise merge.
+     */
+    shouldSeparateFromPreviousMessage = false,
+    shouldSeparateFromNextMessage = false,
     isReadOnly,
     render: customRender,
 }: {
@@ -90,6 +96,8 @@ export function renderMessageListItem<
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean | Spacing;
     shouldAddMarginBottom?: boolean | string;
+    shouldSeparateFromPreviousMessage?: boolean;
+    shouldSeparateFromNextMessage?: boolean;
     isReadOnly?: boolean;
     render?: (node: ReactNode) => ReactElement;
 }): VirtualizedScrollViewItem & {renderAdditionalItemIndexes?: readonly []} {
@@ -102,11 +110,13 @@ export function renderMessageListItem<
                 index < messages.getItemCount() - 1 ? messages.getItem(index + 1) : null;
 
             const previousMessage =
-                previousItem?.type === "Loaded" || previousItem?.type === "Optimistic"
+                !shouldSeparateFromPreviousMessage &&
+                (previousItem?.type === "Loaded" || previousItem?.type === "Optimistic")
                     ? previousItem.message
                     : null;
             const nextMessage =
-                nextItem?.type === "Loaded" || nextItem?.type === "Optimistic"
+                !shouldSeparateFromNextMessage &&
+                (nextItem?.type === "Loaded" || nextItem?.type === "Optimistic")
                     ? nextItem.message
                     : null;
 
