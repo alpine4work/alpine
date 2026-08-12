@@ -5,7 +5,7 @@ import {
     searchBySemantics,
     searchChannelsByAffinity,
     searchChannelsByKeywords,
-    searchDatabaseTables,
+    searchDatabaseTablesByKeywords,
     searchMentionByKeywords,
     searchRoomChatsByKeywords,
     searchTaskCollectionsByAffinity,
@@ -44,10 +44,13 @@ export default implementRpcs(definitions, {
         },
     },
 
-    searchDatabaseTables: {
+    searchDatabaseTablesByKeywords: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const results = await searchDatabaseTables(context.actor.authorizeSession(), input);
+            const results = await searchDatabaseTablesByKeywords(
+                context.actor.authorizeSession(),
+                input,
+            );
             return {results};
         },
     },

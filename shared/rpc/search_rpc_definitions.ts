@@ -65,8 +65,8 @@ export const searchByAffinity = defineRpc({
     },
 });
 
-export const searchDatabaseTables = defineRpc({
-    name: "searchDatabaseTables",
+export const searchDatabaseTablesByKeywords = defineRpc({
+    name: "searchDatabaseTablesByKeywords",
     isIdempotent: true,
     input: {
         spaceId: Schema.id<SpaceId>(),
@@ -78,6 +78,7 @@ export const searchDatabaseTables = defineRpc({
             Schema.object({
                 tableId: Schema.id<DatabaseTableId>(),
                 humanName: Schema.string,
+                score: Schema.float,
             }),
         ),
     },

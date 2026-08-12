@@ -31,7 +31,7 @@ import {
     searchByAffinity,
     searchByKeywords,
     searchBySemantics,
-    searchDatabaseTables,
+    searchDatabaseTablesByKeywords,
     searchMentionByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
@@ -3066,7 +3066,7 @@ test("highlighting bullet points with bold formatting works well", async () => {
     ]);
 });
 
-test("searches database tables and orders equal matches by affinity", async () => {
+test("searches database tables by title", async () => {
     const databaseGroupId = generateId<DatabaseGroupId>();
     const space = await TestSpace.create(context, {databaseGroupId});
     const session = await space.createSession();
@@ -3092,28 +3092,26 @@ test("searches database tables and orders equal matches by affinity", async () =
             isDeleted: false,
         });
     }
-    await markSearchAffinityEntityInteraction(session.action(), {
-        spaceId: space.id,
-        entityId: `DatabaseTable:${tables[2]!.tableId}`,
-        interaction: {type: "HighIntentUpdate"},
-        siteId: null,
-    });
-    await ProcessContextModule.waitForTestTasks();
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     const [initialResults, queryResults] = await runAllPromises([
-        searchDatabaseTables(session.action(), {spaceId: space.id, queryText: "", limit: 30}),
-        searchDatabaseTables(session.action(), {
+        searchDatabaseTablesByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "",
+            limit: 30,
+        }),
+        searchDatabaseTablesByKeywords(session.action(), {
             spaceId: space.id,
             queryText: "Roadmap",
             limit: 30,
         }),
     ]);
 
-    expect({initialResults, queryResults}).toEqual({
-        initialResults: [tables[2], tables[0], tables[1]],
-        queryResults: [tables[2], tables[1]],
-    });
+    expect(initialResults.map(({tableId, humanName}) => ({tableId, humanName}))).toEqual(tables);
+    expect(queryResults.map(({tableId, humanName}) => ({tableId, humanName}))).toEqual(
+        tables.slice(1),
+    );
+    expect(queryResults.every(result => result.score > 0)).toBe(true);
 });
 
 test("search by affinity can include my tasks", async () => {

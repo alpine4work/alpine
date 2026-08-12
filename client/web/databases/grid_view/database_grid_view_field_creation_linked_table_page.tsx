@@ -24,9 +24,14 @@ import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
-import {searchDatabaseTables} from "~/shared/rpc/search_rpc_definitions.js";
+import {
+    searchByAffinity,
+    searchDatabaseTablesByKeywords,
+} from "~/shared/rpc/search_rpc_definitions.js";
+import {standardSearchOptions} from "~/shared/search/search_options.js";
 
 type DatabaseGridViewLinkedTable = {
     readonly id: DatabaseTableId;
@@ -34,6 +39,7 @@ type DatabaseGridViewLinkedTable = {
 };
 
 const emptyTables: ReadonlyArray<DatabaseGridViewLinkedTable> = [];
+const databaseGridViewLinkedTableLimit = 30;
 
 /**
  * The second page of the field creation popover, shown after picking "Linked
@@ -63,9 +69,18 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
     const trimmedFilterValue = filterValue.trim();
     const [currentlyLoadingFilterValue, setCurrentlyLoadingFilterValue] =
         useState(trimmedFilterValue);
-    const {isLoading: originalIsLoading, output: tablesOutput} = useLazyLoadRpc(
-        searchDatabaseTables,
-        {spaceId: space.id, queryText: currentlyLoadingFilterValue, limit: 30},
+    const affinitySearch = useLazyLoadRpc(searchByAffinity, {spaceId: space.id});
+    const {isLoading: originalIsLoading, output: keywordSearchOutput} = useLazyLoadRpc(
+        searchDatabaseTablesByKeywords,
+        {
+            spaceId: space.id,
+            queryText: currentlyLoadingFilterValue,
+            // Load more fallback tables for the empty query before affinity re-ranks them.
+            limit:
+                currentlyLoadingFilterValue.length === 0
+                    ? databaseGridViewLinkedTableLimit * 5
+                    : databaseGridViewLinkedTableLimit,
+        },
         {keepPreviousData: true},
     );
     let isLoading = originalIsLoading;
@@ -75,14 +90,72 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
         isLoading = true;
         setCurrentlyLoadingFilterValue(trimmedFilterValue);
     }
-    const filteredTables = useMemo(
-        () =>
-            tablesOutput?.results.map(table => ({
-                id: table.tableId,
-                humanName: table.humanName,
-            })) ?? emptyTables,
-        [tablesOutput],
-    );
+    const filteredTables = useMemo(() => {
+        if (!keywordSearchOutput) return emptyTables;
+
+        const affinityScoreByTableId = new Map<DatabaseTableId, number>();
+        for (const result of [
+            ...(affinitySearch.output?.favoriteResults ?? []),
+            ...(affinitySearch.output?.results ?? []),
+        ]) {
+            if (!result.id.startsWith("DatabaseTable:")) continue;
+            affinityScoreByTableId.set(
+                result.id.slice("DatabaseTable:".length) as DatabaseTableId,
+                result.score,
+            );
+        }
+
+        const resultByTableId = new Map(
+            keywordSearchOutput.results.map(result => [
+                result.tableId,
+                {
+                    id: result.tableId,
+                    humanName: result.humanName,
+                    keywordScore: result.score,
+                    affinityScore: affinityScoreByTableId.get(result.tableId),
+                },
+            ]),
+        );
+
+        const interpolation = standardSearchOptions.affinityToKeywordScoreInterpolation;
+        const slope =
+            (interpolation.point2.keywordScore - interpolation.point1.keywordScore) /
+            (interpolation.point2.affinityScore - interpolation.point1.affinityScore);
+        const intercept =
+            interpolation.point2.keywordScore - slope * interpolation.point2.affinityScore;
+
+        return Array.from(resultByTableId.values())
+            .sort((table1, table2) => {
+                if (keywordSearchOutput.input.queryText.length === 0) {
+                    if (table1.affinityScore !== undefined && table2.affinityScore !== undefined) {
+                        const scoreDifference = table2.affinityScore - table1.affinityScore;
+                        if (scoreDifference !== 0) return scoreDifference;
+                    } else if (table1.affinityScore !== undefined) {
+                        return -1;
+                    } else if (table2.affinityScore !== undefined) {
+                        return 1;
+                    }
+                } else {
+                    const score1 =
+                        table1.keywordScore +
+                        (table1.affinityScore === undefined
+                            ? 0
+                            : slope * table1.affinityScore + intercept);
+                    const score2 =
+                        table2.keywordScore +
+                        (table2.affinityScore === undefined
+                            ? 0
+                            : slope * table2.affinityScore + intercept);
+                    if (score1 !== score2) return score2 - score1;
+                }
+
+                return (
+                    defaultCompareStrings(table1.humanName, table2.humanName) ||
+                    defaultCompareStrings(table1.id, table2.id)
+                );
+            })
+            .slice(0, databaseGridViewLinkedTableLimit);
+    }, [affinitySearch.output, keywordSearchOutput]);
 
     const commitTable = useEvent((table: DatabaseGridViewLinkedTable) => {
         // An empty name defaults to the linked table's name. The symmetric field on the
@@ -223,7 +296,10 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
                 listBoxRef={listBoxRef}
                 listBoxProps={listBoxProps}
                 comboBoxState={comboBoxState}
-                isLoading={isLoading}
+                isLoading={
+                    isLoading ||
+                    (keywordSearchOutput?.input.queryText.length === 0 && affinitySearch.isLoading)
+                }
             />
             <Box borderTop="grey-5" padding="1.5">
                 <Switch

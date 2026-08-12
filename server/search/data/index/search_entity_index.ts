@@ -3998,37 +3998,24 @@ export async function searchByAffinity(
 }
 
 /**
- * Search database tables by title. With an empty query, return the tables with
- * which the account has the most affinity.
+ * Search database tables by title. An empty query returns indexed tables without a
+ * text filter. The client combines these results with `searchByAffinity()`.
  */
-export async function searchDatabaseTables(
+export async function searchDatabaseTablesByKeywords(
     context: ServerSessionActionContext,
     {spaceId, queryText, limit}: {spaceId: SpaceId; queryText: string; limit: number},
-): Promise<Array<{readonly tableId: DatabaseTableId; readonly humanName: string}>> {
-    await runAllPromises([
-        authorizeSpaceAccess(context, spaceId),
-        authorizeNotBotSpaceAccount(context, spaceId, context.actor.getAccountId()),
-    ]);
+): Promise<
+    Array<{readonly tableId: DatabaseTableId; readonly humanName: string; readonly score: number}>
+> {
+    await authorizeSpaceAccess(context, spaceId);
 
     const trimmedQueryText = queryText.trim();
     assertSearchQueryTextLength(trimmedQueryText);
-    const [accessPolicyQueryClause, affinityEntities] = await runAllPromises([
-        getOpensearchActorAccessQueryClause(context, spaceId, "Keyword"),
-        internalGetSearchAffinityEntities(context, {
-            spaceId,
-            // Some high-affinity entities are not database tables. Load more entries so they
-            // do not reduce the number of table results.
-            limit: limit * 5,
-        }),
-    ]);
-    const affinityIndexByTableId = new Map<DatabaseTableId, number>();
-    for (const [index, entity] of affinityEntities.entries()) {
-        if (!entity.entityId.startsWith("DatabaseTable:")) continue;
-        affinityIndexByTableId.set(
-            entity.entityId.slice("DatabaseTable:".length) as DatabaseTableId,
-            index,
-        );
-    }
+    const accessPolicyQueryClause = await getOpensearchActorAccessQueryClause(
+        context,
+        spaceId,
+        "Keyword",
+    );
 
     const textQueryClauses =
         trimmedQueryText.length === 0
@@ -4047,8 +4034,7 @@ export async function searchDatabaseTables(
                   } as const,
               ];
     const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
-        // Load extra hits so affinity can re-rank a useful candidate set.
-        size: limit * 5,
+        size: limit,
         storedFields: ["title"],
         sort: ["_score", "_doc"],
         query: {
@@ -4066,24 +4052,14 @@ export async function searchDatabaseTables(
     const results = hits.map(hit => {
         const entityId = fromSearchEntityIdForKeywordIndex(hit.id);
         assert(entityId.startsWith("DatabaseTable:"));
-        spotCheckSearchEntityAccess(context, "searchDatabaseTables", spaceId, entityId);
+        spotCheckSearchEntityAccess(context, "searchDatabaseTablesByKeywords", spaceId, entityId);
         return {
             tableId: entityId.slice("DatabaseTable:".length) as DatabaseTableId,
             humanName: assertExists(hit.fields.title?.[0]),
             score: hit.score,
         };
     });
-    results.sort((result1, result2) => {
-        if (result1.score !== result2.score) return result2.score - result1.score;
-        const affinityIndex1 = affinityIndexByTableId.get(result1.tableId) ?? Infinity;
-        const affinityIndex2 = affinityIndexByTableId.get(result2.tableId) ?? Infinity;
-        return (
-            affinityIndex1 - affinityIndex2 ||
-            defaultCompareStrings(result1.humanName, result2.humanName) ||
-            defaultCompareStrings(result1.tableId, result2.tableId)
-        );
-    });
-    return results.slice(0, limit).map(({tableId, humanName}) => ({tableId, humanName}));
+    return results;
 }
 
 /**
