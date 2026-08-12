@@ -130,62 +130,14 @@ export function executeDatabaseAction(
     }
 }
 
-function runDatabaseAction(
-    actionObject: DatabaseActionObject,
+function runDatabaseAction<N extends DatabaseActionName>(
+    actionObject: DatabaseActionObject<N>,
     ctx: DatabaseActionContext,
-): DatabaseActionOutput<DatabaseActionName> {
-    switch (actionObject.name) {
-        case "rawSql":
-            return databaseActions.rawSql.run(ctx, actionObject.input);
-        case "readonlyRawSql":
-            return databaseActions.readonlyRawSql.run(ctx, actionObject.input);
-        case "createTable":
-            return databaseActions.createTable.run(ctx, actionObject.input);
-        case "syncTableMetadata":
-            return databaseActions.syncTableMetadata.run(ctx, actionObject.input);
-        case "listTableIds":
-            return databaseActions.listTableIds.run(ctx, actionObject.input);
-        case "listTables":
-            return databaseActions.listTables.run(ctx, actionObject.input);
-        case "getTableMetadata":
-            return databaseActions.getTableMetadata.run(ctx, actionObject.input);
-        case "getViewSchema":
-            return databaseActions.getViewSchema.run(ctx, actionObject.input);
-        case "getViewRowsPageCursor":
-            return databaseActions.getViewRowsPageCursor.run(ctx, actionObject.input);
-        case "getViewRowsPage":
-            return databaseActions.getViewRowsPage.run(ctx, actionObject.input);
-        case "updateCellValue":
-            return databaseActions.updateCellValue.run(ctx, actionObject.input);
-        case "createRow":
-            return databaseActions.createRow.run(ctx, actionObject.input);
-        case "createField":
-            return databaseActions.createField.run(ctx, actionObject.input);
-        case "createRelationField":
-            return databaseActions.createRelationField.run(ctx, actionObject.input);
-        case "addLink":
-            return databaseActions.addLink.run(ctx, actionObject.input);
-        case "removeLink":
-            return databaseActions.removeLink.run(ctx, actionObject.input);
-        case "listLinkableRows":
-            return databaseActions.listLinkableRows.run(ctx, actionObject.input);
-        case "listLinkedRows":
-            return databaseActions.listLinkedRows.run(ctx, actionObject.input);
-        case "moveLink":
-            return databaseActions.moveLink.run(ctx, actionObject.input);
-        case "createAndLinkRow":
-            return databaseActions.createAndLinkRow.run(ctx, actionObject.input);
-        case "updateFieldConfig":
-            return databaseActions.updateFieldConfig.run(ctx, actionObject.input);
-        case "resizeField":
-            return databaseActions.resizeField.run(ctx, actionObject.input);
-        case "updateFieldViewVisibility":
-            return databaseActions.updateFieldViewVisibility.run(ctx, actionObject.input);
-        case "renameField":
-            return databaseActions.renameField.run(ctx, actionObject.input);
-        default:
-            throw exhaustive(actionObject);
-    }
+): DatabaseActionOutput<N> {
+    const action = databaseActions[actionObject.name] as unknown as {
+        run: (ctx: DatabaseActionContext, input: DatabaseActionInput<N>) => DatabaseActionOutput<N>;
+    };
+    return action.run(ctx, actionObject.input);
 }
 
 export const databaseActions = {
