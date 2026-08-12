@@ -1,5 +1,6 @@
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
 import {ScreenshotTestRunner} from "~/app/screenshot_tests/helpers/run_screenshot_test.js";
+import {refreshSearchEntityKeywordIndexForTest} from "~/server/search/data/index/search_entity_index.js";
 
 const databasesScreenshotTime = new Date("2025-10-07T13:00:00-04:00");
 
@@ -20,6 +21,11 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     await createDatabase(runner, space.id, "Contacts");
     await createDatabase(runner, space.id, "Case studies");
     const dealsUrl = await createDatabase(runner, space.id, "Deals");
+
+    // The linked-table picker searches OpenSearch. Wait for table indexing jobs and
+    // make their writes visible before opening the picker.
+    await runner.drainBackgroundWork();
+    await refreshSearchEntityKeywordIndexForTest(context);
 
     // Reload before writing rows: on the page reached through the create navigation
     // the database worker replica may not have received the new table yet, and writes
