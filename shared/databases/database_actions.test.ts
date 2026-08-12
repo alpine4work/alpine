@@ -2111,20 +2111,14 @@ describe("createField", () => {
             ORDER BY
                 view_id
         `.selectAllUnknown(db);
-        expect(viewFields).toMatchObject([
-            {
-                view_id: viewId,
+        expect(viewFields).toMatchObject(
+            [viewId, secondViewId].sort().map(currentViewId => ({
+                view_id: currentViewId,
                 field_id: fieldId,
                 width: databaseViewDefaultColumnWidth,
                 is_visible: 1,
-            },
-            {
-                view_id: secondViewId,
-                field_id: fieldId,
-                width: databaseViewDefaultColumnWidth,
-                is_visible: 1,
-            },
-        ]);
+            })),
+        );
         db.close();
     });
 

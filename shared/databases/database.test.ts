@@ -1063,7 +1063,7 @@ describe("Database — LRU eviction at the attach threshold", () => {
                 `,
                 {allowWrites: "none", getTableAccessLevel: allowAllTableAccess},
             ),
-        ).toThrow("attach-on-miss found table");
+        ).toThrow("attach-on-miss found Table");
     });
 
     test("eviction skips tables with buffered writes", async () => {

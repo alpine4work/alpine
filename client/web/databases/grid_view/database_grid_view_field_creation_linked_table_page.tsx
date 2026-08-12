@@ -24,6 +24,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/life
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
 import {type DatabaseActionOutput} from "~/shared/databases/database_actions.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
@@ -63,12 +64,16 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
 
     // The collection is controlled (we pass `items`), so filter it ourselves.
     const filter = useFilter({sensitivity: "base"});
-    const filteredTables = useMemo(
-        () =>
-            tables?.filter(table => filter.contains(table.humanName, filterValue.trim())) ??
-            emptyTables,
-        [tables, filterValue, filter],
-    );
+    const filteredTables = useMemo(() => {
+        if (tables == null) return emptyTables;
+        return tables
+            .filter(table => filter.contains(table.humanName, filterValue.trim()))
+            .sort(
+                (table1, table2) =>
+                    defaultCompareStrings(table1.humanName, table2.humanName) ||
+                    defaultCompareStrings(table1.id, table2.id),
+            );
+    }, [tables, filterValue, filter]);
 
     const commitTable = useEvent((table: DatabaseGridViewLinkedTable) => {
         // An empty name defaults to the linked table's name. The symmetric field on the
