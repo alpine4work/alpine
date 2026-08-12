@@ -1,9 +1,12 @@
 import {type BrowserContext, type Locator, type Page, expect, test} from "@playwright/test";
 
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
+import {getSearchEntityIndexesForTest} from "~/server/search/data/index/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 
 const {context, services} = createTestServices();
+const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
 
 test("can create and update linked records", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);
@@ -13,6 +16,12 @@ test("can create and update linked records", async ({page, context: browserConte
 
     const peopleUrl = await createDatabaseWithRow(page, space.id, "People", "Alice");
     const companiesUrl = await createDatabaseWithRow(page, space.id, "Companies", "Acme");
+
+    // The linked-table picker searches OpenSearch. Wait for table indexing jobs and
+    // make their writes visible before opening the picker.
+    await ProcessContextModule.waitForTestTasks();
+    await context.waitForSqsProcessJobs();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     await page.goto(peopleUrl);
     await createRelationField(page, "Company", "Companies");
