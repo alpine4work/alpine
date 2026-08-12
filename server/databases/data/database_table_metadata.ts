@@ -169,6 +169,55 @@ export async function updateDatabaseTableAccessPolicy(
     return {events: [await getEvent(context)]};
 }
 
+export async function updateDatabaseTableName(
+    context: ServerActionContext,
+    {tableId, name}: {tableId: DatabaseTableId; name: string},
+): Promise<{events: ReadonlyArray<RynamoEvent<DatabaseTableMetadataModel>>}> {
+    const sessionContext = context.actor.authorizeSession();
+
+    const {getEvent, spaceId} = await sessionContext.dynamo.retryTransaction(async context => {
+        const item = await DatabasesRynamo.getItemIfExists(
+            context,
+            {partitionType: "Table", sortRangeType: "Attributes", tableId},
+            {consistency: "StrongWithinCache"},
+        );
+        if (item === null || item.name === null) {
+            throw createDatabaseTableNotFoundError(tableId);
+        }
+        const {spaceId} = item;
+        await authorizeSpaceAccess(context, spaceId, "Member");
+        if (
+            !(await evaluateAccessPolicy(context, spaceId, item.accessPolicy, "Manage", {
+                consistency: "StrongWithinCache",
+            }))
+        ) {
+            throw new PermissionDeniedError(
+                `Account does not have Manage access to database table ${tableId}`,
+            );
+        }
+
+        const tableEntry = DatabasesRynamo.transactionDirectlyUpdateItemWithEvent(
+            item.update({name}),
+        );
+        await RynamoTableSchema.executeTransaction(context, [tableEntry.transactionEntry]);
+        return {getEvent: tableEntry.getEvent, spaceId};
+    });
+
+    context.process.waitUntil(
+        context.jobs.sendAndWait({
+            type: "IndexSearchEntity",
+            spaceId,
+            update: {
+                type: "DatabaseTable",
+                tableId,
+                updatedTraits: {type: "Any"},
+            },
+        }),
+    );
+
+    return {events: [await getEvent(context)]};
+}
+
 /**
  * Reads and authorizes table metadata. Eventual consistency is intentionally
  * excluded because the stored access policy is itself part of the authorization

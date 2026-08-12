@@ -13,6 +13,7 @@ import {
 import {createAccessPolicyStoreFromReferences} from "~/client/web/access/create_access_policy_store.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {useDatabaseConnection} from "~/client/web/databases/database_connection_context.js";
+import {DatabaseGridViewName} from "~/client/web/databases/database_grid_view_name.js";
 import type {DatabaseQuery} from "~/client/web/databases/database_query.js";
 import type {DatabaseQueryRow} from "~/client/web/databases/database_query_row.js";
 import {DatabaseGridViewCellContent} from "~/client/web/databases/fields/database_grid_view_cell_content.js";
@@ -458,15 +459,12 @@ export function DatabaseGridView({
                 }}
             >
                 <Box display="flex" alignItems="center" justifyContent="space-between" gap="3">
-                    <Box
-                        as="h1"
-                        margin="0"
-                        fontSize="200"
-                        fontStyle="truncate-semi-bold"
-                        color="grey-100"
-                        overflow="hidden"
-                    >
-                        {humanName}
+                    <Box color="grey-100" overflow="hidden">
+                        <DatabaseGridViewName
+                            tableId={tableId}
+                            name={humanName}
+                            accessPolicy={resolvedAccessPolicy}
+                        />
                     </Box>
                     <Box flexShrink="0">
                         <ShareButton

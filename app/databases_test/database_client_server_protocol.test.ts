@@ -15,6 +15,7 @@ import {createTestWorkerContext} from "~/server/cloudflare/test_helpers/create_t
 import {
     createDatabaseTableMetadataForTest,
     updateDatabaseTableAccessPolicy,
+    updateDatabaseTableName,
 } from "~/server/databases/data/database_table_metadata.js";
 import {DatabaseGroupDurableObject} from "~/server/databases/database_durable_object.js";
 import {DatabaseServer} from "~/server/databases/database_server.js";
@@ -881,6 +882,7 @@ test("access revocation drops the subscription until the next read", async () =>
     });
     await deliverTableMetadataBroadcast(databaseGroupId, space.id, revoked.events, {
         tableId: table.tableId,
+        humanName: "Projects",
         accessPolicy: revokedAccessPolicy,
     });
     await settle();
@@ -895,6 +897,7 @@ test("access revocation drops the subscription until the next read", async () =>
     });
     await deliverTableMetadataBroadcast(databaseGroupId, space.id, restored.events, {
         tableId: table.tableId,
+        humanName: "Projects",
         accessPolicy: restoredAccessPolicy,
     });
     await settle();
@@ -913,6 +916,45 @@ test("access revocation drops the subscription until the next read", async () =>
         executeActionCallsBeforeRead: [],
         rowIds: [rowId],
         executeActionCalls: [{name: "readonlyRawSql", returnResult: true}],
+    });
+});
+
+test("a DynamoDB table rename propagates through the durable object to a client", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const table = await createTableOnServer(databaseGroupId);
+    const space = await getOrCreateTestSpaceForDatabaseGroupId(databaseGroupId);
+    const owner = await space.createSession();
+    const accessPolicy = {
+        ...databaseTableAccessPolicyForCreator(owner.account.id),
+        defaultGrant: {level: "Manage" as const, generation: 0},
+    };
+    await createDatabaseTableMetadataForTest(context.action(owner), {
+        databaseGroupId,
+        tableId: table.tableId,
+        spaceId: space.id,
+        name: "Projects",
+        accessPolicy,
+    });
+    context.takeDurableObjectBroadcasts();
+    const client = await createWarmClient(databaseGroupId, table);
+
+    const {events} = await updateDatabaseTableName(context.action(owner), {
+        tableId: table.tableId,
+        name: "Sales pipeline",
+    });
+    await deliverTableMetadataBroadcast(databaseGroupId, space.id, events, {
+        tableId: table.tableId,
+        humanName: "Sales pipeline",
+        accessPolicy,
+    });
+    await settle();
+
+    const schema = await executeAction(client, "getViewSchema", {
+        tableOrViewId: table.tableId,
+    });
+    expect({humanName: schema.humanName, reportedErrors: client.reportedErrors}).toEqual({
+        humanName: "Sales pipeline",
+        reportedErrors: [],
     });
 });
 
@@ -1527,9 +1569,11 @@ async function deliverTableMetadataBroadcast(
     events: ReadonlyArray<RynamoEventStub>,
     {
         tableId,
+        humanName,
         accessPolicy,
     }: {
         tableId: DatabaseTableId;
+        humanName: string;
         accessPolicy: LocalAccessPolicy | null;
     },
 ): Promise<void> {
@@ -1547,6 +1591,7 @@ async function deliverTableMetadataBroadcast(
                             [
                                 tableId,
                                 {
+                                    humanName,
                                     accessPolicy,
                                     revision: createPolicyRevisionForTest(),
                                 },

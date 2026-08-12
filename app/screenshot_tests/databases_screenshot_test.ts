@@ -128,6 +128,47 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
         .waitFor({state: "detached"});
     await runner.mouse.move(0, 0);
     await runner.screenshot("a9", "linked-record-editor-search");
+
+    // Close the linked-record editor before testing the database title interaction.
+    await runner.page.keyboard.press("Escape");
+    await runner.getByLabel("Search records").waitFor();
+    await runner.page.keyboard.press("Escape");
+    await runner.getByLabel("Search records").waitFor({state: "detached"});
+    await runner.getByRole("heading", {name: "Deals"}).waitFor();
+
+    // Database names use the same inline title editor as task collections. A double
+    // click selects the current name and shows the title-sized input focus ring.
+    await runner.getByRole("heading", {name: "Deals"}).dispatchEvent("pointerdown");
+    await runner.getByRole("heading", {name: "Deals"}).dispatchEvent("pointerdown");
+    await runner.getByLabel("Database name").and(runner.page.locator(":focus")).waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("b00", "database-name-editor");
+
+    // Replace the name. The input grows with its content and stays aligned with the
+    // share action.
+    await runner.getByLabel("Database name").fill("Sales pipeline");
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("b01", "database-name-editor-changed");
+
+    // Losing focus asks for confirmation. It does not save the DynamoDB name silently.
+    await runner.getByText("New row", {exact: true}).click();
+    await runner.getByText("Save database name").waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("b02", "database-name-editor-confirm-save");
+
+    // Discard returns to the original title. Then repeat the interaction and save with
+    // Enter to cover the direct keyboard flow and the propagated final state.
+    await runner.getByRole("button", {name: "Discard name"}).click();
+    await runner.getByRole("heading", {name: "Deals"}).waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("b03", "database-name-editor-discarded");
+
+    await runner.getByRole("heading", {name: "Deals"}).dispatchEvent("pointerdown");
+    await runner.getByLabel("Database name").fill("Sales pipeline");
+    await runner.getByLabel("Database name").press("Enter");
+    await runner.getByRole("heading", {name: "Sales pipeline"}).waitFor();
+    await runner.mouse.move(0, 0);
+    await runner.screenshot("b04", "database-name-renamed");
 }
 
 /**

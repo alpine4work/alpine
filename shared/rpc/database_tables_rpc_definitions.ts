@@ -41,6 +41,19 @@ export const updateDatabaseTableAccessPolicy = defineRpc({
     },
 });
 
+export const updateDatabaseTableName = defineRpc({
+    name: "updateDatabaseTableName",
+    // Name updates are applied as a full replacement.
+    isIdempotent: true,
+    input: {
+        tableId: Schema.id<DatabaseTableId>(),
+        name: LabelStringSchema,
+    },
+    output: {
+        events: Schema.array(DatabaseTableMetadataRealtimeEventSchema),
+    },
+});
+
 export const getDatabaseTableMetadataItem = defineRpc({
     name: "getDatabaseTableMetadataItem",
     isIdempotent: true,
