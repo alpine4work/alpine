@@ -2,7 +2,7 @@ import {isFocusVisible} from "@react-aria/interactions";
 import classNames from "classnames";
 import {CaretLeft} from "phosphor-react";
 import {type Ref, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
-import {useComboBox, useFilter, useListBox, useOption} from "react-aria";
+import {useComboBox, useListBox, useOption} from "react-aria";
 import {
     type ComboBoxState,
     type ComboBoxStateOptions,
@@ -12,7 +12,6 @@ import {
 } from "react-stately";
 import {DatabaseGridViewFieldCreationPageRef} from "~/client/web/databases/grid_view/database_grid_view_field_creation_page_ref.js";
 import {DatabaseGridViewNewField} from "~/client/web/databases/use_grid_view_fields.js";
-import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
@@ -22,19 +21,23 @@ import {textInputClassName} from "~/client/web/design/text_input.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
+import {useLazyLoadRpc} from "~/client/web/rpc/use_lazy_load_rpc.js";
+import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {type DatabaseActionOutput} from "~/shared/databases/database_actions.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
+import {searchDatabaseTables} from "~/shared/rpc/search_rpc_definitions.js";
 
-type DatabaseGridViewLinkedTable = DatabaseActionOutput<"listTables">["tables"][number];
+type DatabaseGridViewLinkedTable = {
+    readonly id: DatabaseTableId;
+    readonly humanName: string;
+};
 
 const emptyTables: ReadonlyArray<DatabaseGridViewLinkedTable> = [];
 
 /**
  * The second page of the field creation popover, shown after picking "Linked
- * record": a combobox over the group's tables (filter input + list) with the
+ * record": a search combobox for database tables (filter input + list) with the
  * cardinality toggle fixed at the bottom. The filter input is auto focused;
  * selecting a table commits the new relation field.
  */
@@ -51,29 +54,35 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
 }) {
     const [filterValue, setFilterValue] = useState("");
     const [cardinality, setCardinality] = useState<"One" | "Many">("Many");
+    const {space} = useSpaceContext();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
     const listContainerRef = useRef<HTMLDivElement>(null);
 
-    const tablesResult = useReactiveDatabaseAction({
-        name: "listTables",
-        input: useMemo(() => ({}), []),
-    });
-    const tables = tablesResult?.ok ? tablesResult.value.tables : null;
-
-    // The collection is controlled (we pass `items`), so filter it ourselves.
-    const filter = useFilter({sensitivity: "base"});
-    const filteredTables = useMemo(() => {
-        if (tables == null) return emptyTables;
-        return tables
-            .filter(table => filter.contains(table.humanName, filterValue.trim()))
-            .sort(
-                (table1, table2) =>
-                    defaultCompareStrings(table1.humanName, table2.humanName) ||
-                    defaultCompareStrings(table1.id, table2.id),
-            );
-    }, [tables, filterValue, filter]);
+    const trimmedFilterValue = filterValue.trim();
+    const [currentlyLoadingFilterValue, setCurrentlyLoadingFilterValue] =
+        useState(trimmedFilterValue);
+    const {isLoading: originalIsLoading, output: tablesOutput} = useLazyLoadRpc(
+        searchDatabaseTables,
+        {spaceId: space.id, queryText: currentlyLoadingFilterValue, limit: 30},
+        {keepPreviousData: true},
+    );
+    let isLoading = originalIsLoading;
+    // Do not start a new RPC while the prior search is in progress. This prevents a
+    // burst of concurrent requests while the account types.
+    if (!isLoading && currentlyLoadingFilterValue !== trimmedFilterValue) {
+        isLoading = true;
+        setCurrentlyLoadingFilterValue(trimmedFilterValue);
+    }
+    const filteredTables = useMemo(
+        () =>
+            tablesOutput?.results.map(table => ({
+                id: table.tableId,
+                humanName: table.humanName,
+            })) ?? emptyTables,
+        [tablesOutput],
+    );
 
     const commitTable = useEvent((table: DatabaseGridViewLinkedTable) => {
         // An empty name defaults to the linked table's name. The symmetric field on the
@@ -214,8 +223,7 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
                 listBoxRef={listBoxRef}
                 listBoxProps={listBoxProps}
                 comboBoxState={comboBoxState}
-                tablesLoadFailed={tablesResult != null && !tablesResult.ok}
-                isLoading={tablesResult == null}
+                isLoading={isLoading}
             />
             <Box borderTop="grey-5" padding="1.5">
                 <Switch
@@ -242,14 +250,12 @@ function DatabaseGridViewLinkedTableListBox({
     listBoxRef,
     listBoxProps,
     comboBoxState,
-    tablesLoadFailed,
     isLoading,
 }: {
     listContainerRef: Ref<HTMLDivElement>;
     listBoxRef: React.RefObject<HTMLUListElement | null>;
     listBoxProps: Parameters<typeof useListBox>[0];
     comboBoxState: ComboBoxState<DatabaseGridViewLinkedTable>;
-    tablesLoadFailed: boolean;
     isLoading: boolean;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -278,13 +284,9 @@ function DatabaseGridViewLinkedTableListBox({
                 })}
             >
                 <ul {...patchedListBoxProps} ref={listBoxRef}>
-                    {isLoading || tablesLoadFailed ? (
-                        <Box
-                            padding="1.5"
-                            fontSize="75"
-                            color={tablesLoadFailed ? "red-60" : "grey-50"}
-                        >
-                            {tablesLoadFailed ? "Could not load tables." : "Loading..."}
+                    {isLoading ? (
+                        <Box padding="1.5" fontSize="75" color="grey-50">
+                            Loading...
                         </Box>
                     ) : comboBoxState.collection.size === 0 ? (
                         <Box padding="1.5" fontSize="75" color="grey-50">

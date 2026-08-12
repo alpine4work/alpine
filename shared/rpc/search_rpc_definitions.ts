@@ -1,5 +1,10 @@
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {AccountId, SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {
+    AccountId,
+    DatabaseTableId,
+    SiteId,
+    SpaceId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
@@ -57,6 +62,24 @@ export const searchByAffinity = defineRpc({
         hasMoreFavoriteResults: Schema.boolean,
         favoriteResults: Schema.array(SearchFavoriteEntityResultModel.schema()),
         results: Schema.array(SearchAffinityEntityResultModel.schema()),
+    },
+});
+
+export const searchDatabaseTables = defineRpc({
+    name: "searchDatabaseTables",
+    isIdempotent: true,
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        queryText: Schema.string,
+        limit: Schema.integer,
+    },
+    output: {
+        results: Schema.array(
+            Schema.object({
+                tableId: Schema.id<DatabaseTableId>(),
+                humanName: Schema.string,
+            }),
+        ),
     },
 });
 
