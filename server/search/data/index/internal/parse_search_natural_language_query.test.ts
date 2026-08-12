@@ -2985,6 +2985,42 @@ describe("parses standalone entity type", () => {
         });
     });
 
+    test.each(["database", "databases", "table", "tables"])("%s", queryText => {
+        expect(parseSearchNaturalLanguageQuery(queryText, options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: [],
+            controlQueryTexts: [queryText],
+            filters: [createDefaultedFilter({entityTypes: ["DatabaseTable"]})],
+        });
+    });
+
+    test.each(["database table", "database tables"])("%s", queryText => {
+        expect(parseSearchNaturalLanguageQuery(queryText, options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: [],
+            controlQueryTexts: [queryText],
+            filters: [createDefaultedFilter({entityTypes: ["DatabaseTable"]})],
+        });
+    });
+
+    test("project database tables", () => {
+        expect(parseSearchNaturalLanguageQuery("project database tables", options)).toEqual({
+            isLowConfidence: true,
+            queryTexts: ["project"],
+            controlQueryTexts: ["database tables"],
+            filters: [createDefaultedFilter({entityTypes: ["DatabaseTable"]})],
+        });
+    });
+
+    test.each(["cable", "stable"])("'%s' is not fuzzy-matched as 'table'", queryText => {
+        expect(parseSearchNaturalLanguageQuery(queryText, options)).toEqual({
+            isLowConfidence: false,
+            queryTexts: [queryText],
+            controlQueryTexts: [],
+            filters: [],
+        });
+    });
+
     test("'side' is not fuzzy-matched as 'site'", () => {
         // "site" is special-cased to disable fuzzy matching since "side", "size", and
         // "sits" are all within one Levenshtein edit. So a query containing "side" should

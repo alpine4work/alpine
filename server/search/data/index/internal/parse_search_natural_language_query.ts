@@ -65,9 +65,9 @@ class SearchNaturalLanguageMatchTerm {
         );
 
         // Don't consider fuzzy matches for "chat". "Cat" and "hat" would be considered
-        // matches which are both common words in their own right. Same goes for "site" —
-        // "side", "size", "sits" are all within one edit and would cause false matches.
-        if (this._text === "chat" || this._text === "site") {
+        // matches which are both common words in their own right. The terms "site" and
+        // "table" also have common words within one edit that would cause false matches.
+        if (this._text === "chat" || this._text === "site" || this._text === "tabl") {
             return this._text === termText;
         }
 
@@ -99,6 +99,8 @@ const matchTermTexts = [
     "tasks",
     "collections",
     "sites",
+    "databases",
+    "tables",
     "created",
     "written",
     "wrote",
@@ -1366,8 +1368,30 @@ function advanceEntityTypeIfPossible(state: SearchNaturalLanguageParserState): {
         };
     }
 
-    // TODO(alex, #databases): Parse "database", "table", and related terms from a
-    // natural language query as `DatabaseTable`.
+    // Databases / Database tables
+    if (matchTerms.databases.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+
+        if (matchTerms.tables.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+        }
+
+        return {
+            entityTypes: ["DatabaseTable"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
+
+    // Tables (standalone)
+    if (matchTerms.tables.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+        return {
+            entityTypes: ["DatabaseTable"],
+            entityStartTermIndex,
+            entityEndTermIndex: state.termIndex - 1,
+        };
+    }
 
     // Messages or comments (standalone - could be chat or document)
     if (

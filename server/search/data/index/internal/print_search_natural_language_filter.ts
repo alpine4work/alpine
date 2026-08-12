@@ -144,7 +144,6 @@ function printEntityTypes(entityTypes: ReadonlyArray<SearchDynamicEntityIdObject
             case "DocumentComment":
                 return "document comments";
             case "DatabaseTable":
-                // TODO(alex, #databases): Update this value after we settle on database naming.
                 return "databases";
             case "Post":
                 return "posts";
