@@ -181,15 +181,30 @@ class DatabaseGroupDurableObject {
         const {events, resolvedAccessPolicyByTableId} =
             DatabaseTableMetadataBroadcastRealtimeEventsSchema.deserialize(await request.json());
 
-        this.server.transactionSync(() => {
-            for (const [tableId, replica] of resolvedAccessPolicyByTableId) {
-                this.server.setDatabaseTableAccessPolicy(
+        for (const [tableId, replica] of resolvedAccessPolicyByTableId) {
+            if (replica.accessPolicy === null) continue;
+            const actionResult = this.server.executeAction(context, {
+                name: "syncTableMetadata",
+                input: {
                     tableId,
-                    replica.accessPolicy,
-                    replica.revision,
-                );
+                    humanName: replica.humanName,
+                    accessPolicy: replica.accessPolicy,
+                    policyRevision: replica.revision,
+                },
+            });
+            const pageDiffs = buildDatabasePageDiffs(
+                actionResult.changedPages,
+                actionResult.readPages,
+                actionResult.snapshotVersion,
+            );
+            if (pageDiffs.size > 0) {
+                this.webSocketServer.sendEventToAll(this.processContext, {
+                    type: "PagesChanged",
+                    pageDiffs,
+                    mutationId: generateId<DatabaseMutationId>(),
+                });
             }
-        });
+        }
 
         this.webSocketServer.sendEventToAll(context, {
             type: "TableMetadataChanged",

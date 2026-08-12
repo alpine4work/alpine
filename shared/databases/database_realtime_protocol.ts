@@ -63,6 +63,7 @@ export const DatabaseTableMetadataBroadcastRealtimeEventsSchema = Schema.object(
     resolvedAccessPolicyByTableId: Schema.map(
         Schema.id<DatabaseTableId>(),
         Schema.object({
+            humanName: Schema.string,
             accessPolicy: LocalAccessPolicySchema.nullable(),
             revision: DatabaseTableAccessPolicyRevisionSchema,
         }),

@@ -4,6 +4,7 @@ import {
     getDatabaseTableMetadataItem,
     getDatabaseTableMetadataRealtimeEvent,
     updateDatabaseTableAccessPolicy,
+    updateDatabaseTableName,
 } from "~/server/databases/data/database_table_metadata.js";
 import {getDatabaseTableLocation} from "~/server/databases/data/get_database_table_location.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -115,6 +116,67 @@ test("updating a database table access policy requires Manage access", async () 
                 ]),
             },
         }),
+    ).rejects.toThrow(`Account does not have Manage access to database table ${tableId}`);
+});
+
+test("updating a database table name writes the name to DynamoDB", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const space = await TestSpace.create(context, {databaseGroupId});
+    const owner = await space.createSession();
+    const tableId = generateId<DatabaseTableId>();
+    const accessPolicy: LocalAccessPolicy = {
+        type: "Local",
+        accountGrantById: new Map([[owner.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+    await createDatabaseTableMetadataForTest(space.systemAction(), {
+        databaseGroupId,
+        tableId,
+        spaceId: space.id,
+        name: "Projects",
+        accessPolicy,
+    });
+
+    const result = await updateDatabaseTableName(owner.action(), {
+        tableId,
+        name: "Sales pipeline",
+    });
+
+    expect({
+        name: (
+            await getDatabaseTableMetadataItem(owner.action(), tableId, {
+                consistency: "Strong",
+            })
+        ).model.name,
+        eventName: result.events[0]?.type === "PutItem" ? result.events[0].item.model.name : null,
+    }).toEqual({name: "Sales pipeline", eventName: "Sales pipeline"});
+});
+
+test("updating a database table name requires Manage access", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const space = await TestSpace.create(context, {databaseGroupId});
+    const [owner, editor] = await space.createSessions(2);
+    const tableId = generateId<DatabaseTableId>();
+    const accessPolicy: LocalAccessPolicy = {
+        type: "Local",
+        accountGrantById: new Map([
+            [owner.account.id, {level: "Manage", generation: 0}],
+            [editor.account.id, {level: "Edit"}],
+        ]),
+        defaultGrant: null,
+        urlGrant: null,
+    };
+    await createDatabaseTableMetadataForTest(space.systemAction(), {
+        databaseGroupId,
+        tableId,
+        spaceId: space.id,
+        name: "Projects",
+        accessPolicy,
+    });
+
+    await expect(
+        updateDatabaseTableName(editor.action(), {tableId, name: "Sales pipeline"}),
     ).rejects.toThrow(`Account does not have Manage access to database table ${tableId}`);
 });
 

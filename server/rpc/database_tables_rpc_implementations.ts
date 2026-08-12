@@ -4,6 +4,7 @@ import {
     getDatabaseTableMetadataItem,
     getDatabaseTableMetadataRealtimeEvent,
     updateDatabaseTableAccessPolicy,
+    updateDatabaseTableName,
 } from "~/server/databases/data/database_table_metadata.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
@@ -21,6 +22,12 @@ export default implementRpcs(definitions, {
         visibility: ["AppClient"],
         async execute(context, input) {
             return await updateDatabaseTableAccessPolicy(context, input);
+        },
+    },
+    updateDatabaseTableName: {
+        visibility: ["AppClient"],
+        async execute(context, input) {
+            return await updateDatabaseTableName(context, input);
         },
     },
     getDatabaseTableMetadataItem: {

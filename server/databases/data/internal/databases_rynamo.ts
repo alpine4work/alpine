@@ -71,6 +71,7 @@ export const DatabasesRynamo = RynamoTableSchema.new({
                 resolvedAccessPolicyByTableId: Map<
                     DatabaseTableId,
                     {
+                        humanName: string;
                         accessPolicy: LocalAccessPolicy | null;
                         revision: DatabaseTableAccessPolicyRevision;
                     }
@@ -88,6 +89,8 @@ export const DatabasesRynamo = RynamoTableSchema.new({
                     "Database table metadata deletion is not supported",
                 );
                 const {databaseGroupId, accessPolicy, version} = event.item.model;
+                const humanName = event.item.model.name;
+                assert(humanName !== null, "Database table metadata deletion is not supported");
                 const resolvedAccessPolicy =
                     await dangerouslyResolveDatabaseTableAccessPolicyReplica(
                         context,
@@ -100,6 +103,7 @@ export const DatabasesRynamo = RynamoTableSchema.new({
                     databaseGroupId,
                     eventStub,
                     resolvedAccessPolicy,
+                    humanName,
                     tableId: itemKey.tableId,
                 };
             }),
@@ -107,7 +111,7 @@ export const DatabasesRynamo = RynamoTableSchema.new({
 
         for (const resolvedBroadcastEvent of resolvedBroadcastEvents) {
             if (resolvedBroadcastEvent === null) continue;
-            const {databaseGroupId, eventStub, resolvedAccessPolicy, tableId} =
+            const {databaseGroupId, eventStub, resolvedAccessPolicy, humanName, tableId} =
                 resolvedBroadcastEvent;
             const broadcast = getOrSetDefaultMapValue(
                 broadcastsByDatabaseGroupId,
@@ -115,7 +119,10 @@ export const DatabasesRynamo = RynamoTableSchema.new({
                 () => ({events: [], resolvedAccessPolicyByTableId: new Map()}),
             );
             broadcast.events.push(eventStub);
-            broadcast.resolvedAccessPolicyByTableId.set(tableId, resolvedAccessPolicy);
+            broadcast.resolvedAccessPolicyByTableId.set(tableId, {
+                humanName,
+                ...resolvedAccessPolicy,
+            });
         }
 
         await runAllPromises(
