@@ -1,8 +1,8 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import classNames from "classnames";
 import {CaretLeft} from "phosphor-react";
-import {type Ref, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
-import {useComboBox, useFilter, useListBox, useOption} from "react-aria";
+import {type Ref, useEffect, useImperativeHandle, useRef, useState} from "react";
+import {useComboBox, useListBox, useOption} from "react-aria";
 import {
     type ComboBoxState,
     type ComboBoxStateOptions,
@@ -11,8 +11,11 @@ import {
     useComboBoxState,
 } from "react-stately";
 import {DatabaseGridViewFieldCreationPageRef} from "~/client/web/databases/grid_view/database_grid_view_field_creation_page_ref.js";
+import {
+    type DatabaseTableSearchResult,
+    useDatabaseTableSearchState,
+} from "~/client/web/databases/grid_view/use_database_table_search_state.js";
 import {DatabaseGridViewNewField} from "~/client/web/databases/use_grid_view_fields.js";
-import {useReactiveDatabaseAction} from "~/client/web/databases/use_reactive_database_action.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
@@ -23,18 +26,12 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/web/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/web/helpers/refs/use_merged_refs.js";
 import {sprinkles} from "~/client/web/styles/styles.js";
-import {type DatabaseActionOutput} from "~/shared/databases/database_actions.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 
-type DatabaseGridViewLinkedTable = DatabaseActionOutput<"listTables">["tables"][number];
-
-const emptyTables: ReadonlyArray<DatabaseGridViewLinkedTable> = [];
-
 /**
  * The second page of the field creation popover, shown after picking "Linked
- * record": a combobox over the group's tables (filter input + list) with the
+ * record": a search combobox for database tables (filter input + list) with the
  * cardinality toggle fixed at the bottom. The filter input is auto focused;
  * selecting a table commits the new relation field.
  */
@@ -51,31 +48,13 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
 }) {
     const [filterValue, setFilterValue] = useState("");
     const [cardinality, setCardinality] = useState<"One" | "Many">("Many");
+    const {isLoading, rankedTables} = useDatabaseTableSearchState(filterValue);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
     const listContainerRef = useRef<HTMLDivElement>(null);
 
-    const tablesResult = useReactiveDatabaseAction({
-        name: "listTables",
-        input: useMemo(() => ({}), []),
-    });
-    const tables = tablesResult?.ok ? tablesResult.value.tables : null;
-
-    // The collection is controlled (we pass `items`), so filter it ourselves.
-    const filter = useFilter({sensitivity: "base"});
-    const filteredTables = useMemo(() => {
-        if (tables == null) return emptyTables;
-        return tables
-            .filter(table => filter.contains(table.humanName, filterValue.trim()))
-            .sort(
-                (table1, table2) =>
-                    defaultCompareStrings(table1.humanName, table2.humanName) ||
-                    defaultCompareStrings(table1.id, table2.id),
-            );
-    }, [tables, filterValue, filter]);
-
-    const commitTable = useEvent((table: DatabaseGridViewLinkedTable) => {
+    const commitTable = useEvent((table: DatabaseTableSearchResult) => {
         // An empty name defaults to the linked table's name. The symmetric field on the
         // target side is created by the server, so this side is always the source.
         onCommit({
@@ -90,8 +69,8 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
         });
     });
 
-    const comboBoxProps: ComboBoxStateOptions<DatabaseGridViewLinkedTable> = {
-        items: filteredTables,
+    const comboBoxProps: ComboBoxStateOptions<DatabaseTableSearchResult> = {
+        items: rankedTables,
         children: renderDatabaseGridViewLinkedTableItem,
         inputValue: filterValue,
         onInputChange: setFilterValue,
@@ -102,7 +81,7 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
         selectedKey: null,
         onSelectionChange: key => {
             if (typeof key !== "string") return;
-            const table = filteredTables.find(table => table.id === key);
+            const table = rankedTables.find(table => table.id === key);
             if (table != null) commitTable(table);
         },
     };
@@ -148,7 +127,7 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
     }, [comboBoxState, focusedKey, comboBoxState.collection]);
 
     const commitFocusedTable = useEvent(() => {
-        const table = filteredTables.find(table => table.id === focusedKey) ?? filteredTables[0];
+        const table = rankedTables.find(table => table.id === focusedKey) ?? rankedTables[0];
         if (table != null) commitTable(table);
     });
 
@@ -214,8 +193,7 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
                 listBoxRef={listBoxRef}
                 listBoxProps={listBoxProps}
                 comboBoxState={comboBoxState}
-                tablesLoadFailed={tablesResult != null && !tablesResult.ok}
-                isLoading={tablesResult == null}
+                isLoading={isLoading}
             />
             <Box borderTop="grey-5" padding="1.5">
                 <Switch
@@ -229,7 +207,7 @@ export function DatabaseGridViewFieldCreationLinkedTablePage({
     );
 }
 
-function renderDatabaseGridViewLinkedTableItem(table: DatabaseGridViewLinkedTable) {
+function renderDatabaseGridViewLinkedTableItem(table: DatabaseTableSearchResult) {
     return (
         <Item key={table.id} textValue={table.humanName}>
             <Box fontStyle="truncate">{table.humanName}</Box>
@@ -242,14 +220,12 @@ function DatabaseGridViewLinkedTableListBox({
     listBoxRef,
     listBoxProps,
     comboBoxState,
-    tablesLoadFailed,
     isLoading,
 }: {
     listContainerRef: Ref<HTMLDivElement>;
     listBoxRef: React.RefObject<HTMLUListElement | null>;
     listBoxProps: Parameters<typeof useListBox>[0];
-    comboBoxState: ComboBoxState<DatabaseGridViewLinkedTable>;
-    tablesLoadFailed: boolean;
+    comboBoxState: ComboBoxState<DatabaseTableSearchResult>;
     isLoading: boolean;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -278,13 +254,9 @@ function DatabaseGridViewLinkedTableListBox({
                 })}
             >
                 <ul {...patchedListBoxProps} ref={listBoxRef}>
-                    {isLoading || tablesLoadFailed ? (
-                        <Box
-                            padding="1.5"
-                            fontSize="75"
-                            color={tablesLoadFailed ? "red-60" : "grey-50"}
-                        >
-                            {tablesLoadFailed ? "Could not load tables." : "Loading..."}
+                    {isLoading ? (
+                        <Box padding="1.5" fontSize="75" color="grey-50">
+                            Loading...
                         </Box>
                     ) : comboBoxState.collection.size === 0 ? (
                         <Box padding="1.5" fontSize="75" color="grey-50">
@@ -309,8 +281,8 @@ function DatabaseGridViewLinkedTableOption({
     item,
     comboBoxState,
 }: {
-    item: Node<DatabaseGridViewLinkedTable>;
-    comboBoxState: ComboBoxState<DatabaseGridViewLinkedTable>;
+    item: Node<DatabaseTableSearchResult>;
+    comboBoxState: ComboBoxState<DatabaseTableSearchResult>;
 }) {
     const optionRef = useRef<HTMLLIElement>(null);
     const {optionProps, isFocused, isPressed, isHovered} = useOption(

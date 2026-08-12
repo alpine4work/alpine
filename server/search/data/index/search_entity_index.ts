@@ -3998,6 +3998,71 @@ export async function searchByAffinity(
 }
 
 /**
+ * Search database tables by title. An empty query returns indexed tables without a
+ * text filter. The client combines these results with `searchByAffinity()`.
+ */
+export async function searchDatabaseTablesByKeywords(
+    context: ServerSessionActionContext,
+    {spaceId, queryText, limit}: {spaceId: SpaceId; queryText: string; limit: number},
+): Promise<
+    Array<{readonly tableId: DatabaseTableId; readonly humanName: string; readonly score: number}>
+> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const trimmedQueryText = queryText.trim();
+    assertSearchQueryTextLength(trimmedQueryText);
+    const accessPolicyQueryClause = await getOpensearchActorAccessQueryClause(
+        context,
+        spaceId,
+        "Keyword",
+    );
+
+    const textQueryClauses =
+        trimmedQueryText.length === 0
+            ? []
+            : [
+                  {
+                      bool: {
+                          minimum_should_match: 1,
+                          should: getManualMatchBoolPrefixOpensearchShouldQueryClauses({
+                              field: "title",
+                              query: trimmedQueryText,
+                              fuzziness: "AUTO",
+                              prefix_length: 1,
+                          }),
+                      },
+                  } as const,
+              ];
+    const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
+        size: limit,
+        storedFields: ["title"],
+        sort: ["_score", "_doc"],
+        query: {
+            bool: {
+                must: textQueryClauses,
+                filter: [
+                    {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+                    {term: {type: new OpensearchQueryValue("DatabaseTable")}},
+                    accessPolicyQueryClause,
+                ],
+            },
+        },
+    });
+
+    const results = hits.map(hit => {
+        const entityId = fromSearchEntityIdForKeywordIndex(hit.id);
+        assert(entityId.startsWith("DatabaseTable:"));
+        spotCheckSearchEntityAccess(context, "searchDatabaseTablesByKeywords", spaceId, entityId);
+        return {
+            tableId: entityId.slice("DatabaseTable:".length) as DatabaseTableId,
+            humanName: assertExists(hit.fields.title?.[0]),
+            score: hit.score,
+        };
+    });
+    return results;
+}
+
+/**
  * Search for entities we'll turn into mentions. Mention search only matches the
  * title of entities and only returns a subset of "mentionable" entities.
  */

@@ -5,6 +5,7 @@ import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {createChatForTest} from "~/server/chat/data/create_chat_for_test.js";
 import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
+import {createDatabaseTableMetadataForTest} from "~/server/databases/data/database_table_metadata.js";
 import {documentsInjection} from "~/server/documents/data/documents_injection.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {captureAfterTestEndsCallbacks} from "~/server/dynamo/test_helpers/after_test_ends.js";
@@ -23,12 +24,14 @@ import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/
 import {
     getSearchEntityIfPossible,
     getSearchEntityIndexesForTest,
+    indexDatabaseTableSearchEntity,
     processIndexSearchEntityDependentsJob,
     processIndexSearchEntityEmbeddingChunksJob,
     processIndexSearchEntityJob,
     searchByAffinity,
     searchByKeywords,
     searchBySemantics,
+    searchDatabaseTablesByKeywords,
     searchMentionByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {searchInjection} from "~/server/search/data/index/search_injection.js";
@@ -54,6 +57,7 @@ import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
@@ -71,7 +75,12 @@ import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
+import {
+    ContentEditorClientId,
+    DatabaseGroupId,
+    DatabaseTableId,
+    DocumentId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {
@@ -3055,6 +3064,54 @@ test("highlighting bullet points with bold formatting works well", async () => {
             parsedFilter: null,
         }),
     ]);
+});
+
+test("searches database tables by title", async () => {
+    const databaseGroupId = generateId<DatabaseGroupId>();
+    const space = await TestSpace.create(context, {databaseGroupId});
+    const session = await space.createSession();
+    const accessPolicy = databaseTableAccessPolicyForCreator(session.account.id);
+    const tables = [
+        {tableId: generateId<DatabaseTableId>(), humanName: "Contacts"},
+        {tableId: generateId<DatabaseTableId>(), humanName: "Roadmap Alpha"},
+        {tableId: generateId<DatabaseTableId>(), humanName: "Roadmap Beta"},
+    ];
+    for (const table of tables) {
+        await createDatabaseTableMetadataForTest(space.systemAction(), {
+            databaseGroupId,
+            tableId: table.tableId,
+            spaceId: space.id,
+            name: table.humanName,
+            accessPolicy,
+        });
+        await indexDatabaseTableSearchEntity(session.action(), {
+            spaceId: space.id,
+            tableId: table.tableId,
+            name: table.humanName,
+            accessPolicy,
+            isDeleted: false,
+        });
+    }
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const [initialResults, queryResults] = await runAllPromises([
+        searchDatabaseTablesByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "",
+            limit: 30,
+        }),
+        searchDatabaseTablesByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "Roadmap",
+            limit: 30,
+        }),
+    ]);
+
+    expect(initialResults.map(({tableId, humanName}) => ({tableId, humanName}))).toEqual(tables);
+    expect(queryResults.map(({tableId, humanName}) => ({tableId, humanName}))).toEqual(
+        tables.slice(1),
+    );
+    expect(queryResults.every(result => result.score > 0)).toBe(true);
 });
 
 test("search by affinity can include my tasks", async () => {
