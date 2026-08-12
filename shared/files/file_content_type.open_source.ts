@@ -620,8 +620,15 @@ export function isFileContentType(contentType: string): contentType is FileConte
     return fileContentTypes.has(contentType as any);
 }
 
-function normalizeParsedContentType(contentType: string): MIMEType {
-    const parsedContentType = new MIMEType(contentType);
+function normalizeParsedContentTypeIfPossible(contentType: string): MIMEType | null {
+    let parsedContentType: MIMEType;
+    try {
+        parsedContentType = new MIMEType(contentType);
+    } catch {
+        // If we failed to parse the content type, return null. It must be an invalid
+        // content type.
+        return null;
+    }
 
     // `charset` is case insensitive so normalize it to lower case. Source:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type#directives
@@ -637,8 +644,8 @@ function normalizeParsedContentType(contentType: string): MIMEType {
  * Normalize content type to a normalized representation. Case insensitive parts
  * are lowercased and unnecessary spacing is removed.
  */
-export function normalizeContentType(contentType: string): string {
-    return normalizeParsedContentType(contentType).toString();
+export function normalizeContentTypeIfPossible(contentType: string): string | undefined {
+    return normalizeParsedContentTypeIfPossible(contentType)?.toString();
 }
 
 /**
@@ -648,7 +655,8 @@ export function normalizeContentType(contentType: string): string {
  * content types to their canonical representation.
  */
 export function canonicalizeFileContentTypeIfExists(contentType: string): FileContentType | null {
-    const parsedContentType = normalizeParsedContentType(contentType);
+    const parsedContentType = normalizeParsedContentTypeIfPossible(contentType);
+    if (parsedContentType === null) return null;
 
     // Try to find the canonical `FileContentType` using parameters.
     //
