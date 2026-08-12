@@ -129,7 +129,15 @@ async function handleQueue(
                 `Handle: ${handleSpanName}`,
                 message.body.tracerContext,
                 async span => {
-                    span.addData({context: {handler: handleSpanName}});
+                    span.addData({
+                        context: {handler: handleSpanName},
+                        cloudflare: {
+                            queues: {
+                                messageId: message.id,
+                                queueDurationMs: span.clock.now() - message.body.sendTime,
+                            },
+                        },
+                    });
 
                     await runClaudeAgentWebhookAfterQueue(span, message.body.requestBody, env);
                 },

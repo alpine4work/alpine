@@ -1532,6 +1532,10 @@ Resources:
                           Type: string
                         - Name: cloudflare__containers__id
                           Type: string
+                        - Name: cloudflare__queues__message_id
+                          Type: string
+                        - Name: cloudflare__queues__queue_duration_ms
+                          Type: double
                         - Name: github__compare_url
                           Type: string
                         - Name: github__workflow__run__id

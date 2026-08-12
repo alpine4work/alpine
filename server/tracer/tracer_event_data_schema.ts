@@ -462,6 +462,10 @@ const TracerEventDataSchema = {
         containers: {
             id: Schema.string,
         },
+        queues: {
+            messageId: Schema.string,
+            queueDurationMs: Schema.float,
+        },
     },
     github: {
         compareUrl: Schema.string,

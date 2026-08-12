@@ -91,9 +91,10 @@ export async function runClaudeAgentWebhookBeforeQueue(
 
     // We need to execute the rest of our Claude agent webhook in the background via a
     // Cloudflare queue. Because it can take more than 10s (the Alpine webhook
-    // deadline) to initialize the sandbox and acknowledge the
+    // deadline) to initialize the sandbox and acknowledge the event.
     await env.Queue.send({
         type: "ClaudeAgentWebhook",
+        sendTime: span.clock.now(),
         requestBody: {...requestBody, event: requestBody.event},
         tracerContext: span.getPropagationContext(),
     });

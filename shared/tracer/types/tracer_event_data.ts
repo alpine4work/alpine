@@ -1432,6 +1432,15 @@ export type TracerEventData = {
             /** The ID of the Cloudflare container. */
             readonly id?: string;
         };
+
+        /** Information related to Cloudflare queues. */
+        readonly queues?: {
+            /** The message ID of the event in the queue. */
+            readonly messageId?: string;
+
+            /** How much time did the event spend in the queue? */
+            readonly queueDurationMs?: number;
+        };
     };
 
     /**

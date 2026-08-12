@@ -21,6 +21,7 @@ export type AgentV2ServiceEnv = {
 
 export type AgentV2ServiceQueueMessage = {
     readonly type: "ClaudeAgentWebhook";
+    readonly sendTime: number;
     readonly requestBody: Replace<
         ApiBotWebhookRequestBody,
         {event: Extract<ApiBotWebhookEvent, {type: "CreatedMessage" | "CreatedPost"}>}

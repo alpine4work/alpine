@@ -33,7 +33,8 @@ export class ClaudeAgentSandbox extends Sandbox<AgentV2ServiceEnv> {
         // in production when the durable object code deploys so the durable object
         // JavaScript class resets but the underlying Docker container is still running.
         // But I (@calebmer) am not 100% sure if this case will ever really happen.
-        if (await this.exists("/workspace/bucket")) return {branch: "BucketAlreadyMounted"};
+        if ((await this.exists("/workspace/bucket")).exists)
+            return {branch: "BucketAlreadyMounted"};
 
         // `getSandbox()` uses `idFromName()`, so this is the original sandbox ID.
         const sandboxId = assertExists(this.ctx.id.name);
