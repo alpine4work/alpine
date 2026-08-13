@@ -6,13 +6,13 @@ ts_project(
     # extra time to run plus a larger CPU count. Also, we run these test with
     # `app/integration_tests` because they use the integration test environment.
     all_tests = {
+        "data": [
+            "//admin/environment/test/integration:integration_data_without_agent_service",
+            "//server/agents/cli",
+        ],
         "size": "large",
         "tags": ["cpu:4", "integration_test"],
     },
-    data = [
-        "//admin/environment/test/integration:integration_data_without_agent_service",
-        "//server/agents/cli",
-    ],
     deps = [
         "//:node_modules/@types/node",
         "//admin/environment/test/integration",
