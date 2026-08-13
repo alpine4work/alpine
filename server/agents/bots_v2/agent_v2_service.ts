@@ -1,21 +1,20 @@
+import {AgentV2ServiceEnv} from "~/server/agents/bots_v2/internal/agent_v2_service_env.js";
 import {
-    AgentV2ServiceEnv,
-    AgentV2ServiceQueueMessage,
-} from "~/server/agents/bots_v2/internal/agent_v2_service_env.js";
-import {
-    runClaudeAgentWebhookAfterQueue,
-    runClaudeAgentWebhookBeforeQueue,
+    runClaudeAgentWebhookFast,
+    runClaudeAgentWebhookSlow,
 } from "~/server/agents/bots_v2/internal/run_claude_agent_webhook.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
-type AgentV2ServiceRoute = {type: "ClaudeWebhook"} | {type: "NotFound"};
+type AgentV2ServiceRoute =
+    | {type: "ClaudeWebhook"}
+    | {type: "ClaudeWebhookSlow"}
+    | {type: "NotFound"};
 
 function createTracer(env: AgentV2ServiceEnv, executionContext: ExecutionContext) {
     const streamName = env.KINESIS_TRACER_STREAM_NAME;
@@ -73,6 +72,11 @@ async function handleFetch(
             route = {type: "ClaudeWebhook"};
             break;
         }
+        case "/claude/webhook-slow": {
+            routeString = "/claude/webhook-slow";
+            route = {type: "ClaudeWebhookSlow"};
+            break;
+        }
         default: {
             routeString = "/*";
             route = {type: "NotFound"};
@@ -93,7 +97,25 @@ async function handleFetch(
                 }
                 case "ClaudeWebhook": {
                     try {
-                        return await runClaudeAgentWebhookBeforeQueue(span, request, env);
+                        return await runClaudeAgentWebhookFast(
+                            span,
+                            request,
+                            env,
+                            executionContext,
+                        );
+                    } catch (error) {
+                        if (process.env.NODE_ENV !== "production") {
+                            // In dev, log to the console if the webhook fails to make debugging easier.
+                            //
+                            // eslint-disable-next-line no-console
+                            console.error("Claude agent webhook failed:", error);
+                        }
+                        throw error;
+                    }
+                }
+                case "ClaudeWebhookSlow": {
+                    try {
+                        return await runClaudeAgentWebhookSlow(span, request, env);
                     } catch (error) {
                         if (process.env.NODE_ENV !== "production") {
                             // In dev, log to the console if the webhook fails to make debugging easier.
@@ -114,43 +136,10 @@ async function handleFetch(
     });
 }
 
-async function handleQueue(
-    batch: MessageBatch<AgentV2ServiceQueueMessage>,
-    env: AgentV2ServiceEnv,
-    executionContext: ExecutionContext,
-) {
-    const tracer = createTracer(env, executionContext);
-
-    await runAllPromises(
-        batch.messages.map(async message => {
-            const handleSpanName = "Process Claude agent webhook";
-
-            await tracer.withSpanFromPropagationContext(
-                `Handle: ${handleSpanName}`,
-                message.body.tracerContext,
-                async span => {
-                    span.addData({
-                        context: {handler: handleSpanName},
-                        cloudflare: {
-                            queues: {
-                                messageId: message.id,
-                                queueDurationMs: span.clock.now() - message.body.sendTime,
-                            },
-                        },
-                    });
-
-                    await runClaudeAgentWebhookAfterQueue(span, message.body.requestBody, env);
-                },
-            );
-        }),
-    );
-}
-
 // eslint-disable-next-line import/no-default-export
 export default {
     fetch: handleFetch,
-    queue: handleQueue,
-} satisfies ExportedHandler<AgentV2ServiceEnv, AgentV2ServiceQueueMessage>;
+} satisfies ExportedHandler<AgentV2ServiceEnv>;
 
 // `ContainerProxy` is required for `sandbox.mountBucket()` according to:
 // https://developers.cloudflare.com/sandbox/guides/mount-buckets/#production-prerequisites-for-r2-binding-mounts

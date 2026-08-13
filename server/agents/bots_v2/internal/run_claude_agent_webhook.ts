@@ -1,4 +1,4 @@
-import {getSandbox} from "@cloudflare/sandbox";
+import {Process, getSandbox} from "@cloudflare/sandbox";
 import {
     completeApiMessageStream,
     createApiClient,
@@ -7,10 +7,7 @@ import {
     pingApiMessageStream,
 } from "~/server/agents/api/api_client.open_source.js";
 import {shouldAgentRespondToApiBotWebhookRequest} from "~/server/agents/api/should_agent_respond_to_bot_webhook_request.js";
-import {
-    AgentV2ServiceEnv,
-    AgentV2ServiceQueueMessage,
-} from "~/server/agents/bots_v2/internal/agent_v2_service_env.js";
+import {AgentV2ServiceEnv} from "~/server/agents/bots_v2/internal/agent_v2_service_env.js";
 import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {messageStreamPingIntervalMs} from "~/shared/agents/message_stream_ping_interval_ms.js";
 import {printErrorDisplayMessageToApiContent} from "~/shared/api/content/print_error_display_message_to_api_content.js";
@@ -23,10 +20,12 @@ import {
     verifyBotWebhookRequestSignature,
 } from "~/shared/api/specification/sign_bot_webhook_request.js";
 import {
+    ApiBotWebhookEvent,
     ApiBotWebhookRequestBody,
     ApiContent,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
+import {InternalError} from "~/shared/error/error.open_source.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
@@ -34,12 +33,15 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
-export async function runClaudeAgentWebhookBeforeQueue(
+export async function runClaudeAgentWebhookFast(
     span: TracerSpan,
     request: Request,
     env: AgentV2ServiceEnv,
+    executionContext: ExecutionContext,
 ): Promise<Response> {
     if (request.method !== "POST") {
         return new Response("405 Method Not Allowed", {
@@ -49,12 +51,13 @@ export async function runClaudeAgentWebhookBeforeQueue(
     }
 
     const requestBodyString = await request.text();
+    const signature = request.headers.get(botWebhookSignatureHeader);
 
     // A secret is required in production and optional in development.
     if (process.env.NODE_ENV === "production" || typeof env.CLAUDE_WEBHOOK_SECRET === "string") {
         await verifyBotWebhookRequestSignature({
             requestBodyString,
-            signature: request.headers.get(botWebhookSignatureHeader),
+            signature,
             secret: assertExists(env.CLAUDE_WEBHOOK_SECRET),
         });
     }
@@ -89,24 +92,65 @@ export async function runClaudeAgentWebhookBeforeQueue(
 
     span.addData({common: {branch: "Responding"}});
 
-    // We need to execute the rest of our Claude agent webhook in the background via a
-    // Cloudflare queue. Because it can take more than 10s (the Alpine webhook
-    // deadline) to initialize the sandbox and acknowledge the event.
-    await env.Queue.send({
-        type: "ClaudeAgentWebhook",
-        sendTime: span.clock.now(),
-        requestBody: {...requestBody, event: requestBody.event},
-        tracerContext: span.getPropagationContext(),
-    });
+    // Reinvoke the worker but with a new path that handles the slow sandbox
+    // initialization. We respond with a 200 to Alpine as long as we get the headers
+    // back for this request.
+    executionContext.waitUntil(
+        fetchWithTracer(
+            span,
+            new URL("/claude/webhook-slow", request.url),
+            {
+                serviceName: "AgentV2Service",
+                route: "/claude/webhook-slow",
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    ...(signature !== null ? {[botWebhookSignatureHeader]: signature} : {}),
+                },
+                body: JSON.stringify(requestBody),
+            },
+            async response => {
+                if (!response.ok) {
+                    throw new InternalError(
+                        `Slow webhook failed with HTTP status code ${response.status}`,
+                    );
+                }
+            },
+        ),
+    );
 
     return createSimpleOkResponse();
 }
 
-export async function runClaudeAgentWebhookAfterQueue(
+export async function runClaudeAgentWebhookSlow(
     span: TracerSpan,
-    requestBody: AgentV2ServiceQueueMessage["requestBody"],
+    request: Request,
     env: AgentV2ServiceEnv,
-): Promise<void> {
+): Promise<Response> {
+    if (request.method !== "POST") {
+        return new Response("405 Method Not Allowed", {
+            status: 405,
+            headers: {"content-type": "text/plain"},
+        });
+    }
+
+    const requestBodyString = await request.text();
+    const signature = request.headers.get(botWebhookSignatureHeader);
+
+    // A secret is required in production and optional in development.
+    if (process.env.NODE_ENV === "production" || typeof env.CLAUDE_WEBHOOK_SECRET === "string") {
+        await verifyBotWebhookRequestSignature({
+            requestBodyString,
+            signature,
+            secret: assertExists(env.CLAUDE_WEBHOOK_SECRET),
+        });
+    }
+
+    const requestBody: Replace<
+        ApiBotWebhookRequestBody,
+        {event: Extract<ApiBotWebhookEvent, {type: "CreatedMessage" | "CreatedPost"}>}
+    > = JSON.parse(requestBodyString);
+
     const {room} = requestBody.event;
     const sandboxId = `${requestBody.botAccount.id}/${convertApiReferenceKeyToLowercase(printApiReferenceKey(room))}`;
 
@@ -158,6 +202,7 @@ export async function runClaudeAgentWebhookAfterQueue(
         })(),
     ]);
 
+    let sandboxProcess: Process | null = null;
     let errorContent: ApiContent | null = null;
 
     try {
@@ -179,7 +224,7 @@ export async function runClaudeAgentWebhookAfterQueue(
             ),
         );
 
-        const sandboxProcess = await span.withSpan("Start sandbox process", async () => {
+        sandboxProcess = await span.withSpan("Start sandbox process", async () => {
             return await sandbox.startProcess(
                 // eslint-disable-next-line cyberworlds/string-quotes
                 `node /workspace/claude_agent_service_bundle.mjs '${requestArg}'`,
@@ -189,7 +234,7 @@ export async function runClaudeAgentWebhookAfterQueue(
         // This function will reject if the process exits before the event is acknowledged.
         try {
             await span.withSpan("Wait for sandbox to acknowledge event", () =>
-                sandboxProcess.waitForLog(`Acknowledged event ${requestBody.eventId}`),
+                sandboxProcess!.waitForLog(`Acknowledged event ${requestBody.eventId}`),
             );
         } catch (error) {
             // If we exited with code 3, that's a signal that the sandbox wrote the error
@@ -215,10 +260,6 @@ export async function runClaudeAgentWebhookAfterQueue(
         // sandbox should start a ping interval itself with
         pingInterval.clear();
     } catch (error) {
-        // Add the error to the span even though we're about to return a 200 status code.
-        // The webhook was successful even though we showed the user an error.
-        span.addException(error);
-
         // We're completing the message now with an error!
         pingInterval.clear();
 
@@ -244,5 +285,12 @@ export async function runClaudeAgentWebhookAfterQueue(
         });
 
         await completeApiMessageStream(span, apiClient, room, streamMessage.index);
+
+        throw error;
     }
+
+    // Keep this worker request alive until the sandbox finishes.
+    await sandboxProcess.waitForExit();
+
+    return createSimpleOkResponse();
 }
