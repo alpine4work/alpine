@@ -5,7 +5,7 @@ import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {SessionId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
 
 export class TestSession {
     public readonly context: TestContext;

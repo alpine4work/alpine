@@ -15,7 +15,8 @@ import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
 /**

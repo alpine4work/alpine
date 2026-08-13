@@ -4,7 +4,8 @@ import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_sess
 import {deregisterWebPushSubscriptionWithoutAuthorization} from "~/server/notifications/data/internal/push/deregister_web_push_subscription_without_authorization.js";
 import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {AccountId, BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Deregisters a web push subscription for a given account and browser. If the

@@ -18,12 +18,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {If} from "~/shared/helpers/types/if.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     ChatId,
     DocumentId,
     FileId,
-    PostDraftId,
     PostId,
     SpaceId,
     TaskId,

@@ -15,7 +15,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.open_source.js";
-import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {deserializeRpcBatchResponse} from "~/shared/rpc/deserialize_rpc_batch_response.js";
 import {
     RpcHttpBatchByActorCallInputSchema,

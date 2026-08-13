@@ -7,7 +7,8 @@ import {ImporterServiceContextModuleBase} from "~/server/importer/importer_servi
 import {unzipToDisk} from "~/server/importer/internal/unzip_to_disk.js";
 import {DataLossError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Test importer service context module that reads files from a shared disk

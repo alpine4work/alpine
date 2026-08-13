@@ -7,7 +7,7 @@ import {
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {deserializeRpcBatchResponse} from "~/shared/rpc/deserialize_rpc_batch_response.js";
 import {
     RpcHttpBatchCallErrorOutputSchema,

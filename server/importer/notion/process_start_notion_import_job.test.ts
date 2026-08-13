@@ -28,7 +28,8 @@ import {DocumentContentSchema} from "~/shared/documents/document_content_schema.
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {DocumentId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {NotionImportProcessingOrDoneResult} from "~/shared/importer/notion/notion_import_item.js";
 
 // 1x1 transparent PNG (smallest valid PNG) used to mock external image downloads.

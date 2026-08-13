@@ -1,6 +1,6 @@
 import {createTestAvatarModel} from "~/shared/avatar/test_helpers/avatar_model_test_helpers.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
-import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {createTestSpaceModel} from "~/shared/spaces/test_helpers/space_model_test_helpers.js";
 

@@ -50,14 +50,13 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_s
 import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {assertId, generateId} from "~/shared/id/id.open_source.js";
+import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
-    ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,
     SpaceId,
-    WebSocketConnectionId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {
     ProsemirrorVisitor,

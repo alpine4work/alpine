@@ -37,12 +37,8 @@ import {
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {
-    DocumentId,
-    FileId,
-    NotionImportId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
 /**

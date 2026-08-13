@@ -1,7 +1,8 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Base context module for import operations. Provides an abstraction over file

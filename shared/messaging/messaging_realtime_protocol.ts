@@ -8,7 +8,8 @@ import {
 import {FileEntityId, FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
-import {AccountId, FileId, WebSocketConnectionId} from "~/shared/id/types/id_types.open_source.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {

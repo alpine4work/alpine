@@ -14,7 +14,8 @@ import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {SpaceRole} from "~/shared/spaces/space_model.js";
 import {createTestAccountModelWithoutSpace} from "~/shared/spaces/test_helpers/account_model_test_helpers.js";
 

@@ -7,7 +7,8 @@ import {ForumTable} from "~/server/forum/data/internal/forum_table.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {AccountId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get the post draft with the provided `PostDraftId` if it exists.

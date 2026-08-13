@@ -4,7 +4,8 @@ import {NotionImporterTable} from "~/server/importer/notion/internal/notion_impo
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Cancels a Notion import that hasn't started processing yet.

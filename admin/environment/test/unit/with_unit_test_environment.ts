@@ -104,7 +104,8 @@ import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 import {Replace} from "~/shared/helpers/types/replace.open_source.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";

@@ -6,13 +6,8 @@ import {
 } from "~/server/messaging/helpers/message_stream_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
-import {
-    AccountId,
-    ChannelId,
-    PostDraftId,
-    PostId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";

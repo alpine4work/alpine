@@ -5,7 +5,7 @@ import {
 } from "~/shared/helpers/async/promise_resolver.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
-import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 

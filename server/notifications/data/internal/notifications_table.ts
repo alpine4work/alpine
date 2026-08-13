@@ -5,9 +5,9 @@ import {
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {PendingSubtleNotificationStubSchema} from "~/server/notifications/data/internal/push/pending_subtle_notification_stub.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
-    BrowserId,
     ChannelId,
     DocumentCommentThreadId,
     DocumentId,

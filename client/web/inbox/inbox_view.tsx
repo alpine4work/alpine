@@ -46,7 +46,7 @@ import {RynamoIndexQueryResult, RynamoItem} from "~/shared/dynamo/rynamo_types.j
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {Result} from "~/shared/helpers/control/result.open_source.js";
-import {PeekId} from "~/shared/id/types/id_types.open_source.js";
+import {PeekId} from "~/shared/id/types/id_types.js";
 import {InboxEntryStatus} from "~/shared/notifications/inbox_entry_status.js";
 import {InboxEntryModel, getInboxEntryPath} from "~/shared/notifications/inbox_model.js";
 

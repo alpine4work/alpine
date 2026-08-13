@@ -1,4 +1,5 @@
-import {AccountId, NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     NotionImportStatusSchema,
     NotionImportTeamspaceOptionsSchema,

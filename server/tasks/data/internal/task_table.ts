@@ -20,15 +20,17 @@ import {
     encodeVtencBigUint64Set,
 } from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
 import {
-    AccountId,
     BrowserId,
     ContentEditorClientId,
-    SpaceId,
     TaskActionTransactionId,
     TaskActionTransactionLeaseId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    SpaceId,
     TaskCollectionId,
     TaskId,
-    TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";

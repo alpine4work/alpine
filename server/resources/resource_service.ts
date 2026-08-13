@@ -23,13 +23,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {isId} from "~/shared/id/id.open_source.js";
-import {
-    AccountId,
-    AvatarId,
-    BotId,
-    FileId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 let sharedResources: ResourceServiceSharedResources | null = null;

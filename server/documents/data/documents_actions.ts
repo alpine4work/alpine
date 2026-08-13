@@ -183,9 +183,9 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js"
 import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {Id, assertId, generateId, getMaxId, getMinId, isId} from "~/shared/id/id.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
-    ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     FileId,

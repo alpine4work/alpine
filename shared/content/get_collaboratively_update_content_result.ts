@@ -12,7 +12,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
-import {ContentEditorClientId} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 import {ExhaustiveStep} from "~/shared/prosemirror/exhaustive_step.js";
 
 declare module "prosemirror-transform" {

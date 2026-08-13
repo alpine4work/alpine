@@ -56,13 +56,8 @@ import {
     generateChronologicalId,
     getChronologicalIdTime,
 } from "~/shared/id/chronological_id.open_source.js";
-import {
-    AccountId,
-    DocumentId,
-    FileId,
-    PostDraftId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {AccountId, DocumentId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 
 /**

@@ -6,7 +6,7 @@ import {
 } from "~/server/files/data/files_actions.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
-import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import * as fileRpcDefinitions from "~/shared/rpc/files_rpc_definitions.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {

@@ -43,7 +43,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
-import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
 import {finishUploadingAccountAvatar} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {finishUploadingBotAvatar} from "~/shared/rpc/bots_rpc_definitions.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";

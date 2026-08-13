@@ -56,12 +56,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.open_source.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
+import {TaskRealtimeClientId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     SpaceId,
     TaskCollectionId,
     TaskId,
-    TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";

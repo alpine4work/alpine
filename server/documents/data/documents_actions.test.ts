@@ -106,14 +106,12 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
+import {ContentEditorClientId, RpcCallId, SiteSideBarId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
-    ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
-    RpcCallId,
     SiteId,
-    SiteSideBarId,
     SpaceId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {

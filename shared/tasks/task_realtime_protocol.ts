@@ -2,13 +2,12 @@ import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {ErrorCodeSchema, ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     BrowserId,
-    TaskCollectionId,
-    TaskId,
     TaskRealtimeClientId,
     TaskRealtimeCollectionSubscriptionId,
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
-} from "~/shared/id/types/id_types.open_source.js";
+} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";

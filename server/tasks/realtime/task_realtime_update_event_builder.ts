@@ -28,13 +28,13 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js
 import {DefaultMap} from "~/shared/helpers/map/default_map.open_source.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
+import {TaskRealtimeClientId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     SiteId,
     SpaceId,
     TaskCollectionId,
     TaskId,
-    TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {collectReferencedIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_ids_from_task_action.js";

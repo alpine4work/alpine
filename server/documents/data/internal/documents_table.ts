@@ -17,9 +17,9 @@ import {DocumentCreatorFromSchema} from "~/shared/documents/document_creator_fro
 import {mapResult} from "~/shared/helpers/control/map_result.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
-    ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     SpaceId,

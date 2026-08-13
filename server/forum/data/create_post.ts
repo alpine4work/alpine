@@ -45,13 +45,8 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {
-    AccountId,
-    ChannelId,
-    PostDraftId,
-    PostId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, PostId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 
 /**

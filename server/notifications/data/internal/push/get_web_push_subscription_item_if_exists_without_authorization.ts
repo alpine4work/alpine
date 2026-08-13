@@ -3,7 +3,8 @@ import {
     NotificationsTable,
     WebPushSubscriptionItem,
 } from "~/server/notifications/data/internal/notifications_table.js";
-import {AccountId, BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Get a web push subscription item if it exists for the provided `accountId` and

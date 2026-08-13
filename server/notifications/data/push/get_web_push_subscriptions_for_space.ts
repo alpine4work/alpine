@@ -4,7 +4,8 @@ import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_spa
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 /**

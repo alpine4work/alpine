@@ -4,11 +4,8 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {
-    TaskActivityEntryId,
-    TaskCollectionId,
-    TaskId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {TaskActivityEntryId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskActivityActor,
     TaskActivityChange,

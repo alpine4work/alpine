@@ -4,7 +4,7 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {PermissionDeniedError, UnauthenticatedError} from "~/shared/error/error.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 
 const deregisterWebPushSubscriptionWithoutAuthorizationMock = jest.fn();
 

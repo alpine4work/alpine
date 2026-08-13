@@ -26,13 +26,8 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {
-    SpaceId,
-    TaskActionTransactionId,
-    TaskCollectionId,
-    TaskId,
-    TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {TaskActionTransactionId, TaskRealtimeClientId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 /**

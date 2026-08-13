@@ -96,7 +96,8 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // This file should only run in a Node.js development environment.
 assert(process.release.name === "node");

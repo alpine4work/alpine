@@ -86,12 +86,8 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_sour
 import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
 import {generateId, isId} from "~/shared/id/id.open_source.js";
-import {
-    AccountId,
-    BotId,
-    CursorCloudAgentId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {CursorCloudAgentId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 

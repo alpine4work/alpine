@@ -9,7 +9,7 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/update_task_notes_content.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {ContentEditorClientId} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 import {TaskNotesContentProsemirrorSchema as schema} from "~/shared/tasks/task_notes_content_schema.js";
 
 const context = createTestContext({

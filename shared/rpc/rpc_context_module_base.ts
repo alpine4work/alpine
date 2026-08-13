@@ -1,6 +1,6 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 
 /**

@@ -16,11 +16,10 @@ import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {
     BrowserId,
     ContentEditorClientId,
-    SpaceId,
     TaskActionTransactionLeaseId,
-    TaskId,
     TaskRealtimeClientId,
-} from "~/shared/id/types/id_types.open_source.js";
+} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {
     MessageReferencedIdsSchema,

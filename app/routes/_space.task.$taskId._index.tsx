@@ -80,7 +80,8 @@ import {iterableWithIndex} from "~/shared/helpers/iterable/iterable_with_index.j
 import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.open_source.js";
 import {generateId, isId} from "~/shared/id/id.open_source.js";
-import {AccountId, BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftWithFilesSchema,
     emptyMessageDraftWithFiles,

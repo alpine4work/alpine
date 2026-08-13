@@ -1,5 +1,6 @@
 import {BotSchema, BotWebhookSchema} from "~/shared/bots/bot_schema.js";
-import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";

@@ -3,11 +3,11 @@ import {decodeBase64, encodeBase64} from "~/shared/helpers/binary/base64.open_so
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     ChatId,
     DocumentId,
-    PostDraftId,
     PostId,
     SpaceId,
     TaskId,

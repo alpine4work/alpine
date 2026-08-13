@@ -9,7 +9,8 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 import.meta.jest.useFakeTimers();
 

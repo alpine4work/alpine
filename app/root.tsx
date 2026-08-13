@@ -77,7 +77,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {getRealmId} from "~/shared/id/realm_id.open_source.js";
-import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {ClientInfo, ClientInfoSchema, defaultClientInfo} from "~/shared/remix/client_info.js";
 import {getRouteStringFromMatches} from "~/shared/remix/get_route_string_from_matches.js";
 import {propagateEventDataKey} from "~/shared/remix/json_with_schema_shared.js";

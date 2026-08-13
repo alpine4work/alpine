@@ -71,7 +71,8 @@ import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {ContentEditorClientId, DocumentId} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchAffinityEntityModel, SearchEntityModel} from "~/shared/search/search_entity_model.js";
 import {

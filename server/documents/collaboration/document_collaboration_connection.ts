@@ -63,12 +63,11 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
 import {generateId} from "~/shared/id/id.open_source.js";
+import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
-    ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
-    WebSocketConnectionId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {
     MessagingRealtimeBroadcastCompleteMessageStreamRequest,

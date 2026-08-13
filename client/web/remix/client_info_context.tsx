@@ -17,7 +17,7 @@ import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
 import {defaultTimeZone, getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {getRealmId} from "~/shared/id/realm_id.open_source.js";
-import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {
     ClientInfo,
     defaultClientInfo,

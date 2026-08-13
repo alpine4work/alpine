@@ -1,7 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
 import {getWebPushSubscriptionItemIfExistsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_web_push_subscription_item_if_exists_without_authorization.js";
-import {AccountId, BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Sets a web push subscription attribute to null. Retains opted-out spaces when

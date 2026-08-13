@@ -27,7 +27,7 @@ import {
 } from "~/shared/error/error.open_source.js";
 import {importMultipartUploadPartSize} from "~/shared/files/file_constants.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
-import {NotionImportId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
 import {notionImportMaxZipSize} from "~/shared/importer/notion/notion_import_max_zip_size.js";
 import {
     cancelNotionImport,

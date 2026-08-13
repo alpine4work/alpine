@@ -1,15 +1,8 @@
 import {computeAdjacentEntityId} from "~/client/web/sites/internal/compute_adjacent_entity_id.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {
-    AccountId,
-    ChannelId,
-    SiteId,
-    SiteSideBarId,
-    SiteSideBarSectionId,
-    SiteTopBarId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {SiteSideBarId, SiteSideBarSectionId, SiteTopBarId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChannelId, SiteId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {SiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {
     SiteContainerId,

@@ -10,11 +10,11 @@ import {FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {FileContentTypeSchema} from "~/shared/files/file_content_type_schema.js";
 import {FileEntityIdSchema} from "~/shared/files/file_entity_id.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     BotId,
     BotWebhookEventId,
-    BrowserId,
     FileId,
     SpaceId,
     TaskId,

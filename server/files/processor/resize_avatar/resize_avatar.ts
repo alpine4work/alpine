@@ -15,7 +15,7 @@ import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_sou
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 /**

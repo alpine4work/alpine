@@ -22,9 +22,9 @@ import {
 } from "~/shared/documents/document_model.js";
 import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
-    ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
     SiteId,

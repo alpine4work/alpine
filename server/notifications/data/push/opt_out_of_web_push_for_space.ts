@@ -3,7 +3,8 @@ import {optOutOfWebPushForSpaceWithoutAuthorization} from "~/server/notification
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {BrowserId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Opts out of web push notifications for a space for a given browser.

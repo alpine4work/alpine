@@ -9,7 +9,8 @@ import {
 } from "~/shared/dynamo/rynamo_types.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {getMinId} from "~/shared/id/id.open_source.js";
-import {SpaceId, TaskActivityEntryId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {TaskActivityEntryId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskActivityFeedDiscreteEntryModel,
     TaskActivityFeedWindowChunkModel,

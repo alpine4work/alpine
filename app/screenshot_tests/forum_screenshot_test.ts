@@ -12,7 +12,8 @@ import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateChronologicalIdWithTime} from "~/shared/id/chronological_id.open_source.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
-import {PostDraftId, PostId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {PostId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {services} = runner;

@@ -81,7 +81,8 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
-import {AccountId, PostDraftId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {AccountModel, AccountModelData} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";

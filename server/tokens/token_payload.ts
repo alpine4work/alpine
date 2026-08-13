@@ -2,12 +2,12 @@ import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {isId} from "~/shared/id/id.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     ChatId,
     DocumentId,
     PostId,
-    SessionId,
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";

@@ -9,7 +9,8 @@ import {
 } from "~/client/web/tasks/task_detail_notes_content_editor_state.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {ContentEditorClientId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskNotesContent,
     assertTaskNotesContent,

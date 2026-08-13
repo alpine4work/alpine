@@ -8,7 +8,8 @@ import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
-import {ContentEditorClientId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 // NOTE(calebmer, 2023-09-21): This file used to be only for document content. But
 // when we introduced task notes collaborative content it was refactored to support

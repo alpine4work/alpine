@@ -6,7 +6,7 @@ import {TestImporterContextModule} from "~/server/importer/test_helpers/test_imp
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {NotionImportId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 

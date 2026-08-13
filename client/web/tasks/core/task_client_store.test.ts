@@ -26,11 +26,10 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {OrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteSideBarId, SiteTopBarId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     SiteId,
-    SiteSideBarId,
-    SiteTopBarId,
     SpaceId,
     TaskCollectionId,
     TaskId,

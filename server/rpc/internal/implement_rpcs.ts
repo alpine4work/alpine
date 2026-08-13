@@ -8,7 +8,7 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
-import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {
     RpcDefinition,
     RpcDefinitionInputType,

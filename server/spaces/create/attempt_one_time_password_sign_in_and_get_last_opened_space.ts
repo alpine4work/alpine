@@ -10,7 +10,8 @@ import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function attemptOneTimePasswordSignInAndGetLastOpenedSpace(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,

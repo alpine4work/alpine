@@ -4,11 +4,11 @@ import {getFileAttachmentTargetAuthorizer} from "~/server/files/data/get_file_at
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     ChatId,
     DocumentId,
-    PostDraftId,
     PostId,
     SpaceId,
     TaskId,

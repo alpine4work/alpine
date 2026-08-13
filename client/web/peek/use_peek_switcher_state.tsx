@@ -19,7 +19,7 @@ import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {MaybeThunk} from "~/shared/helpers/types/maybe_thunk.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {PeekId} from "~/shared/id/types/id_types.open_source.js";
+import {PeekId} from "~/shared/id/types/id_types.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 
 export type PeekSwitcherStatePeekBase<Extra> = {

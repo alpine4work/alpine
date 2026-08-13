@@ -9,7 +9,8 @@ import {getInitialWebPushSubscriptionItem} from "~/server/notifications/data/int
 import {getWebPushSubscriptionItemByEndpointIfExistsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_web_push_subscription_item_by_endpoint_if_exists_without_authorization.js";
 import {getWebPushSubscriptionItemIfExistsWithoutAuthorization} from "~/server/notifications/data/internal/push/get_web_push_subscription_item_if_exists_without_authorization.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
-import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 /**

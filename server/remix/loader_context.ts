@@ -20,7 +20,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {generateId, isId} from "~/shared/id/id.open_source.js";
-import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {
     ClientInfo,
     ClientInfoSchema,

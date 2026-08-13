@@ -41,12 +41,12 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     DocumentCommentThreadId,
     FileId,
     SpaceId,
-    WebSocketConnectionId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

@@ -44,7 +44,7 @@ import {PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {PostDraftId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
 import {createOrReplacePostDraft, createPost} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function PostCreator({

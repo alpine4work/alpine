@@ -14,7 +14,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
-import {PostDraftId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
 
 const {context, services} = createTestServices();
 

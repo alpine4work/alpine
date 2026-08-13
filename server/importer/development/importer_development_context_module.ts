@@ -16,7 +16,8 @@ import {ConstantsContextModule} from "~/shared/context/constants_context_module.
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const devDataPath = envPaths("cyberworlds-development", {suffix: ""}).data;
 

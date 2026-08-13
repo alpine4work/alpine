@@ -8,7 +8,8 @@ import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {asyncNoop} from "~/shared/helpers/control/async_noop.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 
 const context = createTestContext({

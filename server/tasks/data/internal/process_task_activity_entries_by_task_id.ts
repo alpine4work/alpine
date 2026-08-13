@@ -14,12 +14,8 @@ import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_sou
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
-import {
-    SpaceId,
-    TaskActionTransactionId,
-    TaskActivityEntryId,
-    TaskId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {TaskActionTransactionId, TaskActivityEntryId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskActivityModel} from "~/shared/tasks/task_activity.js";
 import {TaskCreator} from "~/shared/tasks/task_creator.js";
 

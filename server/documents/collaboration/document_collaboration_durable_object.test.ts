@@ -83,13 +83,8 @@ import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {
-    ContentEditorClientId,
-    DocumentCommentThreadId,
-    FileId,
-    SiteId,
-    SiteSideBarId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId, SiteSideBarId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId, SiteId} from "~/shared/id/types/id_types.open_source.js";
 import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,

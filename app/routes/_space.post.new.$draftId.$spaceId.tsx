@@ -21,7 +21,8 @@ import {
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {getChronologicalIdTime} from "~/shared/id/chronological_id.open_source.js";
 import {isId} from "~/shared/id/id.open_source.js";
-import {ChannelId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({

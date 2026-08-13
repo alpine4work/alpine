@@ -4,9 +4,9 @@ import {
     createRynamoIndexQuerySchema,
     createRynamoItemSchema,
 } from "~/shared/dynamo/rynamo_types.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
-    BrowserId,
     ChannelId,
     DocumentCommentThreadId,
     DocumentId,

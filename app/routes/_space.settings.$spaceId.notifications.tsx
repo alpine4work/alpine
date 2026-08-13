@@ -21,7 +21,7 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {RynamoItem, createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getInboxWithStrongReadConsistency,

@@ -22,12 +22,8 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {SafeFloatingPromise} from "~/shared/helpers/types/safe_floating_promise.js";
-import {
-    AccountId,
-    FileId,
-    SpaceId,
-    WebSocketConnectionId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
 import {
     MessageReferencedIds,

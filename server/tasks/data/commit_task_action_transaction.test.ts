@@ -41,12 +41,10 @@ import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.o
 import {generateId, getMinId} from "~/shared/id/id.open_source.js";
 import {
     ContentEditorClientId,
-    SpaceId,
     TaskActionTransactionId,
     TaskActionTransactionLeaseId,
-    TaskCollectionId,
-    TaskId,
-} from "~/shared/id/types/id_types.open_source.js";
+} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskNotesContentProsemirrorSchema as schema} from "~/shared/tasks/task_notes_content_schema.js";
 import {

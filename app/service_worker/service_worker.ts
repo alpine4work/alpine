@@ -7,7 +7,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertId, generateId} from "~/shared/id/id.open_source.js";
-import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";

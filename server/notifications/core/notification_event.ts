@@ -5,13 +5,13 @@ import {
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {MessageContentSchema} from "~/shared/content/message_content_schema.js";
 import {PostContentSchema} from "~/shared/forum/post_content_schema.js";
+import {NotificationEventId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     ChannelId,
     ChatId,
     DocumentCommentThreadId,
     DocumentId,
-    NotificationEventId,
     PostId,
     SpaceId,
     TaskId,

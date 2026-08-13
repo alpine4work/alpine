@@ -3,7 +3,8 @@ import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_c
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 let newSessionCache: Map<SessionId, Promise<AccountId | null>> | null = null;

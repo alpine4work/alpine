@@ -6,7 +6,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {Id} from "~/shared/id/id.open_source.js";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types.open_source.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     MessageModel,
     OptimisticMessageModel,

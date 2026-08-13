@@ -110,7 +110,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {PeekId} from "~/shared/id/types/id_types.open_source.js";
+import {PeekId} from "~/shared/id/types/id_types.js";
 import {
     convertPeekPathToSpacePath,
     convertSpacePathToPeekPath,

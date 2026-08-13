@@ -6,11 +6,8 @@ import {
 import {createRynamoEventSchema} from "~/shared/dynamo/rynamo_types.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {FileIdOrFileEntityIdSchema} from "~/shared/files/file_entity_id.js";
-import {
-    ContentEditorClientId,
-    SpaceId,
-    WebSocketConnectionId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId, WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessagePosOrFilesSchema} from "~/shared/messaging/message_pos_or_files_schema.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {
