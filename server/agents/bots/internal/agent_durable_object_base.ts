@@ -37,8 +37,9 @@ import {serializeDateString} from "~/shared/helpers/date/date_string.open_source
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
-import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
+import {TracerServiceName} from "~/shared/tracer/types/tracer_service_name.js";
 
 export type AgentContext = Context<AgentContextModules>;
 

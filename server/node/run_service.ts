@@ -16,8 +16,9 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
-import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
+import {TracerServiceName} from "~/shared/tracer/types/tracer_service_name.js";
 
 // This file is for running a Node.js service. It shouldn't be used in Cloudflare
 // Workers.

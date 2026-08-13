@@ -20,7 +20,6 @@ export class TracerEvent {
     private readonly _eventData: LinkedList<TracerEventFullData>;
     private readonly _propagatedEventFlatData: TracerEventFlatData | null;
     private _flatEventData: TracerEventFlatData | null = null;
-    private _flatEventDataForKinesis: TracerEventFlatData | null = null;
 
     constructor(
         time: number,

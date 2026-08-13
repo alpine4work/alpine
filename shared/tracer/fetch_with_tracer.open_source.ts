@@ -5,17 +5,16 @@ import {FailedPreconditionError, UnavailableError} from "~/shared/error/error.op
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.open_source.js";
 import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.open_source.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.open_source.js";
+import {isExternalServiceName} from "~/shared/tracer/fetch_external_service.js";
 import {
     TracerEventHttpHeaderName,
     tracerEventHttpHeaderNames,
 } from "~/shared/tracer/helpers/tracer_event_http_header_names.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.open_source.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 // The same error message is copied in `WebNavigationController.swift`'s
@@ -24,41 +23,6 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 export const offlineErrorDisplayMessage = errorDisplayMessage`Your device isn\u2019t connected to the internet. Make sure you\u2019re online then try again.`;
 
 const globalFetch = typeof fetch !== "undefined" ? fetch : undefined;
-
-/**
- * External service names are not PascalCase like our internal service names (in
- * the `TracerServiceName` type) instead they are a human readable phrase,
- * potentially including spaces.
- *
- * For example "OpenSearch" is an external service name instead of "Opensearch".
- * "Opensearch" (without a capital "S") is how we refer to OpenSearch in PascalCase
- * since we want to treat it like a single word. But OpenSearch is how you'd write
- * the service name in a sentence.
- *
- * A simpler example is "Secrets Manager" instead of "SecretsManager" to refer to
- * the AWS Secrets Manager service.
- *
- * Human readable phrases match our span name style which is why we do this.
- */
-export type ExternalServiceName = "OpenSearch" | "Cohere" | "LogoDev" | "Cursor" | "Loops";
-
-function isExternalServiceName(
-    serviceName: TracerServiceName | ExternalServiceName,
-): serviceName is ExternalServiceName {
-    switch (serviceName) {
-        case "OpenSearch":
-        case "Cohere":
-        case "LogoDev":
-        case "Cursor":
-        case "Loops":
-            return true;
-        default:
-            // Should handle all `ExternalServiceName`s. Only `TracerServiceName`s should be
-            // left (`cast()` enforces this with TypeScript).
-            cast<TracerServiceName>(serviceName);
-            return false;
-    }
-}
 
 /**
  * Same as the global [`fetch()`][1] but we create a span for the HTTP request.
@@ -94,7 +58,7 @@ export async function fetchWithTracer<ResponseData>(
          * The name of the service we are making a request to. Will be included in the span
          * name.
          */
-        serviceName: TracerServiceName | ExternalServiceName;
+        serviceName: string;
 
         /**
          * A description of the path we'll include in the `TracerSpan`'s name. This should

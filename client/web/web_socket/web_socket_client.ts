@@ -11,7 +11,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {ValueStore} from "~/shared/store/value_store.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerServiceName} from "~/shared/tracer/types/tracer_service_name.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,

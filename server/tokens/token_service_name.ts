@@ -4,7 +4,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import {
     DurableObjectServiceName,
     TracerServiceName,
-} from "~/shared/tracer/tracer_root.open_source.js";
+} from "~/shared/tracer/types/tracer_service_name.js";
 
 const tokenEdgeServiceFamilyNames = [
     "EdgeService",
