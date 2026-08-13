@@ -122,12 +122,7 @@ export async function runClaudeAgentWebhookAfterQueue(
         accessToken: requestBody.accessToken,
     });
 
-    const [
-        initializeSandboxResult,
-        {
-            data: {message: streamMessage},
-        },
-    ] = await runAllPromises([
+    const [initializeSandboxResult, {streamMessage, pingInterval}] = await runAllPromises([
         // Perform some initialization for the container. Like mounting a bucket and
         // setting up environment variables.
         captureResultPromise(
@@ -140,19 +135,28 @@ export async function runClaudeAgentWebhookAfterQueue(
         // We create the new stream message immediately. Even before the sandbox
         // initializes. Since sandbox initialization can be expensive and we want to give
         // the user some immediate feedback that we're working on their request.
-        createApiMessage(span, apiClient, room, {
-            isStream: true,
-            content: {elements: []},
-            createdTimeZone: requestBody.event.createdTimeZone,
-        }),
-    ]);
+        (async () => {
+            const {
+                data: {message: streamMessage},
+            } = await createApiMessage(span, apiClient, room, {
+                isStream: true,
+                content: {elements: []},
+                createdTimeZone: requestBody.event.createdTimeZone,
+            });
 
-    // Keep the message stream alive while we're waiting on acknowledgement from the
-    // sandbox. Once we get acknowledgement, then it's the sandbox's responsibility to
-    // keep the message stream alive.
-    const pingInterval = createInterval(() => {
-        void pingApiMessageStream(span, apiClient, room, streamMessage.index);
-    }, messageStreamPingIntervalMs);
+            // Keep the message stream alive while we're waiting on acknowledgement from the
+            // sandbox. Once we get acknowledgement, then it's the sandbox's responsibility to
+            // keep the message stream alive.
+            //
+            // It's important that the ping interval starts immediately and doesn't wait for
+            // "Initialize sandbox" which can take a while.
+            const pingInterval = createInterval(() => {
+                void pingApiMessageStream(span, apiClient, room, streamMessage.index);
+            }, messageStreamPingIntervalMs);
+
+            return {streamMessage, pingInterval};
+        })(),
+    ]);
 
     let errorContent: ApiContent | null = null;
 
