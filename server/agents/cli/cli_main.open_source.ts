@@ -14,7 +14,7 @@ import {createCliTracer} from "~/server/agents/cli/cli_tracer.open_source.js";
 import {
     AgentWebSessionLmdbStorageKey,
     createAgentWebSessionLmdbStorage,
-} from "~/server/agents/cli/create_agent_web_session_lmdb_storage.open_source.js";
+} from "~/server/agents/lmdb/create_agent_web_session_lmdb_storage.open_source.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";

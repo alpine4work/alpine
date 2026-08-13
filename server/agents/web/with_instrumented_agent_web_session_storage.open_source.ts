@@ -119,6 +119,7 @@ export async function withInstrumentedAgentWebSessionStorage<Value>(
                     return await collection.put(key, value);
                 } finally {
                     state.calls--;
+                    putState.calls--;
 
                     if (state.calls === 0) {
                         totalDurationMs += span.clock.now() - state.startTime;
@@ -144,6 +145,7 @@ export async function withInstrumentedAgentWebSessionStorage<Value>(
                     return await collection.delete(key);
                 } finally {
                     state.calls--;
+                    deleteState.calls--;
 
                     if (state.calls === 0) {
                         totalDurationMs += span.clock.now() - state.startTime;
@@ -169,6 +171,7 @@ export async function withInstrumentedAgentWebSessionStorage<Value>(
                     return await collection.list(keyFirst);
                 } finally {
                     state.calls--;
+                    listState.calls--;
 
                     if (state.calls === 0) {
                         totalDurationMs += span.clock.now() - state.startTime;

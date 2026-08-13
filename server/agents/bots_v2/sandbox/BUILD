@@ -44,6 +44,7 @@ ts_project(
         "//:node_modules/uuid",
         "//:node_modules/zod",
         "//server/agents/api",
+        "//server/agents/lmdb",
         "//server/agents/web",
         "//server/tracer",
         "//server/helpers",

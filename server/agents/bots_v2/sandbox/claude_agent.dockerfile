@@ -8,7 +8,7 @@ RUN npm install \
     --omit=dev \
     --no-audit \
     --no-fund \
-    @anthropic-ai/claude-agent-sdk@0.3.221 \
+    @anthropic-ai/claude-agent-sdk@0.3.221 lmdb@3.5.6 \
     && npm cache clean --force
 
 ADD sandbox_skills.tar.gz /workspace/agent/.claude/skills/

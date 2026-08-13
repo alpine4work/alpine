@@ -122,6 +122,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/agents/bots_v2/sandbox:sandbox",
     "//server/agents/cli:cli_lib",
     "//server/agents/cli/integration_tests:integration_tests",
+    "//server/agents/lmdb:lmdb",
     "//server/agents/web:web",
     "//server/agents/web/test_helpers:test_helpers",
     "//server/agents/web_tests:web_tests",

@@ -24,6 +24,7 @@ ts_project(
         "//:node_modules/prettier",
         "//:node_modules/strip-ansi",
         "//server/agents/api",
+        "//server/agents/lmdb",
         "//server/agents/web",
         "//shared/api/content",
         "//shared/api/content/closed_source",

@@ -1,5 +1,6 @@
 import {SDKUserMessage, query} from "@anthropic-ai/claude-agent-sdk";
 import fs from "fs/promises";
+import {open} from "lmdb";
 import {v4 as uuidv4} from "uuid";
 import {ApiClient} from "~/server/agents/api/api_client.open_source.js";
 import {AgentWebMessageStreamSession} from "~/server/agents/bots_v2/sandbox/agent_web_message_stream_session.js";
@@ -9,8 +10,11 @@ import {
     ClaudeAgentRoomState,
     ClaudeAgentStateStore,
 } from "~/server/agents/bots_v2/sandbox/claude_agent_state_store.js";
-import {createAgentWebFileSystemSessionStorage} from "~/server/agents/bots_v2/sandbox/create_agent_web_file_system_session_storage.js";
 import {createClaudeAgentMcpServer} from "~/server/agents/bots_v2/sandbox/create_claude_agent_tools.js";
+import {
+    AgentWebSessionLmdbStorageKey,
+    createAgentWebSessionLmdbStorage,
+} from "~/server/agents/lmdb/create_agent_web_session_lmdb_storage.open_source.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdown_stream_parser.open_source.js";
 import {
@@ -32,6 +36,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {EventQueue} from "~/shared/helpers/control/event_queue.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
@@ -44,36 +49,119 @@ export type RunClaudeAgentOptions = {
     eventQueue: EventQueue<ClaudeAgentServiceEvent>;
 };
 
-export async function runClaudeAgent(span: TracerSpan, options: RunClaudeAgentOptions) {
-    await span.withSpan("Run Claude agent SDK", async span => {
-        await actuallyRunClaudeAgent(span, options);
+export async function runClaudeAgent(parentSpan: TracerSpan, options: RunClaudeAgentOptions) {
+    const {spaceId, botAccount, apiClient} = options;
+
+    await parentSpan.withSpan("Run Claude agent SDK", async parentSpan => {
+        const [
+            ,
+            ,
+            ,
+            stateStore,
+            {
+                data: {settings},
+            },
+        ] = await runAllPromises([
+            fs.mkdir("/workspace/agent", {recursive: true}),
+            fs.mkdir("/workspace/config", {recursive: true}),
+            parentSpan.withSpan("Read Claude agent web store", async span => {
+                await fs
+                    .copyFile("/workspace/bucket/agents-web.db", "/workspace/agents-web.db")
+                    .then(
+                        () => {},
+                        error => {
+                            if (isObject(error) && error.code === "ENOENT") {
+                                span.addData({common: {didNothing: true}});
+                                return;
+                            }
+                            throw error;
+                        },
+                    );
+            }),
+            ClaudeAgentStateStore.new(parentSpan),
+            apiClient.get(parentSpan, "/spaces/{id}/bots/{botId}/settings", {
+                params: {path: {id: spaceId, botId: botAccount.bot.id}},
+            }),
+        ]);
+
+        const sessionStore = new ClaudeAgentSessionStore(parentSpan);
+
+        const database = open<string, AgentWebSessionLmdbStorageKey>({
+            path: "/workspace/agents-web.db",
+            noSubdir: true,
+        });
+
+        const promiseWaiter = new PromiseWaiter();
+
+        try {
+            try {
+                await database.transaction(async () => {
+                    const webStorage = createAgentWebSessionLmdbStorage(database, spaceId);
+
+                    await actuallyRunClaudeAgent(parentSpan, options, {
+                        settings,
+                        stateStore,
+                        sessionStore,
+                        webStorage,
+                        waitUntil: promiseWaiter.waitUntil,
+                    });
+                });
+
+                await database.close();
+
+                // Copy the agent web storage back to the R2 bucket. We need to do this copy dance
+                // because lmdb doesn't work when backed by a remote file system like s3fs which is
+                // used by Cloudflare R2.
+                //
+                // If there was an error then we don't run this copy because we will take the
+                // nuclear option and delete everything from `/workspace/bucket`.
+                promiseWaiter.waitUntil(
+                    parentSpan.withSpan("Write Claude agent web store", () =>
+                        fs.copyFile("/workspace/agents-web.db", "/workspace/bucket/agents-web.db"),
+                    ),
+                );
+            } finally {
+                await promiseWaiter.wait();
+            }
+        } catch (error) {
+            // **The nuclear option.**
+            //
+            // If an error was thrown, then remove ALL our stored data in the bucket so the
+            // next attempt starts from a clean slate. The reason being it seems like Claude
+            // won't use the session store to persist the session if an error is thrown. So we
+            // get into a bad state if we have a `sessionId` in `ClaudeAgentSessionStore` but
+            // that session doesn't exist in the R2 bucket because an error was thrown.
+            await parentSpan.withSpan("Delete all Claude agent storage after error", async () => {
+                await runAllPromises(
+                    (await fs.readdir("/workspace/bucket")).map(name =>
+                        fs.rm(`/workspace/bucket/${name}`, {recursive: true}),
+                    ),
+                );
+            });
+
+            throw error;
+        }
     });
 }
 
 async function actuallyRunClaudeAgent(
-    span: TracerSpan,
+    parentSpan: TracerSpan,
     {spaceId, botAccount, apiClient, room, eventQueue}: RunClaudeAgentOptions,
-) {
-    const [
-        ,
-        ,
+    {
+        settings,
         stateStore,
-        {
-            data: {settings},
-        },
-    ] = await runAllPromises([
-        fs.mkdir("/workspace/agent", {recursive: true}),
-        fs.mkdir("/workspace/config", {recursive: true}),
-        ClaudeAgentStateStore.new(),
-        apiClient.get(span, "/spaces/{id}/bots/{botId}/settings", {
-            params: {path: {id: spaceId, botId: botAccount.bot.id}},
-        }),
-    ]);
-
+        sessionStore,
+        webStorage,
+        waitUntil,
+    }: {
+        settings: {values: {[key: string]: unknown}};
+        stateStore: ClaudeAgentStateStore;
+        sessionStore: ClaudeAgentSessionStore;
+        webStorage: AgentWebSessionStorage;
+        waitUntil: PromiseWaiter["waitUntil"];
+    },
+) {
     const resumeSessionId = stateStore.get().sessionId;
-    const sessionStore = new ClaudeAgentSessionStore();
-
-    const storage = createAgentWebFileSystemSessionStorage(spaceId);
 
     let context: AgentWebContext | null = null;
 
@@ -81,8 +169,8 @@ async function actuallyRunClaudeAgent(
         context ??= {
             spaceId,
             api: apiClient,
-            storage,
-            span,
+            storage: webStorage,
+            span: parentSpan,
             timeZone: roomState.timeZone,
             botAccount,
         };
@@ -108,8 +196,9 @@ async function actuallyRunClaudeAgent(
     // message stream and eventually complete it. If we're being steered then we'll
     // complete the last message because a new one is starting.
     const messageRef: {current: AgentWebMessageStreamSession | null} = {current: null};
-    const promiseWaiter = new PromiseWaiter();
     const outstandingMessageIds = new Set<string>();
+
+    const contentBlockSpanByIndex = new Map<number, {span: TracerSpan; finishSpan: () => void}>();
 
     try {
         let thinkingContentBlock: {
@@ -145,14 +234,14 @@ async function actuallyRunClaudeAgent(
         const tools = [...allowedTools];
 
         for await (const message of query({
-            prompt: generateClaudeAgentPrompt(span, {
+            prompt: generateClaudeAgentPrompt(parentSpan, {
                 apiClient,
                 eventQueue,
                 stateStore,
-                storage,
+                storage: webStorage,
                 getContext,
                 messageRef,
-                promiseWaiter,
+                waitUntil,
                 outstandingMessageIds,
             }),
             options: {
@@ -206,7 +295,7 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
                         if (resumeSessionId !== null) {
                             assert(resumeSessionId === message.session_id);
                         } else {
-                            await stateStore.set({sessionId: message.session_id});
+                            await stateStore.set(parentSpan, {sessionId: message.session_id});
                         }
                     }
                     break;
@@ -219,7 +308,7 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
                     if (typeof message.error !== "string") break;
 
                     assertExists(messageRef.current).pushText(
-                        span,
+                        parentSpan,
                         `I couldn\u2019t generate a response.`,
                     );
 
@@ -232,7 +321,7 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
                         hasSeenContentBlock = true;
 
                         assertExists(messageRef.current).pushText(
-                            span,
+                            parentSpan,
                             `${isFirstContentBlock ? " " : "\n\n"}${contentBlock.text}`,
                         );
                     }
@@ -244,12 +333,24 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
 
                     switch (event.type) {
                         case "content_block_start": {
+                            assert(!contentBlockSpanByIndex.has(event.index));
+
+                            const span = parentSpan.startSpan(
+                                `Claude content block ${event.content_block.type}`,
+                            );
+
+                            contentBlockSpanByIndex.set(event.index, span);
+
                             if (event.content_block.type === "thinking") {
                                 thinkingContentBlock = {index: event.index, text: ""};
                             }
                             break;
                         }
                         case "content_block_stop": {
+                            const {span, finishSpan} = assertExists(
+                                contentBlockSpanByIndex.get(event.index),
+                            );
+
                             if (thinkingContentBlock?.index === event.index) {
                                 if (thinkingContentBlock.text.length > 0) {
                                     assertExists(messageRef.current).pushReasoningSummary(
@@ -260,9 +361,14 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
 
                                 thinkingContentBlock = null;
                             }
+
+                            contentBlockSpanByIndex.delete(event.index);
+                            finishSpan();
                             break;
                         }
                         case "content_block_delta": {
+                            const {span} = assertExists(contentBlockSpanByIndex.get(event.index));
+
                             switch (event.delta.type) {
                                 case "text_delta": {
                                     // If we receive `text_delta` when there's some unfinished thinking content then
@@ -368,27 +474,19 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
                 }
             }
         }
-    } catch (error) {
-        // **The nuclear option.**
-        //
-        // If an error was thrown, then remove ALL our stored data in the bucket so the
-        // next attempt starts from a clean slate. The reason being it seems like Claude
-        // won't use the session store to persist the session if an error is thrown. So we
-        // get into a bad state if we have a `sessionId` in `ClaudeAgentSessionStore` but
-        // that session doesn't exist in the R2 bucket because an error was thrown.
-        await runAllPromises(
-            (await fs.readdir("/workspace/bucket")).map(name =>
-                fs.rm(`/workspace/bucket/${name}`, {recursive: true}),
-            ),
-        );
-
-        throw error;
     } finally {
+        for (const contentBlockSpan of contentBlockSpanByIndex.values()) {
+            contentBlockSpan.span.addException(
+                new InternalError("Claude response completed before content block could finish"),
+            );
+            contentBlockSpan.finishSpan();
+        }
+
+        contentBlockSpanByIndex.clear();
+
         const message = messageRef.current;
         messageRef.current = null;
-        if (message) promiseWaiter.waitUntil(message.complete(span));
-
-        await promiseWaiter.wait();
+        if (message) waitUntil(message.complete(parentSpan));
     }
 }
 
@@ -401,7 +499,7 @@ async function* generateClaudeAgentPrompt(
         storage,
         getContext,
         messageRef,
-        promiseWaiter,
+        waitUntil,
         outstandingMessageIds,
     }: {
         apiClient: ApiClient;
@@ -410,7 +508,7 @@ async function* generateClaudeAgentPrompt(
         storage: AgentWebSessionStorage;
         getContext: (room: ClaudeAgentRoomState) => AgentWebContext;
         messageRef: {current: AgentWebMessageStreamSession | null};
-        promiseWaiter: PromiseWaiter;
+        waitUntil: PromiseWaiter["waitUntil"];
         outstandingMessageIds: Set<string>;
     },
 ): AsyncIterable<SDKUserMessage> {
@@ -457,7 +555,7 @@ async function* generateClaudeAgentPrompt(
 
             // Complete the old message. All new updates are going into `messageRef.current`.
             // We don't need to wait for the message to complete before continuing.
-            if (oldMessage) promiseWaiter.waitUntil(oldMessage.complete(span));
+            if (oldMessage) waitUntil(oldMessage.complete(span));
         };
 
         eventQueueEvent.span?.link("Steered Claude agent SDK", span);
@@ -482,7 +580,7 @@ async function* generateClaudeAgentPrompt(
                         lastMessageIndex: event.index,
                     };
 
-                    await stateStore.set({room});
+                    await stateStore.set(span, {room});
                 } else {
                     assert(room.pageLinkKey === pageLinkKey);
 
@@ -506,7 +604,7 @@ async function* generateClaudeAgentPrompt(
                                 : event.index,
                     };
 
-                    await stateStore.set({room});
+                    await stateStore.set(span, {room});
                 }
 
                 const response = await independentlyCallAgentWebReadToolWithoutTruncation(
@@ -568,7 +666,7 @@ async function* generateClaudeAgentPrompt(
                             request.streamMessageIndex === 0 ? request.streamMessageIndex : "post",
                     };
 
-                    await stateStore.set({room});
+                    await stateStore.set(span, {room});
                 }
 
                 const response = await independentlyCallAgentWebReadToolWithoutTruncation(
