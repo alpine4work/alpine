@@ -14,13 +14,13 @@ import {
 } from "~/client/web/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/web/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
-import {sprinkles} from "~/client/web/styles/styles.js";
 import {TaskActivityFeedItem} from "~/client/web/tasks/internal/derive_task_activity_feed.js";
 import {getTaskActivityFeedItemTextSegments} from "~/client/web/tasks/internal/get_task_activity_feed_item_text_segments.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {formatCompactRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_compact_relative_date_without_full_time_tooltip.js";
 import {Locale} from "~/shared/helpers/intl/locale.open_source.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskActivityActor} from "~/shared/tasks/task_activity.js";
 
@@ -28,7 +28,8 @@ import {TaskActivityActor} from "~/shared/tasks/task_activity.js";
  * One run of consecutive activity feed items rendered between comments in the task
  * detail view. Rows are deliberately quieter than comments: actors read as part of
  * the sentence with no extra emphasis, and a compact trailing relative date ("2d")
- * carries the full time in its tooltip.
+ * carries the full time in its tooltip. The date, the separating dot, and the
+ * sentence share a color so the timestamp doesn't read as a lighter afterthought.
  *
  * Rows are centered and share the font size and color of the message timestamp
  * dividers (see `<MessageView>`) so activity reads as the same class of ambient
@@ -47,6 +48,7 @@ export function TaskActivityFeedRunView({
     // Read the clocks once here rather than per item — every row would otherwise mount
     // its own identical subscriptions, and a task can render dozens of rows.
     const {timeZone, locale} = useClientInfo();
+    const {currentAccount} = useSpaceContext();
     const currentTime = useCurrentTimeRoundedToNearestTenMinutes();
     const currentDate = useCurrentDate();
 
@@ -60,6 +62,7 @@ export function TaskActivityFeedRunView({
                     locale={locale}
                     currentTime={currentTime}
                     currentDate={currentDate}
+                    currentAccountId={currentAccount?.id ?? null}
                     taskNoun={taskNoun}
                 />
             ))}
@@ -73,6 +76,7 @@ function TaskActivityFeedItemView({
     locale,
     currentTime,
     currentDate,
+    currentAccountId,
     taskNoun,
 }: {
     feedItem: TaskActivityFeedItem;
@@ -80,12 +84,14 @@ function TaskActivityFeedItemView({
     locale: Locale;
     currentTime: Date;
     currentDate: CalendarDate;
+    currentAccountId: AccountId | null;
     taskNoun: "task" | "project";
 }) {
     const segments = getTaskActivityFeedItemTextSegments(feedItem, {
         timeZone,
         locale,
         currentDate,
+        currentAccountId,
         taskNoun,
     });
 
@@ -126,7 +132,7 @@ function TaskActivityFeedItemView({
                 ),
             )}
             <Tooltip content={<PrettyAbsoluteDateTooltipContent date={feedItem.feedItemTime} />}>
-                <span className={sprinkles({color: "grey-30"})}>
+                <span>
                     {` · ${formatCompactRelativeDateWithoutFullTimeTooltip(
                         currentTime,
                         feedItem.feedItemTime,

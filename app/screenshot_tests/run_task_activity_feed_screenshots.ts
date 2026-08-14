@@ -113,6 +113,14 @@ a rendering bug.
         getTaskActivityScreenshotActionOptions(new Date("2025-10-08T08:16:00-04:00")),
     );
 
+    // Mason takes the bug back after the reopen. From Cass's view this is the
+    // third-person reflexive: "Mason assigned the task to themselves".
+    await task.updateAssignee(
+        accounts.masonClay,
+        accounts.masonClay,
+        getTaskActivityScreenshotActionOptions(new Date("2025-10-08T08:17:00-04:00")),
+    );
+
     // Mason digs in the same morning: two comments a minute apart with notes +
     // assignee updates between them. Without the activity break those comments would
     // merge; the intervening run keeps the second comment's name/face visible.
@@ -154,8 +162,9 @@ checklist.
     // row appears despite the title written at creation.
     await runner.getByText("reopened the task").waitFor();
     await runner.getByText("updated the notes").waitFor();
-    // Cass assigned earlier too, so pin Mason's later assignment specifically.
-    await runner.getByText("Mason assigned the task to").waitFor();
+    await runner.getByText("assigned the task to themselves").waitFor();
+    // Cass is the viewer, so Mason's later assignment to her reads as "You".
+    await runner.getByText("assigned the task to You").waitFor();
     // Second Mason comment must keep its author chrome (activity split the merge).
     // MessageView renders the full account name rather than the short activity-row
     // name.

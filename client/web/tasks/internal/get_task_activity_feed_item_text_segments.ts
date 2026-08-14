@@ -8,6 +8,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {Locale} from "~/shared/helpers/intl/locale.open_source.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 /**
@@ -23,6 +24,11 @@ type TaskActivityFeedItemTextOptions = {
     timeZone: TimeZone;
     locale: Locale;
     currentDate: CalendarDate;
+    /**
+     * The signed-in viewer, when there is one. Self-assignment copy is reflexive
+     * ("yourself" vs "themselves") from this person's point of view.
+     */
+    currentAccountId: AccountId | null;
     /**
      * What to call the thing this activity is about. A task laid out as a project
      * reads as "created the project" rather than "created the task".
@@ -76,7 +82,7 @@ export function getTaskActivityFeedItemTextSegments(
 
 function getChangeTextSegments(
     item: TaskActivityFeedDiscreteItem,
-    {timeZone, locale, currentDate, taskNoun}: TaskActivityFeedItemTextOptions,
+    {timeZone, locale, currentDate, currentAccountId, taskNoun}: TaskActivityFeedItemTextOptions,
 ): Array<TaskActivityFeedTextSegment> {
     switch (item.type) {
         case "TaskCreated":
@@ -111,13 +117,28 @@ function getChangeTextSegments(
                 },
             ];
         }
-        case "TaskAssigneeUpdated":
-            return item.assignee === null
-                ? [{type: "Text", text: `unassigned the ${taskNoun}`}]
-                : [
-                      {type: "Text", text: `assigned the ${taskNoun} to `},
-                      {type: "Account", account: item.assignee},
-                  ];
+        case "TaskAssigneeUpdated": {
+            if (item.assignee === null) {
+                return [{type: "Text", text: `unassigned the ${taskNoun}`}];
+            }
+
+            // Self-assignment is reflexive: the actor is already named at the start of the
+            // row, so repeating their name ("Ian assigned the task to Ian") reads as a glitch.
+            // The viewer looking at their own self-assignment gets "yourself"; everyone else
+            // gets "themselves".
+            if (item.actor?.account.id === item.assignee.id) {
+                const reflexivePronoun =
+                    currentAccountId !== null && currentAccountId === item.assignee.id
+                        ? "yourself"
+                        : "themselves";
+                return [{type: "Text", text: `assigned the ${taskNoun} to ${reflexivePronoun}`}];
+            }
+
+            return [
+                {type: "Text", text: `assigned the ${taskNoun} to `},
+                {type: "Account", account: item.assignee},
+            ];
+        }
         case "TaskDueDateUpdated": {
             if (item.dueDate === null) return [{type: "Text", text: "removed the due date"}];
 

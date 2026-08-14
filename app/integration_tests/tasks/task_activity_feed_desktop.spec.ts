@@ -339,10 +339,39 @@ test("assignment and notes after the creation fold window render as activity", a
     await services.signIn(browserContext, session);
     await page.goto(`/task/${task.id}`);
 
-    // "assigned the task to" and the assignee's name live in separate elements (the
-    // name is a link), so the assertion stays within the one text node.
-    await expect(page.getByText("assigned the task to")).toBeVisible();
+    await expect(page.getByText("assigned the task to yourself")).toBeVisible();
     await expect(page.getByText("updated the notes")).toBeVisible();
+});
+
+test("self-assignment by another person renders as themselves", async ({
+    page,
+    context: browserContext,
+}) => {
+    const space = await TestSpace.create(context);
+    const masonSession = await space.createSession({name: "Mason Clay"});
+    const cassSession = await space.createSession({name: "Cass Cade"});
+    const collection = await TestTaskCollection.create(masonSession, {
+        name: "Bugs",
+        access: "Public",
+    });
+    // Created 20 minutes ago so the self-assignment is real activity, not creation
+    // setup.
+    const creationTime = Date.now() - 20 * 60 * 1000;
+    const task = await TestTask.create(masonSession, {
+        title: "Self-assignment copy test",
+        collections: collection,
+        time: [creationTime, 0],
+        overrideCommittedTimeForTest: new Date(creationTime),
+    });
+    await task.updateAssignee(masonSession, masonSession);
+    await ProcessContextModule.waitForTestTasks();
+    await context.waitForSqsProcessJobs();
+
+    await services.signIn(browserContext, cassSession);
+    await page.goto(`/task/${task.id}`);
+
+    await expect(page.getByText("assigned the task to themselves")).toBeVisible();
+    await expect(page.getByText("assigned the task to yourself")).toBeHidden();
 });
 
 test("clicking an actor opens a chat peek with them", async ({page, context: browserContext}) => {
