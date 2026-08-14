@@ -1,5 +1,6 @@
 import {Fragment, ReactNode, useMemo, useState} from "react";
 import {usePress} from "react-aria";
+import {AgentConversationDebugView} from "~/client/web/debug/shared/agent_conversation_debug_view.js";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {
@@ -46,46 +47,83 @@ const claudeGateColors = {
 
 type ClaudeToolResultTone = "injected-rejection" | "parked" | "error" | "ok";
 
+// `conversation` is the conversation as the model sees it (rendered the same way
+// as the ChatGPT debugger), `annotated` and `raw` are views of the session
+// transcript the conversation is derived from.
+const claudeDebugViewNames = ["conversation", "annotated", "raw"] as const;
+
+type ClaudeDebugViewName = (typeof claudeDebugViewNames)[number];
+
+const claudeDebugViewLabel = {
+    conversation: "Conversation",
+    annotated: "Annotated",
+    raw: "Raw",
+} satisfies {[key in ClaudeDebugViewName]: string};
+
 export function ClaudeDebugView({data}: {data: ClaudeConversationDebugData}) {
-    const [view, setView] = useState<"annotated" | "raw">("annotated");
+    const [view, setView] = useState<ClaudeDebugViewName>("conversation");
 
     return (
-        <Box
-            userSelect="text"
-            fontSize="75"
-            marginX="center"
-            paddingX="4"
-            paddingY="6"
-            style={{maxWidth: "80ch"}}
-        >
-            <ClaudeDebugHeader data={data} />
+        <Box userSelect="text" fontSize="75" paddingY="6">
+            {/* The conversation view lays itself out in its own monospace column, so it
+                renders outside the column the rest of the debugger uses. */}
+            <Box marginX="center" paddingX="4" style={{maxWidth: "80ch"}}>
+                <ClaudeDebugHeader data={data} />
 
-            <ClaudeStatePanel data={data} />
+                <ClaudeStatePanel data={data} />
 
-            <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
-                flexWrap="wrap"
-                gap="3"
-                marginTop="6"
-                marginBottom="3"
-            >
-                <Box fontStyle="code-semi-bold" fontSize="50" color="grey-50">
-                    {data.items.length} session item{data.items.length === 1 ? "" : "s"}
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    flexWrap="wrap"
+                    gap="3"
+                    marginTop="6"
+                    marginBottom="3"
+                >
+                    <Box fontStyle="code-semi-bold" fontSize="50" color="grey-50">
+                        {view === "conversation" ? (
+                            <>
+                                {data.conversationItems.length} conversation item
+                                {data.conversationItems.length === 1 ? "" : "s"}
+                            </>
+                        ) : (
+                            <>
+                                {data.items.length} session item
+                                {data.items.length === 1 ? "" : "s"}
+                            </>
+                        )}
+                    </Box>
+                    <ClaudeViewToggle view={view} onChange={setView} />
                 </Box>
-                <ClaudeViewToggle view={view} onChange={setView} />
+
+                {view !== "conversation" &&
+                    (data.items.length === 0 ? (
+                        <Box
+                            color="grey-50"
+                            border="grey-10"
+                            borderRadius="3"
+                            paddingX="4"
+                            paddingY="4"
+                        >
+                            No session transcript yet. Send Claude a message in this conversation,
+                            then reload this page to see the Claude Agent SDK transcript.
+                        </Box>
+                    ) : view === "annotated" ? (
+                        <ClaudeAnnotatedItems items={data.items} />
+                    ) : (
+                        <ClaudeRawItems items={data.items} />
+                    ))}
             </Box>
 
-            {data.items.length === 0 ? (
-                <Box color="grey-50" border="grey-10" borderRadius="3" paddingX="4" paddingY="4">
-                    No session transcript yet. Send Claude a message in this conversation, then
-                    reload this page to see the Claude Agent SDK transcript.
-                </Box>
-            ) : view === "annotated" ? (
-                <ClaudeAnnotatedItems items={data.items} />
-            ) : (
-                <ClaudeRawItems items={data.items} />
+            {view === "conversation" && (
+                <AgentConversationDebugView
+                    items={data.conversationItems}
+                    emptyText={
+                        "No Claude conversation state yet. Send Claude a message in this " +
+                        "conversation, then reload this page to see the conversation the model sees."
+                    }
+                />
             )}
         </Box>
     );
@@ -144,8 +182,8 @@ function ClaudeViewToggle({
     view,
     onChange,
 }: {
-    view: "annotated" | "raw";
-    onChange: (view: "annotated" | "raw") => void;
+    view: ClaudeDebugViewName;
+    onChange: (view: ClaudeDebugViewName) => void;
 }) {
     return (
         <Box
@@ -156,15 +194,15 @@ function ClaudeViewToggle({
             fontStyle="code-semi-bold"
             fontSize="50"
         >
-            <ClaudeViewToggleOption
-                isSelected={view === "annotated"}
-                onPress={() => onChange("annotated")}
-            >
-                Annotated
-            </ClaudeViewToggleOption>
-            <ClaudeViewToggleOption isSelected={view === "raw"} onPress={() => onChange("raw")}>
-                Raw
-            </ClaudeViewToggleOption>
+            {claudeDebugViewNames.map(name => (
+                <ClaudeViewToggleOption
+                    key={name}
+                    isSelected={view === name}
+                    onPress={() => onChange(name)}
+                >
+                    {claudeDebugViewLabel[name]}
+                </ClaudeViewToggleOption>
+            ))}
         </Box>
     );
 }
@@ -333,7 +371,9 @@ function ClaudeAnnotatedItems({items}: {items: ReadonlyArray<ClaudeConversationI
                     typeof block.name === "string" &&
                     claudeWebToolNames.has(block.name)
                 ) {
-                    const signature = `${block.name} ${formatClaudeJson(block.input)}`;
+                    // `\u0000` can't appear in a tool name or in `JSON.stringify()` output, so no two
+                    // different calls can build the same key.
+                    const signature = `${block.name}\u0000${formatClaudeJson(block.input)}`;
                     if (seenWebToolInputs.has(signature)) {
                         redriveToolUseIds.add(block.id);
                     } else {

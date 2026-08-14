@@ -1,11 +1,9 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "claude",
+    name = "shared",
     visibility = ["//visibility:public"],
     deps = [
-        "//shared/debug/shared",
-        "//shared/error",
         "//shared/schema",
     ],
 )

@@ -1,4 +1,5 @@
 import {claudeKnownBotId} from "~/server/bots/settings_default_known_bot_account_model_data.js";
+import {getAgentConversationDebugItemsForClaudeSession} from "~/server/debug/claude/internal/get_agent_conversation_debug_items_for_claude_session.js";
 import {LoaderContext} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
@@ -47,6 +48,7 @@ export async function loadClaudeConversationDebugData(
             sessionId: null,
             projectKey: null,
             state: null,
+            conversationItems: [],
             items: [],
         };
     }
@@ -96,6 +98,9 @@ export async function loadClaudeConversationDebugData(
         sessionId: conversationState.sessionId,
         projectKey: conversationState.projectKey,
         state: conversationState.state,
+        conversationItems: await getAgentConversationDebugItemsForClaudeSession(
+            conversationState.items,
+        ),
         items: conversationState.items,
     };
 }

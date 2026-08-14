@@ -1,10 +1,7 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "claude",
-    test_deps = [
-        "//:node_modules/@testing-library/react",
-    ],
+    name = "shared",
     visibility = [
         "//app:__subpackages__",
         "//client/web:__subpackages__",
@@ -13,10 +10,11 @@ ts_project(
         "//:node_modules/@types/react",
         "//:node_modules/react",
         "//:node_modules/react-aria",
-        "//client/web/debug/shared",
         "//client/web/design",
+        "//client/web/helpers",
         "//client/web/styles",
-        "//shared/debug/claude",
+        "//shared/debug/shared",
         "//shared/design",
+        "//shared/helpers",
     ],
 )

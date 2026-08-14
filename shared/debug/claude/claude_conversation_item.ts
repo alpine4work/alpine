@@ -1,3 +1,7 @@
+import {
+    AgentConversationDebugItem,
+    AgentConversationDebugItemSchema,
+} from "~/shared/debug/shared/agent_conversation_debug_item.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -120,8 +124,8 @@ export type ClaudeAgentDebugRoomState = {
 
 /**
  * Everything the Claude agent debugger renders for one conversation: which bot and
- * session are shown, the persisted `state.json`, and the ordered session
- * transcript items.
+ * session are shown, the persisted `state.json`, the conversation state as the
+ * model sees it, and the ordered session transcript items.
  */
 export type ClaudeConversationDebugData = {
     /**
@@ -137,6 +141,12 @@ export type ClaudeConversationDebugData = {
     /** The Claude Agent SDK project key the transcript lives under, if found. */
     readonly projectKey: string | null;
     readonly state: ClaudeAgentDebugState | null;
+    /**
+     * The session transcript flattened into the conversation the model sees, shared
+     * with the ChatGPT debugger (see
+     * `get_agent_conversation_debug_items_for_claude_session.ts`).
+     */
+    readonly conversationItems: ReadonlyArray<AgentConversationDebugItem>;
     readonly items: ReadonlyArray<ClaudeConversationItem>;
 };
 
@@ -152,6 +162,7 @@ export const ClaudeConversationDebugDataSchema = Schema.object({
     sessionId: Schema.string.nullable(),
     projectKey: Schema.string.nullable(),
     state: ClaudeAgentDebugStateSchema.nullable(),
+    conversationItems: Schema.array(AgentConversationDebugItemSchema),
     items: Schema.array(ClaudeConversationItemSchema),
 });
 
