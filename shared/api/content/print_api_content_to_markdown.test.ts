@@ -10513,6 +10513,24 @@ a
 `,
                 },
                 {
+                    description: "standalone image file with caption",
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                file: {
+                                    id: fileId,
+                                    contentType: "image/png",
+                                    caption: "  A cat sitting on a windowsill.  ",
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+![A cat sitting on a windowsill.](https://alpine.inc/file/${fileId}/content)
+`,
+                },
+                {
                     description: "standalone video file",
 
                     content: {
@@ -10525,6 +10543,24 @@ a
                     },
                     expectedMarkdown: `\
 <video type="video/mp4" src="https://alpine.inc/file/${fileId}/content" controls></video>
+`,
+                },
+                {
+                    description: "standalone video file with caption",
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                file: {
+                                    id: fileId,
+                                    contentType: "video/mp4",
+                                    caption: "  A cat jumping onto a windowsill.  ",
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<video aria-label="A cat jumping onto a windowsill." type="video/mp4" src="https://alpine.inc/file/${fileId}/content" controls></video>
 `,
                 },
                 {
@@ -10543,6 +10579,24 @@ a
 `,
                 },
                 {
+                    description: "standalone audio file with caption",
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                file: {
+                                    id: fileId,
+                                    contentType: "audio/mpeg",
+                                    caption: "A cat purring.",
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<audio aria-label="A cat purring." type="audio/mpeg" src="https://alpine.inc/file/${fileId}/content" controls></audio>
+`,
+                },
+                {
                     description: "standalone pdf file",
 
                     content: {
@@ -10555,6 +10609,24 @@ a
                     },
                     expectedMarkdown: `\
 <object type="application/pdf" data="https://alpine.inc/file/${fileId}/content"></object>
+`,
+                },
+                {
+                    description: "standalone pdf file with caption",
+                    content: {
+                        elements: [
+                            {
+                                type: "File",
+                                file: {
+                                    id: fileId,
+                                    contentType: "application/pdf",
+                                    caption: `A "cat care" document.`,
+                                },
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<object aria-label="A &quot;cat care&quot; document." type="application/pdf" data="https://alpine.inc/file/${fileId}/content"></object>
 `,
                 },
                 {
@@ -10626,6 +10698,42 @@ a
 <div style="display: flex; align-items: stretch">
 <img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
 <img src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
+</div>
+`,
+                },
+                {
+                    description: "file gallery uses file captions as image alt text",
+                    content: {
+                        elements: [
+                            {
+                                type: "FileGallery",
+                                rows: [
+                                    {
+                                        items: [
+                                            {
+                                                width: 0.5,
+                                                element: {
+                                                    type: "File",
+                                                    file: {id: fileId, caption: "  A cat.  "},
+                                                },
+                                            },
+                                            {
+                                                width: 0.5,
+                                                element: {
+                                                    type: "File",
+                                                    file: {id: fileId, caption: "  A dog.  "},
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+<div style="display: flex; align-items: stretch">
+<img alt="A cat." src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
+<img alt="A dog." src="https://alpine.inc/file/${fileId}/content" style="flex: 0 0 50%" />
 </div>
 `,
                 },

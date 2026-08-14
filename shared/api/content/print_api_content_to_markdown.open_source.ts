@@ -461,10 +461,16 @@ function* printApiContentBlockElementToMarkdown(
         }
         case "File": {
             const fileUrl = printApiFileContentUrl(element.file.id);
+            const caption = element.file.caption?.trim() || undefined;
             if (!element.file.contentType || isWebSafeImageContentType(element.file.contentType)) {
                 const children: Array<PhrasingContent> = [
                     // Web safe images (and files with unknown content type) use markdown image syntax.
-                    {type: "image", url: fileUrl, alt: null, data: {fileElement: element}},
+                    {
+                        type: "image",
+                        url: fileUrl,
+                        ...(caption === undefined ? {} : {alt: caption}),
+                        data: {fileElement: element},
+                    },
                 ];
 
                 if (element.marks) {
@@ -490,6 +496,7 @@ function* printApiContentBlockElementToMarkdown(
                     value: printApiContentFileBlockElementToMarkdown(
                         fileUrl,
                         element.file.contentType,
+                        caption,
                     ),
                     data: {fileElement: element},
                 };
@@ -648,15 +655,20 @@ function* printApiContentBlockElementToMarkdown(
 function printApiContentFileBlockElementToMarkdown(
     fileUrl: string,
     contentType: string | undefined,
+    caption: string | undefined,
     styleAttr = "",
 ): string {
     const escapedUrl = escapeHtml(fileUrl);
+    const trimmedCaption = caption?.trim() || undefined;
 
     // If the file is a web safe image then use an `<img>` element. Files with unknown
     // content type also use `<img>` as the default.
     if (!contentType || isWebSafeImageContentType(contentType)) {
-        return `<img src="${escapedUrl}"${styleAttr} />`;
+        const altAttr = trimmedCaption ? ` alt="${escapeHtml(trimmedCaption)}"` : "";
+        return `<img${altAttr} src="${escapedUrl}"${styleAttr} />`;
     }
+
+    const ariaLabelAttr = trimmedCaption ? ` aria-label="${escapeHtml(trimmedCaption)}"` : "";
 
     // If the file is web safe video then use a `<video>` element. `video/mp4` is not
     // strictly web safe since it depends on the codecs used, but it's a common format
@@ -664,7 +676,7 @@ function printApiContentFileBlockElementToMarkdown(
     //
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
     if (isWebSafeVideoContentType(contentType) || contentType === "video/mp4") {
-        return `<video type="${escapeHtml(contentType)}" src="${escapedUrl}" controls${styleAttr}></video>`;
+        return `<video${ariaLabelAttr} type="${escapeHtml(contentType)}" src="${escapedUrl}" controls${styleAttr}></video>`;
     }
 
     // If the file is web safe audio then use an `<audio>` element. `audio/mp4` is not
@@ -673,18 +685,22 @@ function printApiContentFileBlockElementToMarkdown(
     //
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio
     if (isWebSafeAudioContentType(contentType) || contentType === "audio/mp4") {
-        return `<audio type="${escapeHtml(contentType)}" src="${escapedUrl}" controls${styleAttr}></audio>`;
+        return `<audio${ariaLabelAttr} type="${escapeHtml(contentType)}" src="${escapedUrl}" controls${styleAttr}></audio>`;
     }
 
     // Otherwise, fallback to an `<object>` element.
-    return `<object type="${escapeHtml(contentType)}" data="${escapedUrl}"${styleAttr}></object>`;
+    return `<object${ariaLabelAttr} type="${escapeHtml(contentType)}" data="${escapedUrl}"${styleAttr}></object>`;
 }
 
 function printApiContentFileOrPreviewBlockElementToMarkdown(
     element:
         | {
               readonly type: "File";
-              readonly file: {readonly id: string; readonly contentType?: string};
+              readonly file: {
+                  readonly id: string;
+                  readonly contentType?: string;
+                  readonly caption?: string;
+              };
           }
         | {readonly type: "Preview"; readonly reference: ApiPreviewReference},
     style?: string,
@@ -696,6 +712,7 @@ function printApiContentFileOrPreviewBlockElementToMarkdown(
             return printApiContentFileBlockElementToMarkdown(
                 fileUrl,
                 element.file.contentType,
+                element.file.caption,
                 styleAttr,
             );
         }

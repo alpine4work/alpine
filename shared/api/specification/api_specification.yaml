@@ -3480,6 +3480,10 @@ components:
                 contentLength:
                     type: integer
                     minimum: 0
+                caption:
+                    type: string
+                    minLength: 1
+                    maxLength: {{fileAnalysisCaptionMaxLength}}
 
         ContentPreviewBlockElement:
             type: object

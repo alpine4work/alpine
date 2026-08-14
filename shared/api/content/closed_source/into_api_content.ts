@@ -2,6 +2,7 @@ import {Mark, Node} from "prosemirror-model";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {computeApiContentFileRowWidths} from "~/shared/api/content/closed_source/compute_api_content_file_row_widths.js";
+import {intoApiContentFileResponse} from "~/shared/api/content/closed_source/into_api_content_file_response.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.open_source.js";
@@ -910,11 +911,7 @@ function intoApiContentFileOrPreviewElement(
     return {
         type: "File",
         ...(key !== undefined ? {key} : {}),
-        file: {
-            id: fileId,
-            contentType: file?.contentType ?? "application/octet-stream",
-            contentLength: file?.contentLength ?? 0,
-        },
+        file: intoApiContentFileResponse(fileId, file),
         ...(marks !== undefined ? {marks} : {}),
     };
 }

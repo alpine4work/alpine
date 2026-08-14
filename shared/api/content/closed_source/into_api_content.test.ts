@@ -4154,6 +4154,37 @@ describe("file block elements", () => {
         });
     });
 
+    test("file metadata includes its analysis caption", () => {
+        expect(
+            intoApiContent(doc(fileRow(file({fileId: fileId1}))), {
+                ...fileOptions,
+                getFileIfExists: fileId =>
+                    createFileModelData(fileId, {
+                        analysis: {
+                            isProcessing: false,
+                            ok: true,
+                            result: {
+                                tags: ["cat", "windowsill"],
+                                caption: "A cat sitting on a windowsill.",
+                            },
+                        },
+                    }),
+            }),
+        ).toEqual({
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: fileId1,
+                        contentType: "image/png",
+                        contentLength: 1024,
+                        caption: "A cat sitting on a windowsill.",
+                    },
+                },
+            ],
+        });
+    });
+
     test("fileFloat left converts to FileFloat element", () => {
         testFileIntoApiContent(doc(fileFloat({direction: "left"}, file({fileId: fileId1}))), {
             elements: [

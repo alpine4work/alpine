@@ -10,6 +10,7 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {computeApiContentFileRowWidths} from "~/shared/api/content/closed_source/compute_api_content_file_row_widths.js";
+import {intoApiContentFileResponse} from "~/shared/api/content/closed_source/into_api_content_file_response.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.open_source.js";
 import {
@@ -264,11 +265,7 @@ async function intoApiMessagePayloadFiles(
                 // probably need to make a change there too.
                 return {
                     type: "File",
-                    file: {
-                        id: fileOrEntityId,
-                        contentType: file?.contentType ?? "application/octet-stream",
-                        contentLength: file?.contentLength ?? 0,
-                    },
+                    file: intoApiContentFileResponse(fileOrEntityId, file?.initialData),
                 };
             }
 

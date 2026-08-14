@@ -13,6 +13,7 @@ import Yaml from "yaml";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {contentCodeBlockLanguageIds} from "~/shared/content/content_code_block_language_id.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
+import {fileAnalysisCaptionMaxLength} from "~/shared/files/file_analysis.js";
 import {
     fileAdditionalContentTypesAndExtensionsByContentType,
     fileContentTypeByCodeBlockLanguageId,
@@ -47,6 +48,7 @@ async function main() {
             integerRegExp: "(?:[0-9]|[1-9][0-9]+)",
             maxLabelStringLength,
             taskTitleMaxLength,
+            fileAnalysisCaptionMaxLength,
             codeBlockLanguageIds: JSON.stringify(contentCodeBlockLanguageIds),
             fileContentTypes: JSON.stringify(Array.from(fileContentTypes).sort()),
         },

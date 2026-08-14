@@ -503,14 +503,16 @@ export class ApiContentNormalizer {
                 else delete element.marks;
 
                 if (!this.#response) {
-                    // `contentType` and `contentLength` are response-only metadata that don't survive
-                    // the markdown round trip. Strip them so that content with and without metadata
-                    // normalizes to the same form.
+                    // File metadata doesn't survive the markdown round trip. Strip it so that content
+                    // with and without metadata normalizes to the same form.
                     if (hasOwnProperty(element.file, "contentType")) {
                         delete element.file.contentType;
                     }
                     if (hasOwnProperty(element.file, "contentLength")) {
                         delete element.file.contentLength;
+                    }
+                    if (hasOwnProperty(element.file, "caption")) {
+                        delete element.file.caption;
                     }
                 } else {
                     // Don't allow updating old response properties after the normalizer is destroyed.
@@ -518,9 +520,8 @@ export class ApiContentNormalizer {
 
                     // If `response` is non-null that means we're normalizing response content.
                     //
-                    // All files with the same `FileId` should have identical `contentType`s and
-                    // `contentLength`s. Use the `contentType` and `contentLength` from the last time
-                    // the file is referenced (this matches the behavior of
+                    // All files with the same `FileId` should have identical metadata. Use the
+                    // metadata from the last time the file is referenced (this matches the behavior of
                     // `printApiContentToAgentWebMarkdown()` which ends up with the last seen response
                     // data in storage.)
                     const actualElement = element as Draft<ApiContentFileBlockElementResponse>;
@@ -533,6 +534,11 @@ export class ApiContentNormalizer {
                     for (const otherFileElement of otherFileElements) {
                         otherFileElement.file.contentType = actualFile.contentType;
                         otherFileElement.file.contentLength = actualFile.contentLength;
+                        if (actualFile.caption !== undefined) {
+                            otherFileElement.file.caption = actualFile.caption;
+                        } else {
+                            delete otherFileElement.file.caption;
+                        }
                     }
 
                     otherFileElements.push(actualElement);

@@ -3842,6 +3842,10 @@ components:
                 contentLength:
                     type: integer
                     minimum: 0
+                caption:
+                    type: string
+                    minLength: 1
+                    maxLength: 256
         ContentFileBlockElementFile_Response:
             type: object
             required:
@@ -3857,6 +3861,10 @@ components:
                 contentLength:
                     type: integer
                     minimum: 0
+                caption:
+                    type: string
+                    minLength: 1
+                    maxLength: 256
         ContentPreviewBlockElement:
             type: object
             required:

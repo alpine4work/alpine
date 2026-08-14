@@ -3920,11 +3920,13 @@ export namespace ApiSpecification {
                 readonly id: components["schemas"]["FileId"];
                 readonly contentType?: components["schemas"]["FileContentType"];
                 readonly contentLength?: number;
+                readonly caption?: string;
             };
             readonly ContentFileBlockElementFile_Response: {
                 readonly id: components["schemas"]["FileId"];
                 readonly contentType: components["schemas"]["FileContentType"];
                 readonly contentLength: number;
+                readonly caption?: string;
             };
             readonly ContentPreviewBlockElement: {
                 /**
