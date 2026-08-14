@@ -85,7 +85,10 @@ import {useSiteContextIfExists} from "~/client/web/sites/context/site_context.js
 import {applySiteAccessPolicyChange} from "~/client/web/sites/helpers/apply_site_access_policy_change.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {postContentViewCommentMargin} from "~/client/web/styles/forum_shared_styles.js";
-import {messageInputMinHeightPx} from "~/client/web/styles/messaging_shared_styles.js";
+import {
+    messageInputMinHeightPx,
+    messageViewTimestampDividerMarginY,
+} from "~/client/web/styles/messaging_shared_styles.js";
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {
     taskDetailViewCommentSectionHeaderHeightPx,
@@ -119,6 +122,7 @@ import {TaskQueryNormalizedFiltersInitialFieldsModel} from "~/client/web/tasks/c
 import {createTaskDetailViewInheritedAccessPolicyExplanations} from "~/client/web/tasks/internal/create_task_detail_view_inherited_access_policy_explanations.js";
 import {createTaskEffectiveAccessPolicyStore} from "~/client/web/tasks/internal/create_task_entry_effective_access_policy_store.js";
 import {getNewTaskPositionsForQuerySortedByPosition} from "~/client/web/tasks/internal/get_new_task_positions_for_query_sorted_by_position.js";
+import {getTaskActivityBetween} from "~/client/web/tasks/internal/get_task_activity_between.js";
 import {getTaskStatusMenuActionsWithoutFullTask} from "~/client/web/tasks/internal/get_task_status_menu_actions.js";
 import {isTaskClientStoreTaskEntryDeleted} from "~/client/web/tasks/internal/is_task_client_store_task_entry_deleted.js";
 import {showTaskDeleteConfirmationModalDialog} from "~/client/web/tasks/internal/show_task_delete_confirmation_modal_dialog.js";
@@ -228,7 +232,7 @@ import {
     getTaskCommentsFromEnd,
     getTaskCommentsFromStart,
 } from "~/shared/rpc/tasks_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {ConstStore, falseStore} from "~/shared/store/const_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -2526,23 +2530,34 @@ export function TaskDetailView({
                 });
 
                 if (timelineRow.type === "TailActivity") {
+                    // Leading activity (no comments yet) needs the same top margin the first comment
+                    // row would apply above its activity. Otherwise adding the first comment inserts
+                    // that spacer and the activity jumps down.
+                    const isLeadingTailActivity = assertExists(tailActivity).afterTime === null;
+
                     return {
                         key: "TaskActivityFeedTailRun",
-                        // The floor of a run: one activity row plus the run's vertical padding.
-                        minHeight: convertRemLengthToPx("7", spacingScale),
+                        // The floor of a run: one activity row plus the run's vertical padding. Include
+                        // the leading spacer when this is the first feed item.
+                        minHeight:
+                            convertRemLengthToPx("7", spacingScale) +
+                            (isLeadingTailActivity
+                                ? convertRemLengthToPx(postContentViewCommentMargin, spacingScale)
+                                : 0),
                         node: (
                             <Box display="flex" justifyContent="center">
-                                <Box
-                                    width="full"
-                                    maxWidth={contentStyles.contentMaxWidth}
-                                    paddingX={screenPaddingX}
-                                >
-                                    <TaskDetailTimelineActivityRun
-                                        activityFeedItems={activityFeedItems}
-                                        afterTime={assertExists(tailActivity).afterTime}
-                                        untilTime={null}
-                                        taskNoun={taskEntityNoun}
-                                    />
+                                <Box width="full" maxWidth={contentStyles.contentMaxWidth}>
+                                    {isLeadingTailActivity && (
+                                        <Spacer space={postContentViewCommentMargin} />
+                                    )}
+                                    <Box width="full" paddingX={screenPaddingX}>
+                                        <TaskDetailTimelineActivityRun
+                                            activityFeedItems={activityFeedItems}
+                                            afterTime={assertExists(tailActivity).afterTime}
+                                            untilTime={null}
+                                            taskNoun={taskEntityNoun}
+                                        />
+                                    </Box>
                                 </Box>
                             </Box>
                         ),
@@ -2552,13 +2567,48 @@ export function TaskDetailView({
                 }
 
                 const {commentItemIndex, item} = timelineRow;
+                const commentActivity =
+                    timelineRow.type === "Comment" ? timelineRow.activity : null;
+                const hasActivityBeforeComment =
+                    commentActivity !== null &&
+                    getTaskActivityBetween(activityFeedItems, {
+                        afterTime: commentActivity.afterTime,
+                        untilTime: commentActivity.untilTime,
+                    }).length > 0;
+                // Optimistic comments after a comment-less activity tail sit under that leading
+                // run; treat them like comments preceded by activity for spacing.
+                const isFirstCommentPrecededByActivity =
+                    commentItemIndex === 0 &&
+                    (hasActivityBeforeComment ||
+                        (tailActivity !== null && tailActivity.afterTime === null));
+
+                const nextCommentItem =
+                    commentItemIndex < comments.getItemCount() - 1
+                        ? comments.getItem(commentItemIndex + 1)
+                        : null;
+                const hasActivityAfterComment =
+                    (item.type === "Loaded" || item.type === "Optimistic") &&
+                    nextCommentItem?.type === "Loaded" &&
+                    getTaskActivityBetween(activityFeedItems, {
+                        afterTime: item.message.createdTime,
+                        untilTime: nextCommentItem.message.createdTime,
+                    }).length > 0;
+                // Tail activity between the last real comment and optimistic ones is also a visual
+                // break that should prevent merge across the boundary.
+                const isSeparatedFromNextByTailActivity =
+                    tailActivity !== null &&
+                    commentItemIndex === comments.getMessageCountExcludingOptimisticMessages() - 1;
+                const isSeparatedFromPreviousByTailActivity =
+                    tailActivity !== null &&
+                    commentItemIndex === comments.getMessageCountExcludingOptimisticMessages();
+
                 const commentActivityNode =
-                    timelineRow.type === "Comment" && timelineRow.activity !== null ? (
+                    hasActivityBeforeComment && commentActivity !== null ? (
                         <Box width="full" paddingX={screenPaddingX}>
                             <TaskDetailTimelineActivityRun
                                 activityFeedItems={activityFeedItems}
-                                afterTime={timelineRow.activity.afterTime}
-                                untilTime={timelineRow.activity.untilTime}
+                                afterTime={commentActivity.afterTime}
+                                untilTime={commentActivity.untilTime}
                                 taskNoun={taskEntityNoun}
                             />
                         </Box>
@@ -2609,8 +2659,16 @@ export function TaskDetailView({
                     onPutMessageApprovalDecisions: handlePutCommentApprovalDecisions,
                     approvalSessionNoun: "task",
                     shouldAddMarginTop:
-                        commentItemIndex === 0 ? postContentViewCommentMargin : false,
+                        commentItemIndex !== 0
+                            ? false
+                            : isFirstCommentPrecededByActivity
+                              ? messageViewTimestampDividerMarginY
+                              : postContentViewCommentMargin,
                     shouldAddMarginBottom: commentItemIndex === comments.getItemCount() - 1,
+                    shouldSeparateFromPreviousMessage:
+                        hasActivityBeforeComment || isSeparatedFromPreviousByTailActivity,
+                    shouldSeparateFromNextMessage:
+                        hasActivityAfterComment || isSeparatedFromNextByTailActivity,
                     render: node => (
                         <div
                             className={sprinkles({
@@ -2624,6 +2682,9 @@ export function TaskDetailView({
                                     maxWidth: contentStyles.contentMaxWidth,
                                 })}
                             >
+                                {isFirstCommentPrecededByActivity && hasActivityBeforeComment && (
+                                    <Spacer space={postContentViewCommentMargin} />
+                                )}
                                 {commentActivityNode}
                                 {node}
                             </div>

@@ -40,8 +40,8 @@ import {resolveContentTableColumnWidthPx} from "~/client/web/content/state/table
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {ContentTableCellSelection} from "~/shared/content/table/content_table_cell_selection.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 

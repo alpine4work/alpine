@@ -20,7 +20,7 @@ import {FeedEntryModelSchema} from "~/shared/feed/feed_entry_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import * as searchRpcDefinitions from "~/shared/rpc/search_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     affinitySearch: searchRpcDefinitions.searchByAffinity.outputSchema,

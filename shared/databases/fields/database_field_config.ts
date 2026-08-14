@@ -15,7 +15,7 @@ import {
     DatabaseRelationFieldConfigSchema,
 } from "~/shared/databases/fields/relation/database_relation_field.js";
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 type AnyDatabaseFieldConfig =
     | DatabasePlainTextFieldConfig

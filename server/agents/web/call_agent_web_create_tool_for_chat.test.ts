@@ -2,10 +2,11 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_message_mock.js";
 import type {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
-import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
+import {callAgentWebCreateTool as actuallyCallAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
+import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
+import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import type {ApiAccountResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -13,6 +14,18 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import type {AccountId, BotId, ChatId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebCreateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebCreateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebCreateTool(...callArguments)).response;
+}
+
+async function callAgentWebUpdateTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebUpdateTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebUpdateTool(...callArguments)).response;
+}
 
 const spaceId = generateId<SpaceId>();
 const botAccountId = generateId<AccountId>();
@@ -26,6 +39,18 @@ const botApiAccount = createApiAccountMock({
     botId,
 });
 
+function mockAgentWebBotAccountReferenceForTest(
+    api: ApiClientMock,
+    botAccount: AgentWebContext["botAccount"],
+): void {
+    api.mockGet("/accounts/{id}-reference", {
+        params: {path: {id: botAccount.id}},
+        data: {
+            reference: intoApiAccountReference(botApiAccount),
+        },
+    });
+}
+
 const {span} = testTracer.startSpan("call_agent_web_create_tool_chat.test.ts");
 const api = new ApiClientMock();
 const storage = createAgentWebSessionStorageForTest(spaceId);
@@ -37,12 +62,8 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
 
@@ -53,11 +74,8 @@ beforeEach(async () => {
     const actualBobPathname = await storeAgentWebPageLinkForTest(storage, bobAccount);
     assert(actualBobPathname === "/human/bob");
 
-    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
-        storage,
-        context.botAccount,
-    );
-    assert(actualBotAccountPathname === context.botAccount.pathname);
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(storage, botApiAccount);
+    assert(actualBotAccountPathname === "/bot/chatgpt");
 });
 
 function createTextMessageRequestBody(text: string): {
@@ -398,6 +416,8 @@ End of messages.`,
 });
 
 test("does not create a chat when a new message is from another account", async () => {
+    mockAgentWebBotAccountReferenceForTest(api, context.botAccount);
+
     await expect(
         callAgentWebCreateTool(context, {
             type: "chat",

@@ -1,11 +1,11 @@
 import {TokenPayload, TokenPayloadSchema} from "~/server/tokens/token_payload.js";
 import {generateId} from "~/shared/id/id.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     ChatId,
     DocumentId,
     PostId,
-    SessionId,
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";

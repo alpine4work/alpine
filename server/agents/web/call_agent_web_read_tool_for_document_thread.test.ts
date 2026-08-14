@@ -5,7 +5,7 @@ import {mockApiGetDocument} from "~/server/agents/api/test_helpers/mock_api_get_
 import {mockApiGetDocumentThreadMessages} from "~/server/agents/api/test_helpers/mock_api_get_document_thread_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.open_source.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
@@ -35,6 +35,12 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
 const spaceId = generateId<SpaceId>();
 const documentId = generateId<DocumentId>();
 const threadId = generateId<DocumentCommentThreadId>();
@@ -52,7 +58,7 @@ const documentReference: ApiDocumentReferenceResponse = {
 const documentThreadReference: AgentWebPageDocumentThreadRoutedLink = {
     type: "DocumentThread",
     document: documentReference,
-    threadId,
+    id: threadId,
 };
 const documentThreadPath = "/document/launch-spec/comments/1";
 
@@ -67,19 +73,21 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: generateId<AccountId>(),
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: generateId<BotId>()},
-        pathname: "/bot/chatgpt",
     },
 };
 
 beforeEach(async () => {
     await storage.deleteAll();
 
-    await createAgentWebPageLinkPathname(storage, context.botAccount);
+    await createAgentWebPageLinkPathname(storage, {
+        type: "Account",
+        id: context.botAccount.id,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: context.botAccount.bot,
+    });
     await createAgentWebPageLinkPathname(storage, documentReference);
     await createAgentWebPageLinkPathname(storage, documentThreadReference);
 });
@@ -216,7 +224,7 @@ async function expireDocumentReadCache() {
 
     await storage.readResponseByPath.put("/document/launch-spec", {
         ...readResponse,
-        expirationTime: new Date(Date.now() - 1),
+        expirationTime: Date.now() - 1,
     });
 }
 
@@ -224,11 +232,13 @@ function mockMessages({
     totalMessageCount,
     cursor,
     from,
+    limit = 30,
     createMessage,
 }: {
     totalMessageCount: number;
     cursor?: number;
     from?: "Start" | "End";
+    limit?: number;
     createMessage?: (index: number) => ApiMessageResponse;
 }) {
     mockApiGetDocumentThreadMessages(api, {
@@ -238,7 +248,7 @@ function mockMessages({
         cursor,
         from,
         totalMessageCount,
-        limit: 30,
+        limit,
         createMessage:
             createMessage ??
             (index =>
@@ -420,6 +430,68 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 <comment id="4" from="[Alice](/human/alice)" time="5 minutes later">\n\nFourth comment.\n\n</comment>
 
 End of comments.`);
+});
+
+test.each([
+    {from: "start", apiFrom: undefined},
+    {from: "end", apiFrom: "End" as const},
+])(
+    "reads document comments after the blockquote and before a comment from $from",
+    async options => {
+        mockGetDocumentReference();
+        mockMessages({
+            from: options.apiFrom,
+            cursor: options.from === "start" ? -1 : 5,
+            totalMessageCount: 90,
+            limit: 5,
+        });
+
+        const {response} = await actuallyCallAgentWebReadTool(context, {
+            path: `${documentThreadPath}?after=blockquote&before=5&from=${options.from}`,
+            limit: "20kb",
+        });
+
+        expect({
+            commentIndexes: Array.from(response.matchAll(/<comment id="(-?[0-9]+)"/g), match =>
+                Number(match[1]),
+            ),
+            hasPagination: response.includes("Previous page") || response.includes("Next page"),
+            isEndOfComments: response.endsWith("End of comments."),
+        }).toEqual({
+            commentIndexes: [0, 1, 2, 3, 4],
+            hasPagination: false,
+            isEndOfComments: false,
+        });
+    },
+);
+
+test("reads a document comment in a bounded range from the end", async () => {
+    mockGetDocumentReference();
+    mockMessages({
+        from: "End",
+        cursor: 2,
+        totalMessageCount: 90,
+        limit: 1,
+    });
+
+    const {isError, response} = await actuallyCallAgentWebReadTool(context, {
+        path: `${documentThreadPath}?from=end&before=2&after=0`,
+        limit: "20kb",
+    });
+
+    expect({isError, response}).toEqual({
+        isError: false,
+        response: `\
+Document comment thread on [Launch Spec](/document/launch-spec).
+
+<time>May 14th at 11:05am EDT</time>
+
+<comment id="1" from="[Alice](/human/alice)">
+
+Comment 1.
+
+</comment>`,
+    });
 });
 
 test("reads a document thread with no comments", async () => {
@@ -936,8 +1008,8 @@ End of comments.`);
 test("reads a document thread comment link around the comment", async () => {
     await createAgentWebPageStoredLinkPathname(storage, {
         type: "DocumentMessage",
-        id: documentId,
-        threadId,
+        document: {type: "Document", id: documentId},
+        id: threadId,
         index: 1,
         authorShortName: "Alice",
         preview: "Second comment",

@@ -1,6 +1,6 @@
 import {Context} from "~/shared/context/context.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
-import {ObjectSchema} from "~/shared/schema/schema.open_source.js";
+import {ObjectSchema} from "~/shared/schema/schema.js";
 
 export type RpcDefinitionInputType<Definition extends RpcDefinition<any, any>> =
     Definition extends RpcDefinition<infer Input, any> ? Input : never;

@@ -4,7 +4,7 @@ import type {DatabaseFieldValue} from "~/shared/databases/fields/database_field_
 import {DatabaseNumberFieldValueSchema} from "~/shared/databases/fields/number/database_number_field.js";
 import {DatabasePlainTextFieldValueSchema} from "~/shared/databases/fields/plain_text/database_plain_text_field.js";
 import {DatabaseRelationFieldValueSchema} from "~/shared/databases/fields/relation/database_relation_field.js";
-import type {Schema} from "~/shared/schema/schema.open_source.js";
+import type {Schema} from "~/shared/schema/schema.js";
 
 const databaseFieldValueSchemas: {[Type in DatabaseFieldType]: Schema<DatabaseFieldValue<Type>>} = {
     PlainText: DatabasePlainTextFieldValueSchema,

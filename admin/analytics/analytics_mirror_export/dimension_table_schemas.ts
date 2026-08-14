@@ -1,8 +1,8 @@
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
-import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.open_source.js";
+import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SchemaSerializedValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
 /**
  * Allowlisted columns for the accounts dimension table. Merges

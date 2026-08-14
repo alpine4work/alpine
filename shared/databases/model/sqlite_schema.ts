@@ -1,4 +1,4 @@
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 export const SqlBooleanSchema = Schema.boolean.migration({
     serialize: value => value,

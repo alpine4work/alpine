@@ -62,12 +62,12 @@ export function createAgentWebTaskQueryCursorHash(
         while (true) {
             const hash = hashNumber.toString(16).padStart(agentWebTaskQueryCursorHashLength, "0");
             assert(hash.length === agentWebTaskQueryCursorHashLength);
-            const storedCursor = await storage.taskQueryCursorByHash.get(`${queryId}-${hash}`);
+            const storedCursor = await storage.taskQueryCursorByHash.get([queryId, hash]);
 
             if (storedCursor === cursor) return hash;
 
             if (storedCursor === undefined) {
-                await storage.taskQueryCursorByHash.put(`${queryId}-${hash}`, cursor);
+                await storage.taskQueryCursorByHash.put([queryId, hash], cursor);
                 return hash;
             }
 
@@ -86,5 +86,5 @@ export async function getAgentWebTaskQueryCursorForHashIfExists(
     queryId: AgentWebTaskQueryId,
     hash: string,
 ): Promise<ApiTaskQueryCursor | undefined> {
-    return await storage.taskQueryCursorByHash.get(`${queryId}-${hash.toLowerCase()}`);
+    return await storage.taskQueryCursorByHash.get([queryId, hash.toLowerCase()]);
 }

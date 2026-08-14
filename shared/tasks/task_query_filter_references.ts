@@ -2,7 +2,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
 import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {TaskCollectionModelSearchResultSchema} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";

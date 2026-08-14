@@ -5,7 +5,7 @@ import {
 } from "~/shared/access/access_policy.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SiteContainerIdSchema} from "~/shared/sites/site_entry_id.js";
 
 export type CreateOrUpdateAccessPolicy = SchemaType<typeof CreateOrUpdateAccessPolicySchema>;

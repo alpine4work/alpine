@@ -1,10 +1,10 @@
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {
     DurableObjectServiceName,
     TracerServiceName,
-} from "~/shared/tracer/tracer_root.open_source.js";
+} from "~/shared/tracer/types/tracer_service_name.js";
 
 const tokenEdgeServiceFamilyNames = [
     "EdgeService",

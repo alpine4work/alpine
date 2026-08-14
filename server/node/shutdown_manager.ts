@@ -172,6 +172,11 @@ export class ShutdownManager implements ShutdownManagerBase {
                 const wait = async () => {
                     while (this._waitUntilPromises.size > 0) {
                         try {
+                            // Flush the tracer every `wait()` cycle. This will help us shutdown faster. Since
+                            // there may be a tracer promise in `promises` that's waiting a couple seconds for
+                            // events. Instead we want to flush it immediately so we can move on.
+                            this.registerWaitUntilPromise(this._flushTracer());
+
                             await runAllPromises(this._waitUntilPromises);
                         } catch (error) {
                             errors.push(error);
@@ -193,10 +198,6 @@ export class ShutdownManager implements ShutdownManagerBase {
                 }
 
                 finishSpan();
-
-                // Immediately flush any pending tracer events instead of waiting after the
-                // `finishSpan()` call.
-                await this._flushTracer();
 
                 // After we finish the span, we need to wait for all `waitUntil()` promises AGAIN
                 // since we need to send shutdown spans to our telemetry provider (Honeycomb) and

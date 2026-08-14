@@ -46,7 +46,7 @@ import {
     Schema,
     type SchemaSerializedValue,
     type SchemaType,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 
 export function createDatabaseActionContext(
     db: SqliteDatabase,

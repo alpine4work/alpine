@@ -12020,3 +12020,64 @@ console.log(x);
         })(),
     ).rejects.toThrow("Assertion failure");
 });
+
+test("round trips nested content from a phantom list item after another list", () => {
+    const content: ApiContent = {
+        elements: [
+            {
+                type: "CheckList",
+                items: [{checked: false, elements: [{type: "Paragraph", elements: []}]}],
+            },
+            {
+                type: "UnorderedList",
+                items: [
+                    {
+                        elements: [],
+                        nestedListElements: [
+                            {
+                                type: "UnorderedList",
+                                items: [{elements: [{type: "Paragraph", elements: []}]}],
+                            },
+                        ],
+                    },
+                    {elements: [{type: "Paragraph", elements: []}]},
+                ],
+            },
+        ],
+    };
+
+    const markdown = printApiContentToMarkdown(content);
+
+    expect(parseApiContentFromMarkdown(markdown)).toEqual(normalizeApiContent(content));
+});
+
+test("round trips a non-leading list item with only nested content", () => {
+    const content: ApiContent = {
+        elements: [
+            {
+                type: "UnorderedList",
+                items: [
+                    {elements: [{type: "Paragraph", elements: []}]},
+                    {
+                        elements: [],
+                        nestedListElements: [
+                            {
+                                type: "CheckList",
+                                items: [
+                                    {
+                                        checked: false,
+                                        elements: [{type: "Paragraph", elements: []}],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const markdown = printApiContentToMarkdown(content);
+
+    expect(parseApiContentFromMarkdown(markdown)).toEqual(normalizeApiContent(content));
+});

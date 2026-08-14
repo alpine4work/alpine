@@ -18,7 +18,11 @@ const originalSetTimeout = setTimeout;
  * HTTP request to make sure the HTTP server is responsive. You may customize the
  * path sent to the HTTP server.
  */
-export function waitForHttpServer(port: number, path: string = "/") {
+export function waitForHttpServer(
+    port: number,
+    path: string = "/",
+    {timeout = 60 * 1000}: {timeout?: number} = {},
+) {
     // NOTE(calebmer, 2024-08-07): There used to be a [file descriptor leak in
     // Node.js][1] that's been fixed in v20.9.0 when destroying a socket that failed
     // with a `ECONNREFUSED` error. If you see any `EBADF` errors in your developer
@@ -31,7 +35,6 @@ export function waitForHttpServer(port: number, path: string = "/") {
     // [1]: https://github.com/nodejs/node/issues/50479
     return new Promise<void>((resolve, reject) => {
         const startTime = Date.now();
-        const timeout = 60 * 1000;
 
         // 1. Wait until the socket becomes available.
         const loop1 = (lastResult: Result<void>) => {
@@ -48,7 +51,7 @@ export function waitForHttpServer(port: number, path: string = "/") {
             let isFinished = false;
 
             const socket = net.connect(port, "localhost");
-            socket.setTimeout(1000);
+            socket.setTimeout(Math.min(1000, timeout));
 
             socket.on("timeout", () => {
                 if (isFinished) return;
@@ -96,7 +99,7 @@ export function waitForHttpServer(port: number, path: string = "/") {
                 port,
                 path,
             });
-            request.setTimeout(5 * 1000);
+            request.setTimeout(Math.min(5 * 1000, timeout));
 
             request.on("timeout", () => {
                 if (isFinished) return;

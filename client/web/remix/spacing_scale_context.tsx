@@ -4,12 +4,12 @@ import {ReactElement, ReactNode, createContext, useContext, useEffect, useState}
 import {flushSync} from "react-dom";
 import {NativeMobileBridge} from "~/client/web/remix/native_mobile_bridge.js";
 import {subscribeToPlatformChange} from "~/client/web/remix/platform_context.js";
-import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.open_source.js";
+import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
 import {
     SpacingScale,
     mediumSpacingScaleMinWindowWidth,
     remPxBySpacingScale,
-} from "~/shared/design/core/spacing_scale.open_source.js";
+} from "~/shared/design/core/spacing_scale.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";

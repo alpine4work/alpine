@@ -44,7 +44,7 @@ import {
     HybridLogicalTimeSchema,
     serializeHybridLogicalTime,
 } from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,

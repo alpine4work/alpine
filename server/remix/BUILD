@@ -5,6 +5,7 @@ ts_project(
     visibility = [
         "//app:__subpackages__",
         "//server/debug/chat_gpt:__pkg__",
+        "//server/debug/claude:__pkg__",
     ],
     deps = [
         "//:node_modules/@remix-run/dev",

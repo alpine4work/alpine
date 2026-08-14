@@ -1,7 +1,7 @@
 import {keyframes, style} from "@vanilla-extract/css";
 import {Color} from "~/shared/design/core/colors.js";
 import {easeInQuart, easeOutQuart} from "~/shared/design/core/easing.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {RemLength, Spacing, addRemLengths, parseRemLength} from "~/shared/design/core/spacing.js";
 
 // These constants are re-exported from `navigation_bar_helpers.ts` for

@@ -19,7 +19,7 @@ import {DocumentModel, getDocumentContentTitle} from "~/shared/documents/documen
 import {createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
 import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {SpellCheckIgnoredLintModel} from "~/shared/spell_check/spell_check_model.js";

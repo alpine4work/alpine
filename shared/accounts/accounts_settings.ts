@@ -12,7 +12,7 @@ import {
 } from "~/shared/reactions/reaction_emotion_affinity.js";
 import {ReactionSchema} from "~/shared/reactions/reaction_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type AccountSettings = SchemaType<typeof AccountSettingsSchema>;
 

@@ -38,6 +38,7 @@ ts_project(
         "//:node_modules/micromark-extension-gfm-task-list-item",
         "//:node_modules/micromark-extension-math",
         "//shared/api/specification",
+        "//shared/error",
         "//shared/helpers",
         "//shared/id",
         "//shared/tracer",

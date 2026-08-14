@@ -5,7 +5,7 @@ import type {
     SpaceId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export class DatabaseTableMetadataModel extends Model(
     Schema.object({

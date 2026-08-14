@@ -80,13 +80,14 @@ import {iterableWithIndex} from "~/shared/helpers/iterable/iterable_with_index.j
 import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {generateOrderKeysBetween} from "~/shared/helpers/sort/order_key.open_source.js";
 import {generateId, isId} from "~/shared/id/id.open_source.js";
-import {AccountId, BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageDraftWithFilesSchema,
     emptyMessageDraftWithFiles,
 } from "~/shared/messaging/message_draft_schema.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {ConstStore} from "~/shared/store/const_store.js";

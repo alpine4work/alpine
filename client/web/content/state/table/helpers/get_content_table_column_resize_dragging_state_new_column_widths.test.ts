@@ -1,6 +1,6 @@
 import {getContentTableColumnResizeDraggingStateNewColumnWidths} from "~/client/web/content/state/table/helpers/get_content_table_column_resize_dragging_state_new_column_widths.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 const blockWidthPx = contentStyles.blockMaxWidthRem["desktop"] * remPxBySpacingScale["small"];
 

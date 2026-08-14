@@ -16,7 +16,7 @@ import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {Id, decodeId} from "~/shared/id/id.open_source.js";
 import {getRealmId} from "~/shared/id/realm_id.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const taskTitleMaxLength = 512;
 

@@ -37,7 +37,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {throwError} from "~/shared/helpers/control/throw_error.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {isSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 
 const LoaderSchema = Schema.object({});

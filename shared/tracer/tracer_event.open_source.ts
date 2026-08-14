@@ -3,7 +3,7 @@ import {
     TracerEventFlatData,
     buildTracerEventFlatData,
 } from "~/shared/tracer/helpers/build_tracer_event_flat_data.open_source.js";
-import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * An in-memory tracer event. Events are structured so they can be cheaply
@@ -20,7 +20,6 @@ export class TracerEvent {
     private readonly _eventData: LinkedList<TracerEventFullData>;
     private readonly _propagatedEventFlatData: TracerEventFlatData | null;
     private _flatEventData: TracerEventFlatData | null = null;
-    private _flatEventDataForKinesis: TracerEventFlatData | null = null;
 
     constructor(
         time: number,
@@ -45,34 +44,27 @@ export class TracerEvent {
         }
         return this._flatEventData;
     }
+}
 
-    public getFlatDataForKinesis(): TracerEventFlatData {
-        const convertPropagatedFlatDataToKinesisFlatData = () => {
-            if (!this._propagatedEventFlatData) return {};
+export function convertTracerEventFlatDataToKinesisData({
+    time,
+    data,
+}: {
+    time: number;
+    data: TracerEventFlatData;
+}): Record<string, unknown> {
+    const kinesisData: Record<string, unknown> = {};
 
-            const newFlatData: TracerEventFlatData = {};
-            for (const [key, value] of Object.entries(this._propagatedEventFlatData)) {
-                newFlatData[key.replaceAll(".", "__")] = value;
-            }
-            return newFlatData;
-        };
+    kinesisData["time"] = new Date(time).toISOString();
 
-        if (this._flatEventDataForKinesis === null) {
-            const flatData =
-                this._eventData !== null
-                    ? buildTracerEventFlatData(this._eventData, this._propagatedEventFlatData, "__")
-                    : convertPropagatedFlatDataToKinesisFlatData();
-
-            flatData["time"] = new Date(this.time).toISOString();
-
-            const eventDuration = flatData["duration_ms"];
-            if (typeof eventDuration === "number") {
-                flatData["end_time"] = new Date(this.time + eventDuration).toISOString();
-            }
-
-            this._flatEventDataForKinesis = flatData;
-        }
-
-        return this._flatEventDataForKinesis;
+    const durationMs = kinesisData["duration_ms"];
+    if (typeof durationMs === "number") {
+        kinesisData["end_time"] = new Date(time + durationMs).toISOString();
     }
+
+    for (const [key, value] of Object.entries(data)) {
+        kinesisData[key.replaceAll(".", "__")] = value;
+    }
+
+    return kinesisData;
 }

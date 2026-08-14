@@ -6,7 +6,7 @@ import {
     DatabaseViewId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.open_source.js";
+import {ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
 
 export type DatabaseTableKind = "Table" | "Join";
 

@@ -15,12 +15,14 @@ import {
     zipApiSearchResultMatches,
 } from "~/server/agents/web/internal/zip_api_search_result_matches.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
+import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 /**
@@ -40,15 +42,30 @@ export const defaultAgentWebSearchResultLimit = 10;
 export async function callAgentWebSearchTool(
     context: AgentWebContext,
     options: {query: string; limit?: number},
-): Promise<string> {
+): Promise<{isError: boolean; response: string}> {
     return await context.span.withSpan("Call agent web search tool", async span => {
-        try {
-            return await actuallyCallAgentWebSearchTool({...context, span}, options);
-        } catch (error) {
-            span.addException(error);
+        return await withInstrumentedAgentWebSessionStorage(
+            span,
+            context.storage,
+            async storage => {
+                try {
+                    return {
+                        isError: false,
+                        response: await actuallyCallAgentWebSearchTool(
+                            {...context, span, storage},
+                            options,
+                        ),
+                    };
+                } catch (error) {
+                    span.addException(error);
 
-            return printAgentWebError(`Couldn\u2019t search`, error);
-        }
+                    return {
+                        isError: true,
+                        response: printAgentWebError(`Couldn\u2019t search`, error),
+                    };
+                }
+            },
+        );
     });
 }
 
@@ -181,7 +198,10 @@ async function createAgentWebSearchEntityResultListItem(
     storage: AgentWebSessionStorage,
     result: Exclude<ApiSearchResultResponse, ApiSearchMessageResultResponse>,
 ): Promise<ListItem> {
-    const resultLinkPathname = await createAgentWebPageStoredLinkPathname(storage, result);
+    const resultLinkPathname = await createAgentWebPageStoredLinkPathname(
+        storage,
+        omitObject(result, ["bodySnippet", "matches", "parsedFilter"]),
+    );
 
     const resultLinkLabel = printAgentWebPageStoredLinkLabel(result);
 
@@ -249,8 +269,8 @@ async function createAgentWebSearchMessageResultListItem(
         case "DocumentMessage": {
             resultLink = {
                 type: "DocumentMessage",
+                document: {type: "Document", id: result.document.id},
                 id: result.id,
-                threadId: result.threadId,
                 index: result.index,
                 authorShortName: result.author.shortName,
                 preview: flatBodyMatch(preview),

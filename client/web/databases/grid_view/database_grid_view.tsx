@@ -45,7 +45,7 @@ import type {AccessPolicy} from "~/shared/access/access_policy.js";
 import {DatabaseTableMetadataModel} from "~/shared/databases/database_table_metadata_model.js";
 import type {DatabaseFieldValue} from "~/shared/databases/fields/database_field_value.js";
 import {spacing} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import type {RynamoEvent} from "~/shared/dynamo/rynamo_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
@@ -57,7 +57,7 @@ import type {
     SiteId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {updateDatabaseTableAccessPolicy} from "~/shared/rpc/database_tables_rpc_definitions.js";
-import type {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import type {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 // -- Selection state ----------------------------------------------------------

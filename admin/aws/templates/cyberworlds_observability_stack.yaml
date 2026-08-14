@@ -1544,6 +1544,12 @@ Resources:
                           Type: string
                         - Name: cloudflare__d1__database_name
                           Type: string
+                        - Name: cloudflare__containers__id
+                          Type: string
+                        - Name: cloudflare__queues__message_id
+                          Type: string
+                        - Name: cloudflare__queues__queue_duration_ms
+                          Type: double
                         - Name: github__compare_url
                           Type: string
                         - Name: github__workflow__run__id
@@ -1748,6 +1754,24 @@ Resources:
                           Type: string
                         - Name: agents__request__usage_window__previous_used_millicents
                           Type: int
+                        - Name: agents__web__storage__total_duration_ms
+                          Type: double
+                        - Name: agents__web__storage__total_get_call_count
+                          Type: int
+                        - Name: agents__web__storage__total_get_duration_ms
+                          Type: double
+                        - Name: agents__web__storage__total_put_call_count
+                          Type: int
+                        - Name: agents__web__storage__total_put_duration_ms
+                          Type: double
+                        - Name: agents__web__storage__total_delete_call_count
+                          Type: int
+                        - Name: agents__web__storage__total_delete_duration_ms
+                          Type: double
+                        - Name: agents__web__storage__total_list_call_count
+                          Type: int
+                        - Name: agents__web__storage__total_list_duration_ms
+                          Type: double
                         - Name: billing__created_stripe_customer
                           Type: boolean
                         - Name: billing__stripe_customer_id

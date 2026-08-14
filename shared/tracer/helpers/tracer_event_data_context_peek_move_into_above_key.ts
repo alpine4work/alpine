@@ -1,4 +1,4 @@
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Keys in the event object's `context` object we want to move into `context.peek`

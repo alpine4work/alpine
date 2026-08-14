@@ -8,7 +8,8 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {emptyObject} from "~/shared/helpers/object/empty_object.open_source.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
-import {TaskActionTransactionLeaseId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {TaskActionTransactionLeaseId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
 
 /**

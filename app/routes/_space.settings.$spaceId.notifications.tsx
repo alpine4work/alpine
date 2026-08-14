@@ -21,7 +21,7 @@ import {spacing} from "~/shared/design/core/spacing.js";
 import {RynamoItem, createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {
     getInboxWithStrongReadConsistency,
@@ -31,7 +31,7 @@ import {
     subscribeToDigestNotificationsEmail,
     unsubscribeFromDigestNotificationsEmail,
 } from "~/shared/rpc/notifications_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     browserId: Schema.id<BrowserId>(),

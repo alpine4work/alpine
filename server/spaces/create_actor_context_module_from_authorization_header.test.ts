@@ -16,7 +16,8 @@ import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext({spacesInjection});
 

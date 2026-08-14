@@ -6,7 +6,7 @@ import {normalizeNotionExportDirectory} from "~/server/importer/notion/internal/
 import {NotionImporterTable} from "~/server/importer/notion/internal/notion_importer_table.js";
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
-import {NotionImportId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
 import {NotionImportTeamspaceOptions} from "~/shared/importer/notion/notion_import_item.js";
 
 /**

@@ -1585,7 +1585,8 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                 "values": [
                                                                                     "Space",
                                                                                     "SpaceAccount"
-                                                                                ]
+                                                                                ],
+                                                                                "referenceId": "ac7c0982"
                                                                             },
                                                                             "optional": true
                                                                         },
@@ -1604,6 +1605,69 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         "isSecret": {
                                                                             "valueSchema": {
                                                                                 "type": "Boolean"
+                                                                            },
+                                                                            "optional": false
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "Select": {
+                                                                    "type": "Object",
+                                                                    "propertySchemaByKey": {
+                                                                        "type": {
+                                                                            "valueSchema": {
+                                                                                "type": "Value",
+                                                                                "value": "Select"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "label": {
+                                                                            "valueSchema": {
+                                                                                "type": "String"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "hint": {
+                                                                            "valueSchema": {
+                                                                                "type": "Nullable",
+                                                                                "schema": {
+                                                                                    "type": "String"
+                                                                                }
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "level": {
+                                                                            "valueSchema": {
+                                                                                "type": "Reference",
+                                                                                "reuseReferenceId": "ac7c0982"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "defaultValue": {
+                                                                            "valueSchema": {
+                                                                                "type": "String"
+                                                                            },
+                                                                            "optional": false
+                                                                        },
+                                                                        "options": {
+                                                                            "valueSchema": {
+                                                                                "type": "Array",
+                                                                                "itemSchema": {
+                                                                                    "type": "Object",
+                                                                                    "propertySchemaByKey": {
+                                                                                        "label": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "String"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        },
+                                                                                        "value": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "String"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        }
+                                                                                    }
+                                                                                }
                                                                             },
                                                                             "optional": false
                                                                         }

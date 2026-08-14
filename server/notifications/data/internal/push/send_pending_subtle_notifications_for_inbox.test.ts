@@ -27,12 +27,8 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {
-    AccountId,
-    BrowserId,
-    ChatId,
-    NotificationEventId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId, NotificationEventId} from "~/shared/id/types/id_types.js";
+import {AccountId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const sendWebPushNotificationMock = import.meta.jest.fn();

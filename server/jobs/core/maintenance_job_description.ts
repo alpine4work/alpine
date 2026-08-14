@@ -1,6 +1,6 @@
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {EmailAddressSchema} from "~/shared/schema/helpers/email_address_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * A maintenance job description is similar to `JobDescription` but not scoped to a

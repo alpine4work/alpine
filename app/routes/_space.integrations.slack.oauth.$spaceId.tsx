@@ -23,7 +23,7 @@ import {
     slackOAuthStatusMessageType,
     slackOAuthWindowName,
 } from "~/shared/integrations/slack/slack_oauth_status_message_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     ok: Schema.boolean,

@@ -8,7 +8,6 @@ import {
     normalizeAgentWebPageStoredLinkPathname,
 } from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
 
 /**
  * Create the URL pathname for a `AgentWebPageStoredLink`. Return this pathname in
@@ -40,6 +39,13 @@ export function createAgentWebPageStoredLinkPathname(
         let dedupeNumber = 1;
         let pageLinkPathname = printAgentWebPageStoredLinkPathname(pageLink, dedupeNumber);
 
+        // The path `/bot/me` is special cased for redirecting to the current account. So
+        // if we have a bot named "me" then the path should start at `/bot/me-2`.
+        if (pageLinkPathname === "/bot/me") {
+            dedupeNumber++;
+            pageLinkPathname = printAgentWebPageStoredLinkPathname(pageLink, dedupeNumber);
+        }
+
         // We check pathname collisions against the normalized storage key so account
         // pathnames with different labels still collide: if `/human/caleb` exists then a
         // bot named "Caleb" dedupes to `/bot/caleb-2` since both normalize to
@@ -64,7 +70,10 @@ export function createAgentWebPageStoredLinkPathname(
             );
         }
 
-        if (actualPageLink === undefined || !isDeepEqual(actualPageLink, pageLink)) {
+        if (
+            actualPageLink === undefined ||
+            JSON.stringify(actualPageLink) !== JSON.stringify(pageLink)
+        ) {
             await storage.pageStoredLinkByPathname.put(
                 normalizeAgentWebPageStoredLinkPathname(pageLinkPathname),
                 pageLink,

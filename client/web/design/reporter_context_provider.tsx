@@ -28,7 +28,7 @@ import {usePromise} from "~/client/web/helpers/use_promise.js";
 import {usePlatform} from "~/client/web/remix/platform_context.js";
 import {toastStyles} from "~/client/web/styles/styles.js";
 import {greyElevated2ClassName} from "~/shared/design/core/constant_class_names.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {perceivedAsInstantLimitMs} from "~/shared/design/core/timing.js";
 import {ErrorBase} from "~/shared/error/error.open_source.js";

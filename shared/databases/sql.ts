@@ -10,7 +10,7 @@ import {
     Schema,
     type SchemaSerializedObjectValue,
     type SchemaSerializedValue,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 
 /**
  * Minimal structural surface of Cloudflare's `SqlStorage` — a durable object's

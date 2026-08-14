@@ -28,7 +28,7 @@ import {
     DatabaseTableId,
     DatabaseViewId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export class DatabaseTableModel extends DatabaseSchemaScopedBaseModel {
     readonly tableRef: SqlQuery;

@@ -1,11 +1,17 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.open_source.js";
+import {callAgentWebFindTool as actuallyCallAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebFindTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebFindTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebFindTool(...callArguments)).response;
+}
 
 const {span} = testTracer.startSpan("call_agent_web_find_tool.test.ts");
 const api = new ApiClientMock();
@@ -22,12 +28,8 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
 
@@ -65,7 +67,7 @@ async function seedReadResponse({
     expirationTime?: Date;
 }) {
     await context.storage.readResponseByPath.put(path, {
-        expirationTime,
+        expirationTime: expirationTime.getTime(),
         pageMetadata: {type: "Document", id: generateId<DocumentId>(), version: 1, keys: []},
         ...createReadResponse(response),
     });

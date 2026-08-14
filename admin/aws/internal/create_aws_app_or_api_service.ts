@@ -354,7 +354,10 @@ export function createAwsAppOrApiService(
             `--port=${port}`,
             "--edgeServiceUrl=https://alpine.inc",
             ...(withAgentServiceUrl
-                ? ["--agentServiceUrl=https://agent-service.cyberworlds.workers.dev"]
+                ? [
+                      "--agentServiceUrl=https://agent-service.cyberworlds.workers.dev",
+                      "--agentV2ServiceUrl=https://agent-v2-service.cyberworlds.workers.dev",
+                  ]
                 : []),
             `--resourceServiceUrl=https://resources.alpine.inc`,
             `--opensearchDomainEndpoint=${opensearch.domainEndpoint}`,

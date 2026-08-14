@@ -17,11 +17,7 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {isId} from "~/shared/id/id.open_source.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
-import {
-    ObjectSchema,
-    Schema,
-    SchemaDeserializationError,
-} from "~/shared/schema/schema.open_source.js";
+import {ObjectSchema, Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 import {analyzeTaskTitleText} from "~/shared/tasks/analyze_task_title_text.js";
 import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
 import {TaskLayout} from "~/shared/tasks/task_layout.js";

@@ -16,7 +16,7 @@ import {
     type ObjectSchemaConfigType,
     Schema,
     type SchemaType,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 
 /**
  * Shared schemas for the database realtime protocol and its client/server sync

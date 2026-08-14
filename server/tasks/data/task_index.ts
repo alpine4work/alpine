@@ -92,11 +92,11 @@ import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.
 import {TestCounter} from "~/shared/helpers/test/test_counter.js";
 import {JsonScalarValue} from "~/shared/helpers/types/json_value.open_source.js";
 import {Replace} from "~/shared/helpers/types/replace.open_source.js";
+import {TaskActionTransactionId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     SiteId,
     SpaceId,
-    TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";

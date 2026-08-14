@@ -7,7 +7,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 /**

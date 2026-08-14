@@ -1,6 +1,6 @@
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {parseRemLength} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 
 test("letter spacing matches Inter tracking formula", () => {

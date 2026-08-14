@@ -1,5 +1,5 @@
 import {themeColors} from "~/shared/design/core/theme_colors.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Configuration for a blob used on document content covers.

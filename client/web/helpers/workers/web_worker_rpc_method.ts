@@ -5,7 +5,7 @@ import {
     ObjectSchemaConfigType,
     Schema,
     SchemaType,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 
 /**
  * A set of RPC method definitions for a web worker. Keys are method names, values

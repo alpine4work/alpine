@@ -3,8 +3,8 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_message_mock.js";
 import {mockApiGetPostMessages} from "~/server/agents/api/test_helpers/mock_api_get_post_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
-import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebScrollTool as actuallyCallAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
@@ -27,6 +27,18 @@ import {
     SpaceId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
+async function callAgentWebScrollTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebScrollTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebScrollTool(...callArguments)).response;
+}
 
 const spaceId = generateId<SpaceId>();
 const postId = generateId<PostId>();
@@ -53,19 +65,24 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: generateId<AccountId>(),
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: generateId<BotId>()},
-        pathname: "/bot/chatgpt",
     },
 };
 
 beforeEach(async () => {
     await storage.deleteAll();
 
-    await storeAgentWebPageLinkForTest(storage, [context.botAccount, postReference]);
+    await storeAgentWebPageLinkForTest(storage, [
+        {
+            type: "Account",
+            id: context.botAccount.id,
+            title: "ChatGPT",
+            shortName: "ChatGPT",
+            bot: context.botAccount.bot,
+        },
+        postReference,
+    ]);
 });
 
 function contentFromText(text: string): ApiContentResponse {
@@ -233,6 +250,71 @@ Comments on [post](/post/launch).
 <comment id="10" from="[Bob](/human/bob)" time="5 minutes later">\n\nTail comment 10.\n\n</comment>
 
 End of comments.`);
+});
+
+test.each([
+    {from: "start", apiFrom: undefined},
+    {from: "end", apiFrom: "End" as const},
+])("reads post comments after the post and before a comment from $from", async options => {
+    mockGetPostReference();
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        from: options.apiFrom,
+        cursor: options.from === "start" ? -1 : 5,
+        totalMessageCount: 90,
+        limit: 5,
+        createMessage: index => createApiMessageMock({index, author}),
+    });
+
+    const {response} = await actuallyCallAgentWebReadTool(context, {
+        path: `/post/launch?after=post&before=5&from=${options.from}`,
+        limit: "20kb",
+    });
+
+    expect({
+        commentIndexes: Array.from(response.matchAll(/<comment id="(-?[0-9]+)"/g), match =>
+            Number(match[1]),
+        ),
+        hasPagination: response.includes("Previous page") || response.includes("Next page"),
+        isEndOfComments: response.endsWith("End of comments."),
+    }).toEqual({
+        commentIndexes: [0, 1, 2, 3, 4],
+        hasPagination: false,
+        isEndOfComments: false,
+    });
+});
+
+test("reads a post comment in a bounded range from the end", async () => {
+    mockGetPostReference();
+    mockApiGetPostMessages(api, {
+        spaceId,
+        postId,
+        from: "End",
+        cursor: 2,
+        totalMessageCount: 90,
+        limit: 1,
+        createMessage: index => createApiMessageMock({index, author}),
+    });
+
+    const {isError, response} = await actuallyCallAgentWebReadTool(context, {
+        path: "/post/launch?from=end&before=2&after=0",
+        limit: "20kb",
+    });
+
+    expect({isError, response}).toEqual({
+        isError: false,
+        response: `\
+Comments on [post](/post/launch).
+
+<time>May 14th at 11:05am EDT</time>
+
+<comment id="1" from="[Bob](/human/bob)">
+
+Test message 1
+
+</comment>`,
+    });
 });
 
 test("reads a post with no comments", async () => {
@@ -467,6 +549,7 @@ test("paginates after the post with a custom cursor", async () => {
         spaceId,
         postId,
         totalMessageCount: 2,
+        cursor: -1,
         limit: 30,
         createMessage: index =>
             createApiMessageMock({
@@ -494,6 +577,7 @@ test("paginates after the post with a custom cursor when there are many messages
         spaceId,
         postId,
         totalMessageCount: 100,
+        cursor: -1,
         limit: 30,
         createMessage: index =>
             createApiMessageMock({
@@ -523,7 +607,7 @@ test("paginates before the post with a custom cursor", async () => {
         spaceId,
         postId,
         from: "End",
-        cursor: 0,
+        cursor: -1,
         totalMessageCount: 2,
         limit: 30,
         createMessage: index =>
@@ -590,7 +674,13 @@ test("does not use scroll truncation around a comment after replacing a shorter 
     const longPostReference = {...postReference, title};
 
     await storage.deleteAll();
-    await storeAgentWebPageLinkForTest(storage, context.botAccount);
+    await storeAgentWebPageLinkForTest(storage, {
+        type: "Account",
+        id: context.botAccount.id,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: context.botAccount.bot,
+    });
     const pathname = await storeAgentWebPageLinkForTest(storage, longPostReference);
 
     mockGetPost({
@@ -626,7 +716,13 @@ test("does not use scroll truncation before a comment after replacing a shorter 
     const longPostReference = {...postReference, title};
 
     await storage.deleteAll();
-    await storeAgentWebPageLinkForTest(storage, context.botAccount);
+    await storeAgentWebPageLinkForTest(storage, {
+        type: "Account",
+        id: context.botAccount.id,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: context.botAccount.bot,
+    });
     const pathname = await storeAgentWebPageLinkForTest(storage, longPostReference);
 
     mockGetPost({

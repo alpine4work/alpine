@@ -2,7 +2,7 @@ import {Tree} from "@lezer/common";
 import {FileModelRegistryData} from "~/client/web/content/file_registry.js";
 import {isHtmlImageElementLoadedAndDecoded} from "~/client/web/helpers/elements/is_html_image_element_loaded_and_decoded.js";
 import {contentCodeBlockLanguageById} from "~/shared/content/code/content_code_block_language.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {InternalError, UnknownError} from "~/shared/error/error.open_source.js";
 import {getFileContentTypeContentCodeBlockLanguageIdIfExists} from "~/shared/files/file_content_type.open_source.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";

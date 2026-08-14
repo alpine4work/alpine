@@ -84,8 +84,9 @@ describe("searchAlpineForAgent", () => {
     test("returns \u2018No results found\u2019 when results array is empty", async () => {
         apiClient.mockGet("/spaces/{id}/search", {params: "Any", data: {results: []}});
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, request, "test query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, request, "test query"),
         );
 
         expect(result).toBe("No results found");
@@ -181,8 +182,9 @@ describe("searchAlpineForAgent", () => {
             data: {results: intoApiSearchResultResponses(results)},
         });
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, request, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, request, "query"),
         );
 
         expect(result).toEqual(`\
@@ -317,8 +319,9 @@ The following search results matched the keyword search but did not match any sp
             data: {results: intoApiSearchResultResponses(results)},
         });
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, request, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, request, "query"),
         );
 
         expect(result).toEqual(`\
@@ -377,8 +380,9 @@ The following search results matched the keyword search but did not match any sp
             room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
         );
 
         expect(result).toBe("No results found");
@@ -429,8 +433,9 @@ The following search results matched the keyword search but did not match any sp
             room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
         );
 
         // Should only include results from other chat, not current chat
@@ -490,8 +495,9 @@ The following search results matched the keyword search but did not match any sp
             room: cast<ApiMessageRoomReference>({type: "Post", id: currentPostId}),
         };
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
         );
 
         // Should only include results from other post, not current post
@@ -551,8 +557,9 @@ The following search results matched the keyword search but did not match any sp
             room: cast<ApiMessageRoomReference>({type: "Task", id: currentTaskId}),
         };
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
         );
 
         // Should include task entities (not filtered) but only comments from other task
@@ -585,9 +592,9 @@ The following search results matched the keyword search but did not match any sp
                 title: null,
                 bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "John Smith"}),
-                id: currentDocumentId,
+                document: {id: currentDocumentId},
+                id: currentThreadId,
                 index: 2,
-                threadId: currentThreadId,
             },
             {
                 type: "Document",
@@ -600,9 +607,9 @@ The following search results matched the keyword search but did not match any sp
                 title: null,
                 bodyMatch: [],
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
-                id: otherDocumentId,
+                document: {id: otherDocumentId},
+                id: otherThreadId,
                 index: 1,
-                threadId: otherThreadId,
             },
         ];
 
@@ -616,12 +623,13 @@ The following search results matched the keyword search but did not match any sp
             room: cast<ApiMessageRoomReference>({
                 type: "DocumentThread",
                 id: currentThreadId,
-                document: {id: currentDocumentId},
+                document: {type: "Document", id: currentDocumentId},
             }),
         };
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
         );
 
         // Should include both documents (not message rooms) and messages from other thread
@@ -674,8 +682,9 @@ The following search results matched the keyword search but did not match any sp
             room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
         );
 
         expect(result).toBe("No results found");
@@ -699,9 +708,9 @@ The following search results matched the keyword search but did not match any sp
                     {text: " outside of the link itself"},
                 ],
                 author: createApiAccountMock({id: accountId, name: "Jane Doe"}),
-                id: otherDocumentId,
+                document: {id: otherDocumentId},
+                id: otherThreadId,
                 index: 1,
-                threadId: otherThreadId,
             },
             {
                 type: "ChatMessage",
@@ -771,12 +780,13 @@ The following search results matched the keyword search but did not match any sp
             room: cast<ApiMessageRoomReference>({
                 type: "DocumentThread",
                 id: currentThreadId,
-                document: {id: currentDocumentId},
+                document: {type: "Document", id: currentDocumentId},
             }),
         };
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
         );
 
         expect(result).toEqual(`\
@@ -835,8 +845,9 @@ The following search results matched the keyword search but did not match any sp
             room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
         };
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, requestWithRoom, "query"),
         );
 
         // All non-message-room entities should be included regardless of current room
@@ -891,8 +902,9 @@ The following search results matched the keyword search but did not match any sp
             data: {results: intoApiSearchResultResponses(results)},
         });
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, request, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, request, "query"),
         );
 
         expect(result).toEqual(`\
@@ -957,8 +969,9 @@ The following search results are \\_not\\_ documents created yesterday but Alpin
             data: {results: intoApiSearchResultResponses(results)},
         });
 
-        const result = await storage.transaction(async transaction =>
-            searchAlpineForAgent(testTracer, transaction, request, "query"),
+        const result = await storage.transaction(
+            async transaction =>
+                await searchAlpineForAgent(testTracer, transaction, request, "query"),
         );
 
         expect(result).toEqual(`\

@@ -9,7 +9,7 @@ import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
 
 const context = createTestContext();
 
-test("returns empty values when no space settings exist", async () => {
+test("returns an empty String default when no space value exists", async () => {
     const bot = await TestBot.create(context, {name: "Test Bot"});
 
     // Set up bot settings schema
@@ -41,13 +41,50 @@ test("returns empty values when no space settings exist", async () => {
 
     const settings = await getBotSpaceSettingsValues(adminSession.action(), space.id, bot.id);
 
-    expect(settings.values.size).toEqual(0);
+    expect(settings.values).toEqual(new Map([["apiKey", ""]]));
     expect(settings.valuesVersion).toEqual(0);
     expect(settings.schema.properties.size).toEqual(1);
     expect(settings.secretPropertyKeysWithValues.size).toEqual(0);
 });
 
-test("returns all values for admin user", async () => {
+test("returns a Select default value when no space value exists", async () => {
+    const bot = await TestBot.create(context, {name: "Test Bot"});
+
+    await BotsTable.createItem(context, {
+        partitionType: "Bot",
+        sortRangeType: "SettingsSchema",
+        botId: bot.id,
+        description: emptySimpleContent,
+        schema: {
+            properties: new Map([
+                [
+                    "model",
+                    {
+                        type: "Select",
+                        level: "Space",
+                        label: "Model",
+                        hint: null,
+                        defaultValue: "fast",
+                        options: [
+                            {label: "Fast", value: "fast"},
+                            {label: "Accurate", value: "accurate"},
+                        ],
+                    },
+                ],
+            ]),
+        },
+    });
+
+    const space = await TestSpace.create(context);
+    const memberSession = await space.createSession({role: "Member"});
+
+    const settings = await getBotSpaceSettingsValues(memberSession.action(), space.id, bot.id);
+
+    expect(settings.values).toEqual(new Map([["model", "fast"]]));
+    expect(settings.valuesVersion).toEqual(0);
+});
+
+test("returns values in schema order after updates in a different order", async () => {
     const bot = await TestBot.create(context, {name: "Test Bot"});
 
     await BotsTable.createItem(context, {
@@ -90,26 +127,27 @@ test("returns all values for admin user", async () => {
 
     await bot.instantiate(adminSession);
 
-    // Set values using updateBotSpaceSettingsPropertyValue
-    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
-        spaceId: space.id,
-        botId: bot.id,
-        propertyKey: "secretKey",
-        propertyValue: "my-secret-value",
-    });
+    // Update in the reverse of schema order.
     await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
         spaceId: space.id,
         botId: bot.id,
         propertyKey: "publicUrl",
         propertyValue: "https://example.com",
     });
+    await updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+        propertyKey: "secretKey",
+        propertyValue: "my-secret-value",
+    });
 
     const settings = await getBotSpaceSettingsValues(adminSession.action(), space.id, bot.id);
 
     expect(settings.valuesVersion).toEqual(2);
-    expect(settings.values.size).toEqual(2);
-    expect(settings.values.get("secretKey")).toEqual("my-secret-value");
-    expect(settings.values.get("publicUrl")).toEqual("https://example.com");
+    expect(Array.from(settings.values.entries())).toEqual([
+        ["secretKey", "my-secret-value"],
+        ["publicUrl", "https://example.com"],
+    ]);
 });
 
 test("hides secret property values from non-admin members", async () => {

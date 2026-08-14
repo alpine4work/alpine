@@ -4,7 +4,8 @@ import {getAccountItem} from "~/server/accounts/internal/get_account_item.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {Context} from "~/shared/context/context.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {AccountId, AvatarId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * You should not call this function! It does not authorize that you are allowed to

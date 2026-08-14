@@ -15,9 +15,9 @@ import {contentStyles} from "~/client/web/styles/styles.js";
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {

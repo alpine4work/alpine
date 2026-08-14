@@ -6,7 +6,7 @@ import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {
     SchemaSerializedObjectValuePropertyDescription,
     SchemaSerializedValueDescription,
-} from "~/shared/schema/types/schema_description_types.open_source.js";
+} from "~/shared/schema/types/schema_description_types.js";
 
 let checkingNextSchemasByLastSchema: Map<
     SchemaSerializedValueDescription,

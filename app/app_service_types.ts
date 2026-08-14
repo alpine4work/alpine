@@ -16,6 +16,7 @@ export type AppServiceConstants = {
             readonly shouldSeedDynamo?: boolean;
             readonly edgeServiceUrl?: string;
             readonly agentServiceUrl?: string;
+            readonly agentV2ServiceUrl?: string;
             readonly opensearchLocalPort?: string;
             readonly opensearchHost?: string;
             readonly taskRealtimeServiceLocalPort?: string;
@@ -34,6 +35,8 @@ export type AppServiceConstants = {
             readonly chatGptLocalUnscopedApiKey?: string;
             readonly chatGptLocalScopedApiKey?: string;
             readonly chatGptWebhookSecret?: string;
+            readonly claudeLocalUnscopedApiKey?: string;
+            readonly claudeWebhookSecret?: string;
             readonly cursorLocalUnscopedApiKey?: string;
             readonly cursorWebhookSecret?: string;
             readonly mockChatGptLocalUnscopedApiKey?: string;

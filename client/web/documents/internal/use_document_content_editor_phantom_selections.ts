@@ -11,7 +11,7 @@ import {DocumentContentWithReferences} from "~/shared/documents/document_content
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
-import {WebSocketConnectionId} from "~/shared/id/types/id_types.open_source.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 
 export function useDocumentContentEditorPhantomSelections({
     editorState,

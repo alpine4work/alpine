@@ -13,7 +13,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {DocumentCommentThreadId, SiteId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

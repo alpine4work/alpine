@@ -3,7 +3,7 @@ import type {SqliteStorageType} from "~/shared/databases/fields/get_database_fie
 import {formatSqliteColumnType} from "~/shared/databases/internal/format_sqlite_column_type.js";
 import {sql} from "~/shared/databases/sql.js";
 import type {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const sqlite3Promise = sqlite3InitModule();
 const tableId = "table_id" as DatabaseTableId;

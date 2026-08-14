@@ -3,6 +3,7 @@ import {Root} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.open_source.js";
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
+import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.open_source.js";
 import {agentWebReadResponseExpirationHours} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.open_source.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.open_source.js";
@@ -35,6 +36,7 @@ import {
     parseAgentWebTaskPage,
 } from "~/server/agents/web/pages/agent_web_task_page.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
+import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
@@ -52,31 +54,51 @@ export async function callAgentWebCreateTool(
         type: string;
         content: string;
     },
-): Promise<string> {
+): Promise<
+    | {isError: false; response: string; pageLink: AgentWebPageLinkKeyObject}
+    | {isError: true; response: string}
+> {
     return await context.span.withSpan("Call agent web create tool", async span => {
-        let output: string;
-        const additionalOutput: Array<string> = [];
+        return await withInstrumentedAgentWebSessionStorage(
+            span,
+            context.storage,
+            async storage => {
+                const additionalOutput: Array<string> = [];
 
-        try {
-            output = await actuallyCallAgentWebCreateTool({...context, span}, options, {
-                addAdditionalOutput: output => additionalOutput.push(output.trim()),
-            });
-        } catch (error) {
-            span.addException(error);
+                try {
+                    const result = await actuallyCallAgentWebCreateTool(
+                        {...context, span, storage},
+                        options,
+                        {
+                            addAdditionalOutput: output => additionalOutput.push(output.trim()),
+                        },
+                    );
 
-            const type = parseCallAgentWebCreateToolType(options.type);
+                    let {response} = result;
 
-            output = printAgentWebError(
-                `Couldn\u2019t create${type !== null ? ` ${type}` : ""}`,
-                error,
-            );
-        }
+                    if (additionalOutput.length > 0) {
+                        response += `\n\n${additionalOutput.join("\n\n")}`;
+                    }
 
-        if (additionalOutput.length > 0) {
-            output += `\n\n${additionalOutput.join("\n\n")}`;
-        }
+                    return {isError: false, response, pageLink: result.pageLink};
+                } catch (error) {
+                    span.addException(error);
 
-        return output;
+                    const type = parseCallAgentWebCreateToolType(options.type);
+
+                    let response = printAgentWebError(
+                        `Couldn\u2019t create${type !== null ? ` ${type}` : ""}`,
+                        error,
+                    );
+
+                    if (additionalOutput.length > 0) {
+                        response += `\n\n${additionalOutput.join("\n\n")}`;
+                    }
+
+                    return {isError: true, response};
+                }
+            },
+        );
     });
 }
 
@@ -90,7 +112,10 @@ async function actuallyCallAgentWebCreateTool(
         content: string;
     },
     {addAdditionalOutput}: {addAdditionalOutput: (information: string) => void},
-): Promise<string> {
+): Promise<{
+    pageLink: AgentWebPageLinkKeyObject;
+    response: string;
+}> {
     const actualType = parseCallAgentWebCreateToolType(type);
 
     if (actualType === null) {
@@ -186,7 +211,7 @@ async function actuallyCallAgentWebCreateTool(
         () => new Mutex(),
     ).withLock(async () => {
         await context.storage.readResponseByPath.put(pageLinkPathname, {
-            expirationTime: addHours(new Date(), agentWebReadResponseExpirationHours),
+            expirationTime: addHours(new Date(), agentWebReadResponseExpirationHours).getTime(),
             pageMetadata,
             response: content,
             newlineIndexes,
@@ -211,7 +236,10 @@ async function actuallyCallAgentWebCreateTool(
         ],
     });
 
-    return markdown.trimEnd();
+    return {
+        pageLink,
+        response: markdown.trimEnd(),
+    };
 }
 
 type CallAgentWebCreateToolType =

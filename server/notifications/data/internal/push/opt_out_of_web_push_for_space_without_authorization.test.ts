@@ -5,7 +5,7 @@ import {optOutOfWebPushForSpaceWithoutAuthorization} from "~/server/notification
 import {createTestWebPushSubscription} from "~/server/notifications/data/push/test_helpers/create_test_web_push_subscription.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 

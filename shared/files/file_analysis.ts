@@ -1,5 +1,5 @@
 import {FileProcessorErrorSchema} from "~/shared/files/file_processor_error.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Maximum analysis result sizes stored directly on the file item.

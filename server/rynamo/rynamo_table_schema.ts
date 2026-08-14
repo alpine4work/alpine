@@ -75,7 +75,7 @@ import {
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {ObjectFromEntries} from "~/shared/helpers/types/object_from_entries.js";
-import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaWithoutValidation} from "~/shared/schema/schema.js";
 import {
     ServerSynchronizationCheckpoint,
     generateServerSynchronizationCheckpoint,

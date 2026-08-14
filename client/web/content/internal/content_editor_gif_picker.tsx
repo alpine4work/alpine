@@ -33,7 +33,7 @@ import {GiphyWordmark} from "~/client/web/icons/socials/giphy_wordmark.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useSwr} from "~/client/web/rpc/use_swr.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/client/web/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {Spacing, convertRemLengthToPx} from "~/shared/design/core/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";

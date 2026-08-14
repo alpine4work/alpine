@@ -12,7 +12,7 @@ import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock
 import {FileId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type MessageDraft = SchemaType<typeof MessageDraftSchema>;
 

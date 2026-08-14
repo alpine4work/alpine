@@ -9,7 +9,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskActorFromSchema} from "~/shared/tasks/task_creator.js";
 
 export type FeedEntryEvent = SchemaType<typeof FeedEntryEventSchema>;

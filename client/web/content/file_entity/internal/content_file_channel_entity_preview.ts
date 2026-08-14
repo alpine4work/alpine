@@ -27,10 +27,10 @@ import {
 import {contentStyles, sprinkles} from "~/client/web/styles/styles.js";
 import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {FileEntityModel} from "~/shared/files/file_entity_model.js";
 import {renderedMaxChannelTopContributorCount} from "~/shared/forum/channel_model.js";

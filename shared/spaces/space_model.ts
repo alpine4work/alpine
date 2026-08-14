@@ -4,7 +4,7 @@ import {defaultThemeColor, themeColors} from "~/shared/design/core/theme_colors.
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {DatabaseGroupId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Since Each `document`/`channel`/`task collection` itself has permissions, we

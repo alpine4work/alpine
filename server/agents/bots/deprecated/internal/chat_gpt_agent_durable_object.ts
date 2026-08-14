@@ -74,7 +74,7 @@ import {
 } from "~/server/agents/bots/internal/agent_schedule_events_collection.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
 import {getTimezoneFromBotWebhookRequest} from "~/server/agents/bots/internal/get_timezone_from_bot_webhook_request.js";
-import {shouldAgentRespondToRequest} from "~/server/agents/bots/internal/should_agent_respond_to_request.js";
+import {shouldAgentRespondToApiBotWebhookRequestWithCache} from "~/server/agents/bots/internal/should_agent_respond_to_api_bot_webhook_request_with_cache.js";
 import {
     SupportedAgentModels,
     agentMillicentsPerToken,
@@ -83,7 +83,6 @@ import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_err
 import {
     getApiMentionReferencePathIfExists,
     isApiMessageRoom,
-    parseApiBotWebhookEventIntoMessageRoom,
     parseApiMentionReference,
     parseApiPath,
     printApiMessageRoomPath,
@@ -229,7 +228,12 @@ export class ChatGptAgentDurableObject extends AgentDurableObjectBase<
         const event = request.event;
 
         if (event.type !== "UpdatedMessageStreamExperimentalApprovalsPart") {
-            if (!(await shouldAgentRespondToRequest(span, {...request, event}))) {
+            if (
+                !(await shouldAgentRespondToApiBotWebhookRequestWithCache(span, {
+                    ...request,
+                    event,
+                }))
+            ) {
                 return;
             }
         } else {
@@ -839,10 +843,7 @@ async function createChatGptAgentResponse(
         stream: true,
         model,
         // https://platform.openai.com/docs/guides/prompt-caching
-        prompt_cache_key: getRoomPathForPromptCacheKey(
-            request.spaceId,
-            parseApiBotWebhookEventIntoMessageRoom(request.event),
-        ),
+        prompt_cache_key: getRoomPathForPromptCacheKey(request.spaceId, request.event.room),
         safety_identifier: await getAgentWebhookRequestAuthorId(request),
         // NOTE(ifitzsimmons, 2026-01-10): We had originally planned to add the web search
         // [1] tool to our agent but decided against it for several reasons:

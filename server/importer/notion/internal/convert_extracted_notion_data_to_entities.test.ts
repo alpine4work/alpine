@@ -26,7 +26,8 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {DocumentContentSchema} from "~/shared/documents/document_content_schema.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {DocumentId, FileId, NotionImportId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {NotionImportItem} from "~/shared/importer/notion/notion_import_item.js";
 
 /**

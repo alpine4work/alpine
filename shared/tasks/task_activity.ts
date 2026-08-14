@@ -1,13 +1,9 @@
-import {
-    SpaceId,
-    TaskActivityEntryId,
-    TaskCollectionId,
-    TaskId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {TaskActivityEntryId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";

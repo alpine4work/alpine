@@ -21,7 +21,8 @@ import {
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {ContentEditorClientId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     createTaskComment,
     deleteTaskComment,

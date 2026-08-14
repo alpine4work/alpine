@@ -22,7 +22,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.open_source.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
@@ -268,10 +268,11 @@ function finishSpanAndFlushHoneycombEvents(
     finishSpan?.();
     // TODO(ifitzsimmons, #convert-to-lambda-response-streaming): Fire and forget
     // request that flushes the batch of honeycomb events.
-    promiseWaiter.waitUntil(async () => {
-        await honeycombTracerClient?.flushScheduledEventBatch();
+    void promiseWaiter.wait({
+        flush: async () => {
+            await honeycombTracerClient?.flushScheduledEventBatch();
+        },
     });
-    void promiseWaiter.wait();
 }
 
 function getSpanForRequest(tracer: TracerRoot, request: Request, route: string) {

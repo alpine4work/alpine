@@ -7,6 +7,7 @@ import path from "path";
 import type {AlertSourceRequest} from "~/admin/lambda/send_alert/internal/alert_source_request_types.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 type AlertSourceName = "github" | "honeycomb" | "pagerduty";
 
@@ -148,7 +149,7 @@ function createHeaders(source: AlertSourceName, body: string): Record<string, st
                 "x-pagerduty-signature": createPagerDutySignature(body),
             };
         default:
-            throw new InvalidArgumentError(`Unhandled alert source: ${source satisfies never}`);
+            throw exhaustive(source);
     }
 }
 

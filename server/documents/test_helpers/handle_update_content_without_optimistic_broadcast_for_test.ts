@@ -7,7 +7,7 @@ import {Context} from "~/shared/context/context.js";
 import {DocumentCollaborationProtocol} from "~/shared/documents/document_collaboration_protocol.js";
 import {assertId} from "~/shared/id/id.open_source.js";
 import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * Reimplements the one `DocumentCollaborationDurableObject` route that server-side

@@ -24,11 +24,7 @@ import {
     AddMarksAfterRemoveAllStep,
     RemoveAllMarksStep,
 } from "~/shared/prosemirror/remove_all_marks_step.js";
-import {
-    Schema,
-    SchemaDeserializationError,
-    UnionSchema,
-} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaDeserializationError, UnionSchema} from "~/shared/schema/schema.js";
 
 declare module "prosemirror-model" {
     interface Fragment {

@@ -9,8 +9,8 @@ import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_
 import {mockApiGetChat} from "~/server/agents/api/test_helpers/mock_api_get_chat.js";
 import {mockApiGetChatMessages} from "~/server/agents/api/test_helpers/mock_api_get_chat_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
-import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebScrollTool as actuallyCallAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
@@ -32,6 +32,18 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
+async function callAgentWebScrollTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebScrollTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebScrollTool(...callArguments)).response;
+}
+
 const spaceId = generateId<SpaceId>();
 const chatId = generateId<ChatId>();
 
@@ -50,21 +62,20 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: generateId<AccountId>(),
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: generateId<BotId>()},
-        pathname: "/bot/chatgpt",
     },
 };
 
 beforeEach(async () => {
-    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
-        storage,
-        context.botAccount,
-    );
-    assert(actualBotAccountPathname === context.botAccount.pathname);
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(storage, {
+        type: "Account",
+        id: context.botAccount.id,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: context.botAccount.bot,
+    });
+    assert(actualBotAccountPathname === "/bot/chatgpt");
 
     const chatPathname = await storeAgentWebPageLinkForTest(storage, {
         type: "Chat",

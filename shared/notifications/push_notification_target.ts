@@ -1,4 +1,5 @@
-import {BrowserId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {WebPushSubscription} from "~/shared/notifications/web_push_subscription.js";
 
 export type AppleDeviceTarget = {

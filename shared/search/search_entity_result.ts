@@ -1,5 +1,5 @@
 import {OpensearchSearchHitExplanationSchema} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchEntityIdSchema} from "~/shared/search/search_entity_id.js";
 import {SearchEntityMediaModelSchema} from "~/shared/search/search_entity_media_model.js";
 

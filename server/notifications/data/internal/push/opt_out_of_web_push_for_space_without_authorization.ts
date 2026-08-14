@@ -1,7 +1,8 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {NotificationsTable} from "~/server/notifications/data/internal/notifications_table.js";
 import {getInitialWebPushSubscriptionItem} from "~/server/notifications/data/internal/push/get_initial_web_push_subscription_item.js";
-import {AccountId, BrowserId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Opts out of web push for a space without authorization.

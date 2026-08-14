@@ -13,6 +13,8 @@ export async function seedTestBots(
         chatGptLocalUnscopedApiKey: string | null;
         chatGptLocalScopedApiKey: string | null;
         chatGptWebhookSecret?: string | null;
+        claudeLocalUnscopedApiKey: string | null;
+        claudeWebhookSecret?: string | null;
         cursorLocalUnscopedApiKey: string | null;
         cursorWebhookSecret?: string | null;
         mockChatGptLocalUnscopedApiKey: string;
@@ -26,9 +28,78 @@ export async function seedTestBots(
         runUpdateKnownBotSettingsMigration(context),
 
         seedTestChatGptBot(context, options),
+        seedTestClaudeBot(context, options),
         seedTestCursorBot(context, options),
         seedTestMockChatGptBot(context, options),
     ]);
+}
+
+async function seedTestClaudeBot(
+    context: DynamoContext,
+    {
+        agentServiceLocalPort,
+        claudeLocalUnscopedApiKey,
+        claudeWebhookSecret = null,
+    }: {
+        agentServiceLocalPort: string | number;
+        claudeLocalUnscopedApiKey: string | null;
+        claudeWebhookSecret?: string | null;
+    },
+) {
+    assert(process.env.NODE_ENV !== "production");
+    const {claudeBotId} = getDynamoSeedConstants();
+
+    const currentTime = new Date();
+
+    const promises: Array<Promise<unknown>> = [
+        BotsTable.updateItem(
+            context,
+            {
+                partitionType: "Bot",
+                sortRangeType: "Attributes",
+                botId: claudeBotId,
+            },
+            item => {
+                const webhookUrl = `http://localhost:${agentServiceLocalPort}/claude/webhook`;
+                const webhook = {url: webhookUrl, secret: claudeWebhookSecret};
+
+                // Noop if the webhook configuration is correct.
+                if (item?.webhook?.url === webhook.url && item.webhook?.secret === webhook.secret) {
+                    return item;
+                }
+
+                if (item) {
+                    return {...item, webhook};
+                } else {
+                    return {
+                        partitionType: "Bot",
+                        sortRangeType: "Attributes",
+                        botId: claudeBotId,
+                        createdTime: currentTime,
+                        name: "Claude",
+                        webhook,
+                    };
+                }
+            },
+        ),
+    ];
+
+    if (claudeLocalUnscopedApiKey !== null) {
+        promises.push(
+            BotsTable.createItemIfNoneExists(context, {
+                partitionType: "ApiKey",
+                sortRangeType: "Attributes",
+                apiKey: assertApiKey(claudeLocalUnscopedApiKey),
+                botId: claudeBotId,
+                spaceId: null,
+                space: null,
+                createdTime: currentTime,
+                name: "Unscoped API Key",
+            }),
+        );
+    }
+
+    await runAllPromises(promises);
 }
 
 async function seedTestChatGptBot(

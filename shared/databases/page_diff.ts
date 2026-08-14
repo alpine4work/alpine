@@ -1,5 +1,5 @@
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 export const pageDiffSpanSchema = Schema.object({
     offset: Schema.integer,

@@ -64,16 +64,17 @@ export async function routeAgentWebPageLinkPathname(
 
             assert(result.pageLink.type === "Document");
 
-            const threadId = await storage.documentCommentThreadIdByNumber.get(
-                `${result.pageLink.id}-${threadNumber}`,
-            );
+            const threadId = await storage.documentCommentThreadIdByNumber.get([
+                result.pageLink.id,
+                `${threadNumber}`,
+            ]);
             if (threadId === undefined) return null;
 
             assert(result.latestPathname.startsWith("/document/"));
             const latestPathname = `${result.latestPathname}/comments/${threadNumber}`;
 
             return {
-                pageLink: {type: "DocumentThread", document: result.pageLink, threadId},
+                pageLink: {type: "DocumentThread", document: result.pageLink, id: threadId},
                 latestPathname,
             };
         }
@@ -123,6 +124,15 @@ export async function routeAgentWebPageLinkPathname(
             return {
                 pageLink: {type: "Inbox", account: result.pageLink},
                 latestPathname,
+            };
+        }
+        case "bot": {
+            if (pathnameParts.length !== 2) break;
+            if (pathnameParts[1] !== "me") break;
+
+            return {
+                pageLink: {type: "MyAccount"},
+                latestPathname: "/bot/me",
             };
         }
         default:

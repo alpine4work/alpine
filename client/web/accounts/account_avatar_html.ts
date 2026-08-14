@@ -4,7 +4,7 @@ import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/web/style
 import {getAvatarContentType} from "~/shared/avatar/get_avatar_content_type.js";
 import {colors} from "~/shared/design/core/colors.js";
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";

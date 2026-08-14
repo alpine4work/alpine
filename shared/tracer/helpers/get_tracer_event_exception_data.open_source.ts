@@ -7,11 +7,9 @@ import {renderDebugErrorDisplayMessage} from "~/shared/error/render_debug_error_
 import {isRetryError} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {TraceId} from "~/shared/id/types/id_types.open_source.js";
-import {
-    TracerEventData,
-    TracerEventExceptionDataBase,
-    TracerEventExceptionDataBaseWithCause,
-} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventDataBase} from "~/shared/tracer/types/tracer_event_data_types.open_source.js";
+
+type TracerEventExceptionRecord = TracerEventDataBase;
 
 /**
  * Gets the `TracerEventData` for an exception.
@@ -20,7 +18,7 @@ export function getTracerEventExceptionData(
     traceId: TraceId | null,
     error: unknown,
     originalResult: ErrorOriginalTracerSpanResult,
-): TracerEventData["exception"] {
+): TracerEventDataBase {
     // If this is a retry error from `retryWithExponentialBackoff()` then we want to
     // record the error cause not the retry error itself (which is a boring
     // `CancelledError` with the message "Retry"). This way the `exception.message`
@@ -86,9 +84,7 @@ export function getTracerEventExceptionData(
     };
 }
 
-function getTracerEventExceptionDataBaseWithCause(
-    error: unknown,
-): TracerEventExceptionDataBaseWithCause {
+function getTracerEventExceptionDataBaseWithCause(error: unknown): TracerEventExceptionRecord {
     return {
         ...getTracerEventExceptionDataBase(error),
 
@@ -106,7 +102,7 @@ function getTracerEventExceptionDataBaseWithCause(
     };
 }
 
-function getTracerEventExceptionDataBase(error: unknown): TracerEventExceptionDataBase {
+function getTracerEventExceptionDataBase(error: unknown): TracerEventExceptionRecord {
     const errorCode = getErrorCode(error);
 
     return {

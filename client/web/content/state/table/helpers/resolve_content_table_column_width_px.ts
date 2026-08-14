@@ -2,7 +2,7 @@ import * as kiwi from "@lume/kiwi";
 import {createCachedFunction} from "~/client/web/content/state/internal/create_cached_function.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {ContentTableMap} from "~/shared/content/table/content_table_map.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 

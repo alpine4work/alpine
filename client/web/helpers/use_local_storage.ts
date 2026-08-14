@@ -4,7 +4,7 @@ import {useStateWithDependencies} from "~/client/web/helpers/lifecycle/use_state
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Use some data saved to [local storage][1]. Keeps our component up-to-date as the

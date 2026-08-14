@@ -18,13 +18,12 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {Id, generateId} from "~/shared/id/id.open_source.js";
 import {
-    AccountId,
     BrowserId,
-    SpaceId,
     TaskRealtimeCollectionSubscriptionId,
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
-} from "~/shared/id/types/id_types.open_source.js";
+} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {batchStoreUpdates} from "~/shared/store/batch_store_updates.js";
 import {Store} from "~/shared/store/store.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";

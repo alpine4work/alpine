@@ -11,7 +11,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
-import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 
 /**
  * Updates the session actor's settings.

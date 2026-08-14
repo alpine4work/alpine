@@ -1,4 +1,5 @@
 import {ShouldRevalidateFunction} from "@remix-run/router";
+import {CaretDown} from "phosphor-react";
 import {useId, useRef, useState} from "react";
 import {
     deserializeBotIdForLoader,
@@ -14,6 +15,7 @@ import {ContentView} from "~/client/web/content/content_view.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
+import {MenuButton} from "~/client/web/design/menu_button.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {SecretTextInputWithoutLabel} from "~/client/web/design/secret_text_input.js";
 import {Spacer} from "~/client/web/design/spacer.js";
@@ -43,7 +45,9 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {BotSettingsAccountSchema} from "~/shared/bots/bot_settings_account_schema.js";
 import {
+    BotSettingsSchemaProperty,
     BotSettingsSchemaSchema,
+    BotSettingsSchemaSelectProperty,
     BotSettingsSchemaStringProperty,
 } from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentWithReferencesSchema} from "~/shared/content/simple_content_schema.js";
@@ -61,7 +65,7 @@ import {
     instantiateBotSpaceAccount,
     removeSpaceAccount,
 } from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {hasSpaceRole} from "~/shared/spaces/space_model.js";
 
 const LoaderSchema = Schema.object({
@@ -347,7 +351,7 @@ export default function SpaceBotSettingsRoute() {
                         <Box display="flex" flexDirection="column" gap="7">
                             {botSpaceSettingsSchemaPropertyEntries.map(
                                 ([propertyKey, propertySchema]) => (
-                                    <SpaceBotSettingsStringProperty
+                                    <SpaceBotSettingsProperty
                                         key={propertyKey}
                                         isDisabled={!hasAdminAccess || !isInstalled}
                                         propertySchema={propertySchema}
@@ -401,7 +405,7 @@ export default function SpaceBotSettingsRoute() {
                         <Box display="flex" flexDirection="column" gap="8">
                             {botSpaceAccountSettingsSchemaPropertyEntries.map(
                                 ([propertyKey, propertySchema]) => (
-                                    <SpaceBotSettingsStringProperty
+                                    <SpaceBotSettingsProperty
                                         key={propertyKey}
                                         isDisabled={!isInstalled}
                                         propertySchema={propertySchema}
@@ -443,6 +447,46 @@ export default function SpaceBotSettingsRoute() {
             </Box>
         </Box>
     );
+}
+
+function SpaceBotSettingsProperty({
+    isDisabled,
+    propertySchema,
+    propertyValue,
+    isSecretPropertyWithValue,
+    updatePropertyValue,
+}: {
+    isDisabled: boolean;
+    propertySchema: BotSettingsSchemaProperty;
+    propertyValue: SchemaSerializedValue | undefined;
+    isSecretPropertyWithValue: boolean;
+    updatePropertyValue: (propertyValue: SchemaSerializedValue) => Promise<void>;
+}) {
+    switch (propertySchema.type) {
+        case "String": {
+            return (
+                <SpaceBotSettingsStringProperty
+                    isDisabled={isDisabled}
+                    propertySchema={propertySchema}
+                    propertyValue={propertyValue}
+                    isSecretPropertyWithValue={isSecretPropertyWithValue}
+                    updatePropertyValue={updatePropertyValue}
+                />
+            );
+        }
+        case "Select": {
+            return (
+                <SpaceBotSettingsSelectProperty
+                    isDisabled={isDisabled}
+                    propertySchema={propertySchema}
+                    propertyValue={propertyValue}
+                    updatePropertyValue={updatePropertyValue}
+                />
+            );
+        }
+        default:
+            throw exhaustive(propertySchema);
+    }
 }
 
 function SpaceBotSettingsStringProperty({
@@ -602,5 +646,95 @@ function SpaceBotSettingsStringProperty({
                 />
             )}
         </>
+    );
+}
+
+function SpaceBotSettingsSelectProperty({
+    isDisabled,
+    propertySchema,
+    propertyValue,
+    updatePropertyValue,
+}: {
+    isDisabled: boolean;
+    propertySchema: BotSettingsSchemaSelectProperty;
+    propertyValue: SchemaSerializedValue | undefined;
+    updatePropertyValue: (propertyValue: SchemaSerializedValue) => Promise<void>;
+}) {
+    return (
+        <Box
+            height="10"
+            gap="6"
+            display="flex"
+            alignItems="flex-start"
+            justifyContent="space-between"
+        >
+            <Box minWidth="flex-fit">
+                <label
+                    className={sprinkles({
+                        display: "block",
+                        fontSize: "100",
+                        fontStyle: "truncate-semi-bold",
+                        userSelect: "text",
+                    })}
+                >
+                    {propertySchema.label}
+                </label>
+                {propertySchema.hint !== null && (
+                    <Box
+                        paddingTop="1"
+                        fontSize="75"
+                        fontStyle="truncate"
+                        color="grey-60"
+                        userSelect="text"
+                        style={{
+                            // Allow contextual alternate glyphs in regular text content.
+                            //
+                            // eslint-disable-next-line cyberworlds/string-quotes
+                            fontFeatureSettings: '"calt" on',
+                        }}
+                    >
+                        {propertySchema.hint}
+                    </Box>
+                )}
+            </Box>
+            <Box
+                position="relative"
+                width="full"
+                maxWidth="48"
+                flexShrink="0"
+                display="flex"
+                justifyContent="flex-end"
+            >
+                <Box minWidth="flex-fit">
+                    <MenuButton
+                        placement="bottom-end"
+                        actions={propertySchema.options.map(option => ({
+                            key: option.value,
+                            label: option.label,
+                            isSelected: propertyValue === option.value,
+                            pressErrorTitle: "Couldn\u2019t set option",
+                            onPress: async () => {
+                                await updatePropertyValue(option.value);
+                            },
+                        }))}
+                    >
+                        <Button
+                            isDisabled={isDisabled}
+                            variant="text-input"
+                            height="9"
+                            maxWidth="full"
+                            paddingX="3"
+                            fontSize="100"
+                            icon={<CaretDown />}
+                            iconGap="2"
+                            iconPlacement="end"
+                        >
+                            {propertySchema.options.find(option => option.value === propertyValue)
+                                ?.label ?? null}
+                        </Button>
+                    </MenuButton>
+                </Box>
+            </Box>
+        </Box>
     );
 }

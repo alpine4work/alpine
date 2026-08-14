@@ -1162,10 +1162,21 @@ export async function updateAgentWebTaskQueryPage(
                 ) {
                     const quotedTitle = curlyQuote(newPageTask.title);
 
+                    const {
+                        data: {reference: botAccount},
+                    } = await context.api.get(context.span, "/accounts/{id}-reference", {
+                        params: {path: {id: context.botAccount.id}},
+                    });
+
+                    const botAccountPathname = await createAgentWebPageStoredLinkPathname(
+                        context.storage,
+                        botAccount,
+                    );
+
                     const assigneeLink: Link = {
                         type: "link",
-                        url: context.botAccount.pathname,
-                        children: [{type: "text", value: context.botAccount.shortName}],
+                        url: botAccountPathname,
+                        children: [{type: "text", value: botAccount.shortName}],
                     };
 
                     throw new InvalidArgumentError(
@@ -1310,10 +1321,21 @@ export async function updateAgentWebTaskQueryPage(
             ) {
                 const quotedTitle = curlyQuote(oldPageTask.title);
 
+                const {
+                    data: {reference: botAccount},
+                } = await context.api.get(context.span, "/accounts/{id}-reference", {
+                    params: {path: {id: context.botAccount.id}},
+                });
+
+                const botAccountPathname = await createAgentWebPageStoredLinkPathname(
+                    context.storage,
+                    botAccount,
+                );
+
                 const assigneeLink: Link = {
                     type: "link",
-                    url: context.botAccount.pathname,
-                    children: [{type: "text", value: context.botAccount.shortName}],
+                    url: botAccountPathname,
+                    children: [{type: "text", value: botAccount.shortName}],
                 };
 
                 if (oldPageTask.status.type !== "Open" || !oldPageTask.status.isActive) {

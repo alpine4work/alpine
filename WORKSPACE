@@ -136,7 +136,13 @@ rules_js_dependencies()
 load("@aspect_rules_js//js:toolchains.bzl", "rules_js_register_toolchains")
 
 rules_js_register_toolchains(
-    node_version = "22.11.0",
+    node_version = "22.23.2",
+    node_repositories = {
+        "22.23.2-darwin_arm64": ("node-v22.23.2-darwin-arm64.tar.gz", "node-v22.23.2-darwin-arm64", "61130f394c1630d211dd50aecc4353d379480f36d3ac913cd85dbba1aed585c6"),
+        "22.23.2-darwin_amd64": ("node-v22.23.2-darwin-x64.tar.gz", "node-v22.23.2-darwin-x64", "58e99022c2ff89395576cc7fd4d98cea24bb68081475d5f88b801ee8729fb026"),
+        "22.23.2-linux_arm64": ("node-v22.23.2-linux-arm64.tar.xz", "node-v22.23.2-linux-arm64", "fff4078c5def658577f92c88db7db3bc0072924bfb93fe52c1e744a54e94abb8"),
+        "22.23.2-linux_amd64": ("node-v22.23.2-linux-x64.tar.xz", "node-v22.23.2-linux-x64", "d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307"),
+    }
 )
 
 # =========================================================================== #

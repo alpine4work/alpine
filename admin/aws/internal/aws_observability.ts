@@ -141,7 +141,7 @@ export class AwsObservability extends Construct {
                 storageDescriptor: {
                     columns: [
                         // Added manually since it's not part of the tracer event data schema in
-                        // TracerEvent.getFlatDataForKinesis()
+                        // `convertTracerEventFlatDataToKinesisData()`
                         {name: "time", type: "string"},
                         {name: "end_time", type: "string"},
                         ...generateTracerEventGlueSchema(),

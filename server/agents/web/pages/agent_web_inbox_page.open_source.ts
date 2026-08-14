@@ -8,6 +8,7 @@ import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agen
 import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {
+    ApiAccountReference,
     ApiAccountReferenceResponse,
     ApiInboxEntryResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
@@ -148,7 +149,7 @@ export const agentWebInboxPageApiEntriesBatchCount = 10;
  */
 export async function readAgentWebInboxPage(
     context: AgentWebContext,
-    account: ApiAccountReferenceResponse,
+    account: ApiAccountReference,
     {
         searchParams,
         limitLength,
@@ -176,6 +177,10 @@ export async function readAgentWebInboxPage(
     // return this instead.
     let committed: {response: string; metadata: AgentWebInboxPageMetadata} | null = null;
 
+    const accountReferencePromise = context.api.get(context.span, "/accounts/{id}-reference", {
+        params: {path: {id: account.id}},
+    });
+
     while (true) {
         const {
             data: {entries: entryBatch, nextCursor},
@@ -202,7 +207,7 @@ export async function readAgentWebInboxPage(
 
         const page: AgentWebInboxPageWithMetadata = {
             type: "Inbox",
-            account,
+            account: (await accountReferencePromise).data.reference,
             status,
             pagination: nextCursor !== null ? {nextCursor} : null,
             entries: entries.slice(),
@@ -376,8 +381,8 @@ export function intoAgentWebInboxPageEntry(
                     ? null
                     : {
                           type: "DocumentMessage",
-                          id: entry.document.id,
-                          threadId: entry.thread.id,
+                          document: {type: "Document", id: entry.document.id},
+                          id: entry.thread.id,
                           index: entry.previewMessage.index,
                           authorShortName,
                           preview: messagePreview,

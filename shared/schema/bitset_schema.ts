@@ -1,5 +1,5 @@
 import {TypedFastBitSet} from "typedfastbitset";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 const bytesPerWord = 4;
 const isLittleEndian = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;

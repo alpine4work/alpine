@@ -1,9 +1,6 @@
 import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Node, Root, RootContent} from "mdast";
-import {
-    AgentWebContext,
-    AgentWebContextWithoutStorage,
-} from "~/server/agents/web/agent_web_context.open_source.js";
+import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {AgentWebPageDocumentThreadRoutedLink} from "~/server/agents/web/agent_web_page_routed_link.open_source.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {createAgentWebPageRoutedLinkPathname} from "~/server/agents/web/create_agent_web_page_routed_link_pathname.open_source.js";
@@ -170,13 +167,12 @@ export async function readAgentWebDocumentThreadPage(
 
     if (searchParams.get("after") === "blockquote") {
         excludesDocumentPreview = true;
-        searchParams.delete("after");
-        searchParams.set("start", "");
+        searchParams.set("after", "-1");
     }
 
     if (searchParams.get("before") === "blockquote") {
         excludesDocumentPreview = true;
-        searchParams.set("before", "0");
+        searchParams.set("before", "-1");
     }
 
     const parsedSearchParams = parseAgentWebMessagingPageSearchParams({
@@ -283,7 +279,7 @@ export async function readAgentWebDocumentThreadPage(
             pageLink: {
                 type: "DocumentThread",
                 document: documentReference,
-                threadId,
+                id: threadId,
             },
             preamble: {
                 type: "Head",
@@ -305,7 +301,7 @@ export async function readAgentWebDocumentThreadPage(
             pageLink: {
                 type: "DocumentThread",
                 document: documentReference,
-                threadId,
+                id: threadId,
             },
             preamble: {
                 type: "Tail",
@@ -348,6 +344,8 @@ export async function readAgentWebDocumentThreadPage(
                     // cursor based pagination across our API we treat `?before=100` as a "last 30
                     // messages <100" constraint and not messages between 70 and 100 constraint.
                     if (
+                        (parsedSearchParams.untilCursor === null ||
+                            parsedSearchParams.untilCursor < 0) &&
                         parsedSearchParams.startCursor !== null &&
                         parsedSearchParams.startCursor -
                             agentWebMessagingPageApiMessagesBatchCount <
@@ -369,7 +367,7 @@ export async function readAgentWebDocumentThreadPage(
                 roomMetadataPromise,
                 readAgentWebMessagingPageInDirection(context, {
                     messageNouns: agentWebMessagingPageCommentNouns,
-                    room: {type: "DocumentThread", id: threadId, document: {id}},
+                    room: {type: "DocumentThread", id: threadId, document: {type: "Document", id}},
                     getRoomMetadata: async ({isStartOfMessages}) => {
                         const roomMetadata = await roomMetadataPromise;
 
@@ -410,7 +408,7 @@ export async function readAgentWebDocumentThreadPage(
                 roomMetadataPromise,
                 readAgentWebMessagingPageAroundMessage(context, {
                     messageNouns: agentWebMessagingPageCommentNouns,
-                    room: {type: "DocumentThread", id: threadId, document: {id}},
+                    room: {type: "DocumentThread", id: threadId, document: {type: "Document", id}},
                     getRoomMetadata: async ({isStartOfMessages}) => {
                         const roomMetadata = await roomMetadataPromise;
 
@@ -480,7 +478,7 @@ export async function createAgentWebDocumentThreadPage(
 ) {
     const documentReadResponse = await context.storage.readResponseByPath.get(documentPath);
 
-    if (!documentReadResponse || documentReadResponse.expirationTime.getTime() < Date.now()) {
+    if (!documentReadResponse || documentReadResponse.expirationTime < Date.now()) {
         throw new InvalidArgumentError("Read response not found or expired", {
             displayMessage: errorDisplayMessage`Can\u2019t create a document comment thread for a document that hasn\u2019t been read recently. Call the \`read\` tool with the path ${quote(documentPath)} then call the \`create\` tool again.`,
         });
@@ -626,7 +624,7 @@ export async function createAgentWebDocumentThreadPage(
 }
 
 export async function updateAgentWebDocumentThreadPage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     pathname: MaybeThunk<MaybePromise<string>>,
     oldPageMetadata: MaybeThunk<MaybePromise<AgentWebDocumentThreadPageMetadata>>,
     oldPage: AgentWebDocumentThreadPage,
@@ -651,7 +649,7 @@ export async function updateAgentWebDocumentThreadPage(
             mapMaybePromise(oldPageMetadata, oldPageMetadata => ({
                 type: "DocumentThread",
                 id: oldPageMetadata.threadId,
-                document: {id: oldPageMetadata.id},
+                document: {type: "Document", id: oldPageMetadata.id},
             })),
         ),
         oldPageMetadata,
@@ -698,11 +696,11 @@ export async function updateAgentWebDocumentThreadPage(
 
 export async function printAgentWebDocumentThreadPage(
     storage: AgentWebSessionStorage,
-    pageLink: {document: {id: DocumentId}; threadId: DocumentCommentThreadId},
+    pageLink: {document: {id: DocumentId}; id: DocumentCommentThreadId},
     page: AgentWebDocumentThreadPage,
 ): Promise<Root> {
     return await printAgentWebMessagingPage<
-        {document: {id: DocumentId}; threadId: DocumentCommentThreadId},
+        {document: {id: DocumentId}; id: DocumentCommentThreadId},
         AgentWebDocumentThreadPagePreamble,
         AgentWebDocumentThreadPageCustomBlock
     >(storage, pageLink, page, {
@@ -784,7 +782,7 @@ export async function printAgentWebDocumentThreadPage(
 
 export async function parseAgentWebDocumentThreadPage(
     storage: AgentWebSessionStorage,
-    pageLink: {document: {id: DocumentId}; threadId: DocumentCommentThreadId} | null,
+    pageLink: {document: {id: DocumentId}; id: DocumentCommentThreadId} | null,
     root: Root,
 ): Promise<AgentWebDocumentThreadPage> {
     const {page} = await parseAgentWebDocumentThreadPageAndReturnDocumentPath(
@@ -797,7 +795,7 @@ export async function parseAgentWebDocumentThreadPage(
 
 export async function parseAgentWebDocumentThreadPageAndReturnDocumentPath(
     storage: AgentWebSessionStorage,
-    pageLink: {document: {id: DocumentId}; threadId: DocumentCommentThreadId} | null,
+    pageLink: {document: {id: DocumentId}; id: DocumentCommentThreadId} | null,
     root: Root,
 ): Promise<{page: AgentWebDocumentThreadPage; documentPath: string}> {
     let documentPath: string | null = null;

@@ -1,6 +1,7 @@
 import {ContentReferencedIds} from "~/shared/content/content_referenced_ids.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
-import {AccountId, WebSocketConnectionId} from "~/shared/id/types/id_types.open_source.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageReferencedIds} from "~/shared/messaging/message_references.js";
 import {
     MessageContentPayload,

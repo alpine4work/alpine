@@ -557,7 +557,7 @@ what `landing_page_scenario.ts` and the hero/demo scenarios do:
 
 ```ts
 import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {UrlPath} from "~/shared/routing/url_path.js";
 
 const entries: Array<FeedEntry> = [

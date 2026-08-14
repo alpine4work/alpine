@@ -64,7 +64,7 @@ import {
     colorSchemeVars,
     spinAnimationClassName,
 } from "~/client/web/styles/styles.js";
-import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.open_source.js";
+import {mobilePlatformMaxWindowWidth} from "~/shared/design/core/platform.js";
 import {
     Spacing,
     convertRemLengthToPx,

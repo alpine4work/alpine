@@ -324,39 +324,45 @@ async function createProbePipelinesForRoute({
 }): Promise<ProbePipelines> {
     switch (route) {
         case "Image":
-            return measureStage(stages, "Load local OCR + caption + classifier models", async () =>
-                createProbePipelines({
-                    asrModel,
-                    cacheDirectoryPath,
-                    captionModel,
-                    classifierModel,
-                    loadAsr: false,
-                    loadCaptioner: true,
-                    loadClassifier: true,
-                    loadOcr: true,
-                    ocrModel,
-                }),
+            return await measureStage(
+                stages,
+                "Load local OCR + caption + classifier models",
+                async () =>
+                    await createProbePipelines({
+                        asrModel,
+                        cacheDirectoryPath,
+                        captionModel,
+                        classifierModel,
+                        loadAsr: false,
+                        loadCaptioner: true,
+                        loadClassifier: true,
+                        loadOcr: true,
+                        ocrModel,
+                    }),
             );
         case "Audio":
-            return measureStage(stages, "Load local ASR model", async () =>
-                createProbePipelines({
-                    asrModel,
-                    cacheDirectoryPath,
-                    captionModel,
-                    classifierModel,
-                    loadAsr: true,
-                    loadCaptioner: false,
-                    loadClassifier: false,
-                    loadOcr: false,
-                    ocrModel,
-                }),
+            return await measureStage(
+                stages,
+                "Load local ASR model",
+                async () =>
+                    await createProbePipelines({
+                        asrModel,
+                        cacheDirectoryPath,
+                        captionModel,
+                        classifierModel,
+                        loadAsr: true,
+                        loadCaptioner: false,
+                        loadClassifier: false,
+                        loadOcr: false,
+                        ocrModel,
+                    }),
             );
         case "Video":
-            return measureStage(
+            return await measureStage(
                 stages,
                 "Load local OCR + caption + classifier + ASR models",
                 async () =>
-                    createProbePipelines({
+                    await createProbePipelines({
                         asrModel,
                         cacheDirectoryPath,
                         captionModel,
@@ -418,14 +424,20 @@ async function runProbeForRoute({
             assert(ocr !== null);
             assert(captioner !== null);
             assert(classifier !== null);
-            const imageText = await measureStage(stages, "OCR image", async () =>
-                ocrImageText(ocr, filePath),
+            const imageText = await measureStage(
+                stages,
+                "OCR image",
+                async () => await ocrImageText(ocr, filePath),
             );
-            const imageCaption = await measureStage(stages, "Generate image caption", async () =>
-                captionImage(captioner, filePath),
+            const imageCaption = await measureStage(
+                stages,
+                "Generate image caption",
+                async () => await captionImage(captioner, filePath),
             );
-            const imageLabels = await measureStage(stages, "Classify image content", async () =>
-                classifyImageLabels(classifier, filePath),
+            const imageLabels = await measureStage(
+                stages,
+                "Classify image content",
+                async () => await classifyImageLabels(classifier, filePath),
             );
             return {
                 final: {
@@ -454,11 +466,15 @@ async function runProbeForRoute({
         case "Audio": {
             const asr = pipelines.asr;
             assert(asr !== null);
-            const audio = await measureStage(stages, "Decode audio to mono 16k float32", async () =>
-                decodeAudioToFloat32({filePath}),
+            const audio = await measureStage(
+                stages,
+                "Decode audio to mono 16k float32",
+                async () => await decodeAudioToFloat32({filePath}),
             );
-            const transcript = await measureStage(stages, "Transcribe audio", async () =>
-                transcribeAudio(asr, audio),
+            const transcript = await measureStage(
+                stages,
+                "Transcribe audio",
+                async () => await transcribeAudio(asr, audio),
             );
             const {summary, sourceSentences} = await measureStage(
                 stages,
@@ -494,13 +510,15 @@ async function runProbeForRoute({
             assert(ocr !== null);
             assert(captioner !== null);
             assert(classifier !== null);
-            const durationSeconds = await measureStage(stages, "Probe video duration", async () =>
-                probeMediaDurationSeconds({filePath}),
+            const durationSeconds = await measureStage(
+                stages,
+                "Probe video duration",
+                async () => await probeMediaDurationSeconds({filePath}),
             );
             const hasAudioStream = await measureStage(
                 stages,
                 "Probe video audio stream",
-                async () => probeMediaHasAudioStream({filePath}),
+                async () => await probeMediaHasAudioStream({filePath}),
             );
 
             const temporaryDirectoryPath = await fs.mkdtemp(
@@ -511,46 +529,56 @@ async function runProbeForRoute({
                 const frame25Path = joinPath(temporaryDirectoryPath, "frame_25.png");
                 const frame75Path = joinPath(temporaryDirectoryPath, "frame_75.png");
 
-                await measureStage(stages, "Extract frame at 25%", async () =>
-                    extractVideoFrame({
-                        filePath,
-                        outputPath: frame25Path,
-                        timeSeconds: durationSeconds * 0.25,
-                    }),
+                await measureStage(
+                    stages,
+                    "Extract frame at 25%",
+                    async () =>
+                        await extractVideoFrame({
+                            filePath,
+                            outputPath: frame25Path,
+                            timeSeconds: durationSeconds * 0.25,
+                        }),
                 );
-                const frame25Text = await measureStage(stages, "OCR frame at 25%", async () =>
-                    ocrImageText(ocr, frame25Path),
+                const frame25Text = await measureStage(
+                    stages,
+                    "OCR frame at 25%",
+                    async () => await ocrImageText(ocr, frame25Path),
                 );
                 const frame25Caption = await measureStage(
                     stages,
                     "Generate frame caption at 25%",
-                    async () => captionImage(captioner, frame25Path),
+                    async () => await captionImage(captioner, frame25Path),
                 );
                 const frame25Labels = await measureStage(
                     stages,
                     "Classify frame content at 25%",
-                    async () => classifyImageLabels(classifier, frame25Path),
+                    async () => await classifyImageLabels(classifier, frame25Path),
                 );
 
-                await measureStage(stages, "Extract frame at 75%", async () =>
-                    extractVideoFrame({
-                        filePath,
-                        outputPath: frame75Path,
-                        timeSeconds: durationSeconds * 0.75,
-                    }),
+                await measureStage(
+                    stages,
+                    "Extract frame at 75%",
+                    async () =>
+                        await extractVideoFrame({
+                            filePath,
+                            outputPath: frame75Path,
+                            timeSeconds: durationSeconds * 0.75,
+                        }),
                 );
-                const frame75Text = await measureStage(stages, "OCR frame at 75%", async () =>
-                    ocrImageText(ocr, frame75Path),
+                const frame75Text = await measureStage(
+                    stages,
+                    "OCR frame at 75%",
+                    async () => await ocrImageText(ocr, frame75Path),
                 );
                 const frame75Caption = await measureStage(
                     stages,
                     "Generate frame caption at 75%",
-                    async () => captionImage(captioner, frame75Path),
+                    async () => await captionImage(captioner, frame75Path),
                 );
                 const frame75Labels = await measureStage(
                     stages,
                     "Classify frame content at 75%",
-                    async () => classifyImageLabels(classifier, frame75Path),
+                    async () => await classifyImageLabels(classifier, frame75Path),
                 );
 
                 let summary: string | null = null;
@@ -561,12 +589,12 @@ async function runProbeForRoute({
                     const audio = await measureStage(
                         stages,
                         "Decode video audio track to mono 16k float32",
-                        async () => decodeAudioToFloat32({filePath}),
+                        async () => await decodeAudioToFloat32({filePath}),
                     );
                     const audioTranscript = await measureStage(
                         stages,
                         "Transcribe video audio",
-                        async () => transcribeAudio(asr, audio),
+                        async () => await transcribeAudio(asr, audio),
                     );
                     transcript = audioTranscript;
                     const summaryResult = await measureStage(

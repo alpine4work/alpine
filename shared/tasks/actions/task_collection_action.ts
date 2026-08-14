@@ -5,7 +5,7 @@ import {
 import {themeColors} from "~/shared/design/core/theme_colors.js";
 import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskActorFromSchema, TaskCreator} from "~/shared/tasks/task_creator.js";
 import {TaskQueryDefaultsSchema} from "~/shared/tasks/task_query_defaults.js";
 

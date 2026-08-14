@@ -1,4 +1,4 @@
-import {TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerServiceName} from "~/shared/tracer/types/tracer_service_name.js";
 
 /**
  * HTTP search parameter names we may add to a tracer span. We don't add all search

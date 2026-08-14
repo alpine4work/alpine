@@ -9,7 +9,7 @@ import {
     UnionSchema,
     UnionSchemaObjectConfigBase,
     UnionSchemaObjectConfigType,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 
 export type WebSocketProtocolBase = WebSocketProtocol<
     {[name: string]: {input: any; output: any}},

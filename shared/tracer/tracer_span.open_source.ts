@@ -16,10 +16,7 @@ import {getTracerEventExceptionData} from "~/shared/tracer/helpers/get_tracer_ev
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.open_source.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
-import {
-    TracerEventData,
-    TracerEventFullData,
-} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData, TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export type TracerSpanPropagationContext = {
     readonly traceId: TraceId;

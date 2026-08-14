@@ -5,7 +5,7 @@
 // `shared/access/access_policy.ts`).
 import {AccessPolicy, LocalAccessPolicySchema} from "~/shared/access/access_policy.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 export const AccessPolicyModelDataSchema = Schema.union({

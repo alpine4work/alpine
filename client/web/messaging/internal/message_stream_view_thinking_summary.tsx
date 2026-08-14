@@ -263,8 +263,15 @@ function MessageStreamSectionThinkingProgressSummary({
     );
     let progress = actualProgress;
 
-    // Make sure `progress.index` is in bounds of `nonContentParts`.
-    if (progress !== null) {
+    if (progress === null) {
+        if (nonContentParts.length > 0) {
+            setProgress({
+                index: nonContentParts.length - 1,
+                displayTime: Date.now(),
+            });
+        }
+    } else {
+        // Make sure `progress.index` is in bounds of `nonContentParts`.
         if (nonContentParts.length === 0) {
             progress = null;
             setProgress(progress);
@@ -277,13 +284,9 @@ function MessageStreamSectionThinkingProgressSummary({
     useEffect(() => {
         if (nonContentParts.length === 0) return;
 
-        if (progress === null) {
-            setProgress({
-                index: nonContentParts.length - 1,
-                displayTime: Date.now(),
-            });
-            return;
-        }
+        // Should never happen, above we should update the state if `progress` is null and
+        // `nonContentParts` is non-null.
+        if (progress === null) return;
 
         // We increment `progress.index` until it's the last non-content part.
         if (!(progress.index < nonContentParts.length - 1)) return;

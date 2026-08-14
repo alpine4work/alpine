@@ -6,7 +6,7 @@ import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {type DatabaseFieldConfig} from "~/shared/databases/fields/database_field_config.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {
     type OrderKey,

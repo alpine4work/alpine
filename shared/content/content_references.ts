@@ -8,7 +8,7 @@ import {Result} from "~/shared/helpers/control/result.open_source.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {AccountId, FileId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchMentionEntityId,
     SearchMentionEntityIdSchema,

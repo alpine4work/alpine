@@ -12,7 +12,7 @@ import {
     SchemaSerializedValue,
     SchemaWithOnlySerialization,
     objectSchemaMissingPropertySymbol,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 
 /**
  * An abstract, type-safe, representation of a [DynamoDB condition expression][1]

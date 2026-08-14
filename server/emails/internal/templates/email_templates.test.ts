@@ -11,7 +11,8 @@ import {
 } from "~/shared/avatar/fixtures/sample_account_avatars.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
-import {AccountId, AvatarId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
 

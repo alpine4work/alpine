@@ -9,7 +9,7 @@ import {
     screenPaddingXRem,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {SpacingScale, allSpacingScales} from "~/shared/design/core/spacing_scale.open_source.js";
+import {SpacingScale, allSpacingScales} from "~/shared/design/core/spacing_scale.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 

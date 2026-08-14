@@ -166,7 +166,7 @@ describe("parseApiPath", () => {
             ).toEqual({
                 type: "DocumentThread",
                 id: documentCommentThreadId,
-                document: {id: documentId},
+                document: {type: "Document", id: documentId},
             });
         });
 
@@ -414,7 +414,7 @@ describe("printApiPath", () => {
             printApiPath({
                 type: "DocumentThread",
                 id: documentCommentThreadId,
-                document: {id: documentId},
+                document: {type: "Document", id: documentId},
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}`);
     });
@@ -500,7 +500,7 @@ describe("parseApiMessageRoomPath", () => {
         ).toEqual({
             type: "DocumentThread",
             id: documentCommentThreadId,
-            document: {id: documentId},
+            document: {type: "Document", id: documentId},
         });
     });
 });
@@ -515,7 +515,7 @@ describe("printApiMessageRoomPath", () => {
             printApiMessageRoomPath({
                 type: "DocumentThread",
                 id: documentCommentThreadId,
-                document: {id: documentId},
+                document: {type: "Document", id: documentId},
             }),
         ).toEqual(`/documents/${documentId}/threads/${documentCommentThreadId}`);
     });

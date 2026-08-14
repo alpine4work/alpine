@@ -3,7 +3,7 @@ import {assertId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId} from "~/shared/id/types/id_types.open_source.js";
 import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 // The `AccountId` tries to spell "unknown account" with no spaces followed by
 // zeroes. We substitute 0 for "o" and since "u" is not allowed in IDs we use "n"

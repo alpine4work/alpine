@@ -25,7 +25,8 @@ import {
 } from "~/shared/forum/post_content_schema.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {AccountId, BrowserId} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 const queuePendingSubtleNotificationMock = jest.fn();
 const sendWebPushNotificationMock = jest.fn();

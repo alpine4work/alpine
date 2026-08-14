@@ -12,7 +12,7 @@ import {
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {PostContentProsemirrorSchema as schema} from "~/shared/forum/post_content_schema.js";
 import {createSchemaForProsemirrorSchema} from "~/shared/prosemirror/create_schema_for_prosemirror_schema.js";
-import {SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+import {SchemaDeserializationError} from "~/shared/schema/schema.js";
 
 const {TopNodeType, createStepSchema} = createSchemaForProsemirrorSchema(schema);
 const StepSchema = createStepSchema();

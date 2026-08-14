@@ -14,7 +14,7 @@ import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {unsubscribeFromEmailNotificationWithUrl} from "~/shared/rpc/notifications_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     url: Schema.string,

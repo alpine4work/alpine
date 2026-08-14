@@ -1,13 +1,19 @@
 load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_files")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
-MARKDOWN_FILES = glob(["*/*.internal.md"])
+INTERNAL_MARKDOWN_FILES = glob(["*/*.internal.md"])
+OPEN_SOURCE_MARKDOWN_FILES = glob(["*/*.open_source.md"])
 
-filegroup(
+pkg_files(
     name = "skills",
-    srcs = glob(["*/*.open_source.md"]),
-    visibility = ["//visibility:public"],
+    srcs = OPEN_SOURCE_MARKDOWN_FILES,
+    renames = {
+        file: file.replace(".open_source.", ".")
+        for file in OPEN_SOURCE_MARKDOWN_FILES
+    },
+    visibility = ["//server/agents/bots_v2/sandbox:__pkg__"],
 )
 
 ts_project(
@@ -32,9 +38,9 @@ js_binary(
 
 js_run_binary(
     name = "skills_generated",
-    srcs = MARKDOWN_FILES,
-    args = MARKDOWN_FILES,
-    outs = ["agent_web_skill_content_by_path.open_source.js"] + ["{}.open_source.generated.md".format(file[:-len(".internal.md")]) for file in MARKDOWN_FILES],
+    srcs = INTERNAL_MARKDOWN_FILES,
+    args = INTERNAL_MARKDOWN_FILES,
+    outs = ["agent_web_skill_content_by_path.open_source.js"] + ["{}.open_source.generated.md".format(file[:-len(".internal.md")]) for file in INTERNAL_MARKDOWN_FILES],
     tool = ":generate_skills",
     chdir = package_name(),
     visibility = ["//server/agents/web:__pkg__"],
@@ -44,6 +50,6 @@ write_source_files(
     name = "write_skills",
     files = {
         "{}.open_source.md".format(file[:-len(".internal.md")]): "{}.open_source.generated.md".format(file[:-len(".internal.md")])
-        for file in MARKDOWN_FILES
+        for file in INTERNAL_MARKDOWN_FILES
     },
 )

@@ -15,7 +15,7 @@ import {InternalError, PermissionDeniedError} from "~/shared/error/error.open_so
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
 import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerServiceName} from "~/shared/tracer/types/tracer_service_name.js";
 import {
     WebSocketProtocolBase,
     WebSocketProtocolEventType,

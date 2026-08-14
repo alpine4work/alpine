@@ -15,7 +15,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {asyncNoop} from "~/shared/helpers/control/async_noop.open_source.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type AttemptOneTimePasswordSignInOptions = {

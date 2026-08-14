@@ -3,7 +3,8 @@ import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {authorizeTaskAccessAndGetCommentsSummaryAndNotesItems} from "~/server/tasks/data/internal/authorize_task_item_access.js";
 import {getTaskNotesContentStepsBetweenValidatedVersionRange} from "~/server/tasks/data/internal/get_task_notes_content_steps_between_validated_version_range.js";
 import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
-import {ContentEditorClientId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
  * Reads the task notes steps applied between `startVersion` (inclusive) and

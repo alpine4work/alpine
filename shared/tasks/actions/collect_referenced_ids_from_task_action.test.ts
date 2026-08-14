@@ -5,10 +5,10 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteSideBarId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     SiteId,
-    SiteSideBarId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";

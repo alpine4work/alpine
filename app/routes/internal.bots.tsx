@@ -54,7 +54,7 @@ import {
     rotateApiKeyForBot,
 } from "~/shared/rpc/bots_rpc_definitions.js";
 import {instantiateBotSpaceAccount} from "~/shared/rpc/spaces_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {getAvatarDefaultDesign} from "~/shared/spaces/get_avatar_default_design.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 

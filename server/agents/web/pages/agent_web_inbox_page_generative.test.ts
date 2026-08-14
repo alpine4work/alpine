@@ -78,8 +78,11 @@ const AgentWebInboxPageDocumentMessageLinkArbitrary: Arbitrary<
     Extract<AgentWebPageStoredLink, {type: "DocumentMessage"}>
 > = fc.record({
     type: fc.constant("DocumentMessage"),
-    id: createIdArbitrary<DocumentId>(),
-    threadId: createIdArbitrary<DocumentCommentThreadId>(),
+    document: fc.record({
+        type: fc.constant("Document"),
+        id: createIdArbitrary<DocumentId>(),
+    }),
+    id: createIdArbitrary<DocumentCommentThreadId>(),
     index: fc.nat({max: 100}),
     authorShortName: ApiContentTextArbitrary,
     preview: ApiContentTextArbitrary,

@@ -6,6 +6,58 @@ import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/d
 import {assertId} from "~/shared/id/id.open_source.js";
 import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
+test("converts newline runs in text elements to spaces", () => {
+    const apiContent: ApiContent = {
+        elements: [
+            {
+                type: "Paragraph",
+                elements: [{type: "Text", text: "paragraph\ntext"}],
+            },
+            {
+                type: "Heading",
+                level: 2,
+                elements: [{type: "Text", text: "heading\n\ntext"}],
+            },
+            {
+                type: "Code",
+                language: "typescript",
+                lines: [
+                    {
+                        elements: [{type: "Text", text: "code\n\n\ntext"}],
+                    },
+                ],
+            },
+        ],
+    };
+
+    const content = fromApiContent(schema, apiContent);
+
+    expect(content.toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "paragraph text"}],
+            },
+            {
+                type: "heading",
+                attrs: {level: 2},
+                content: [{type: "text", text: "heading text"}],
+            },
+            {
+                type: "codeBlock",
+                attrs: {language: "typescript"},
+                content: [
+                    {
+                        type: "codeBlockLine",
+                        content: [{type: "text", text: "code text"}],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
 test("converts empty quote block from API content", () => {
     // When API content has an empty Quote, we should create a quoteBlock with an empty
     // paragraph This can happen when importing markdown like "> \n> \n" (empty

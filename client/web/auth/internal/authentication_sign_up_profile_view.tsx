@@ -18,7 +18,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {saveAccountSignUpProfile} from "~/shared/rpc/accounts_rpc_definitions.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function AuthenticationSignUpProfileView({
     state,

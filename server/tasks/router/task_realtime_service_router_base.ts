@@ -10,7 +10,7 @@ import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js";
 import {decodeId} from "~/shared/id/id.open_source.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * The cached routes object becomes invalid after this period of time. You must

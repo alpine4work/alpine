@@ -8,7 +8,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Parses a path from our app and returns `TracerEventData` with information in the

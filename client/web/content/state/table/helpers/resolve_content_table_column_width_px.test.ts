@@ -1,7 +1,7 @@
 import {resolveContentTableColumnWidthPxWithoutCacheForTest} from "~/client/web/content/state/table/helpers/resolve_content_table_column_width_px.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {SpacingScale, remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 
 const testCases: Array<{

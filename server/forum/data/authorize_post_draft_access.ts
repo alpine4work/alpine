@@ -8,7 +8,8 @@ import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {okResult} from "~/shared/helpers/control/ok_result.js";
 import {Result} from "~/shared/helpers/control/result.open_source.js";
-import {AccountId, PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function authorizePostDraftAccess(
     context: ServerActionContext,

@@ -1,7 +1,8 @@
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {AccountId, TaskActivityEntryId} from "~/shared/id/types/id_types.open_source.js";
+import {TaskActivityEntryId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskActivityWindowForActor,
     decodeTaskActivityWindows,

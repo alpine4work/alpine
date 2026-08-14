@@ -3,7 +3,10 @@ import {
     parseApiMentionReferenceKey,
     printApiMentionReferenceKey,
 } from "~/shared/api/specification/api_mention_reference_key.open_source.js";
-import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {
+    ApiDocumentReference,
+    ApiMentionReference,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assertId} from "~/shared/id/id.open_source.js";
 import {
     ChatId,
@@ -34,8 +37,8 @@ export type AgentWebPageStoredLinkKeyObject =
       }
     | {
           readonly type: "DocumentMessage";
-          readonly id: DocumentId;
-          readonly threadId: DocumentCommentThreadId;
+          readonly document: ApiDocumentReference;
+          readonly id: DocumentCommentThreadId;
           readonly index: number;
       }
     | {
@@ -60,7 +63,7 @@ export function printAgentWebPageStoredLinkKey(
         case "ChatMessage":
             return `ChatMessage:${key.id}-${key.index}`;
         case "DocumentMessage":
-            return `DocumentMessage:${key.id}-${key.threadId}-${key.index}`;
+            return `DocumentMessage:${key.document.id}-${key.id}-${key.index}`;
         case "PostMessage":
             return `PostMessage:${key.id}-${key.index}`;
         case "TaskMessage":
@@ -92,8 +95,8 @@ export function parseAgentWebPageStoredLinkKey(
 
             return {
                 type: "DocumentMessage",
-                id: assertId<DocumentId>(data1),
-                threadId: assertId<DocumentCommentThreadId>(data2),
+                document: {type: "Document", id: assertId<DocumentId>(data1)},
+                id: assertId<DocumentCommentThreadId>(data2),
                 index: parseInt(data3, 10),
             };
         }

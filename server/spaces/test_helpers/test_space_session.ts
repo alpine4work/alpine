@@ -9,7 +9,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {NotFoundError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {SessionId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export class TestSpaceSession extends TestSession {

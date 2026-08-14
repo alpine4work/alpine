@@ -17,7 +17,7 @@ import type {
     DatabaseGroupId,
     DatabaseReactiveActionId,
 } from "~/shared/id/types/id_types.open_source.js";
-import type {SchemaType} from "~/shared/schema/schema.open_source.js";
+import type {SchemaType} from "~/shared/schema/schema.js";
 import type {Store} from "~/shared/store/store.js";
 import {ValueStore} from "~/shared/store/value_store.js";
 

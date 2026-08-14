@@ -8,7 +8,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
  * `\u201D`, `\u2018`, `\u2019`).
  */
 /* eslint-enable cyberworlds/string-quotes */
-export function convertApiContentToProperQuotes(content: ApiContent): ApiContent {
+export function convertApiContentToProperQuotes<Content extends ApiContent>(
+    content: Content,
+): Content {
     return visitAndProduceApiContent(content, {
         visitInlineElement: (
             element,

@@ -1,5 +1,5 @@
 import {SettingsDefaultKnownBotAccountModelDataSchema} from "~/shared/bots/settings_default_known_bot_account_model_data_types.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type BotSettingsAccount = SchemaType<typeof BotSettingsAccountSchema>;

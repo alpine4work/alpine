@@ -62,13 +62,13 @@ import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
+import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     DocumentCommentThreadId,
     DocumentId,
     SiteId,
     SpaceId,
-    WebSocketConnectionId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {createDocument, getDocument} from "~/shared/rpc/documents_rpc_definitions.js";

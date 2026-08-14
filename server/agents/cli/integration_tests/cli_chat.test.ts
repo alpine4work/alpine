@@ -23,7 +23,7 @@ test("rejects creating a room chat while the API endpoint is unimplemented", asy
         await cli.run(`\
 alpine create chat '# YouTube launch room
 
-<message id="0" from="[My Bot](/bot/my-bot)">
+<message id="0">
 
 I opened this room for launch coordination.
 
@@ -36,7 +36,7 @@ Error: Couldn’t create chat. An unexpected error occurred, please try again. I
 `);
 });
 
-test("create an empty direct chat", async () => {
+test("create an empty direct chat after reading the current bot link", async () => {
     const aliceSession = await cli.session.space.createSession({name: "Alice"});
     const setupChat = await TestChat.createRoom(cli.session, {name: "Direct chat setup"});
     await setupChat.sendMessage(aliceSession, "Register Alice for the direct chat test.", {
@@ -68,6 +68,8 @@ Register Alice for the direct chat test.
 
 End of messages.
 `);
+
+    expect(await cli.run("alpine read /bot/me")).toEqual("You are [My Bot](/bot/my-bot).\n");
 
     expect(
         await cli.run(`\
@@ -863,7 +865,7 @@ alpine update /chat/deleted-reply-room --old 'End of messages.' --new '<message>
 
 <blockquote cite="?message=0">
 
-[My Bot](/bot/my-bot): Deleted message
+[Alice](/human/alice): Deleted message
 
 </blockquote>
 

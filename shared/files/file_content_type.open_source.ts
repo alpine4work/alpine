@@ -2,7 +2,6 @@ import MIMEType from "whatwg-mimetype";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {getObjectEntriesWithKeyofType} from "~/shared/helpers/object/get_object_entries_with_keyof_type.open_source.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
 
 /**
  * Supported content types for files uploaded to Alpine.
@@ -90,8 +89,6 @@ export function isFileWebSafeImageContentType(
 export function getFileImageContentTypes(): ReadonlyArray<FileImageContentType> {
     return getObjectKeysWithKeyofType(fileImageContentTypes);
 }
-
-export const FileImageContentTypeSchema = Schema.enum(getFileImageContentTypes());
 
 /**
  * Document file types. All documents file types are converted to [PDF (Portable
@@ -616,8 +613,6 @@ export const fileContentTypes: ReadonlySet<FileContentType> = new Set(
     getObjectKeysWithKeyofType(filePreferredExtensionByContentType),
 );
 
-export const FileContentTypeSchema = Schema.enum(fileContentTypes);
-
 /**
  * Is the provided string a `FileContentType`?
  */
@@ -625,8 +620,15 @@ export function isFileContentType(contentType: string): contentType is FileConte
     return fileContentTypes.has(contentType as any);
 }
 
-function normalizeParsedContentType(contentType: string): MIMEType {
-    const parsedContentType = new MIMEType(contentType);
+function normalizeParsedContentTypeIfPossible(contentType: string): MIMEType | null {
+    let parsedContentType: MIMEType;
+    try {
+        parsedContentType = new MIMEType(contentType);
+    } catch {
+        // If we failed to parse the content type, return null. It must be an invalid
+        // content type.
+        return null;
+    }
 
     // `charset` is case insensitive so normalize it to lower case. Source:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type#directives
@@ -642,8 +644,8 @@ function normalizeParsedContentType(contentType: string): MIMEType {
  * Normalize content type to a normalized representation. Case insensitive parts
  * are lowercased and unnecessary spacing is removed.
  */
-export function normalizeContentType(contentType: string): string {
-    return normalizeParsedContentType(contentType).toString();
+export function normalizeContentTypeIfPossible(contentType: string): string | undefined {
+    return normalizeParsedContentTypeIfPossible(contentType)?.toString();
 }
 
 /**
@@ -653,7 +655,8 @@ export function normalizeContentType(contentType: string): string {
  * content types to their canonical representation.
  */
 export function canonicalizeFileContentTypeIfExists(contentType: string): FileContentType | null {
-    const parsedContentType = normalizeParsedContentType(contentType);
+    const parsedContentType = normalizeParsedContentTypeIfPossible(contentType);
+    if (parsedContentType === null) return null;
 
     // Try to find the canonical `FileContentType` using parameters.
     //

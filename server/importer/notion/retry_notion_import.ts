@@ -4,7 +4,8 @@ import {NotionImporterTable} from "~/server/importer/notion/internal/notion_impo
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {notionImportFileRetentionDays} from "~/shared/importer/notion/notion_import_file_retention.js";
 
 /**

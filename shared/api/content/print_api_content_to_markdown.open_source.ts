@@ -36,6 +36,7 @@ import {
     ApiContentParagraphBlockElement,
     ApiContentPreviewBlockElement,
     ApiContentTableBlockElement,
+    ApiContentUnorderedListBlockElement,
     ApiMentionReference,
     ApiPreviewReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
@@ -201,7 +202,7 @@ function* printApiContentBlockElementsToMarkdown(
 ): IterableIterator<BlockContent> {
     let pendingContent: BlockContent | null = null;
 
-    for (const element of elements) {
+    for (const element of processApiContentBlockElements(elements)) {
         for (const content of printApiContentBlockElementToMarkdown(element, options)) {
             // Merge adjacent lists together.
             if (
@@ -227,6 +228,98 @@ function* printApiContentBlockElementsToMarkdown(
     }
 
     if (pendingContent !== null) yield pendingContent;
+}
+
+function* processApiContentBlockElements(
+    elements: ReadonlyArray<ApiContentBlockElement>,
+): IterableIterator<ApiContentBlockElement> {
+    let nextIndex = 0;
+
+    while (nextIndex < elements.length) {
+        const index = nextIndex;
+        nextIndex++;
+        const element = elements[index]!;
+
+        // Skip empty unordered and ordered lists.
+        if (
+            (element.type === "UnorderedList" ||
+                element.type === "OrderedList" ||
+                element.type === "CheckList") &&
+            element.items.length === 0
+        ) {
+            continue;
+        }
+
+        // Deal with phantom list elements. If we have a list followed by a phantom list
+        // item (items?) then merge the phantom list back into the previous list.
+        if (
+            (element.type === "UnorderedList" ||
+                element.type === "OrderedList" ||
+                element.type === "CheckList") &&
+            index < elements.length - 1
+        ) {
+            // Empty lists don't print any Markdown, so they can't preserve a boundary between
+            // the lists on either side of them.
+            while (nextIndex < elements.length) {
+                const nextElement = elements[nextIndex]!;
+                if (
+                    (nextElement.type === "UnorderedList" ||
+                        nextElement.type === "OrderedList" ||
+                        nextElement.type === "CheckList") &&
+                    nextElement.items.length === 0
+                ) {
+                    nextIndex++;
+                } else {
+                    break;
+                }
+            }
+
+            const nextElement = elements[nextIndex];
+            if (nextElement?.type === "UnorderedList") {
+                const nextItem = nextElement.items[0];
+
+                if (
+                    nextItem !== undefined &&
+                    nextItem.elements.length === 0 &&
+                    nextItem.nestedListElements !== undefined &&
+                    nextItem.nestedListElements.some(
+                        nestedElement => nestedElement.items.length > 0,
+                    )
+                ) {
+                    nextIndex++;
+
+                    // The union type is annoying to work with, so just pretend this is an unordered
+                    // list element.
+                    const actualElement = element as ApiContentUnorderedListBlockElement;
+
+                    yield {
+                        ...actualElement,
+                        items: [
+                            ...actualElement.items.slice(0, -1),
+                            {
+                                ...actualElement.items[actualElement.items.length - 1]!,
+                                nestedListElements: [
+                                    ...(actualElement.items[actualElement.items.length - 1]!
+                                        .nestedListElements ?? []),
+                                    ...nextItem.nestedListElements,
+                                ],
+                            },
+                        ],
+                    };
+
+                    if (nextElement.items.length > 1) {
+                        yield {
+                            ...nextElement,
+                            items: nextElement.items.slice(1),
+                        };
+                    }
+                    continue;
+                }
+            }
+        }
+
+        yield element;
+    }
 }
 
 function* printApiContentBlockElementToMarkdown(

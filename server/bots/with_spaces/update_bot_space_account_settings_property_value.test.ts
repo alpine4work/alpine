@@ -217,6 +217,76 @@ test("throws FailedPreconditionError for non-string value", async () => {
     ).rejects.toThrow("Property value must be a string according to bot settings schema");
 });
 
+test("updates an account Select property to one of its options", async () => {
+    const bot = await createBotWithSchema(
+        new Map<string, any>([
+            [
+                "model",
+                {
+                    type: "Select",
+                    level: "SpaceAccount",
+                    label: "Model",
+                    hint: null,
+                    defaultValue: "fast",
+                    options: [
+                        {label: "Fast", value: "fast"},
+                        {label: "Accurate", value: "accurate"},
+                    ],
+                },
+            ],
+        ]),
+    );
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    const memberSession = await space.createSession({role: "Member"});
+    await bot.instantiate(adminSession);
+
+    const result = await updateBotSpaceAccountSettingsPropertyValue(memberSession.action(), {
+        spaceId: space.id,
+        accountId: memberSession.account.id,
+        botId: bot.id,
+        propertyKey: "model",
+        propertyValue: "accurate",
+    });
+
+    expect(result.values.get("model")).toEqual("accurate");
+});
+
+test("rejects an account Select property value that is not an option", async () => {
+    const bot = await createBotWithSchema(
+        new Map<string, any>([
+            [
+                "model",
+                {
+                    type: "Select",
+                    level: "SpaceAccount",
+                    label: "Model",
+                    hint: null,
+                    defaultValue: "fast",
+                    options: [
+                        {label: "Fast", value: "fast"},
+                        {label: "Accurate", value: "accurate"},
+                    ],
+                },
+            ],
+        ]),
+    );
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
+    const memberSession = await space.createSession({role: "Member"});
+    await bot.instantiate(adminSession);
+
+    await expect(
+        updateBotSpaceAccountSettingsPropertyValue(memberSession.action(), {
+            spaceId: space.id,
+            accountId: memberSession.account.id,
+            botId: bot.id,
+            propertyKey: "model",
+            propertyValue: "unknown",
+        }),
+    ).rejects.toThrow("Property value must match an option in the bot settings schema");
+});
+
 test("creates account settings item when none exists", async () => {
     const bot = await createBotWithSchema(new Map([["apiKey", createAccountSettingsProperty()]]));
     const space = await TestSpace.create(context);
@@ -298,11 +368,24 @@ test("valuesVersion increments on subsequent updates", async () => {
     expect(result3.valuesVersion).toEqual(3);
 });
 
-test("returns all updated values in response", async () => {
+test("returns defaults in schema order after out-of-order updates", async () => {
     const bot = await createBotWithSchema(
-        new Map([
+        new Map<string, any>([
             ["property1", createAccountSettingsProperty({label: "Property 1"})],
-            ["property2", createAccountSettingsProperty({label: "Property 2"})],
+            [
+                "property2",
+                {
+                    type: "Select",
+                    level: "SpaceAccount",
+                    label: "Property 2",
+                    hint: null,
+                    defaultValue: "default2",
+                    options: [
+                        {label: "Default", value: "default2"},
+                        {label: "Selected", value: "value2"},
+                    ],
+                },
+            ],
             ["property3", createAccountSettingsProperty({label: "Property 3"})],
         ]),
     );
@@ -315,10 +398,14 @@ test("returns all updated values in response", async () => {
         spaceId: space.id,
         accountId: adminSession.account.id,
         botId: bot.id,
-        propertyKey: "property1",
-        propertyValue: "value1",
+        propertyKey: "property3",
+        propertyValue: "value3",
     });
-    expect(result1.values).toEqual(new Map([["property1", "value1"]]));
+    expect(Array.from(result1.values.entries())).toEqual([
+        ["property1", ""],
+        ["property2", "default2"],
+        ["property3", "value3"],
+    ]);
 
     const result2 = await updateBotSpaceAccountSettingsPropertyValue(adminSession.action(), {
         spaceId: space.id,
@@ -327,25 +414,22 @@ test("returns all updated values in response", async () => {
         propertyKey: "property2",
         propertyValue: "value2",
     });
-    expect(result2.values).toEqual(
-        new Map([
-            ["property1", "value1"],
-            ["property2", "value2"],
-        ]),
-    );
+    expect(Array.from(result2.values.entries())).toEqual([
+        ["property1", ""],
+        ["property2", "value2"],
+        ["property3", "value3"],
+    ]);
 
     const result3 = await updateBotSpaceAccountSettingsPropertyValue(adminSession.action(), {
         spaceId: space.id,
         accountId: adminSession.account.id,
         botId: bot.id,
-        propertyKey: "property3",
-        propertyValue: "value3",
+        propertyKey: "property1",
+        propertyValue: "value1",
     });
-    expect(result3.values).toEqual(
-        new Map([
-            ["property1", "value1"],
-            ["property2", "value2"],
-            ["property3", "value3"],
-        ]),
-    );
+    expect(Array.from(result3.values.entries())).toEqual([
+        ["property1", "value1"],
+        ["property2", "value2"],
+        ["property3", "value3"],
+    ]);
 });

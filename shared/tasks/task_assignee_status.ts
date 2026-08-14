@@ -1,5 +1,5 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 
 /**

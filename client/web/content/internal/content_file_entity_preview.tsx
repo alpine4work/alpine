@@ -24,9 +24,9 @@ import {SiteRegistry} from "~/client/web/sites/context/site_registry.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {ContentFileLayout} from "~/shared/content/compute_file_row_layout.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
-import {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
-import {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
+import {RouteLayout} from "~/shared/design/core/route_layout.js";
+import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
 import {
     ErrorBase,

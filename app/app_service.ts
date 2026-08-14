@@ -60,6 +60,7 @@ import {
     UnknownActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
+import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {
     ImporterDevelopmentContextModule,
     createDevelopmentEscalateToImporterServiceContext,
@@ -248,39 +249,52 @@ async function createAppService({
                       "Missing `agentServiceLocalPort` option in development",
                   );
 
-                  const chatGptLocalUnscopedApiKey = await getServiceTokenAgentKeyFromOption(
-                      assertExists(
-                          options.chatGptLocalUnscopedApiKey,
-                          "Missing `chatGptLocalUnscopedApiKey` option in development",
+                  const [
+                      chatGptLocalUnscopedApiKey,
+                      chatGptLocalScopedApiKey,
+                      claudeLocalUnscopedApiKey,
+                      cursorLocalUnscopedApiKey,
+                      mockChatGptLocalUnscopedApiKey,
+                  ] = await runAllPromises([
+                      getServiceTokenAgentKeyFromOption(
+                          assertExists(
+                              options.chatGptLocalUnscopedApiKey,
+                              "Missing `chatGptLocalUnscopedApiKey` option in development",
+                          ),
                       ),
-                  );
-
-                  const chatGptLocalScopedApiKey = await getServiceTokenAgentKeyFromOption(
-                      assertExists(
-                          options.chatGptLocalScopedApiKey,
-                          "Missing `chatGptLocalScopedApiKey` option in development",
+                      getServiceTokenAgentKeyFromOption(
+                          assertExists(
+                              options.chatGptLocalScopedApiKey,
+                              "Missing `chatGptLocalScopedApiKey` option in development",
+                          ),
                       ),
-                  );
-
-                  const cursorLocalUnscopedApiKey = await getServiceTokenAgentKeyFromOption(
-                      assertExists(
-                          options.cursorLocalUnscopedApiKey,
-                          "Missing `cursorLocalUnscopedApiKey` option in development",
+                      getServiceTokenAgentKeyFromOption(
+                          assertExists(
+                              options.claudeLocalUnscopedApiKey,
+                              "Missing `claudeLocalUnscopedApiKey` option in development",
+                          ),
                       ),
-                  );
-
-                  const mockChatGptLocalUnscopedApiKey = await getServiceTokenAgentKeyFromOption(
-                      assertExists(
-                          options.mockChatGptLocalUnscopedApiKey,
-                          "Missing `mockChatGptLocalUnscopedApiKey` option in development",
+                      getServiceTokenAgentKeyFromOption(
+                          assertExists(
+                              options.cursorLocalUnscopedApiKey,
+                              "Missing `cursorLocalUnscopedApiKey` option in development",
+                          ),
                       ),
-                  );
+                      getServiceTokenAgentKeyFromOption(
+                          assertExists(
+                              options.mockChatGptLocalUnscopedApiKey,
+                              "Missing `mockChatGptLocalUnscopedApiKey` option in development",
+                          ),
+                      ),
+                  ]);
 
                   return {
                       agentServiceLocalPort,
                       chatGptLocalUnscopedApiKey: chatGptLocalUnscopedApiKey.trim(),
                       chatGptLocalScopedApiKey: chatGptLocalScopedApiKey.trim(),
                       chatGptWebhookSecret: options.chatGptWebhookSecret,
+                      claudeLocalUnscopedApiKey: claudeLocalUnscopedApiKey.trim(),
+                      claudeWebhookSecret: options.claudeWebhookSecret,
                       cursorLocalUnscopedApiKey: cursorLocalUnscopedApiKey.trim(),
                       cursorWebhookSecret: options.cursorWebhookSecret,
                       mockChatGptLocalUnscopedApiKey: mockChatGptLocalUnscopedApiKey.trim(),
@@ -311,9 +325,13 @@ async function createAppService({
     );
 
     const agentServiceUrl = options.agentServiceUrl ?? null;
+    const agentV2ServiceUrl = options.agentV2ServiceUrl ?? null;
 
     if (process.env.NODE_ENV !== "test") {
         assertExists(agentServiceUrl, "`agentServiceUrl` option is required in production");
+    }
+    if (process.env.NODE_ENV === "production") {
+        assertExists(agentV2ServiceUrl, "`agentV2ServiceUrl` option is required in production");
     }
 
     let billingContextModule: BillingContextModuleBase;
@@ -598,6 +616,7 @@ async function createAppService({
                 cookieNameSuffix,
                 sessionCookie,
                 agentServiceUrl,
+                agentV2ServiceUrl,
                 webPushVapidPublicKey,
             });
 
@@ -772,23 +791,13 @@ async function createAppService({
             if (typeof matches === "string") {
                 switch (matches) {
                     case "HealthCheck": {
-                        return Promise.resolve(
-                            new Response("200 OK", {
-                                status: 200,
-                                headers: {"content-type": "text/plain"},
-                            }),
-                        );
+                        return Promise.resolve(createSimpleOkResponse());
                     }
                     case "ClearSpaceAccountsCacheForTest": {
                         const spaceAccountsCache = getSpaceAccountsCacheForTest();
                         spaceAccountsCache.clearForTest();
 
-                        return Promise.resolve(
-                            new Response("200 OK", {
-                                status: 200,
-                                headers: {"content-type": "text/plain"},
-                            }),
-                        );
+                        return Promise.resolve(createSimpleOkResponse());
                     }
                     default:
                         throw exhaustive(matches);

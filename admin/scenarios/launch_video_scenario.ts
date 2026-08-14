@@ -43,7 +43,7 @@ import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {JsonObjectValue} from "~/shared/helpers/types/json_value.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export async function createLaunchVideoScenario(
     context: TestContext,

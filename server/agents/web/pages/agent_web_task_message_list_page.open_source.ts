@@ -151,7 +151,7 @@ export function normalizeAgentWebTaskMessageListPage<Page extends AgentWebTaskMe
 }
 
 export async function updateAgentWebTaskMessageListPage(
-    context: AgentWebContextWithoutStorage,
+    context: AgentWebContext,
     pathname: string,
     oldPageMetadata: AgentWebTaskMessageListPageMetadata,
     oldPage: AgentWebTaskMessageListPage,

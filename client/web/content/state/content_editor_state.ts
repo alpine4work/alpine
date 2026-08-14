@@ -48,12 +48,8 @@ import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {Id, generateId, isId} from "~/shared/id/id.open_source.js";
-import {
-    ContentEditorClientId,
-    DocumentCommentThreadId,
-    FileId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {DocumentCommentThreadId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityModel} from "~/shared/search/search_entity_model.js";

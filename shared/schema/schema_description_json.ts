@@ -5,8 +5,8 @@ import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.open_source.js";
-import {SchemaSerializedScalarValue} from "~/shared/schema/schema.open_source.js";
-import {SchemaSerializedCompositeValueDescription} from "~/shared/schema/types/schema_description_types.open_source.js";
+import {SchemaSerializedScalarValue} from "~/shared/schema/schema.js";
+import {SchemaSerializedCompositeValueDescription} from "~/shared/schema/types/schema_description_types.js";
 
 const schemaCompositeDescriptionTypes: {
     [K in SchemaSerializedCompositeValueDescription["type"] | "Enum"]: true;

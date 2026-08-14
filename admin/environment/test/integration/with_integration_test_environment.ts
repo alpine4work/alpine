@@ -49,7 +49,8 @@ import {captureResultPromise} from "~/shared/helpers/control/capture_result_prom
 import {isTestNodeEnvOrAdminScenariosScript} from "~/shared/helpers/test/is_test_node_env_or_admin_scenarios_script.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {ApiKey, assertApiKey} from "~/shared/id/api_key.js";
-import {AccountId, SessionId} from "~/shared/id/types/id_types.open_source.js";
+import {SessionId} from "~/shared/id/types/id_types.js";
+import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 
 // This file should only run in a Node.js test environment. Either Jest or
 // Playwright.

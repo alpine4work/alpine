@@ -7,7 +7,7 @@ import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping
 import {ReactionSet} from "~/shared/reactions/reaction_set.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export const maxPostPreviewCommentAuthorCount = 5;

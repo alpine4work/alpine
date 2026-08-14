@@ -9,7 +9,7 @@ import {selectDatabaseFieldColumnAsString} from "~/shared/databases/fields/selec
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {sql} from "~/shared/databases/sql.js";
 import type {SqliteDatabase} from "~/shared/databases/sqlite.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * Returns a field value formatted as a string both by

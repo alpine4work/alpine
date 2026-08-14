@@ -14,6 +14,7 @@ import {ApiPathsBase} from "~/server/api/internal/shared/api_paths_type.js";
 import {ApiServiceProcessContext} from "~/server/api/internal/shared/api_service_context.js";
 import {getApiKeyAttributesIfExists} from "~/server/bots/get_api_key_attributes_if_exists.js";
 import {BotActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     createStandardizedServerBase,
@@ -34,8 +35,14 @@ import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {defaultErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
-import {ErrorBase, InternalError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
+import {
+    ErrorBase,
+    InternalError,
+    InvalidArgumentError,
+    PermissionDeniedError,
+} from "~/shared/error/error.open_source.js";
 import {ErrorCode} from "~/shared/error/error_code.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {isSystemErrorCode} from "~/shared/error/is_system_error_code.open_source.js";
 import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
@@ -260,16 +267,8 @@ export async function createApiServiceRequestListener(
     router.on("GET", "/healthcheck", (req, res) => {
         standardizedRequestListener(tracer, req, res, async request => {
             const url = new URL(request.url);
-            return await traceServerResponse(
-                tracer,
-                request,
-                url,
-                "/healthcheck",
-                async () =>
-                    new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    }),
+            return await traceServerResponse(tracer, request, url, "/healthcheck", async () =>
+                createSimpleOkResponse(),
             );
         });
     });
@@ -603,20 +602,16 @@ export async function createApiServiceRequestListener(
 
                 const versionHeader = request.headers.get("Alpine-Version");
                 if (versionHeader === null) {
-                    return createApiErrorResponse({
-                        status: 400,
-                        message: `Missing \`Alpine-Version\` header. When starting a new project, you should set the \`Alpine-Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Alpine-Version\` header from today\u2019s date or your code may be broken by backwards incompatible API changes.`,
-                        isRetryable: false,
+                    throw new InvalidArgumentError("Missing `Alpine-Version` header", {
+                        displayMessage: errorDisplayMessage`Missing \`Alpine-Version\` header. When starting a new project, you should set the \`Alpine-Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Alpine-Version\` header from today\u2019s date or your code may be broken by backwards incompatible API changes.`,
                     });
                 }
 
                 const version = parseDate(versionHeader);
 
                 if (version.compare(currentDate.add({days: 1})) > 0) {
-                    return createApiErrorResponse({
-                        status: 400,
-                        message: `Can\u2019t set the \`Alpine-Version\` header to a future date. When starting a new project, you should set the \`Alpine-Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Alpine-Version\` header from today\u2019s date or your code may be broken by backwards incompatible API changes.`,
-                        isRetryable: false,
+                    throw new InvalidArgumentError("Invalid `Alpine-Version` header", {
+                        displayMessage: errorDisplayMessage`Can\u2019t set the \`Alpine-Version\` header to a future date. When starting a new project, you should set the \`Alpine-Version\` header to today\u2019s date: \`${currentDate.toString()}\`. Don\u2019t dynamically compute the \`Alpine-Version\` header from today\u2019s date or your code may be broken by backwards incompatible API changes.`,
                     });
                 }
 
@@ -667,11 +662,8 @@ export async function createApiServiceRequestListener(
 
                 const authorizationHeaderMatch = authorizationHeader.match(/^bearer (.+)$/i);
                 if (authorizationHeaderMatch === null) {
-                    return createApiErrorResponse({
-                        status: 400,
-                        message:
-                            "Expected `Authorization` header to have `Bearer` authentication scheme.",
-                        isRetryable: false,
+                    throw new InvalidArgumentError("Invalid `Authorization` header", {
+                        displayMessage: errorDisplayMessage`Expected \`Authorization\` header to have \`Bearer\` authentication scheme.`,
                     });
                 }
 
@@ -683,10 +675,8 @@ export async function createApiServiceRequestListener(
                 );
 
                 if (!isApiKey(apiKey)) {
-                    return createApiErrorResponse({
-                        status: 400,
-                        message: "Incorrectly formatted API key in `Authorization` header.",
-                        isRetryable: false,
+                    throw new InvalidArgumentError("Invalid `Authorization` header", {
+                        displayMessage: errorDisplayMessage`Incorrectly formatted API key in \`Authorization\` header.`,
                     });
                 }
 
@@ -929,12 +919,10 @@ export async function createApiServiceRequestListener(
                         },
                     );
 
-                    return createApiErrorResponse({
-                        status: 400,
-                        message: propertyName
-                            ? quote`Invalid ${propertyName} path parameter.`
-                            : "Invalid path parameters.",
-                        isRetryable: false,
+                    throw new InvalidArgumentError("Invalid path parameter", {
+                        displayMessage: propertyName
+                            ? errorDisplayMessage`Invalid ${errorDisplayMessage([quote(propertyName)])} path parameter.`
+                            : errorDisplayMessage`Invalid path parameters.`,
                     });
                 }
 
@@ -957,12 +945,10 @@ export async function createApiServiceRequestListener(
                         },
                     );
 
-                    return createApiErrorResponse({
-                        status: 400,
-                        message: propertyName
-                            ? quote`Invalid ${propertyName} query parameter.`
-                            : "Invalid query parameters.",
-                        isRetryable: false,
+                    throw new InvalidArgumentError("Invalid query parameter", {
+                        displayMessage: propertyName
+                            ? errorDisplayMessage`Invalid ${errorDisplayMessage([quote(propertyName)])} query parameter.`
+                            : errorDisplayMessage`Invalid query parameters.`,
                     });
                 }
 
@@ -983,12 +969,8 @@ export async function createApiServiceRequestListener(
                     if (!valid) {
                         const instancePath = validateRequestBody.errors?.[0]?.instancePath;
 
-                        return createApiErrorResponse({
-                            status: 400,
-                            message: `Invalid request body${
-                                instancePath ? quote` (path: ${"#" + instancePath})` : ""
-                            }.`,
-                            isRetryable: false,
+                        throw new InvalidArgumentError("Invalid request body", {
+                            displayMessage: errorDisplayMessage`Invalid request body${errorDisplayMessage([instancePath ? quote` (path: ${"#" + instancePath})` : ""])}.`,
                         });
                     }
                 }

@@ -10,7 +10,7 @@ import {ApiKey} from "~/shared/id/api_key.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const BotsTable = DynamoTableSchema.new({
     name: "Bots",

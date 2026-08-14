@@ -8,25 +8,33 @@ import {
     getPathFileContentTypeIfExists,
     isFileWebSafeAudioContentType,
     isFileWebSafeVideoContentType,
-    normalizeContentType,
+    normalizeContentTypeIfPossible,
 } from "~/shared/files/file_content_type.open_source.js";
 
 const fileAdditionalContentTypesAndExtensionsByContentType =
     getFileAdditionalContentTypesAndExtensionsByContentTypeForTest();
 
 test("can normalize content type", () => {
-    expect(normalizeContentType("text/html")).toEqual("text/html");
-    expect(normalizeContentType("Text/HTML")).toEqual("text/html");
-    expect(normalizeContentType('Text/HTML;Charset="utf-8"')).toEqual("text/html;charset=utf-8");
-    expect(normalizeContentType('Text/HTML;Charset="UTF-8"')).toEqual("text/html;charset=utf-8");
-    expect(normalizeContentType("text/html; charset=UTF-8")).toEqual("text/html;charset=utf-8");
-    expect(normalizeContentType("text/html;   charset=UTF-8")).toEqual("text/html;charset=utf-8");
-    expect(normalizeContentType("multipart/form-data; boundary=ExampleBoundaryString")).toEqual(
-        "multipart/form-data;boundary=ExampleBoundaryString",
+    expect(normalizeContentTypeIfPossible("text/html")).toEqual("text/html");
+    expect(normalizeContentTypeIfPossible("Text/HTML")).toEqual("text/html");
+    expect(normalizeContentTypeIfPossible('Text/HTML;Charset="utf-8"')).toEqual(
+        "text/html;charset=utf-8",
     );
-    expect(normalizeContentType('multipart/form-data; boundary="ExampleBoundaryString"')).toEqual(
-        "multipart/form-data;boundary=ExampleBoundaryString",
+    expect(normalizeContentTypeIfPossible('Text/HTML;Charset="UTF-8"')).toEqual(
+        "text/html;charset=utf-8",
     );
+    expect(normalizeContentTypeIfPossible("text/html; charset=UTF-8")).toEqual(
+        "text/html;charset=utf-8",
+    );
+    expect(normalizeContentTypeIfPossible("text/html;   charset=UTF-8")).toEqual(
+        "text/html;charset=utf-8",
+    );
+    expect(
+        normalizeContentTypeIfPossible("multipart/form-data; boundary=ExampleBoundaryString"),
+    ).toEqual("multipart/form-data;boundary=ExampleBoundaryString");
+    expect(
+        normalizeContentTypeIfPossible('multipart/form-data; boundary="ExampleBoundaryString"'),
+    ).toEqual("multipart/form-data;boundary=ExampleBoundaryString");
 });
 
 test("can canonicalize content type", () => {
@@ -59,9 +67,13 @@ test("can canonicalize content type", () => {
     ).toEqual(null);
 });
 
+test("canonicalize returns null for an empty string", () => {
+    expect(canonicalizeFileContentTypeIfExists("")).toEqual(null);
+});
+
 test("all file content types are normalized", () => {
     for (const contentType of fileContentTypes) {
-        expect(normalizeContentType(contentType)).toEqual(contentType);
+        expect(normalizeContentTypeIfPossible(contentType)).toEqual(contentType);
     }
 });
 
@@ -89,7 +101,7 @@ test("file content type additional content types are normalized", () => {
         fileAdditionalContentTypesAndExtensionsByContentType,
     )) {
         for (const contentType of contentTypes ?? []) {
-            expect(normalizeContentType(contentType)).toEqual(contentType);
+            expect(normalizeContentTypeIfPossible(contentType)).toEqual(contentType);
         }
     }
 });

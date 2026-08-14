@@ -51,6 +51,7 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 import {Id} from "~/shared/id/id.open_source.js";
 
 assert(process.env.NODE_ENV === "development");
@@ -61,12 +62,20 @@ process.title = "dev (cyberworlds, node)";
 
 const env = parseDotenv();
 
+const tempPath = (name: string) => joinPath(devEnvPaths.temp, name);
+const cachePath = (name: string) => joinPath(devEnvPaths.cache, name);
+const dataPath = (name: string) => joinPath(devEnvPaths.data, name);
+const logPath = (name: string) => joinPath(devEnvPaths.log, name);
+const configPath = (name: string) => joinPath(devEnvPaths.config, name);
+
 const parsePort = (portString: string | undefined) => {
     assert(portString);
     const port = parseInt(portString, 10);
     assert(!isNaN(port));
     return port;
 };
+
+const bazelBinPath = `${getBazelOutputPath()}/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin`;
 
 // Assign AWS env variables to `process.env` so `@aws-sdk/credential-provider-node`
 // picks them up. Clear `AWS_PROFILE` and `AWS_SESSION_TOKEN` from the ambient
@@ -88,6 +97,7 @@ const loopsApiKey = env.LOOPS_API_KEY;
 const logoDevPublishableKey = env.LOGO_DEV_PUBLISHABLE_KEY;
 const cursorAgentSmeeWebhookUrl = env.CURSOR_AGENT_SMEE_WEBHOOK_URL;
 const chatGptWebhookSecret = env.CHAT_GPT_WEBHOOK_SECRET;
+const claudeWebhookSecret = env.CLAUDE_WEBHOOK_SECRET;
 const cursorWebhookSecret = env.CURSOR_WEBHOOK_SECRET;
 const mockChatGptWebhookSecret = env.MOCK_CHAT_GPT_WEBHOOK_SECRET;
 const mockCursorWebhookSecret = env.MOCK_CURSOR_WEBHOOK_SECRET;
@@ -109,20 +119,21 @@ const jobQueueDevInspectorPort = parsePort(env.JOB_QUEUE_DEV_INSPECTOR_PORT);
 
 const fileProcessorDevPort = parsePort(env.FILE_PROCESSOR_DEV_PORT);
 const fileProcessorDevInspectorPort = parsePort(env.FILE_PROCESSOR_DEV_INSPECTOR_PORT);
-const fileProcessorServiceTemporaryDirectoryPath = joinPath(devEnvPaths.temp, "files");
+const fileProcessorServiceTemporaryDirectoryPath = tempPath("files");
 
 const apiDevPort = parsePort(env.API_DEV_PORT);
 const apiDevInspectorPort = parsePort(env.API_DEV_INSPECTOR_PORT);
 
 const agentsDevPort = parsePort(env.AGENTS_DEV_PORT);
 const agentsDevInspectorPort = parsePort(env.AGENTS_DEV_INSPECTOR_PORT);
+const agentsV2DevPort = parsePort(env.AGENTS_V2_DEV_PORT);
 
 const bazelDevServerPort = parsePort(env.BAZEL_DEV_SERVER_PORT);
 
-const ensureLocalCachePath = joinPath(devEnvPaths.cache, "ensure");
+const ensureLocalCachePath = cachePath("ensure");
 
-const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
-const dynamoLocalLogsPath = joinPath(devEnvPaths.log, "dynamo");
+const dynamoLocalDataPath = dataPath("dynamo");
+const dynamoLocalLogsPath = logPath("dynamo");
 const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
 
 // TODO(ifitzsimmons, #local-kinesis): Once we build a local Kinesis environment,
@@ -130,58 +141,51 @@ const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
 // stream name.
 const kinesisTracerStreamName = "tracer-events";
 
-const opensearchLocalConfigPath = joinPath(devEnvPaths.config, "opensearch");
-const opensearchLocalDataPath = joinPath(devEnvPaths.data, "opensearch");
-const opensearchLocalLogsPath = joinPath(devEnvPaths.log, "opensearch");
+const opensearchLocalConfigPath = configPath("opensearch");
+const opensearchLocalDataPath = dataPath("opensearch");
+const opensearchLocalLogsPath = logPath("opensearch");
 const opensearchLocalPort = parsePort(env.OPENSEARCH_LOCAL_PORT);
 
-const sqsLocalDataPath = joinPath(devEnvPaths.data, "sqs");
-const sqsLocalLogsPath = joinPath(devEnvPaths.log, "sqs");
+const sqsLocalDataPath = dataPath("sqs");
+const sqsLocalLogsPath = logPath("sqs");
 const sqsLocalPort = parsePort(env.SQS_LOCAL_PORT);
 const sqsLocalStatsPort = parsePort(env.SQS_LOCAL_STATS_PORT);
 
-const cloudflareR2LocalDataPath = joinPath(devEnvPaths.data, "r2");
+const cloudflareR2LocalDataPath = dataPath("r2");
 
-const keysDirectoryPath = joinPath(devEnvPaths.config, "keys");
+const keysDirectoryPath = configPath("keys");
+const keyPath = (name: string) => joinPath(keysDirectoryPath, name);
 
-const appServicePrivateKeyPath = joinPath(keysDirectoryPath, "app_service_rsa");
-const appServicePublicKeyPath = joinPath(keysDirectoryPath, "app_service_rsa.pub");
+const appServicePrivateKeyPath = keyPath("app_service_rsa");
+const appServicePublicKeyPath = keyPath("app_service_rsa.pub");
 
-const edgeServiceFamilyPrivateKeyPath = joinPath(keysDirectoryPath, "edge_service_family_rsa");
-const edgeServiceFamilyPublicKeyPath = joinPath(keysDirectoryPath, "edge_service_family_rsa.pub");
+const edgeServiceFamilyPrivateKeyPath = keyPath("edge_service_family_rsa");
+const edgeServiceFamilyPublicKeyPath = keyPath("edge_service_family_rsa.pub");
 
-const taskRealtimeServicePrivateKeyPath = joinPath(keysDirectoryPath, "task_realtime_service_rsa");
-const taskRealtimeServicePublicKeyPath = joinPath(
-    keysDirectoryPath,
-    "task_realtime_service_rsa.pub",
-);
+const taskRealtimeServicePrivateKeyPath = keyPath("task_realtime_service_rsa");
+const taskRealtimeServicePublicKeyPath = keyPath("task_realtime_service_rsa.pub");
 
-const jobQueueServicePrivateKeyPath = joinPath(keysDirectoryPath, "job_queue_service_rsa");
-const jobQueueServicePublicKeyPath = joinPath(keysDirectoryPath, "job_queue_service_rsa.pub");
+const jobQueueServicePrivateKeyPath = keyPath("job_queue_service_rsa");
+const jobQueueServicePublicKeyPath = keyPath("job_queue_service_rsa.pub");
 
-const fileProcessorServicePrivateKeyPath = joinPath(
-    keysDirectoryPath,
-    "file_processor_service_rsa",
-);
-const fileProcessorServicePublicKeyPath = joinPath(
-    keysDirectoryPath,
-    "file_processor_service_rsa.pub",
-);
+const fileProcessorServicePrivateKeyPath = keyPath("file_processor_service_rsa");
+const fileProcessorServicePublicKeyPath = keyPath("file_processor_service_rsa.pub");
 
-const resourceServicePrivateKeyPath = joinPath(keysDirectoryPath, "resource_service_rsa");
-const resourceServicePublicKeyPath = joinPath(keysDirectoryPath, "resource_service_rsa.pub");
+const resourceServicePrivateKeyPath = keyPath("resource_service_rsa");
+const resourceServicePublicKeyPath = keyPath("resource_service_rsa.pub");
 
-const apiServicePrivateKeyPath = joinPath(keysDirectoryPath, "api_service_rsa");
-const apiServicePublicKeyPath = joinPath(keysDirectoryPath, "api_service_rsa.pub");
+const apiServicePrivateKeyPath = keyPath("api_service_rsa");
+const apiServicePublicKeyPath = keyPath("api_service_rsa.pub");
 
-const importerServicePublicKeyPath = joinPath(keysDirectoryPath, "importer_service_rsa.pub");
+const importerServicePublicKeyPath = keyPath("importer_service_rsa.pub");
 
-const tokenAgentSecretPath = joinPath(keysDirectoryPath, "token_agent_secret");
-const chatGptUnscopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_unscoped_api_key");
-const chatGptScopedApiKeyPath = joinPath(keysDirectoryPath, "chat_gpt_scoped_api_key");
-const cursorUnscopedApiKeyPath = joinPath(keysDirectoryPath, "cursor_unscoped_api_key");
-const mockChatGptUnscopedApiKeyPath = joinPath(keysDirectoryPath, "mock_chat_gpt_unscoped_api_key");
-const mockCursorUnscopedApiKeyPath = joinPath(keysDirectoryPath, "mock_cursor_unscoped_api_key");
+const tokenAgentSecretPath = keyPath("token_agent_secret");
+const chatGptUnscopedApiKeyPath = keyPath("chat_gpt_unscoped_api_key");
+const chatGptScopedApiKeyPath = keyPath("chat_gpt_scoped_api_key");
+const claudeUnscopedApiKeyPath = keyPath("claude_unscoped_api_key");
+const cursorUnscopedApiKeyPath = keyPath("cursor_unscoped_api_key");
+const mockChatGptUnscopedApiKeyPath = keyPath("mock_chat_gpt_unscoped_api_key");
+const mockCursorUnscopedApiKeyPath = keyPath("mock_cursor_unscoped_api_key");
 
 const apnsCertificatePath = joinPath(
     runfilesPath,
@@ -209,8 +213,8 @@ const externalHost = (() => {
     return null;
 })();
 
-const webPushVapidPublicKeyPath = joinPath(keysDirectoryPath, "web_push_vapid_public_key");
-const webPushVapidPrivateKeyPath = joinPath(keysDirectoryPath, "web_push_vapid_private_key");
+const webPushVapidPublicKeyPath = keyPath("web_push_vapid_public_key");
+const webPushVapidPrivateKeyPath = keyPath("web_push_vapid_private_key");
 
 const stripeSecretKey = env.STRIPE_SECRET_KEY;
 const stripeSigningSecret = env.STRIPE_SIGNING_SECRET;
@@ -237,6 +241,8 @@ export type Artifact = {
     readonly bazelTarget: string;
 } & (
     | {
+          readonly onBuildFinish?: () => MaybePromise<void>;
+
           readonly executablePath?: undefined;
           readonly stdioPrefix?: undefined;
           readonly env?: undefined;
@@ -419,9 +425,11 @@ async function createArtifacts() {
                 `--agentServiceLocalPort=${agentsDevPort}`,
                 `--chatGptLocalUnscopedApiKey=${chatGptUnscopedApiKeyPath}`,
                 `--chatGptLocalScopedApiKey=${chatGptScopedApiKeyPath}`,
+                `--claudeLocalUnscopedApiKey=${claudeUnscopedApiKeyPath}`,
                 `--cursorLocalUnscopedApiKey=${cursorUnscopedApiKeyPath}`,
                 `--mockChatGptLocalUnscopedApiKey=${mockChatGptUnscopedApiKeyPath}`,
                 ...(chatGptWebhookSecret ? [`--chatGptWebhookSecret=${chatGptWebhookSecret}`] : []),
+                ...(claudeWebhookSecret ? [`--claudeWebhookSecret=${claudeWebhookSecret}`] : []),
                 ...(cursorWebhookSecret ? [`--cursorWebhookSecret=${cursorWebhookSecret}`] : []),
                 ...(mockChatGptWebhookSecret
                     ? [`--mockChatGptWebhookSecret=${mockChatGptWebhookSecret}`]
@@ -467,8 +475,8 @@ async function createArtifacts() {
                 `--edgeServiceFamilyPrivateKey=${edgeServiceFamilyPrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
                 `--fileProcessorServiceUrl=http://localhost:${fileProcessorDevPort}`,
-                `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "edge")}`,
-                `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "edge/do")}`,
+                `--cacheLocalDataPath=${cachePath("edge")}`,
+                `--durableObjectsLocalDataPath=${dataPath("edge/do")}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
                 `--cookieNameSuffix=${devEnvPathsNameSuffix}`,
@@ -501,7 +509,7 @@ async function createArtifacts() {
                 `--importerServicePublicKey=${importerServicePublicKeyPath}`,
                 `--resourceServicePrivateKey=${resourceServicePrivateKeyPath}`,
                 `--tokenAgentSecret=${tokenAgentSecretPath}`,
-                `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "files")}`,
+                `--cacheLocalDataPath=${cachePath("files")}`,
                 `--cloudflareR2LocalDataPath=${cloudflareR2LocalDataPath}`,
                 `--inspectorPort=${resourcesDevInspectorPort}`,
                 `--corsTrustedOrigins=${corsTrustedOrigins}`,
@@ -684,18 +692,21 @@ async function createArtifacts() {
                 privatePort: agentsPrivatePort,
             },
             args: [
-                `--cacheLocalDataPath=${joinPath(devEnvPaths.cache, "agents")}`,
-                `--durableObjectsLocalDataPath=${joinPath(devEnvPaths.data, "agents/do")}`,
-                `--d1LocalDataPath=${joinPath(devEnvPaths.data, "agents/d1")}`,
+                `--cacheLocalDataPath=${cachePath("agents")}`,
+                `--durableObjectsLocalDataPath=${dataPath("agents/do")}`,
+                `--d1LocalDataPath=${dataPath("agents/d1")}`,
                 `--apiServiceUrl=http://localhost:${apiDevPort}`,
                 `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
+                `--agentV2ServiceUrl=http://localhost:${agentsV2DevPort}`,
                 `--chatGptApiServiceKey=${chatGptUnscopedApiKeyPath}`,
+                `--claudeApiServiceKey=${claudeUnscopedApiKeyPath}`,
                 `--cursorApiServiceKey=${cursorUnscopedApiKeyPath}`,
                 `--mockChatGptApiServiceKey=${mockChatGptUnscopedApiKeyPath}`,
                 `--mockCursorApiServiceKey=${mockCursorUnscopedApiKeyPath}`,
                 `--openAiDevApiKey=${openAiDevApiKey}`,
                 `--inspectorPort=${agentsDevInspectorPort}`,
                 ...(chatGptWebhookSecret ? [`--chatGptWebhookSecret=${chatGptWebhookSecret}`] : []),
+                ...(claudeWebhookSecret ? [`--claudeWebhookSecret=${claudeWebhookSecret}`] : []),
                 ...(cursorWebhookSecret ? [`--cursorWebhookSecret=${cursorWebhookSecret}`] : []),
                 ...(mockChatGptWebhookSecret
                     ? [`--mockChatGptWebhookSecret=${mockChatGptWebhookSecret}`]
@@ -847,6 +858,7 @@ function logError(reason: string, error: unknown) {
 async function rebuildArtifact(artifact: Artifact) {
     if (!artifact.server) {
         await buildBazelTarget(artifact.bazelTarget);
+        await artifact.onBuildFinish?.();
         return;
     }
 
@@ -941,9 +953,7 @@ async function rebuildArtifact(artifact: Artifact) {
             "All artifact stdio prefixes should be 3 characters long",
         );
 
-        const executablePath = `${getBazelOutputPath()}/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin/${
-            artifact.executablePath
-        }`;
+        const executablePath = `${bazelBinPath}/${artifact.executablePath}`;
 
         const subprocess = spawnWithCoordinatedStdio(
             executablePath,

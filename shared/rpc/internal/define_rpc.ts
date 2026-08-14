@@ -5,14 +5,10 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
-import {
-    ObjectSchemaConfigBase,
-    ObjectSchemaConfigType,
-    Schema,
-} from "~/shared/schema/schema.open_source.js";
+import {ObjectSchemaConfigBase, ObjectSchemaConfigType, Schema} from "~/shared/schema/schema.js";
 
 /**
  * Define the interface for an RPC.

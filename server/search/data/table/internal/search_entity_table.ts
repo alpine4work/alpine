@@ -8,7 +8,7 @@ import {
     TaskCollectionId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityId, SearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 
 const SearchAffinityEntityIdDynamoKeyAttributeSchema =

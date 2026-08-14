@@ -127,13 +127,12 @@ import {assertOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
+import {PostDraftId, SiteSideBarId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     ChannelId,
-    PostDraftId,
     PostId,
     SiteId,
-    SiteSideBarId,
     SpaceId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {printSiteContainerId} from "~/shared/sites/site_entry_id.js";

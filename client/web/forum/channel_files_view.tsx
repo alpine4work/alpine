@@ -39,7 +39,7 @@ import {
     screenPaddingXRem,
     spacing,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {RynamoQueryResult} from "~/shared/dynamo/rynamo_types.js";
 import {
     ChannelModel,

@@ -23,7 +23,7 @@ import {validateEmailAddress} from "~/shared/helpers/string/email_address.js";
 import {isId} from "~/shared/id/id.open_source.js";
 import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {routeNotFoundError} from "~/shared/remix/route_not_found_error.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function AuthenticationView() {
     const context = useAppContext();

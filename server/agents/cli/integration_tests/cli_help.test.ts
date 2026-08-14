@@ -12,18 +12,18 @@ Usage:
 
 \`\`\`
 alpine read <path> [--limit 20kb]
-alpine create <type> <content>
 alpine update <path> --old "..." --new "..."
+alpine create <type> <content>
 alpine delete <path>
 alpine search <query> [--limit 10]
 alpine scroll <path> --offset 0 [--limit 20kb]
-alpine find <path> <pattern> [--offset 0] [--limit 4kb] [--match-limit 5]
+alpine find <path> <pattern> [--offset 0] [--limit 5] [--match-limit 4kb]
 \`\`\`
 
 [Alpine](https://alpine.inc) is an all-in-one productivity suite`;
 
 const expectedHelpMiddle = `\
-| [Spaces](/skill/spaces) | \`/space\` | |
+| [Spaces](/skill/spaces) | \`/space\` | | |
 
 (You can call the \`read\` tool with the above skill links to read the skill, e.g. \`alpine read /skill/documents\`.)
 

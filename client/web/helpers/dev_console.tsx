@@ -15,7 +15,7 @@ import {
 } from "~/shared/helpers/sort/order_key.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 const devConsole = {
     // Some helper functions that are useful to have easily accessible.

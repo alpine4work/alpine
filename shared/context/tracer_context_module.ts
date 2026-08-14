@@ -5,7 +5,7 @@ import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * A wrapper around either a `Tracer` or `TracerSpan` for instrumenting code using

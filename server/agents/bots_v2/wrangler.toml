@@ -1,0 +1,46 @@
+name = "agent-v2-service"
+main = "agent_v2_service_bundle.js"
+no_bundle = true
+compatibility_date = "2026-08-03"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+preview_urls = false
+
+[vars]
+SANDBOX_TRANSPORT = "rpc"
+SANDBOX_LOG_LEVEL = "debug"
+SANDBOX_LOG_FORMAT = "json"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+destinations = ["honeycomb-logs"]
+head_sampling_rate = 1
+
+[observability.traces]
+enabled = true
+destinations = ["honeycomb-traces"]
+head_sampling_rate = 1
+
+[[r2_buckets]]
+binding = "ClaudeAgentBucket"
+bucket_name = "alpine-claude-agent"
+
+[[containers]]
+class_name = "ClaudeAgentSandbox"
+image = "./sandbox/claude_agent.dockerfile"
+instance_type = "standard-1"
+max_instances = 1000
+rollout_active_grace_period = 3600
+constraints = {regions = ["ENAM"]}
+
+[[durable_objects.bindings]]
+class_name = "ClaudeAgentSandbox"
+name = "ClaudeAgentSandbox"
+
+[[migrations]]
+new_sqlite_classes = ["ClaudeAgentSandbox"]
+tag = "v1"

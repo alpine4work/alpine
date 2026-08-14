@@ -38,7 +38,7 @@ import {findMapIterable} from "~/shared/helpers/iterable/find_map_iterable.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
 import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {SiteLoaderData} from "~/shared/remix/site_loader_data.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {getSearchDynamicEntityPathFromEntityIdObject} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteContainerId} from "~/shared/sites/site_entry_id.js";

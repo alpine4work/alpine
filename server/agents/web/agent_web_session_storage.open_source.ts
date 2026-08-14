@@ -3,6 +3,7 @@ import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_
 import {AgentWebPageStoredLinkKey} from "~/server/agents/web/agent_web_page_stored_link_key.open_source.js";
 import {AgentWebTaskQueryId} from "~/server/agents/web/agent_web_task_query_cursor_hash.open_source.js";
 import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
+import {JsonStringifiableValue} from "~/shared/helpers/types/json_value.open_source.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.open_source.js";
 import {
     DocumentCommentThreadId,
@@ -40,6 +41,9 @@ import {
  * As of 2026-03-28, we only have a Cloudflare Durable Object implementation. But
  * we must design this interface such that we could easily add a DynamoDB
  * implementation.
+ *
+ * As of 2026-08-04, we've added a LMDB (for the CLI) and file system
+ * implementation (for Cloudflare Sandbox agents) as well.
  */
 export interface AgentWebSessionStorage {
     /**
@@ -97,15 +101,15 @@ export interface AgentWebSessionStorage {
     readonly urlByTruncatedUrl: AgentWebSessionStorageCollection<string, string>;
 
     /**
-     * Map of truncated URL and full URL separated by a space (e.g.
-     * `https://example.com/a/…/f https://example.com/a/b/c/d/e/f`) to the dedupe
-     * number (e.g. `2`) for that URL.
+     * Map of truncated URL and full URL pairs (e.g.
+     * `["https://example.com/a/…/f", "https://example.com/a/b/c/d/e/f"]`) to the
+     * dedupe number (e.g. `2`) for that URL.
      *
      * The truncated URL does _not_ include the dedupe number! This map is used to
      * determine the dedupe number for full URLs that share the same truncated URL.
      */
     readonly dedupeNumberByTruncatedUrlAndUrl: AgentWebSessionStorageCollection<
-        `${string} ${string}`,
+        readonly [string, string],
         number
     >;
 
@@ -114,7 +118,7 @@ export interface AgentWebSessionStorage {
      * printing comment marks in agent web markdown (e.g. `<comment id="3">`).
      */
     readonly documentCommentThreadNumberById: AgentWebSessionStorageCollection<
-        `${DocumentId}-${DocumentCommentThreadId}`,
+        readonly [DocumentId, DocumentCommentThreadId],
         number
     >;
 
@@ -128,22 +132,21 @@ export interface AgentWebSessionStorage {
      * of the key before the comment thread number.
      */
     readonly documentCommentThreadIdByNumber: AgentWebSessionStorageCollection<
-        `${DocumentId}-${number}`,
+        readonly [DocumentId, `${number}`],
         DocumentCommentThreadId
     >;
 
     /**
      * The full `ApiTaskQueryCursor` for a short task query cursor hash which is used
      * when printing "Next page »" links in task query pages (e.g. `?after=a1b2c3`).
-     * Keys are the task query's collection or parent task ID and the short hash
-     * separated by a dash.
+     * Keys contain the task query's collection or parent task ID and the short hash.
      *
      * Full cursors are too long to print in agent web markdown so we print a short
      * hash of the cursor instead. See `createAgentWebTaskQueryCursorHash()` for how
      * the short hash is computed.
      */
     readonly taskQueryCursorByHash: AgentWebSessionStorageCollection<
-        `${AgentWebTaskQueryId}-${string}`,
+        readonly [AgentWebTaskQueryId, string],
         ApiTaskQueryCursor
     >;
 
@@ -206,7 +209,7 @@ export interface AgentWebSessionStorage {
 }
 
 export type AgentWebSessionStorageReadResponse = {
-    readonly expirationTime: Date;
+    readonly expirationTime: number;
     readonly pageMetadata: AgentWebPageMetadata;
     readonly response: string;
     readonly newlineIndexes: ReadonlyArray<number>;
@@ -226,11 +229,23 @@ export function normalizeAgentWebPageStoredLinkPathname(pathname: string): strin
 
 /**
  * An interface for a single key-value collection in a key-value database. This
- * interface is a subset of `DurableObjectStorageCollection`.
+ * interface is almost a subset of `DurableObjectStorageCollection`.
+ *
+ * We support array keys so we can efficiently implement `list()` even when the
+ * underlying store isn't a binary search tree. Since we can say "match all items
+ * with exactly this first item in the key array".
+ *
+ * This allows us to implement a storage collection using a network-backed file
+ * system for instance (like in `ClaudeAgentService`).
  */
-export interface AgentWebSessionStorageCollection<Key extends string, Value> {
+export interface AgentWebSessionStorageCollection<
+    Key extends string | readonly [string, string],
+    Value extends JsonStringifiableValue,
+> {
     get(key: Key): Promise<Value | undefined>;
     put(key: Key, value: Value): Promise<void>;
     delete(key: Key): Promise<boolean>;
-    list(options?: {prefix?: string}): Promise<Map<Key, Value>>;
+    list(
+        keyFirst: Key extends readonly [infer First, string] ? First : never,
+    ): Promise<Map<Key extends readonly [string, infer Second] ? Second : never, Value>>;
 }

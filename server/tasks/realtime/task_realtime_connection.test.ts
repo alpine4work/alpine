@@ -52,12 +52,8 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {
-    BrowserId,
-    SpaceId,
-    TaskCollectionId,
-    TaskId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {
     TaskDueDateRegister,

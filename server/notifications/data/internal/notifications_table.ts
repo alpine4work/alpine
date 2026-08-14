@@ -5,9 +5,9 @@ import {
     DynamoTableSchema,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {PendingSubtleNotificationStubSchema} from "~/server/notifications/data/internal/push/pending_subtle_notification_stub.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
-    BrowserId,
     ChannelId,
     DocumentCommentThreadId,
     DocumentId,
@@ -15,7 +15,7 @@ import {
     SpaceId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {WebPushSubscriptionSchema} from "~/shared/notifications/web_push_subscription.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 // Regular DynamoDB table for any data regarding notifications that does not need
 // to be updated on the client in realtime. `InboxTable` is where all the data for

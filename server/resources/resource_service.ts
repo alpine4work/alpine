@@ -1,6 +1,7 @@
 import {appStaticManifestPaths} from "~/app/static/app_static_manifest_paths.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
+import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
 import {fetchAppStaticFile} from "~/server/resources/fetch_app_static_file.js";
 import {fetchAvatar} from "~/server/resources/fetch_avatar.js";
 import {fetchUploadedFile} from "~/server/resources/fetch_uploaded_file.js";
@@ -22,13 +23,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {isId} from "~/shared/id/id.open_source.js";
-import {
-    AccountId,
-    AvatarId,
-    BotId,
-    FileId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 let sharedResources: ResourceServiceSharedResources | null = null;
@@ -491,10 +487,7 @@ async function actuallyHandleFetch(
             break;
         }
         case "HealthCheck": {
-            response = new Response("200 OK", {
-                status: 200,
-                headers: {"content-type": "text/plain"},
-            });
+            response = createSimpleOkResponse();
             break;
         }
         case "NotFound": {

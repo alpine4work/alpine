@@ -13,7 +13,7 @@ import {
     decodeContentDuplicationVariableSchemaFromUrl,
 } from "~/shared/content/content_duplication_variable_schema.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),

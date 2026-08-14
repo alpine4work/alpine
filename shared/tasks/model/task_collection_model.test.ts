@@ -1,7 +1,7 @@
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
-import {SchemaSerializedObjectValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskQueryDefaults} from "~/shared/tasks/task_query_defaults.js";

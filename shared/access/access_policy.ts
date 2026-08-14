@@ -8,7 +8,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 import {AccountId, SiteId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType, UnionSchema} from "~/shared/schema/schema.js";
 
 /**
  * Level of access someone may have against an entity in our system.

@@ -4,7 +4,7 @@ import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
 import {TaskAssigneeSchema} from "~/shared/tasks/task_assignee.js";
 import {TaskAssigneeStatusSchema} from "~/shared/tasks/task_assignee_status.js";

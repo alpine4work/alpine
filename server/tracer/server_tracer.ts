@@ -3,8 +3,9 @@ import {KinesisClient} from "~/server/kinesis/kinesis_client.js";
 import {HoneycombDataset, TracerClient} from "~/server/tracer/tracer_client.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
 import {writeTracerEventToFileInDev} from "~/shared/tracer/dev/write_tracer_event_to_file_in_dev.js";
-import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
-import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data_types.open_source.js";
+import {TracerServiceName} from "~/shared/tracer/types/tracer_service_name.js";
 
 /**
  * Create a tracer for a service running in a server or Cloudflare Workers
@@ -21,6 +22,7 @@ export function createServerTracer(options: {
         streamName: string;
         awsSigner: AwsRequestSigner;
     };
+    withoutWriteToFileInDev?: boolean;
 }): TracerRoot {
     return createServerTracerAndHoneycombClient(options)[0];
 }
@@ -34,6 +36,7 @@ export function createServerTracerAndHoneycombClient({
     waitUntil,
     honeycombDataset,
     kinesisTracerStreamOptions,
+    withoutWriteToFileInDev = false,
 }: {
     serviceName: TracerServiceName;
     jsHost: TracerEventJsHost;
@@ -47,6 +50,7 @@ export function createServerTracerAndHoneycombClient({
      * dev/test environments. See ##local-kinesis TODOs for more.
      */
     kinesisTracerStreamOptions?: {streamName: string; awsSigner: AwsRequestSigner};
+    withoutWriteToFileInDev?: boolean;
 }): [TracerRoot, TracerClient | null] {
     const tracer = TracerRoot.new({
         serviceName,
@@ -58,7 +62,7 @@ export function createServerTracerAndHoneycombClient({
         sendEvent: event => {
             honeycombClient?.sendEvent(event);
 
-            if (process.env.NODE_ENV !== "production") {
+            if (process.env.NODE_ENV !== "production" && !withoutWriteToFileInDev) {
                 writeTracerEventToFileInDev(event);
             }
         },

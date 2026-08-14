@@ -6,9 +6,9 @@ import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {cast} from "~/shared/helpers/control/cast.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 /**
  * Update a single property in the bot's account settings. Accounts can update
@@ -66,15 +66,31 @@ export async function updateBotSpaceAccountSettingsPropertyValue(
         throw new FailedPreconditionError("Property is not an account-level bot setting");
     }
 
-    // The only supported property type right now is `String`. TypeScript will complain
-    // when we add a new property type at which point we'll need to make this an
-    // exhaustive switch that validates each property type separately.
-    cast<"String">(propertySchema.type);
+    switch (propertySchema.type) {
+        case "String": {
+            if (typeof propertyValue !== "string") {
+                throw new FailedPreconditionError(
+                    "Property value must be a string according to bot settings schema",
+                );
+            }
+            break;
+        }
+        case "Select": {
+            if (typeof propertyValue !== "string") {
+                throw new FailedPreconditionError(
+                    "Property value must be a string according to bot settings schema",
+                );
+            }
 
-    if (typeof propertyValue !== "string") {
-        throw new FailedPreconditionError(
-            "Property value must be a string according to bot settings schema",
-        );
+            if (!propertySchema.options.some(option => option.value === propertyValue)) {
+                throw new FailedPreconditionError(
+                    "Property value must match an option in the bot settings schema",
+                );
+            }
+            break;
+        }
+        default:
+            throw exhaustive(propertySchema);
     }
 
     let hasAlreadyAttempted = false;
@@ -110,9 +126,32 @@ export async function updateBotSpaceAccountSettingsPropertyValue(
             values: newValues,
         });
 
+        const values = new Map<string, SchemaSerializedValue>();
+
+        for (const [propertyKey, propertySchema] of settings.schema.properties) {
+            if (propertySchema.level !== "SpaceAccount") continue;
+
+            switch (propertySchema.type) {
+                case "String": {
+                    const value = newItem.values.get(propertyKey);
+
+                    values.set(propertyKey, value ?? "");
+                    break;
+                }
+                case "Select": {
+                    const value = newItem.values.get(propertyKey);
+
+                    values.set(propertyKey, value ?? propertySchema.defaultValue);
+                    break;
+                }
+                default:
+                    throw exhaustive(propertySchema);
+            }
+        }
+
         return {
             valuesVersion: newItem.updateLockVersion ?? 0,
-            values: newItem.values,
+            values,
         };
     });
 }

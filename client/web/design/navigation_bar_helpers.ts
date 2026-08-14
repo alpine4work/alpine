@@ -7,7 +7,7 @@
 
 import {navigationBarStyles} from "~/client/web/styles/styles.js";
 import {Spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.js";
 

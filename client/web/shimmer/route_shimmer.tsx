@@ -171,7 +171,7 @@ import {
     spacing,
     subtractRemLengths,
 } from "~/shared/design/core/spacing.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {clamp} from "~/shared/helpers/number/clamp.open_source.js";

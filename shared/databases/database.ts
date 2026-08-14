@@ -54,7 +54,7 @@ import {captureResult, unwrapResult} from "~/shared/helpers/control/capture_resu
 import type {Result} from "~/shared/helpers/control/result.open_source.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import type {AccountId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const vfsNamePrefix = "alpine-database";
 let vfsCounter = 0;

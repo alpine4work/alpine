@@ -9,7 +9,7 @@ import {MessageDraftSurfaceSchema} from "~/shared/messaging/message_draft_surfac
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const getMessageDraft = defineRpc({
     name: "getMessageDraft",

@@ -24,7 +24,7 @@ import type {
     DatabaseRowId,
     DatabaseTableId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 // In-memory durable object storage, as patched by our Miniflare polyfill. The
 // polyfill's `sql`/`transactionSync` aren't in the upstream .d.ts TypeScript

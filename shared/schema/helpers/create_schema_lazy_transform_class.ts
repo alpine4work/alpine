@@ -1,5 +1,5 @@
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const uninitializedSymbol = Symbol("uninitialized");
 

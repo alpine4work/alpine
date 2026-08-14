@@ -3,7 +3,8 @@ import {createAccountModelWithoutSpaceFromItem} from "~/server/accounts/internal
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
-import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {getUnstableReactionCharacterForNewAccountId} from "~/shared/reactions/get_unstable_reaction_character_for_new_account_id.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 

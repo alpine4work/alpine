@@ -1,8 +1,5 @@
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
-import {
-    TracerEventDataBase,
-    TracerEventFullData,
-} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 
 /**
  * Merges data from multiple tracer events together into one event.
@@ -10,13 +7,19 @@ import {
  * - Recursively merges any nested objects.
  * - Skips `undefined` values as if they were keys which don't exist.
  */
-export function mergeTracerEventData(sources: Array<TracerEventFullData>): TracerEventFullData {
-    const target: TracerEventFullData = {};
-    for (const source of sources) mergeTracerEventDataInto(target, source);
+export function mergeTracerEventData<Source>(sources: Array<Source>): Source;
+export function mergeTracerEventData(sources: Array<unknown>): unknown {
+    const target: {[key: string]: unknown} = {};
+    for (const source of sources) {
+        if (isObject(source)) mergeTracerEventDataInto(target, source);
+    }
     return target;
 }
 
-function mergeTracerEventDataInto(target: TracerEventDataBase, source: TracerEventDataBase) {
+function mergeTracerEventDataInto(
+    target: {[key: string]: unknown},
+    source: {[key: string]: unknown},
+) {
     for (const [key, sourceValue] of Object.entries(source)) {
         let targetValue = target[key];
 
@@ -25,9 +28,9 @@ function mergeTracerEventDataInto(target: TracerEventDataBase, source: TracerEve
 
         // If both the source value and target value are plain objects then recursively
         // merge them together. Otherwise override the key with our source value.
-        if (typeof sourceValue === "object") {
+        if (isObject(sourceValue)) {
             if (targetValue === undefined) targetValue = target[key] = {};
-            assert(typeof targetValue === "object");
+            assert(isObject(targetValue));
             mergeTracerEventDataInto(targetValue, sourceValue);
         } else {
             target[key] = sourceValue;

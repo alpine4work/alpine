@@ -1,4 +1,4 @@
-import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 export const DatabaseNumberFieldConfigSchema = Schema.object({
     type: Schema.value("Number"),

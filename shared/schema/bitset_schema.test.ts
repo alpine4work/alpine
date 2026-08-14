@@ -1,6 +1,6 @@
 import {TypedFastBitSet} from "typedfastbitset";
 import {BitsetSchema} from "~/shared/schema/bitset_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 test("round-trips an empty bitset as no bytes", () => {
     const serialized = BitsetSchema.serialize(new TypedFastBitSet());

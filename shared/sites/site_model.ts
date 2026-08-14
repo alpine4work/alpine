@@ -4,7 +4,7 @@ import {AccountId, SiteId, SpaceId} from "~/shared/id/types/id_types.open_source
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchChannelEntityModelDataSchema,
     SearchChatEntityModelDataSchema,

@@ -4,7 +4,7 @@ import {DatabaseNumberFieldValueSchema} from "~/shared/databases/fields/number/d
 import {DatabasePlainTextFieldValueSchema} from "~/shared/databases/fields/plain_text/database_plain_text_field.js";
 import {DatabaseRelationFieldSqlValueSchema} from "~/shared/databases/fields/relation/database_relation_field.js";
 import {SqlBooleanSchema} from "~/shared/databases/model/sqlite_schema.js";
-import type {Schema} from "~/shared/schema/schema.open_source.js";
+import type {Schema} from "~/shared/schema/schema.js";
 
 const databaseFieldSqlValueSchemas: {
     [Type in DatabaseFieldType]: Schema<DatabaseFieldValue<Type>>;

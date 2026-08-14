@@ -30,7 +30,7 @@ import type {
     SiteId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {getDatabaseTableMetadataItem} from "~/shared/rpc/database_tables_rpc_definitions.js";
-import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 import {SitePreviewModel} from "~/shared/sites/site_model.js";
 
 const LoaderSchema = Schema.object({

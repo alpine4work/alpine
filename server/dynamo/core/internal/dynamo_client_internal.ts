@@ -20,7 +20,7 @@ import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Actions supported by our DynamoDB client.

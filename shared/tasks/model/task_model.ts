@@ -20,7 +20,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskUpdateTaskActionMaybeModel} from "~/shared/tasks/actions/task_action_model.js";
 import {

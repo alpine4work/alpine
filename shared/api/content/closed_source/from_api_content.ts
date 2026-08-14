@@ -465,7 +465,9 @@ function fromApiContentInlineElement(
 
     switch (element.type) {
         case "Text": {
-            return schema.text(element.text, marks);
+            // Newlines aren't allowed in ProseMirror text. If any newlines are present in
+            // `element.text` then we replace them with spaces.
+            return schema.text(element.text.replaceAll(/[\n\r]+/g, " "), marks);
         }
         case "Break": {
             return schema.nodes.break.create(null, null, marks);

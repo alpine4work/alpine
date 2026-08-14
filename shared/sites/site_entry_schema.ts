@@ -2,7 +2,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SiteContainerIdSchema,
     SiteSideBarContainerId,

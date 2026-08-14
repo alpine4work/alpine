@@ -11,6 +11,7 @@ import {
     ApiContentParagraphBlockElementResponseWithoutKeys,
     ApiContentResponseWithoutKeys,
     ApiContentTextInlineElement,
+    ApiMentionReferenceResponse,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
@@ -40,6 +41,7 @@ function accountReference({
 
 const aliceReference = accountReference({name: "Alice"});
 const bobReference = accountReference({name: "Bob"});
+const seeMoreAccountReference = accountReference({name: "See more »"});
 
 const launchPostReference: ApiPostReferenceResponse = {
     type: "Post",
@@ -92,7 +94,7 @@ function text(
     return {type: "Text", text, ...(marks ? {marks} : {})};
 }
 
-function mention(reference: ApiPostReferenceResponse): ApiContentInlineElementResponse {
+function mention(reference: ApiMentionReferenceResponse): ApiContentInlineElementResponse {
     return {type: "Mention", reference};
 }
 
@@ -154,6 +156,93 @@ Roadmap summary.
                     },
                 ],
                 isEndOfPosts: false,
+            },
+        },
+        {
+            name: "post content preserves hydrated account mention metadata",
+            pageLink: channelId,
+            markdown: `\
+# Announcements
+
+---
+
+<post from="[Alice](/human/alice)" comments="0">
+
+[Alice](/human/alice)
+
+</post>
+
+End of posts.
+`,
+            page: {
+                type: "Channel",
+                subType: "Head",
+                name: "Announcements",
+                description: content([paragraph([])]),
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: aliceReference,
+                        timeAttribute: null,
+                        commentCount: 0,
+                        contentSnippet: content([paragraph([mention(aliceReference)])]),
+                        reference: null,
+                    },
+                ],
+                isEndOfPosts: true,
+            },
+        },
+        {
+            name: "nested account mention labeled see more remains a full-name mention",
+            pageLink: channelId,
+            markdown: `\
+# Announcements
+
+---
+
+<post from="[Alice](/human/alice)" comments="0">
+
+- [See more »](/human/see-more)
+
+</post>
+
+End of posts.
+`,
+            printMarkdown: `\
+# Announcements
+
+---
+
+<post from="[Alice](/human/alice)" comments="0">
+
+- [See more](/human/see-more)
+
+</post>
+
+End of posts.
+`,
+            page: {
+                type: "Channel",
+                subType: "Head",
+                name: "Announcements",
+                description: content([paragraph([])]),
+                pagination: null,
+                posts: [
+                    {
+                        type: "Post",
+                        author: aliceReference,
+                        timeAttribute: null,
+                        commentCount: 0,
+                        contentSnippet: content([
+                            unorderedList([
+                                listItem([paragraph([mention(seeMoreAccountReference)])]),
+                            ]),
+                        ]),
+                        reference: null,
+                    },
+                ],
+                isEndOfPosts: true,
             },
         },
         {

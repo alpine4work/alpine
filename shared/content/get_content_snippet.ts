@@ -406,8 +406,17 @@ export function getContentSnippetPos(
             let newTextIndex = 0;
 
             for (const span of findUnicodeDefaultWordBoundarySpans(text)) {
+                // Is this span exclusively whitespace?
+                // https://github.com/eddieantonio/unicode-default-word-boundary/blob/4085db79a22a5222a64df1a5cc27997d6a10e037/src/index.ts#L106-L118
+                const isWhitespace =
+                    // eslint-disable-next-line no-control-regex
+                    /^([\u000D\u000A\u000B\u000C\u0085\u2028\u2029]|\p{Zs})+$/u.test(span.text);
+
+                // Only break at a whitespace span. This way we don't break in between punctuation
+                // (like snipping "{hello}" to "{hello").
+                if (isWhitespace && newTextIndex >= textIndex) break;
+
                 newTextIndex += span.length;
-                if (newTextIndex >= textIndex) break;
             }
 
             if (newTextIndex - textIndex <= maxReasonableEnglishWordGraphemeCount) {

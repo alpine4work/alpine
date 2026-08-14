@@ -29,7 +29,7 @@ import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {JsonObjectValue} from "~/shared/helpers/types/json_value.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 

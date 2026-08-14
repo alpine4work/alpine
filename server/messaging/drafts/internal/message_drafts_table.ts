@@ -7,7 +7,7 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageDraftSurfaceKey} from "~/shared/messaging/message_draft_surface.js";
 import {MessageContentPayloadParentSchema} from "~/shared/messaging/message_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const MessageDraftsTable = DynamoTableSchema.new({
     name: "MessageDrafts",

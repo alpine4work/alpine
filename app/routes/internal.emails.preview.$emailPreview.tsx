@@ -27,7 +27,7 @@ import {notFoundResponse} from "~/server/remix/not_found_response.js";
 import {spacing} from "~/shared/design/core/spacing.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export function meta() {
     return [{title: `Email Playground${metaTitlePostfix}`}];

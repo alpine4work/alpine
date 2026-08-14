@@ -5,7 +5,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import {isId} from "~/shared/id/id.open_source.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export type ImportUploadKey = `${SpaceId}/notion/${NotionImportId}`;
 

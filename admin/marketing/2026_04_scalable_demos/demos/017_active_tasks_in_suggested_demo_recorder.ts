@@ -12,7 +12,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 runScalableDemoRecorder(async (context, services, recorder) => {
     const {space, accounts} = await createDemoSpace(context, services.getAppServiceTokenAgent());

@@ -7,8 +7,9 @@ import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.open_source.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
 import {isId} from "~/shared/id/id.open_source.js";
-import {AccountId, AvatarId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export type AvatarEntityPath = `account/${AccountId}` | `space/${SpaceId}` | `bot/${BotId}`;
 

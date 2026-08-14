@@ -12,7 +12,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {TestCheckpoint} from "~/shared/helpers/test/test_checkpoint.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
-import {SpaceId, TaskActivityEntryId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {TaskActivityEntryId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {getTaskActorKey} from "~/shared/tasks/get_task_actor_key.js";
 import {
     TaskActivityWindowChunkActor,

@@ -15,7 +15,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.open_source.js";
-import {RpcCallId} from "~/shared/id/types/id_types.open_source.js";
+import {RpcCallId} from "~/shared/id/types/id_types.js";
 import {deserializeRpcBatchResponse} from "~/shared/rpc/deserialize_rpc_batch_response.js";
 import {
     RpcHttpBatchByActorCallInputSchema,
@@ -26,7 +26,7 @@ import {
 } from "~/shared/rpc/helpers/rpc_http_schema.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {printSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";

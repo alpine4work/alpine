@@ -18,7 +18,7 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {ProsemirrorMappingSchema} from "~/shared/prosemirror/prosemirror_mapping_schema.js";
 import {ReactionSet, emptyReactionSet} from "~/shared/reactions/reaction_set.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type MessagePayload = SchemaType<typeof MessagePayloadSchema>;
 

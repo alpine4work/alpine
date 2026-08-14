@@ -16,6 +16,8 @@ export async function seedTestBotAccounts(
         defaultSpaceId,
         chatGptBotId,
         chatGptBotAccountIdForDefaultSpace,
+        claudeBotId,
+        claudeBotAccountIdForDefaultSpace,
         cursorBotId,
         cursorBotAccountIdForDefaultSpace,
     } = getDynamoSeedConstants();
@@ -33,6 +35,27 @@ export async function seedTestBotAccounts(
                             spaceId: defaultSpaceId,
                             botId: chatGptBotId,
                             accountId: chatGptBotAccountIdForDefaultSpace,
+                        },
+                    );
+
+                await DynamoTableSchema.executeTransaction(context, transactionEntries);
+            } catch (error) {
+                // If the data already exists in the database, return without error.
+                if (isDynamoConditionCheckError(error)) return;
+
+                throw error;
+            }
+        },
+        async () => {
+            try {
+                const {transactionEntries} =
+                    await internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries(
+                        context,
+                        {
+                            currentTime,
+                            spaceId: defaultSpaceId,
+                            botId: claudeBotId,
+                            accountId: claudeBotAccountIdForDefaultSpace,
                         },
                     );
 

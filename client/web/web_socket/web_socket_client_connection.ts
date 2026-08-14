@@ -17,10 +17,10 @@ import {EventEmitter} from "~/shared/helpers/control/event_emitter.open_source.j
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.open_source.js";
+import {WebSocketProcedureRequestId} from "~/shared/id/types/id_types.js";
+import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
 import {offlineErrorDisplayMessage} from "~/shared/tracer/fetch_with_tracer.open_source.js";
-import {TracerServiceName} from "~/shared/tracer/tracer_root.open_source.js";
+import {TracerServiceName} from "~/shared/tracer/types/tracer_service_name.js";
 import {webSocketExpirationTimeoutMs} from "~/shared/web_socket/web_socket_expiration_timeout_ms.js";
 import {
     WebSocketProtocolBase,

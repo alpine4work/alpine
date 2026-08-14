@@ -27,13 +27,13 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
         case "DocumentThread": {
             return {
                 type: "Url",
-                url: `https://alpine.inc/doc/${link.document.id}?thread=${link.threadId}`,
+                url: `https://alpine.inc/doc/${link.document.id}?thread=${link.id}`,
             };
         }
         case "DocumentMessage": {
             return {
                 type: "Url",
-                url: `https://alpine.inc/doc/${link.id}?thread=${link.threadId}&comment=${link.index}`,
+                url: `https://alpine.inc/doc/${link.document.id}?thread=${link.id}&comment=${link.index}`,
             };
         }
         case "PostMessage": {
@@ -71,6 +71,15 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
             return {
                 type: "Url",
                 url: `https://github.com/alpine4work/alpine/blob/main/skills/alpine/${link.path}.md`,
+            };
+        }
+        case "MyAccount": {
+            // If a bot writes `/bot/me` in its Markdown, this isn't a great URL but oh well.
+            // It's actually quite hard to plumb down the `BotId` we need down here. Since we
+            // think this is a rare case we accept the generic URL for now.
+            return {
+                type: "Url",
+                url: `https://alpine.inc/settings/${spaceId}/bots`,
             };
         }
         default:

@@ -23,7 +23,7 @@ import {
     MessageStreamToolCallPartPayloadCall,
 } from "~/shared/messaging/message_schema.js";
 import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 

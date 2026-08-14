@@ -4,7 +4,8 @@ import {createBotFromItem} from "~/server/bots/internal/create_bot_from_item.js"
 import {getBotWithAvatarItem} from "~/server/bots/internal/get_bot_with_avatar_item.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {Bot} from "~/shared/bots/bot_schema.js";
-import {AvatarId, BotId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
+import {BotId} from "~/shared/id/types/id_types.open_source.js";
 
 export async function finishUploadingBotAvatar(
     context: ServerSessionActionContext,

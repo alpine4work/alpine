@@ -6,11 +6,7 @@ import {WebWorkerRpcMethodDefinitions} from "~/client/web/helpers/workers/web_wo
 import {UnknownError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
-import {
-    ObjectSchema,
-    SchemaSerializedValue,
-    SchemaType,
-} from "~/shared/schema/schema.open_source.js";
+import {ObjectSchema, SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Typed handler map inferred from a method definitions object. Each key matches a

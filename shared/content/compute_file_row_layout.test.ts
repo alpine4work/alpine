@@ -6,7 +6,7 @@ import {
     contentFileMinSizeRem,
     contentFileRowGapWidthRem,
 } from "~/shared/design/core/content_shared_styles.js";
-import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import {remPxBySpacingScale} from "~/shared/design/core/spacing_scale.js";
 
 const containerWidth = fileRowBlockWidthPxForClipboardAndApi;
 const gapWidth = contentFileRowGapWidthRem * remPxBySpacingScale.small;

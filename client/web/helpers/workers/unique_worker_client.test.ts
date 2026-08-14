@@ -11,7 +11,7 @@ import {
 import {UniqueWorkerHost} from "~/client/web/helpers/workers/unique_worker_host.js";
 import {defineWebWorkerRpcMethods} from "~/client/web/helpers/workers/web_worker_rpc_method.js";
 import {UnknownError} from "~/shared/error/error.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 // These tests run the full multi-tab dance — client, real broker logic, and real
 // host — on top of the mocked browser globals, so every scenario covers the whole

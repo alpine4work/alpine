@@ -20,21 +20,23 @@ import {
     encodeVtencBigUint64Set,
 } from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
 import {
-    AccountId,
     BrowserId,
     ContentEditorClientId,
-    SpaceId,
     TaskActionTransactionId,
     TaskActionTransactionLeaseId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    SpaceId,
     TaskCollectionId,
     TaskId,
-    TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {MessagePayloadSchema} from "~/shared/messaging/message_schema.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";

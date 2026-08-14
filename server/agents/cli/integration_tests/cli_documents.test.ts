@@ -521,12 +521,12 @@ test.each([
     {
         command: "alpine find",
         argName: "path",
-        syntax: "alpine find <path> <pattern> [--offset 0] [--limit 4kb] [--match-limit 5]",
+        syntax: "alpine find <path> <pattern> [--offset 0] [--limit 5] [--match-limit 4kb]",
     },
     {
         command: "alpine find /document/example",
         argName: "pattern",
-        syntax: "alpine find <path> <pattern> [--offset 0] [--limit 4kb] [--match-limit 5]",
+        syntax: "alpine find <path> <pattern> [--offset 0] [--limit 5] [--match-limit 4kb]",
     },
     {
         command: "alpine search",
@@ -700,7 +700,7 @@ test.each([
         value: "",
     },
     {
-        name: "a non-integer find limit",
+        name: "a non-integer find result limit",
         command: "alpine find /document/example pattern --limit=nope",
         argName: "limit",
         value: "nope",
@@ -792,7 +792,7 @@ mkdir "$data_path"
 sed -E 's/,"authResponse":.*$/}/' "$ALPINE_DATA_PATH/auth.json" > "$data_path/auth.json"
 ALPINE_DATA_PATH="$data_path" ALPINE_API_URL=http://127.0.0.1:1 alpine read /document/example`),
     ).toEqual(
-        "Error: Couldn\u2019t run command. Couldn\u2019t get the current bot from the API. Make sure you\u2019re online and can reach `http://127.0.0.1:1/auth`.\n",
+        "Error: Couldn\u2019t run command. Couldn\u2019t get the current bot from the API. Make sure you\u2019re online, your API key isn\u2019t revoked, and you can reach `http://127.0.0.1:1/auth`.\n",
     );
 });
 
@@ -1648,6 +1648,119 @@ Paginated comment 6. This comment has enough detail to make the response require
 <comment id="7" from="[Alice](/human/alice)" time="5 minutes later">
 
 Paginated comment 7. This comment has enough detail to make the response require pagination.
+
+</comment>
+`);
+});
+
+test("read document comments around the blockquote cursor", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+    const title = "YouTube comment cursor";
+    const body = "Review the cursor boundaries.";
+    const commentedText = "cursor boundaries";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        aliceSession,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "First boundary comment.",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
+    );
+    await commentThread.createComment(aliceSession, "Second boundary comment.", {
+        overrideCreatedTime: new Date("2026-05-14T15:05:00.000Z"),
+    });
+
+    await indexDocumentSearchEntityImmediately(document);
+    expect(await cli.run("alpine search 'YouTube comment cursor'")).toEqual(
+        expect.stringContaining("(/document/youtube-comment-cursor)"),
+    );
+    expect(await cli.run("alpine read /document/youtube-comment-cursor")).toEqual(`\
+# YouTube comment cursor
+
+Review the <comment id="1">cursor boundaries</comment>.
+`);
+
+    expect(
+        await cli.run("alpine read '/document/youtube-comment-cursor/comments/1?after=blockquote'"),
+    ).toEqual(`\
+Document comment thread on [YouTube comment cursor](/document/youtube-comment-cursor).
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Alice](/human/alice)">
+
+First boundary comment.
+
+</comment>
+
+<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">
+
+Second boundary comment.
+
+</comment>
+
+End of comments.
+`);
+
+    expect(
+        await cli.run(
+            "alpine read '/document/youtube-comment-cursor/comments/1?before=blockquote'",
+        ),
+    ).toEqual(`\
+Document comment thread on [YouTube comment cursor](/document/youtube-comment-cursor).
+`);
+});
+
+test("read a bounded range of document comments from the end", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+    const title = "YouTube bounded comments";
+    const body = "Review the bounded comment range.";
+    const commentedText = "bounded comment range";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    const commentThread = await document.createCommentThread(
+        aliceSession,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Bounded comment 0.",
+        {overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z")},
+    );
+
+    for (let index = 1; index < 3; index++) {
+        await commentThread.createComment(aliceSession, `Bounded comment ${index}.`, {
+            overrideCreatedTime: new Date(Date.UTC(2026, 4, 14, 15, index * 5)),
+        });
+    }
+
+    await indexDocumentSearchEntityImmediately(document);
+    expect(await cli.run("alpine search 'YouTube bounded comments'")).toEqual(
+        expect.stringContaining("(/document/youtube-bounded-comments)"),
+    );
+    expect(await cli.run("alpine read /document/youtube-bounded-comments")).toEqual(`\
+# YouTube bounded comments
+
+Review the <comment id="1">bounded comment range</comment>.
+`);
+
+    expect(
+        await cli.run(
+            "alpine read '/document/youtube-bounded-comments/comments/1?from=end&after=0&before=2'",
+        ),
+    ).toEqual(`\
+Document comment thread on [YouTube bounded comments](/document/youtube-bounded-comments).
+
+<time>May 14th at 11:05am EDT</time>
+
+<comment id="1" from="[Alice](/human/alice)">
+
+Bounded comment 1.
 
 </comment>
 `);

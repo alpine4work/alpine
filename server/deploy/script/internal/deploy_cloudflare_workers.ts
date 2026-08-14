@@ -1,8 +1,11 @@
 import {ChildProcess, spawn} from "child_process";
+import fs from "fs/promises";
+import os from "os";
 import {join as joinPath} from "path";
 import {getProcessEnvToPropagate} from "~/server/helpers/node/run_process.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExitWithAnyCode} from "~/server/helpers/node/wait_for_process_exit.js";
+import {withTemporaryDirectory} from "~/server/helpers/node/with_temporary_directory.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {UnknownError} from "~/shared/error/error.open_source.js";
@@ -163,5 +166,40 @@ export async function deployCloudflareWorkers(
         "Local Redirect Service",
         joinPath(runfilesPath, "cyberworlds/admin/local_redirect/wrangler.sh"),
         env,
+    );
+
+    await withTemporaryDirectory(
+        os.tmpdir(),
+        "cyberworlds_agent_v2_deploy_",
+        async temporaryDirectoryPath => {
+            await fs.mkdir(joinPath(temporaryDirectoryPath, "sandbox"));
+
+            // Docker does not follow Bazel runfile symlinks outside of its build context. Copy
+            // the container inputs to a temporary directory just like the dev server does
+            // before running Wrangler so Docker receives regular files in the sandbox
+            // directory.
+            for (const relativePath of [
+                "wrangler.toml",
+                "agent_v2_service_bundle.js",
+                "sandbox/claude_agent.dockerfile",
+                "sandbox/claude_agent_service_bundle.mjs",
+                "sandbox/sandbox_skills.tar.gz",
+            ]) {
+                await fs.copyFile(
+                    joinPath(runfilesPath, "cyberworlds/server/agents/bots_v2", relativePath),
+                    joinPath(temporaryDirectoryPath, relativePath),
+                );
+            }
+
+            await deployCloudflareWorkerWithRetry(
+                context,
+                "Agent V2 Service",
+                joinPath(runfilesPath, "cyberworlds/server/agents/bots_v2/wrangler.sh"),
+                {
+                    ...env,
+                    JS_BINARY__CHDIR: temporaryDirectoryPath,
+                },
+            );
+        },
     );
 }

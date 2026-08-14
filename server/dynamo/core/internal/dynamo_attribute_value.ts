@@ -9,7 +9,7 @@ import {
     JsonStringifiableUint8Array,
     SchemaSerializedObjectValue,
     SchemaSerializedValue,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 
 /**
  * The DynamoDB API has this awkward format where the type for all values must be

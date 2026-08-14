@@ -14,10 +14,11 @@ import {createCliTracer} from "~/server/agents/cli/cli_tracer.open_source.js";
 import {
     AgentWebSessionLmdbStorageKey,
     createAgentWebSessionLmdbStorage,
-} from "~/server/agents/cli/create_agent_web_session_lmdb_storage.open_source.js";
+} from "~/server/agents/lmdb/create_agent_web_session_lmdb_storage.open_source.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
+import {callAgentWebDeleteTool} from "~/server/agents/web/call_agent_web_delete_tool.js";
 import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.open_source.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
@@ -26,20 +27,13 @@ import {
     defaultAgentWebSearchResultLimit,
 } from "~/server/agents/web/call_agent_web_search_tool.open_source.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
-import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.open_source.js";
 import {
     agentWebBytesDefaultLimit,
     agentWebBytesFindDefaultLimit,
     agentWebBytesFindDefaultMatchLimit,
 } from "~/server/agents/web/default_agent_web_bytes_limit.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
-import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
-import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
-import {
-    FailedPreconditionError,
-    InvalidArgumentError,
-    UnimplementedError,
-} from "~/shared/error/error.open_source.js";
+import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {wrapMaybeArray} from "~/shared/helpers/array/wrap_maybe_array.open_source.js";
@@ -56,7 +50,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {convertCamelCaseToKebabCase} from "~/shared/helpers/string/convert_camel_case_to_kebab_case.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
-import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
 
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
@@ -65,8 +59,8 @@ process.title = "alpine";
 process.stdin.setEncoding("utf8");
 
 main()
-    .then(() => {
-        process.exit(0);
+    .then(({exitCode}) => {
+        process.exit(exitCode);
     })
     .catch(async error => {
         const markdown = printAgentWebError("Couldn\u2019t run command", error);
@@ -87,11 +81,11 @@ type AgentsCliAuthJson = {
     readonly authResponse?: {
         readonly expirationTime: DateString;
         readonly spaceId: SpaceId;
-        readonly botAccount: ApiAccountReferenceResponse & {readonly pathname: string};
+        readonly botAccount: {readonly id: AccountId; readonly bot: {readonly id: BotId}};
     };
 };
 
-async function main() {
+async function main(): Promise<{exitCode: number}> {
     const baseUrlString = process.env.ALPINE_URL ?? "https://alpine.inc";
     let baseUrl: URL;
 
@@ -140,11 +134,20 @@ async function main() {
         // Support standard ways to ask for help from a CLI tool.
         if (command === "--help" || command === "-h") command = "help";
 
-        const commands = new Set(["help", "read", "create", "update", "scroll", "find", "search"]);
+        const commands = new Set([
+            "help",
+            "read",
+            "create",
+            "update",
+            "delete",
+            "scroll",
+            "find",
+            "search",
+        ]);
 
         const handleSpanName = `CLI ${commands.has(command) ? command : "unknown"}`;
 
-        await tracer.withSpan(`Handle: ${handleSpanName}`, async span => {
+        return await tracer.withSpan(`Handle: ${handleSpanName}`, async span => {
             span.addData({context: {handler: handleSpanName}});
 
             let auth: AgentsCliAuthJson;
@@ -187,13 +190,14 @@ async function main() {
                 });
             }
 
-            let markdown: string;
+            let isError: boolean;
+            let response: string;
             try {
                 // LMDB allows only one write transaction at a time across processes. Its
                 // transaction remains open while this async callback is pending, so complete CLI
                 // runs execute in sequence. `AgentWebSessionStorage` assumes exclusive access to
                 // the underlying storage so this is good.
-                markdown = await database.transaction(async () => {
+                ({isError, response} = await database.transaction(async () => {
                     return await mainWithinTransaction({
                         command,
                         args,
@@ -204,12 +208,14 @@ async function main() {
                         api,
                         database,
                     });
-                });
+                }));
             } finally {
                 await database.close();
             }
 
-            await write(markdown);
+            await write(response);
+
+            return {exitCode: isError ? 1 : 0};
         });
     } finally {
         flushTracer();
@@ -261,23 +267,16 @@ async function mainWithinTransaction({
                 // TODO(#public-api-blocking): Once Rachel adds a login setup for the API we should
                 // update this message to be "Try running `alpine auth`" again or whatever the
                 // command is.
-                displayMessage: errorDisplayMessage`Couldn\u2019t get the current bot from the API. Make sure you\u2019re online and can reach ${quote(`${new URL("/auth", baseApiUrl).toString()}`)}.`,
+                displayMessage: errorDisplayMessage`Couldn\u2019t get the current bot from the API. Make sure you\u2019re online, your API key isn\u2019t revoked, and you can reach ${quote(`${new URL("/auth", baseApiUrl).toString()}`)}.`,
             });
         }
 
         storage = createAgentWebSessionLmdbStorage(database, data.auth.spaceId);
 
-        const botAccountReference = intoApiAccountReference(data.auth.botAccount);
-
-        const botAccountPathname = await createAgentWebPageLinkPathname(
-            storage,
-            botAccountReference,
-        );
-
         authResponse = {
             expirationTime: serializeDateString(addDays(currentTime, authDataExpirationDays)),
             spaceId: data.auth.spaceId,
-            botAccount: {...botAccountReference, pathname: botAccountPathname},
+            botAccount: {id: data.auth.botAccount.id, bot: {id: data.auth.botAccount.bot.id}},
         };
 
         try {
@@ -611,8 +610,8 @@ const findArgParser = new ArgParser("find", {
     requiredPositionalArgs: [{name: "path"}, {name: "pattern"}],
     optionalNominalArgs: [
         {name: "offset", preview: "0"},
-        {name: "limit", preview: agentWebBytesFindDefaultMatchLimit},
-        {name: "match-limit", preview: agentWebBytesFindDefaultLimit.toString()},
+        {name: "limit", preview: agentWebBytesFindDefaultLimit.toString()},
+        {name: "match-limit", preview: agentWebBytesFindDefaultMatchLimit},
     ],
 });
 
@@ -625,10 +624,10 @@ async function runAgentsCliCommand(
     context: AgentWebContext,
     command: string,
     args: ReadonlyArray<string>,
-): Promise<string> {
+): Promise<{isError: boolean; response: string}> {
     switch (command) {
         case "help": {
-            const response = await callAgentWebReadTool(context, {
+            const {isError, response} = await callAgentWebReadTool(context, {
                 path: "/skill",
             });
 
@@ -642,15 +641,17 @@ async function runAgentsCliCommand(
             //
             // 3. Add a tip explaining how to use stdin to pipe in content from a create or
             //    update.
-            return `\
+            return {
+                isError,
+                response: `\
 # Alpine CLI
 
 Usage:
 
 \`\`\`
 ${readArgParser.syntax}
-${createArgParser.syntax}
 ${updateArgParser.syntax}
+${createArgParser.syntax}
 ${deleteArgParser.syntax}
 ${searchArgParser.syntax}
 ${scrollArgParser.syntax}
@@ -663,7 +664,8 @@ ${response.replace("## Tips", "(You can call the `read` tool with the above skil
 
 When creating large pages, you can pass \`-\` to \`alpine create\` (e.g. \`alpine create document -\`) and pipe content to stdin instead of writing the content inline in the command.
 
-Similarly, when adding a lot of content in an update, you can pass \`-\` to \`alpine update\` (as both the \`--old\` and \`--new\` args, e.g. \`alpine update --old - --new -\`) and pipe update(s) to stdin. Updates should be a JSON object (or an array of JSON objects) with the properties \`old\` and \`new\`.`;
+Similarly, when adding a lot of content in an update, you can pass \`-\` to \`alpine update\` (as both the \`--old\` and \`--new\` args, e.g. \`alpine update --old - --new -\`) and pipe update(s) to stdin. Updates should be a JSON object (or an array of JSON objects) with the properties \`old\` and \`new\`.`,
+            };
         }
         case "create": {
             const {type, content: contentArg} = createArgParser.parse(args);
@@ -814,11 +816,9 @@ Similarly, when adding a lot of content in an update, you can pass \`-\` to \`al
             });
         }
         case "delete": {
-            deleteArgParser.parse(args);
+            const {path} = deleteArgParser.parse(args);
 
-            throw new UnimplementedError("Delete tool hasn\u2019t been implemented yet", {
-                displayMessage: errorDisplayMessage`The \`delete\` tool hasn\u2019t been implemented yet. Before allowing bots to delete stuff from Alpine, the Alpine team wants to build a trash feature so humans can recover anything that was accidentally deleted. Tell your human they need to manually delete things from Alpine, for now. For more information, contact ${errorDisplayMessage.supportLink}.`,
-            });
+            return await callAgentWebDeleteTool(context, {path});
         }
         case "scroll": {
             const {path, offset, limit} = scrollArgParser.parse(args);

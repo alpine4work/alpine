@@ -10,6 +10,7 @@
         }
     },
     "dependencies": {
+        "@anthropic-ai/claude-agent-sdk": "0.3.221",
         "@aws-sdk/client-bedrock-runtime": "3.787.0",
         "@aws-sdk/client-cloudformation": "3.787.0",
         "@aws-sdk/client-dynamodb": "3.787.0",
@@ -27,6 +28,7 @@
         "@aws-sdk/s3-request-presigner": "3.787.0",
         "@babel/parser": "^7.28.4",
         "@bazel/worker": "^5.7.1",
+        "@cloudflare/sandbox": "^0.12.4",
         "@cloudflare/workers-types": "4.20241112.0",
         "@cloudsnorkel/cdk-github-runners": "0.14.1",
         "@codemirror/lang-sql": "^6.7.0",
@@ -258,7 +260,7 @@
         "json-bigint": "^1.0.0",
         "json-stable-stringify": "^1.0.1",
         "lezer-elixir": "^1.1.2",
-        "lmdb": "^3.5.6",
+        "lmdb": "3.5.6",
         "looks-same": "9.0.1",
         "mdast-util-from-markdown": "^2.0.0",
         "mdast-util-frontmatter": "^2.0.1",
@@ -288,6 +290,7 @@
         "openapi-typescript": "^7.8.0",
         "openapi-typescript-helpers": "^0.0.15",
         "opentype.js": "^1.3.4",
+        "ordered-binary": "^1.6.1",
         "outdent": "0.8.0",
         "phosphor-react": "1.4.1",
         "pidtree": "^0.6.0",
@@ -343,6 +346,7 @@
         "undici": "5.28.4",
         "unicode-default-word-boundary": "^13.0.0",
         "utf-8-validate": "^5.0.10",
+        "uuid": "^14.0.1",
         "vite": "5.4.2",
         "wawoff2": "^2.0.1",
         "web-push": "^3.6.5",
@@ -468,6 +472,7 @@
             "@miniflare/runner-vm@2.14.4": "admin/patches/@miniflare__runner-vm@2.14.4.patch"
         },
         "allowedDeprecatedVersions": {
+            "@react-email/components": "0.5.5",
             "@types/keyv": "4.2.0",
             "source-map-resolve": "0.5.3",
             "rollup-plugin-inject": "3.0.2",
@@ -517,10 +522,11 @@
         },
         "peerDependencyRules": {
             "allowedVersions": {
+                "@cloudflare/workers-types": "4.20241112.0",
                 "react": "19",
                 "react-dom": "19",
                 "typescript": "5.9.2",
-                "@cloudflare/workers-types": "4.20241112.0"
+                "wrangler": "4.118.0"
             }
         },
         "onlyBuiltDependencies": [

@@ -1,7 +1,7 @@
 import {SqlJsonSchema} from "~/shared/databases/model/sqlite_schema.js";
 import type {DatabaseRowId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
-import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 export const DatabaseRelationFieldConfigSchema = Schema.object({
     type: Schema.value("Relation"),

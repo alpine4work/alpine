@@ -8,7 +8,7 @@ import {
     generateChronologicalId,
     generateChronologicalIdWithTime,
 } from "~/shared/id/chronological_id.open_source.js";
-import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
 
 const context = createTestContext();
 

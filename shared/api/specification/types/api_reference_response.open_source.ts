@@ -34,7 +34,6 @@ export type ApiReferenceResponse =
           readonly type: "ChatMessage";
           readonly id: ChatId;
           readonly index: number;
-          readonly title: null;
       }
     | {
           readonly type: "Document";
@@ -43,10 +42,14 @@ export type ApiReferenceResponse =
       }
     | {
           readonly type: "DocumentMessage";
-          readonly id: DocumentId;
-          readonly threadId: DocumentCommentThreadId;
+          readonly document: {readonly id: DocumentId};
+          readonly id: DocumentCommentThreadId;
           readonly index: number;
-          readonly title: null;
+      }
+    | {
+          readonly type: "DocumentThread";
+          readonly document: {readonly id: DocumentId};
+          readonly id: DocumentCommentThreadId;
       }
     | {
           readonly type: "Post";
@@ -57,7 +60,6 @@ export type ApiReferenceResponse =
           readonly type: "PostMessage";
           readonly id: PostId;
           readonly index: number;
-          readonly title: null;
       }
     | {
           readonly type: "Task";
@@ -69,7 +71,6 @@ export type ApiReferenceResponse =
           readonly type: "TaskMessage";
           readonly id: TaskId;
           readonly index: number;
-          readonly title: null;
       }
     | {
           readonly type: "TaskCollection";

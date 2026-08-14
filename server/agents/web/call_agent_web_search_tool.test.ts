@@ -1,9 +1,9 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {
-    callAgentWebSearchTool,
+    callAgentWebSearchTool as actuallyCallAgentWebSearchTool,
     defaultAgentWebSearchResultLimit,
 } from "~/server/agents/web/call_agent_web_search_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
@@ -26,6 +26,18 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
+async function callAgentWebSearchTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebSearchTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebSearchTool(...callArguments)).response;
+}
+
 const {span} = testTracer.startSpan("call_agent_web_search_tool.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
@@ -41,12 +53,8 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: botAccountId,
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: botId},
-        pathname: "/bot/chatgpt",
     },
 };
 
@@ -263,8 +271,8 @@ test("prints message results as links labeled with a preview of the match", asyn
         },
         {
             type: "DocumentMessage",
-            id: generateId<DocumentId>(),
-            threadId: generateId<DocumentCommentThreadId>(),
+            document: {id: generateId<DocumentId>()},
+            id: generateId<DocumentCommentThreadId>(),
             index: 1,
             title: null,
             bodySnippet: "An important comment",
@@ -314,8 +322,8 @@ test("prints the missing entity title for message results without a body match",
         },
         {
             type: "DocumentMessage",
-            id: generateId<DocumentId>(),
-            threadId: generateId<DocumentCommentThreadId>(),
+            document: {id: generateId<DocumentId>()},
+            id: generateId<DocumentCommentThreadId>(),
             index: 1,
             title: null,
             bodySnippet: "",
@@ -356,8 +364,8 @@ test("truncates long message previews and prints the rest of the match after the
     mockSearch("test", [
         {
             type: "DocumentMessage",
-            id: generateId<DocumentId>(),
-            threadId: generateId<DocumentCommentThreadId>(),
+            document: {id: generateId<DocumentId>()},
+            id: generateId<DocumentCommentThreadId>(),
             index: 1,
             title: null,
             bodySnippet:
@@ -605,4 +613,59 @@ test("search result links can be read with the read tool", async () => {
 - Role: Member
 - Short name: Alice`,
     );
+});
+
+test("reserves `/bot/me` for the current bot when a search result is named me", async () => {
+    const namedMeAccountId = generateId<AccountId>();
+    const namedMeBotId = generateId<BotId>();
+
+    mockSearch("me", [
+        {
+            type: "Account",
+            id: namedMeAccountId,
+            title: "me",
+            matches: [],
+            bodySnippet: null,
+            shortName: "me",
+            bot: {id: namedMeBotId},
+        },
+    ]);
+
+    api.mockGet("/accounts/{id}-reference", {
+        params: {path: {id: botAccountId}},
+        data: {
+            reference: {
+                type: "Account",
+                id: botAccountId,
+                title: "Current Bot",
+                shortName: "Current",
+                bot: {id: botId},
+            },
+        },
+    });
+
+    api.mockGet("/spaces/{id}/accounts/{accountId}", {
+        params: {path: {id: spaceId, accountId: namedMeAccountId}},
+        data: {
+            account: {
+                id: namedMeAccountId,
+                name: "me",
+                shortName: "me",
+                bot: {id: namedMeBotId},
+                space: {
+                    role: "Member",
+                    addedTime: serializeDateString(new Date("2026-01-01T00:00:00.000Z")),
+                },
+            },
+        },
+    });
+
+    expect(await callAgentWebSearchTool(context, {query: "me"})).toEqual("1. [me](/bot/me-2)");
+    expect(await callAgentWebReadTool(context, {path: "/bot/me", limit: "10kb"})).toEqual(
+        "You are [Current Bot](/bot/current-bot).",
+    );
+    expect(await callAgentWebReadTool(context, {path: "/bot/me-2", limit: "10kb"})).toEqual(`\
+# me
+
+- Role: Member`);
 });

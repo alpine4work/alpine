@@ -213,10 +213,21 @@ export async function createAgentWebTaskPage(
     // default our API sets the bot as active when they make the task active if there's
     // no assignee, we want the agent to make this choice explicitly.
     if (newPage.status.type === "Open" && newPage.status.isActive && !newPage.assignee) {
+        const {
+            data: {reference: botAccount},
+        } = await context.api.get(context.span, "/accounts/{id}-reference", {
+            params: {path: {id: context.botAccount.id}},
+        });
+
+        const botAccountPathname = await createAgentWebPageStoredLinkPathname(
+            context.storage,
+            botAccount,
+        );
+
         const assigneeLink: Link = {
             type: "link",
-            url: context.botAccount.pathname,
-            children: [{type: "text", value: context.botAccount.shortName}],
+            url: botAccountPathname,
+            children: [{type: "text", value: botAccount.shortName}],
         };
 
         throw new InvalidArgumentError(
@@ -330,10 +341,21 @@ export async function updateAgentWebTaskPage(
     // default our API sets the bot as active when they make the task active if there's
     // no assignee, we want the agent to make this choice explicitly.
     if (newPage.status.type === "Open" && newPage.status.isActive && !newPage.assignee) {
+        const {
+            data: {reference: botAccount},
+        } = await context.api.get(context.span, "/accounts/{id}-reference", {
+            params: {path: {id: context.botAccount.id}},
+        });
+
+        const botAccountPathname = await createAgentWebPageStoredLinkPathname(
+            context.storage,
+            botAccount,
+        );
+
         const assigneeLink: Link = {
             type: "link",
-            url: context.botAccount.pathname,
-            children: [{type: "text", value: context.botAccount.shortName}],
+            url: botAccountPathname,
+            children: [{type: "text", value: botAccount.shortName}],
         };
 
         if (oldPage.status.type !== "Open" || !oldPage.status.isActive) {

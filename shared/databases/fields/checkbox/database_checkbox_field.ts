@@ -1,4 +1,4 @@
-import {Schema, type SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, type SchemaType} from "~/shared/schema/schema.js";
 
 export const DatabaseCheckboxFieldConfigSchema = Schema.object({type: Schema.value("Checkbox")});
 export type DatabaseCheckboxFieldConfig = SchemaType<typeof DatabaseCheckboxFieldConfigSchema>;

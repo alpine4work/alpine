@@ -728,9 +728,10 @@ async function traverseMarkdownHtmlNode(
                         endIndex: commentTagState.id.data.endIndex,
                         string: (async () => {
                             const commentThreadId =
-                                await storage.documentCommentThreadIdByNumber.get(
-                                    `${documentId}-${number}`,
-                                );
+                                await storage.documentCommentThreadIdByNumber.get([
+                                    documentId,
+                                    `${number}`,
+                                ]);
 
                             if (commentThreadId === undefined) {
                                 throw new InvalidArgumentError(

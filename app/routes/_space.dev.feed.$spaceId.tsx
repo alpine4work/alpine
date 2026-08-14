@@ -15,7 +15,7 @@ import {FeedEntry, FeedEntrySchema} from "~/shared/feed/feed_entry_schema.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import * as searchRpcDefinitions from "~/shared/rpc/search_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     affinitySearch: searchRpcDefinitions.searchByAffinity.outputSchema,

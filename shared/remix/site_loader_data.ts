@@ -1,6 +1,6 @@
 import {createRynamoQuerySchema} from "~/shared/dynamo/rynamo_types.js";
 import {SiteId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SiteItemSearchEntityIdSchema} from "~/shared/search/site_item_search_entity_id.js";
 import {SiteOrSiteEntryModelSchema} from "~/shared/sites/site_model.js";
 

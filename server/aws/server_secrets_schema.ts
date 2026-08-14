@@ -1,4 +1,4 @@
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 export type ServerSecrets = SchemaType<typeof ServerSecretsSchema>;
 

@@ -8,10 +8,10 @@ import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js"
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
+import {TaskActivityEntryId} from "~/shared/id/types/id_types.js";
 import {
     AccountId,
     SpaceId,
-    TaskActivityEntryId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";

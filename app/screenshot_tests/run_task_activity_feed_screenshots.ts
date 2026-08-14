@@ -113,12 +113,36 @@ a rendering bug.
         getTaskActivityScreenshotActionOptions(new Date("2025-10-08T08:16:00-04:00")),
     );
 
-    // Mason captures the repro in the notes: one notes window item in the trailing run
-    // under Matt's comment.
+    // Mason digs in the same morning: two comments a minute apart with notes +
+    // assignee updates between them. Without the activity break those comments would
+    // merge; the intervening run keeps the second comment's name/face visible.
+    await task.createComment(
+        accounts.masonClay,
+        markdown`
+Looking at the nested merge path now. Pretty sure the outer table\u2019s border style is winning
+over the inner one when cells merge.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T10:00:00-04:00")},
+    );
     await task.typeNotes(
         accounts.masonClay,
         "Repro: nest a 2×2 table inside another table cell, then toggle merged cells on the outer table.",
-        {overrideUpdatedTimeForTest: new Date("2025-10-08T08:20:00-04:00")},
+        {overrideUpdatedTimeForTest: new Date("2025-10-08T10:00:30-04:00")},
+    );
+    await task.updateAssignee(
+        accounts.masonClay,
+        accounts.cassCade,
+        // A few seconds after the notes write so the two activity rows stay in a stable
+        // order when the wall-clock times would otherwise collide.
+        getTaskActivityScreenshotActionOptions(new Date("2025-10-08T10:00:45-04:00")),
+    );
+    await task.createComment(
+        accounts.masonClay,
+        markdown`
+Repro\u2019s on my branch if you want to poke. Putting Cass on this so it\u2019s on the walkthrough
+checklist.
+        `,
+        {overrideCreatedTime: new Date("2025-10-08T10:01:00-04:00")},
     );
 
     await waitForTaskIndex();
@@ -130,6 +154,14 @@ a rendering bug.
     // row appears despite the title written at creation.
     await runner.getByText("reopened the task").waitFor();
     await runner.getByText("updated the notes").waitFor();
+    // Cass assigned earlier too, so pin Mason's later assignment specifically.
+    await runner.getByText("Mason assigned the task to").waitFor();
+    // Second Mason comment must keep its author chrome (activity split the merge).
+    // MessageView renders the full account name rather than the short activity-row
+    // name.
+    const secondMasonComment = runner.getByTestId(`MessageView:${task.id}:3`);
+    await secondMasonComment.getByText("Mason Clay", {exact: true}).waitFor();
+    await secondMasonComment.getByText("Putting Cass on this").waitFor();
     // The interwoven feed lives below the task fields; scroll so the conversation is
     // what's captured.
     await scrollLocatorToBottom(runner.getByTestId("TaskDetailScrollView"));

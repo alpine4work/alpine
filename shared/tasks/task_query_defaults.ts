@@ -1,5 +1,5 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskQueryFiltersSchema} from "~/shared/tasks/task_query_filters_schema.js";
 import {TaskQuerySortsSchema} from "~/shared/tasks/task_query_sorts_schema.js";
 

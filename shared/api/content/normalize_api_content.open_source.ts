@@ -181,6 +181,57 @@ export class ApiContentNormalizer {
                 continue;
             }
 
+            // ProseMirror stores nested list items as indented siblings. A leading phantom
+            // unordered-list item after another list is therefore indistinguishable from
+            // nested content on the preceding list's last item. Canonicalize the API shape
+            // before merging adjacent lists so the phantom boundary is not lost.
+            if (
+                (element.type === "UnorderedList" ||
+                    element.type === "OrderedList" ||
+                    element.type === "CheckList") &&
+                index < elements.length - 1
+            ) {
+                // Empty lists don't print any Markdown, so they can't preserve a boundary between
+                // the lists on either side of them.
+                while (index < elements.length - 1) {
+                    const nextElement = elements[index + 1]!;
+                    if (
+                        (nextElement.type === "UnorderedList" ||
+                            nextElement.type === "OrderedList" ||
+                            nextElement.type === "CheckList") &&
+                        nextElement.items.length === 0
+                    ) {
+                        elements.splice(index + 1, 1);
+                    } else {
+                        break;
+                    }
+                }
+
+                const nextElement = elements[index + 1];
+                if (nextElement?.type === "UnorderedList") {
+                    const nextItem = nextElement.items[0];
+
+                    if (
+                        nextItem !== undefined &&
+                        nextItem.elements.length === 0 &&
+                        nextItem.nestedListElements !== undefined &&
+                        nextItem.nestedListElements.some(
+                            nestedElement => nestedElement.items.length > 0,
+                        )
+                    ) {
+                        const lastItem = element.items[element.items.length - 1]!;
+                        lastItem.nestedListElements ??= [];
+                        lastItem.nestedListElements.push(...nextItem.nestedListElements);
+                        nextElement.items.splice(0, 1);
+
+                        if (nextElement.items.length === 0) {
+                            elements.splice(index + 1, 1);
+                            continue;
+                        }
+                    }
+                }
+            }
+
             // Merge adjacent lists of the same type.
             if (
                 element.type === "UnorderedList" ||
@@ -614,7 +665,9 @@ export class ApiContentNormalizer {
             );
 
             for (const otherReference of otherReferences) {
-                otherReference.title = actualReference.title;
+                if (hasOwnProperty(actualReference, "title"))
+                    (otherReference as any).title = actualReference.title;
+                else delete (actualReference as any).title;
 
                 if (hasOwnProperty(actualReference, "shortName"))
                     (otherReference as any).shortName = actualReference.shortName;

@@ -1,6 +1,6 @@
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {getFileEntityTypes} from "~/shared/files/file_entity_id.js";
-import {Schema, SchemaType} from "~/shared/schema/schema.open_source.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * An interface schema representing file entities. We should create implementations

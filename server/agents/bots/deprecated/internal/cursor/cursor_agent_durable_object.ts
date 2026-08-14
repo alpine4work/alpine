@@ -35,18 +35,19 @@ import {
     AgentWebhookRequest,
 } from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {AgentServiceEnv} from "~/server/agents/bots/internal/agent_service_env.js";
-import {convertApiContentToProperQuotes} from "~/server/agents/bots/internal/convert_api_content_to_proper_quotes.js";
 import {getTimezoneFromBotWebhookRequest} from "~/server/agents/bots/internal/get_timezone_from_bot_webhook_request.js";
 import {
-    isOneOnOneChat,
-    shouldAgentRespondToRequest,
-} from "~/server/agents/bots/internal/should_agent_respond_to_request.js";
+    isOneOnOneChatWithCache,
+    shouldAgentRespondToApiBotWebhookRequestWithCache,
+} from "~/server/agents/bots/internal/should_agent_respond_to_api_bot_webhook_request_with_cache.js";
 import {
     DurableObjectStorageCollection,
     DurableObjectTransactionInterface,
 } from "~/server/cloudflare/durable_object_storage_collection.js";
 import {TemporaryDurableObjectStorage} from "~/server/cloudflare/temporary_durable_object_storage.js";
-import {agentMessageStreamPingIntervalMs} from "~/shared/agents/default_agent_message_ping_interval_ms.js";
+import {createSimpleOkResponse} from "~/server/helpers/create_simple_ok_response.js";
+import {messageStreamPingIntervalMs} from "~/shared/agents/message_stream_ping_interval_ms.js";
+import {convertApiContentToProperQuotes} from "~/shared/api/content/convert_api_content_to_proper_quotes.js";
 import {
     ApiMessageRoomPath,
     printApiMessageRoomPath,
@@ -85,12 +86,8 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_sour
 import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {doesStringEndWithPunctuation} from "~/shared/helpers/string/does_string_end_with_punctuation.js";
 import {generateId, isId} from "~/shared/id/id.open_source.js";
-import {
-    AccountId,
-    BotId,
-    CursorCloudAgentId,
-    SpaceId,
-} from "~/shared/id/types/id_types.open_source.js";
+import {CursorCloudAgentId} from "~/shared/id/types/id_types.js";
+import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
@@ -197,10 +194,7 @@ export class CursorAgentDurableObject extends AgentDurableObjectBase<CursorAgent
                         span,
                     });
 
-                    return new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    });
+                    return createSimpleOkResponse();
                 } catch (error) {
                     // Log errors in development since webhook errors aren't shown to the developer in
                     // the UI. So we need to show webhook errors in our logs.
@@ -239,7 +233,8 @@ export class CursorAgentDurableObject extends AgentDurableObjectBase<CursorAgent
         if (event.type === "UpdatedMessageStreamExperimentalApprovalsPart") return;
 
         // Check if the agent should respond before continuing.
-        if (!(await shouldAgentRespondToRequest(span, {...request, event}))) return;
+        if (!(await shouldAgentRespondToApiBotWebhookRequestWithCache(span, {...request, event})))
+            return;
 
         if (
             request.event.type === "CreatedMessage" &&
@@ -370,7 +365,7 @@ async function withCursorAgentMessageStreamSession<Value>(
             void mutex.withLock(async () => {
                 await pingApiMessageStream(tracer, request.apiClient, request.room, message.index);
             });
-        }, agentMessageStreamPingIntervalMs);
+        }, messageStreamPingIntervalMs);
     };
 
     let pingInterval: Interval | null = null;
@@ -490,7 +485,7 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
             botId: request.botId,
             accountId: requestAuthorId,
         }),
-        isOneOnOneChat(span, request).then(isOneOnOneChat =>
+        isOneOnOneChatWithCache(span, request).then(isOneOnOneChat =>
             loadInitialAgentMessagesContent({
                 tracer: span,
                 transaction: temporaryStorage,

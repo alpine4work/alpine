@@ -16,7 +16,7 @@ import {
     approveAlphaAccessRequest,
     denyAlphaAccessRequest,
 } from "~/shared/rpc/alpha_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export function meta() {
     return [{title: `Closed Alpha Management${metaTitlePostfix}`}];

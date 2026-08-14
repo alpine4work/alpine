@@ -1,4 +1,4 @@
-import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 /**
  * Converts a per-mimetype files map into the `importer.uploaded` span data fields

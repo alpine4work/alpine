@@ -59,7 +59,7 @@ export async function createSpaceForAccountAsAdmin(
  * creates all resources associated with a new account, including:
  *
  * - A "General" and "Random" channel
- * - Pre-installed ChatGPT and Cursor bots
+ * - Pre-installed ChatGPT, Claude, and Cursor bots
  */
 async function actuallyCreateSpace(
     context: ServerActionContext,

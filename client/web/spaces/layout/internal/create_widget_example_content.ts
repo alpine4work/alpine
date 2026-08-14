@@ -7,7 +7,7 @@ import {scenarioMattRHornAvatarContent} from "~/client/web/spaces/layout/interna
 import {scenarioRoseCompasAvatarContent} from "~/client/web/spaces/layout/internal/fixtures/scenario_rose_compas_avatar_content.js";
 import {ThemeColor} from "~/shared/design/core/theme_colors.js";
 import {getObjectKeysWithKeyofType} from "~/shared/helpers/object/get_object_keys_with_keyof_type.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export type CreateWidgetExamplePerson = {
     readonly name: string;

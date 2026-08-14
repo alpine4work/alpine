@@ -45,7 +45,7 @@ import {DefaultWeakMap} from "~/shared/helpers/map/default_weak_map.js";
 import {clamp} from "~/shared/helpers/number/clamp.open_source.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {parseUserInputSafeUrl} from "~/shared/helpers/string/parse_user_input_safe_url.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 declare module "prosemirror-model" {
     // Augment `NodeType` with the undocumented `groups` array.

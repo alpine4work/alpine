@@ -6,7 +6,7 @@ import {ModalDialog} from "~/client/web/design/modal_dialog.js";
 import {useReporter} from "~/client/web/design/reporter.js";
 import {useEvent} from "~/client/web/helpers/lifecycle/use_event.js";
 import {trimContentFragmentEndPos} from "~/shared/content/trim_content.js";
-import {Platform} from "~/shared/design/core/platform.open_source.js";
+import {Platform} from "~/shared/design/core/platform.js";
 import {PostContent, PostContentWithReferences} from "~/shared/forum/post_content_schema.js";
 import {
     PromiseResolver,

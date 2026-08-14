@@ -2,9 +2,9 @@ import {
     tracerEventDataDynamoConsumedCapacityKeys,
     tracerEventDataDynamoPartitionTypesByTableName,
 } from "~/server/tracer/tracer_event_data_dynamo.js";
-import {allPlatforms} from "~/shared/design/core/platform.open_source.js";
-import {allRouteLayouts} from "~/shared/design/core/route_layout.open_source.js";
-import {allSpacingScales} from "~/shared/design/core/spacing_scale.open_source.js";
+import {allPlatforms} from "~/shared/design/core/platform.js";
+import {allRouteLayouts} from "~/shared/design/core/route_layout.js";
+import {allSpacingScales} from "~/shared/design/core/spacing_scale.js";
 import {DateString, isDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.open_source.js";
@@ -15,7 +15,7 @@ import {
     Schema,
     SchemaDeserializationError,
     SchemaWithOnlyDeserialization,
-} from "~/shared/schema/schema.open_source.js";
+} from "~/shared/schema/schema.js";
 import {TracerEventFlatData} from "~/shared/tracer/helpers/build_tracer_event_flat_data.open_source.js";
 import {
     TracerEventHttpHeaderName,
@@ -24,11 +24,9 @@ import {
 import {
     TracerEventHttpSearchParamName,
     tracerEventHttpSearchParamNames,
-} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.open_source.js";
-import {
-    TracerEventDataBase,
-    TracerEventFullData,
-} from "~/shared/tracer/types/tracer_event_data.open_source.js";
+} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
+import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
+import {TracerEventDataBase} from "~/shared/tracer/types/tracer_event_data_types.open_source.js";
 
 type TracerEventDataSchemaType<Data extends TracerEventDataBase> = {
     [Key in keyof Data]-?: NonNullable<Data[Key]> extends TracerEventDataBase
@@ -461,6 +459,13 @@ const TracerEventDataSchema = {
             action: Schema.string,
             databaseName: Schema.string,
         },
+        containers: {
+            id: Schema.string,
+        },
+        queues: {
+            messageId: Schema.string,
+            queueDurationMs: Schema.float,
+        },
     },
     github: {
         compareUrl: Schema.string,
@@ -627,6 +632,19 @@ const TracerEventDataSchema = {
                 startedTime: DateStringSchema,
                 previousStartedTime: DateStringSchema,
                 previousUsedMillicents: Schema.integer,
+            },
+        },
+        web: {
+            storage: {
+                totalDurationMs: Schema.float,
+                totalGetCallCount: Schema.integer,
+                totalGetDurationMs: Schema.float,
+                totalPutCallCount: Schema.integer,
+                totalPutDurationMs: Schema.float,
+                totalDeleteCallCount: Schema.integer,
+                totalDeleteDurationMs: Schema.float,
+                totalListCallCount: Schema.integer,
+                totalListDurationMs: Schema.float,
             },
         },
     },

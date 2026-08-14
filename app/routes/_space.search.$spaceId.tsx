@@ -6,7 +6,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {searchByAffinity} from "~/server/search/data/index/search_entity_index.js";
 import * as searchRpcDefinitions from "~/shared/rpc/search_rpc_definitions.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     affinitySearch: searchRpcDefinitions.searchByAffinity.outputSchema,

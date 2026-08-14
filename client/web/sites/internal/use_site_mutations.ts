@@ -15,10 +15,10 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
+import {SiteSideBarSectionId} from "~/shared/id/types/id_types.js";
 import {
     ChannelId,
     DocumentId,
-    SiteSideBarSectionId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";

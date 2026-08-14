@@ -1,7 +1,7 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import {
     AgentWebInboxPageStatus,
@@ -22,12 +22,24 @@ import {
 } from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
+
 const {span} = testTracer.startSpan("call_agent_web_read_tool_for_inbox.test.ts");
 const api = new ApiClientMock();
 const spaceId = generateId<SpaceId>();
 const storage = createAgentWebSessionStorageForTest(spaceId);
 
 const aliceId = generateId<AccountId>();
+const aliceAccountReference = {
+    type: "Account" as const,
+    id: aliceId,
+    title: "Alice Smith",
+    shortName: "Alice",
+};
 
 const context: AgentWebContext = {
     spaceId,
@@ -36,12 +48,8 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: generateId<AccountId>(),
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: generateId<BotId>()},
-        pathname: "/bot/chatgpt",
     },
 };
 
@@ -56,11 +64,10 @@ beforeEach(async () => {
 
     // Register the human's account stored link first so `/human/alice-smith/inbox`
     // routes to it.
-    await createAgentWebPageStoredLinkPathname(storage, {
-        type: "Account",
-        id: aliceId,
-        title: "Alice Smith",
-        shortName: "Alice",
+    await createAgentWebPageStoredLinkPathname(storage, aliceAccountReference);
+    api.mockGet("/accounts/{id}-reference", {
+        params: {path: {id: aliceId}},
+        data: {reference: aliceAccountReference},
     });
 });
 

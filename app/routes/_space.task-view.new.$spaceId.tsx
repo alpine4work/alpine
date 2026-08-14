@@ -18,8 +18,8 @@ import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_f
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {BrowserId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {BrowserId} from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     deserializeTaskQueryFiltersSearchParam,

@@ -1,31 +1,34 @@
-import type {Platform} from "~/shared/design/core/platform.open_source.js";
-import type {RouteLayout} from "~/shared/design/core/route_layout.open_source.js";
-import type {SpacingScale} from "~/shared/design/core/spacing_scale.open_source.js";
+import type {Platform} from "~/shared/design/core/platform.js";
+import type {RouteLayout} from "~/shared/design/core/route_layout.js";
+import type {SpacingScale} from "~/shared/design/core/spacing_scale.js";
 import type {DateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {
-    AccountId,
     ApnsConnectionId,
-    BotId,
     BrowserId,
+    NotificationEventId,
+    NotionImportId,
+    TaskActionTransactionId,
+    WebSocketConnectionId,
+} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    BotId,
     ChannelId,
     ChatId,
     DocumentId,
     FileId,
-    NotificationEventId,
-    NotionImportId,
     PostId,
     RealmId,
     SiteId,
     SpaceId,
-    TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
     TraceId,
     TraceSpanId,
-    WebSocketConnectionId,
 } from "~/shared/id/types/id_types.open_source.js";
 import type {TracerEventHttpHeaderName} from "~/shared/tracer/helpers/tracer_event_http_header_names.open_source.js";
-import type {TracerEventHttpSearchParamName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.open_source.js";
+import type {TracerEventHttpSearchParamName} from "~/shared/tracer/helpers/tracer_event_http_search_param_name.js";
+import type {TracerEventJsHost} from "~/shared/tracer/types/tracer_event_data_types.open_source.js";
 
 /**
  * All data available in an event.
@@ -131,7 +134,7 @@ export type TracerEventFullData = TracerEventData & {
     };
 };
 
-export type TracerEventExceptionDataBase = {
+type TracerEventPrivateExceptionDataBase = {
     /** The type of an exception. Always one of our `ErrorCode` types. */
     readonly type?: string;
 
@@ -148,13 +151,13 @@ export type TracerEventExceptionDataBase = {
     readonly displayMessage?: string;
 };
 
-export type TracerEventExceptionDataBaseWithCause = TracerEventExceptionDataBase & {
+type TracerEventPrivateExceptionDataBaseWithCause = TracerEventPrivateExceptionDataBase & {
     /**
      * If this error was caused by another error, we'll include the cause's information
      * here nested underneath. Can include up to two causes.
      */
-    readonly cause?: TracerEventExceptionDataBase & {
-        readonly cause?: TracerEventExceptionDataBase;
+    readonly cause?: TracerEventPrivateExceptionDataBase & {
+        readonly cause?: TracerEventPrivateExceptionDataBase;
     };
 };
 
@@ -325,7 +328,7 @@ export type TracerEventData = {
      * [1]:
      *     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
      */
-    readonly exception?: TracerEventExceptionDataBaseWithCause & {
+    readonly exception?: TracerEventPrivateExceptionDataBaseWithCause & {
         /**
          * Is this an original exception? True if this is the first span we're adding this
          * exception to and undefined if this exception has been propagated.
@@ -355,31 +358,31 @@ export type TracerEventData = {
          * If this is an aggregate error then this is the first of five errors included in
          * tracing.
          */
-        readonly aggregated1?: TracerEventExceptionDataBaseWithCause;
+        readonly aggregated1?: TracerEventPrivateExceptionDataBaseWithCause;
 
         /**
          * If this is an aggregate error then this is the second of five errors included in
          * tracing.
          */
-        readonly aggregated2?: TracerEventExceptionDataBaseWithCause;
+        readonly aggregated2?: TracerEventPrivateExceptionDataBaseWithCause;
 
         /**
          * If this is an aggregate error then this is the third of five errors included in
          * tracing.
          */
-        readonly aggregated3?: TracerEventExceptionDataBaseWithCause;
+        readonly aggregated3?: TracerEventPrivateExceptionDataBaseWithCause;
 
         /**
          * If this is an aggregate error then this is the fourth of five errors included in
          * tracing.
          */
-        readonly aggregated4?: TracerEventExceptionDataBaseWithCause;
+        readonly aggregated4?: TracerEventPrivateExceptionDataBaseWithCause;
 
         /**
          * If this is an aggregate error then this is the fifth of five errors included in
          * tracing.
          */
-        readonly aggregated5?: TracerEventExceptionDataBaseWithCause;
+        readonly aggregated5?: TracerEventPrivateExceptionDataBaseWithCause;
     };
 
     /**
@@ -1425,6 +1428,21 @@ export type TracerEventData = {
             /** The attempt number of a Cloudflare D1 deployment. */
             readonly databaseName?: string;
         };
+
+        /** Information related to Cloudflare containers. */
+        readonly containers?: {
+            /** The ID of the Cloudflare container. */
+            readonly id?: string;
+        };
+
+        /** Information related to Cloudflare queues. */
+        readonly queues?: {
+            /** The message ID of the event in the queue. */
+            readonly messageId?: string;
+
+            /** How much time did the event spend in the queue? */
+            readonly queueDurationMs?: number;
+        };
     };
 
     /**
@@ -1846,6 +1864,39 @@ export type TracerEventData = {
                 readonly previousUsedMillicents?: number;
             };
         };
+
+        /** Data regarding the agent web system. */
+        readonly web?: {
+            /** Data regarding the agent web session storage. */
+            readonly storage?: {
+                /** How much time did we spend in session storage requests? */
+                readonly totalDurationMs?: number;
+
+                /** How many collection get calls were made? */
+                readonly totalGetCallCount?: number;
+
+                /** How much time was spent in collection get calls? */
+                readonly totalGetDurationMs?: number;
+
+                /** How many collection put calls were made? */
+                readonly totalPutCallCount?: number;
+
+                /** How much time was spent in collection put calls? */
+                readonly totalPutDurationMs?: number;
+
+                /** How many collection delete calls were made? */
+                readonly totalDeleteCallCount?: number;
+
+                /** How much time was spent in collection delete calls? */
+                readonly totalDeleteDurationMs?: number;
+
+                /** How many collection list calls were made? */
+                readonly totalListCallCount?: number;
+
+                /** How much time was spent in collection list calls? */
+                readonly totalListDurationMs?: number;
+            };
+        };
     };
 
     readonly billing?: {
@@ -2036,32 +2087,3 @@ export type TracerEventData = {
         };
     };
 };
-
-/**
- * `TracerEventData` should be assignable to this base type. Useful for doing
- * generic manipulation on tracer event data.
- *
- * Only supports the data types that [Honeycomb supports][1].
- *
- * [1]: https://docs.honeycomb.io/api/events/#data-types
- */
-export type TracerEventDataBase = {
-    [key: string]: TracerEventDataBase | string | number | boolean | undefined;
-};
-
-/**
- * Informal name of the [host][1] running our JavaScript code.
- *
- * Hosts are:
- *
- * - `Web`: A web browser implementing the [HTML specification][2] is our host.
- * - `Node`: A process running [Node.js][3] is our host.
- * - `CloudflareWorker`: The [Cloudflare Workers][4] serverless runtime is our
- *   host.
- *
- * [1]: https://262.ecma-international.org/13.0/#sec-hosts-and-implementations
- * [2]: https://html.spec.whatwg.org
- * [3]: https://nodejs.org/en/
- * [4]: https://developers.cloudflare.com/workers/
- */
-export type TracerEventJsHost = "Web" | "Node" | "CloudflareWorker";

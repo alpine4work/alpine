@@ -1,5 +1,8 @@
 import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_page_stored_link_key.open_source.js";
-import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {
+    ApiDocumentReference,
+    ApiMentionReferenceResponse,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     FileContentType,
     getFileContentTypePreferredExtension,
@@ -12,7 +15,6 @@ import {convertToUrlPathnameSlug} from "~/shared/helpers/string/convert_to_url_p
 import {
     ChatId,
     DocumentCommentThreadId,
-    DocumentId,
     FileId,
     PostId,
     TaskId,
@@ -42,8 +44,8 @@ export type AgentWebPageStoredLink =
       }
     | {
           readonly type: "DocumentMessage";
-          readonly id: DocumentId;
-          readonly threadId: DocumentCommentThreadId;
+          readonly document: ApiDocumentReference;
+          readonly id: DocumentCommentThreadId;
           readonly index: number;
           readonly authorShortName: string;
           readonly preview: string;

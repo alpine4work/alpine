@@ -631,7 +631,7 @@ export async function runScreenshotTests({
                 undeclaredOutputsDirectoryPath: testUndeclaredOutputsPath,
                 createTemporaryDirectoryPath: async () => {
                     await fs.mkdir(testTmpdirPath, {recursive: true});
-                    return fs.mkdtemp(joinPath(testTmpdirPath, "cyberworlds_test_"));
+                    return await fs.mkdtemp(joinPath(testTmpdirPath, "cyberworlds_test_"));
                 },
                 outputDirectoryPath: () => joinPath(testUndeclaredOutputsPath, "actual"),
             });
@@ -741,7 +741,7 @@ export async function runScreenshotTests({
                 devEnvPaths.temp,
                 "screenshots_",
                 async temporaryDirectoryPath => {
-                    return actuallyRunScreenshotTests({
+                    return await actuallyRunScreenshotTests({
                         mode,
                         definitions,
                         undeclaredOutputsDirectoryPath: temporaryDirectoryPath,

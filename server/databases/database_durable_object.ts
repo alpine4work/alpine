@@ -31,7 +31,7 @@ import {
     authorizeDatabaseGroupAccess,
     getDatabaseGroupAccessPolicyReplicas,
 } from "~/shared/rpc/database_tables_rpc_definitions.js";
-import {SchemaSerializedValue} from "~/shared/schema/schema.open_source.js";
+import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 
 type DatabaseGroupDurableObjectRoute =
     | "Main"

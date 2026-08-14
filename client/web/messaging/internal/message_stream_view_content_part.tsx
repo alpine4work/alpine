@@ -1,13 +1,10 @@
 import {Node} from "prosemirror-model";
 import {Memo, useMemo} from "react";
 import {ContentView} from "~/client/web/content/content_view.js";
-import {hasStandaloneMarginByContentBlockNodeTypeName} from "~/client/web/content/has_standalone_margin_by_content_block_node_type_name.js";
+import {getSpacingBetweenBlockNodes} from "~/client/web/messaging/internal/get_spacing_between_block_nodes.js";
 import {ContentViewWithReactionParties} from "~/client/web/reactions/content_view_with_reaction_parties.js";
-import {contentStyles, messagingStyles} from "~/client/web/styles/styles.js";
-import {
-    ContentBlockNodeTypeName,
-    isContentListItemNodeTypeName,
-} from "~/shared/content/content_node_type_name.js";
+import {messagingStyles} from "~/client/web/styles/styles.js";
+import {ContentBlockNodeTypeName} from "~/shared/content/content_node_type_name.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {Spacing, spacing} from "~/shared/design/core/spacing.js";
@@ -132,30 +129,11 @@ export function MessageStreamViewContentPart({
 
     const currentBlockNodeTypeName = doc.firstChild!.type.name as ContentBlockNodeTypeName;
 
-    let space: Spacing | null = null;
-
-    if (previousBlockNodeTypeName) {
-        if (reactionsByPos.has(posAttributeOffset)) {
-            space = contentStyles.standaloneBlockMargin;
-        } else if (
-            isContentListItemNodeTypeName(currentBlockNodeTypeName) &&
-            isContentListItemNodeTypeName(previousBlockNodeTypeName)
-        ) {
-            space = contentStyles.paragraphMargin;
-        } else if (
-            currentBlockNodeTypeName === "divider" ||
-            previousBlockNodeTypeName === "divider"
-        ) {
-            space = contentStyles.messageDividerMargin;
-        } else if (
-            hasStandaloneMarginByContentBlockNodeTypeName[currentBlockNodeTypeName] ||
-            hasStandaloneMarginByContentBlockNodeTypeName[previousBlockNodeTypeName]
-        ) {
-            space = contentStyles.standaloneBlockMargin;
-        } else {
-            space = contentStyles.paragraphMargin;
-        }
-    }
+    const space: Spacing | null = getSpacingBetweenBlockNodes({
+        currentBlockNodeTypeName,
+        previousBlockNodeTypeName,
+        previousHasReactions: reactionsByPos.has(posAttributeOffset),
+    });
 
     if (partReactionsByPos.size === 0) {
         return (

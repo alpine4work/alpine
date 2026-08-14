@@ -55,7 +55,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
-import {FileId, PostDraftId, PostId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {FileId, PostId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageContentPayloadParent,
     MessageStreamPartPayload,

@@ -47,7 +47,8 @@ import {
     generateChronologicalId,
     getChronologicalIdTime,
 } from "~/shared/id/chronological_id.open_source.js";
-import {PostDraftId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const context = createTestContext();
 

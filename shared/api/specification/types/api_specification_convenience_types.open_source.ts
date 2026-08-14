@@ -1006,6 +1006,9 @@ export type ApiTaskSetAssigneePatchResponse =
 export type ApiTaskSetParentPatchResponse =
     ApiSpecification.components["schemas"]["TaskSetParentPatch_Response"];
 
+export type ApiBotWebhookCreatedPostEventResponse =
+    ApiSpecification.components["schemas"]["BotWebhookCreatedPostEvent_Response"];
+
 export type ApiDirectChatResponse = ApiSpecification.components["schemas"]["DirectChat_Response"];
 
 export type ApiInboxEntryAccountFeaturedResponse =
@@ -1049,6 +1052,9 @@ export type ApiTaskQueryCollectionsFilterIncludesAllOfOperationResponse =
 
 export type ApiTaskQueryCollectionsFilterExcludesAllOfOperationResponse =
     ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterExcludesAllOfOperation_Response"];
+
+export type ApiDocumentThreadReferenceResponse =
+    ApiSpecification.components["schemas"]["DocumentThreadReference_Response"];
 
 export type ApiMessageStreamToolCallPartCreateCallReferenceResponse =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallReference_Response"];
@@ -1099,6 +1105,9 @@ export type ApiTaskPatchResponse = ApiSpecification.components["schemas"]["TaskP
 
 export type ApiTaskQueryItemResponse =
     ApiSpecification.components["schemas"]["TaskQueryItem_Response"];
+
+export type ApiBotWebhookEventResponse =
+    ApiSpecification.components["schemas"]["BotWebhookEvent_Response"];
 
 export type ApiChatResponse = ApiSpecification.components["schemas"]["Chat_Response"];
 
@@ -1187,9 +1196,6 @@ export type ApiDocumentResponse = ApiSpecification.components["schemas"]["Docume
 
 export type ApiTaskBatchPatchResponse =
     ApiSpecification.components["schemas"]["TaskBatchPatch_Response"];
-
-export type ApiBotWebhookEventResponse =
-    ApiSpecification.components["schemas"]["BotWebhookEvent_Response"];
 
 export type ApiChannelResponse = ApiSpecification.components["schemas"]["Channel_Response"];
 

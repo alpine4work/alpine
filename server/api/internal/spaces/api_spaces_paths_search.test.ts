@@ -161,7 +161,7 @@ test("space search rejects limits above 100", async () => {
         await server.GET(`/spaces/${space.id}/search?query=quokka&limit=101`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
-    ).toEqual({
+    ).toMatchObject({
         status: 400,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {

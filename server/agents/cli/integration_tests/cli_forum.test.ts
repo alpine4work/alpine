@@ -61,7 +61,7 @@ Create was successful. New channel: [Minimal Posts](/channel/minimal-posts).
         await cli.run(`\
 alpine create post 'Post in [Minimal Posts](/channel/minimal-posts).
 
-<post from="[My Bot](/bot/my-bot)">
+<post>
 
 YouTube baseline post.
 
@@ -112,7 +112,7 @@ Initial evidence is ready.
 
 </post>
 
-<comment id="0" from="[My Bot](/bot/my-bot)">
+<comment id="0">
 
 First launch comment.
 
@@ -841,6 +841,85 @@ Paginated comment 11. This comment has enough detail to make the response requir
 <comment id="12" from="[Alice](/human/alice)" time="5 minutes later">
 
 Paginated comment 12. This comment has enough detail to make the response require pagination.
+
+</comment>
+`);
+});
+
+test("read post comments around the post cursor", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+    const channel = await TestChannel.create(cli.session, {name: "Cursor Forum"});
+    const post = await channel.createPost(aliceSession, "Cursor post", {
+        overrideCreatedTime: new Date("2026-05-14T14:55:00.000Z"),
+    });
+
+    await post.sendMessage(aliceSession, "First boundary comment.", {
+        overrideCreatedTime: new Date("2026-05-14T15:00:00.000Z"),
+    });
+    await post.sendMessage(aliceSession, "Second boundary comment.", {
+        overrideCreatedTime: new Date("2026-05-14T15:05:00.000Z"),
+    });
+
+    expect(await cli.run("alpine search 'Cursor post'")).toEqual(
+        expect.stringContaining("(/post/alice-in-cursor-forum-cursor-post)"),
+    );
+
+    expect(await cli.run("alpine read '/post/alice-in-cursor-forum-cursor-post?after=post'"))
+        .toEqual(`\
+Comments on [post](/post/alice-in-cursor-forum-cursor-post).
+
+<time>May 14th at 11:00am EDT</time>
+
+<comment id="0" from="[Alice](/human/alice)">
+
+First boundary comment.
+
+</comment>
+
+<comment id="1" from="[Alice](/human/alice)" time="5 minutes later">
+
+Second boundary comment.
+
+</comment>
+
+End of comments.
+`);
+
+    expect(await cli.run("alpine read '/post/alice-in-cursor-forum-cursor-post?before=post'"))
+        .toEqual(`\
+Comments on [post](/post/alice-in-cursor-forum-cursor-post).
+`);
+});
+
+test("read a bounded range of post comments from the end", async () => {
+    const aliceSession = await cli.session.space.createSession({name: "Alice"});
+    const channel = await TestChannel.create(cli.session, {name: "Bounded Forum"});
+    const post = await channel.createPost(aliceSession, "Bounded post", {
+        overrideCreatedTime: new Date("2026-05-14T14:55:00.000Z"),
+    });
+
+    for (let index = 0; index < 3; index++) {
+        await post.sendMessage(aliceSession, `Bounded comment ${index}.`, {
+            overrideCreatedTime: new Date(Date.UTC(2026, 4, 14, 15, index * 5)),
+        });
+    }
+
+    expect(await cli.run("alpine search 'Bounded post'")).toEqual(
+        expect.stringContaining("(/post/alice-in-bounded-forum-bounded-post)"),
+    );
+
+    expect(
+        await cli.run(
+            "alpine read '/post/alice-in-bounded-forum-bounded-post?from=end&after=0&before=2'",
+        ),
+    ).toEqual(`\
+Comments on [post](/post/alice-in-bounded-forum-bounded-post).
+
+<time>May 14th at 11:05am EDT</time>
+
+<comment id="1" from="[Alice](/human/alice)">
+
+Bounded comment 1.
 
 </comment>
 `);

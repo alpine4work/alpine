@@ -28,6 +28,7 @@ import {
 import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
 import {
     chatGptKnownBotId,
+    claudeKnownBotId,
     cursorKnownBotId,
 } from "~/server/bots/settings_default_known_bot_account_model_data.js";
 import {getBotSettingsAccount} from "~/server/bots/with_spaces/get_bot_settings_account.js";
@@ -38,10 +39,11 @@ import {BotSettingsAccountSchema} from "~/shared/bots/bot_settings_account_schem
 import {SettingsDefaultKnownBotAccountModelDataBase} from "~/shared/bots/settings_default_known_bot_account_model_data_types.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     chatGptBotAccount: BotSettingsAccountSchema,
+    claudeBotAccount: BotSettingsAccountSchema,
     cursorBotAccount: BotSettingsAccountSchema,
 });
 
@@ -63,23 +65,31 @@ export async function loader({context: unauthenticatedContext, params}: LoaderAr
 
     const consistency: DynamoCacheReadConsistency = "StrongWithinCache";
 
-    const [chatGptBotAccount, cursorBotAccount] = await runAllPromises([
+    const [chatGptBotAccount, claudeBotAccount, cursorBotAccount] = await runAllPromises([
         getBotSettingsAccount(context, spaceId, chatGptKnownBotId, {consistency}),
+        getBotSettingsAccount(context, spaceId, claudeKnownBotId, {consistency}),
         getBotSettingsAccount(context, spaceId, cursorKnownBotId, {consistency}),
     ]);
 
     return jsonWithSchema(LoaderSchema, {
         chatGptBotAccount,
+        claudeBotAccount,
         cursorBotAccount,
     });
 }
 
 export default function SpaceBotListSettingsRoute() {
-    const {chatGptBotAccount, cursorBotAccount} = useLoaderDataWithSchema(LoaderSchema);
+    const {chatGptBotAccount, claudeBotAccount, cursorBotAccount} =
+        useLoaderDataWithSchema(LoaderSchema);
 
     const chatGptBot = {
         accountData: useBotSettingsAccount(chatGptBotAccount),
         tagline: "AI assistant powered by OpenAI\u2019s models",
+    };
+
+    const claudeBot = {
+        accountData: useBotSettingsAccount(claudeBotAccount),
+        tagline: "AI assistant powered by Anthropic\u2019s models",
     };
 
     const cursorBot = {
@@ -101,6 +111,12 @@ export default function SpaceBotListSettingsRoute() {
         installedBots.push(chatGptBot);
     } else {
         notInstalledBots.push(chatGptBot);
+    }
+
+    if (claudeBot.accountData.space.state.type === "Active") {
+        installedBots.push(claudeBot);
+    } else {
+        notInstalledBots.push(claudeBot);
     }
 
     if (cursorBot.accountData.space.state.type === "Active") {

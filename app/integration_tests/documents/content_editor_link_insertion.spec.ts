@@ -15,7 +15,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
-import {PostDraftId} from "~/shared/id/types/id_types.open_source.js";
+import {PostDraftId} from "~/shared/id/types/id_types.js";
 
 const {context, services} = createTestServices();
 

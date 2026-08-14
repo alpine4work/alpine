@@ -48,6 +48,7 @@ import {
     updateAgentWebTaskSubtasksPage,
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
+import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
     FailedPreconditionError,
@@ -73,26 +74,44 @@ export async function callAgentWebUpdateTool(
             replaceAll: boolean;
         }>;
     },
-): Promise<string> {
+): Promise<{isError: boolean; response: string}> {
     return await context.span.withSpan("Call agent web update tool", async span => {
-        let output: string;
-        const additionalOutput: Array<string> = [];
+        return await withInstrumentedAgentWebSessionStorage(
+            span,
+            context.storage,
+            async storage => {
+                let isError: boolean;
+                let response: string;
+                const additionalOutput: Array<string> = [];
 
-        try {
-            output = await actuallyCallAgentWebUpdateTool({...context, span}, options, {
-                addAdditionalOutput: output => additionalOutput.push(output.trim()),
-            });
-        } catch (error) {
-            span.addException(error);
+                try {
+                    response = await actuallyCallAgentWebUpdateTool(
+                        {...context, span, storage},
+                        options,
+                        {
+                            addAdditionalOutput: output => additionalOutput.push(output.trim()),
+                        },
+                    );
 
-            output = printAgentWebError(`Couldn\u2019t update ${quote(options.path)}`, error);
-        }
+                    isError = false;
+                } catch (error) {
+                    span.addException(error);
 
-        if (additionalOutput.length > 0) {
-            output += `\n\n${additionalOutput.join("\n\n")}`;
-        }
+                    response = printAgentWebError(
+                        `Couldn\u2019t update ${quote(options.path)}`,
+                        error,
+                    );
 
-        return output;
+                    isError = true;
+                }
+
+                if (additionalOutput.length > 0) {
+                    response += `\n\n${additionalOutput.join("\n\n")}`;
+                }
+
+                return {isError, response};
+            },
+        );
     });
 }
 
@@ -126,7 +145,7 @@ async function actuallyCallAgentWebUpdateTool(
     ).withLock(async () => {
         const readResponse = await context.storage.readResponseByPath.get(path);
 
-        if (!readResponse || readResponse.expirationTime.getTime() < Date.now()) {
+        if (!readResponse || readResponse.expirationTime < Date.now()) {
             throw new NotFoundError("Read response not found or expired", {
                 displayMessage: errorDisplayMessage`Can\u2019t call the \`update\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path ${quote(originalPath)} then call the \`update\` tool again.`,
             });
@@ -341,12 +360,12 @@ async function updateAgentWebPageLink(
             const [oldPage, newPage] = await runAllPromises([
                 parseAgentWebDocumentThreadPage(
                     context.storage,
-                    {document: {id: oldPageMetadata.id}, threadId: oldPageMetadata.threadId},
+                    {document: {id: oldPageMetadata.id}, id: oldPageMetadata.threadId},
                     oldResponse,
                 ),
                 parseAgentWebDocumentThreadPage(
                     context.storage,
-                    {document: {id: oldPageMetadata.id}, threadId: oldPageMetadata.threadId},
+                    {document: {id: oldPageMetadata.id}, id: oldPageMetadata.threadId},
                     newResponse,
                 ),
             ]);
@@ -468,6 +487,11 @@ async function updateAgentWebPageLink(
                 newPage,
                 options,
             );
+        }
+        case "MyAccount": {
+            throw new InvalidArgumentError("Can\u2019t update my account page", {
+                displayMessage: errorDisplayMessage`Your identity is decided by how you\u2019ve authenticated and can\u2019t be changed.`,
+            });
         }
         default:
             throw exhaustive(oldPageMetadata);

@@ -12,7 +12,8 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.open_sou
 import {importMultipartUploadPartSize} from "~/shared/files/file_constants.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {NotionImportId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
+import {NotionImportId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {notionImportMaxZipSize} from "~/shared/importer/notion/notion_import_max_zip_size.js";
 
 /**

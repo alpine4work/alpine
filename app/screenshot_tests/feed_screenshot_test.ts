@@ -19,7 +19,7 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.open_source.js
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {unsafelyGenerateStableId} from "~/shared/id/id.open_source.js";
 import {ChatId, PostId, SiteId} from "~/shared/id/types/id_types.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 import {SearchAffinityEntityId} from "~/shared/search/search_entity_id.js";
 
 const screenshotTime = new Date("2025-10-14T17:30:00.000Z");

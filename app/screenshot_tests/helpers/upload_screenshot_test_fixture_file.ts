@@ -67,5 +67,5 @@ export async function uploadScreenshotTestFixtureFile(
 
     if (!responseBody.ok) throw responseBody.error;
 
-    return TestFile.get(session.space, responseBody.file.id);
+    return await TestFile.get(session.space, responseBody.file.id);
 }

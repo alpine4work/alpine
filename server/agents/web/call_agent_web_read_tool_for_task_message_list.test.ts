@@ -3,7 +3,7 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {createApiMessageMock} from "~/server/agents/api/test_helpers/create_api_message_mock.js";
 import {mockApiGetTaskMessages} from "~/server/agents/api/test_helpers/mock_api_get_task_messages.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
-import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
+import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
@@ -12,6 +12,12 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
+
+async function callAgentWebReadTool(
+    ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
+): Promise<string> {
+    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+}
 
 const spaceId = generateId<SpaceId>();
 const taskId = generateId<TaskId>();
@@ -41,21 +47,20 @@ const context: AgentWebContext = {
     span,
     timeZone: defaultTimeZone,
     botAccount: {
-        type: "Account",
         id: generateId<AccountId>(),
-        title: "ChatGPT",
-        shortName: "ChatGPT",
         bot: {id: generateId<BotId>()},
-        pathname: "/bot/chatgpt",
     },
 };
 
 beforeEach(async () => {
-    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(
-        storage,
-        context.botAccount,
-    );
-    assert(actualBotAccountPathname === context.botAccount.pathname);
+    const actualBotAccountPathname = await storeAgentWebPageLinkForTest(storage, {
+        type: "Account",
+        id: context.botAccount.id,
+        title: "ChatGPT",
+        shortName: "ChatGPT",
+        bot: context.botAccount.bot,
+    });
+    assert(actualBotAccountPathname === "/bot/chatgpt");
 
     const actualTaskPathname = await storeAgentWebPageLinkForTest(storage, taskReference);
     assert(actualTaskPathname === taskPath);
@@ -280,4 +285,37 @@ Test message 5
 </comment>
 
 End of comments.`);
+});
+
+test.each([
+    {from: "start", apiFrom: undefined},
+    {from: "end", apiFrom: "End" as const},
+])("reads task comments between before and after cursors from $from", async options => {
+    mockApiGetTaskReference();
+    mockApiGetTaskMessages(api, {
+        spaceId,
+        taskId,
+        from: options.apiFrom,
+        cursor: options.from === "start" ? 39 : 45,
+        totalMessageCount: 90,
+        limit: 5,
+        createMessage: index => createApiMessageMock({index, author}),
+    });
+
+    const {response} = await actuallyCallAgentWebReadTool(context, {
+        path: `${taskCommentsPath}?after=39&before=45&from=${options.from}`,
+        limit: "20kb",
+    });
+
+    expect({
+        commentIndexes: Array.from(response.matchAll(/<comment id="(-?[0-9]+)"/g), match =>
+            Number(match[1]),
+        ),
+        hasPagination: response.includes("Previous page") || response.includes("Next page"),
+        isEndOfComments: response.endsWith("End of comments."),
+    }).toEqual({
+        commentIndexes: [40, 41, 42, 43, 44],
+        hasPagination: false,
+        isEndOfComments: false,
+    });
 });

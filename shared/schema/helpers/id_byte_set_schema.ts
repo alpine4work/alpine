@@ -1,5 +1,5 @@
 import {Id, decodeIdInto, encodeId, idByteLength} from "~/shared/id/id.open_source.js";
-import {Schema} from "~/shared/schema/schema.open_source.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * A more space efficient representation of an unordered set of `Id`s.

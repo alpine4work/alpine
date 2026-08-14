@@ -10,7 +10,7 @@ import {
 } from "~/shared/avatar/avatar_entity_path.js";
 import {getContentReferencesFileSignedUrlSearchExpirationTime} from "~/shared/content/content_references.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
-import {AvatarId} from "~/shared/id/types/id_types.open_source.js";
+import {AvatarId} from "~/shared/id/types/id_types.js";
 import {
     getHeadersTracerData,
     obfuscateCookieHeader,
