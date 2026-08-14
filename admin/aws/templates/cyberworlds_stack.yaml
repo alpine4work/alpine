@@ -4526,6 +4526,7 @@ Resources:
                       - --port=4000
                       - --edgeServiceUrl=https://alpine.inc
                       - --agentServiceUrl=https://agent-service.cyberworlds.workers.dev
+                      - --agentV2ServiceUrl=https://agent-v2-service.cyberworlds.workers.dev
                       - --resourceServiceUrl=https://resources.alpine.inc
                       - Fn::Join:
                             - ""

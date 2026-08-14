@@ -31,6 +31,7 @@ type AgentServiceRoute =
     | {type: "ChatGptWebhook"}
     | {type: "ChatGptConversationState"}
     | {type: "ClaudeWebhook"}
+    | {type: "ClaudeConversationState"}
     | {type: "CursorWebhook"}
     | {type: "CursorCloudAgentsWebhook"; durableObjectId: string; agentId: string}
     | {type: "MockWebhook"; bot: "ChatGpt" | "Cursor"}
@@ -77,6 +78,11 @@ async function handleFetch(
             case "/claude/webhook": {
                 routeString = "/claude/webhook";
                 route = {type: "ClaudeWebhook"};
+                break;
+            }
+            case "/claude/conversation-state": {
+                routeString = "/claude/conversation-state";
+                route = {type: "ClaudeConversationState"};
                 break;
             }
             case "/cursor/webhook": {
@@ -287,6 +293,43 @@ bazel run //server/agents/bots_v2/dev
                     }
 
                     return createSimpleOkResponse();
+                }
+                case "ClaudeConversationState": {
+                    const accountId = url.searchParams.get("accountId");
+                    const roomPath = url.searchParams.get("roomPath");
+
+                    if (!accountId)
+                        throw new InvalidArgumentError("Missing `accountId` search param");
+                    if (!roomPath)
+                        throw new InvalidArgumentError("Missing `roomPath` search param");
+
+                    // In development we proxy `/claude/conversation-state` from `AgentService` (always
+                    // running) to `AgentV2Service` (sometimes running), the same way we proxy
+                    // `/claude/webhook`.
+                    const agentV2ServiceUrl = assertExists(env.AGENT_V2_SERVICE_URL);
+
+                    // Point at `AgentV2Service` but keep the original query string \u2014 the whole
+                    // request is `?accountId&roomPath&accessToken`. It's a GET with no body, so we
+                    // must not forward one (a GET subrequest with a body is rejected).
+                    const conversationStateUrl = new URL(
+                        "/claude/conversation-state",
+                        agentV2ServiceUrl,
+                    );
+                    conversationStateUrl.search = url.search;
+
+                    const response = await fetchWithTracer(
+                        span,
+                        conversationStateUrl,
+                        {
+                            serviceName: "AgentV2Service",
+                            route: "/claude/conversation-state",
+                            method: request.method,
+                            headers: request.headers,
+                        },
+                        async response => response,
+                    );
+
+                    return response;
                 }
                 case "CursorWebhook": {
                     // TODO: Re-enable `@typescript-eslint/return-await` after deciding

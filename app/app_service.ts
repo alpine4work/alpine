@@ -325,9 +325,13 @@ async function createAppService({
     );
 
     const agentServiceUrl = options.agentServiceUrl ?? null;
+    const agentV2ServiceUrl = options.agentV2ServiceUrl ?? null;
 
     if (process.env.NODE_ENV !== "test") {
         assertExists(agentServiceUrl, "`agentServiceUrl` option is required in production");
+    }
+    if (process.env.NODE_ENV === "production") {
+        assertExists(agentV2ServiceUrl, "`agentV2ServiceUrl` option is required in production");
     }
 
     let billingContextModule: BillingContextModuleBase;
@@ -612,6 +616,7 @@ async function createAppService({
                 cookieNameSuffix,
                 sessionCookie,
                 agentServiceUrl,
+                agentV2ServiceUrl,
                 webPushVapidPublicKey,
             });
 

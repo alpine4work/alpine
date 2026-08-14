@@ -16,6 +16,7 @@ export type AppServiceConstants = {
             readonly shouldSeedDynamo?: boolean;
             readonly edgeServiceUrl?: string;
             readonly agentServiceUrl?: string;
+            readonly agentV2ServiceUrl?: string;
             readonly opensearchLocalPort?: string;
             readonly opensearchHost?: string;
             readonly taskRealtimeServiceLocalPort?: string;

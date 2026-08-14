@@ -87,6 +87,12 @@ export class LoaderContextModule extends ContextModuleBase {
     public readonly agentServiceUrl: string | null;
 
     /**
+     * Defines the Agent V2 Service URL. Production callers use this directly instead
+     * of proxying through Agent Service.
+     */
+    public readonly agentV2ServiceUrl: string | null;
+
+    /**
      * The VAPID public key for the app service. We use this to subscribe to web push
      * notifications.
      */
@@ -114,12 +120,14 @@ export class LoaderContextModule extends ContextModuleBase {
             cookieNameSuffix,
             sessionCookie,
             agentServiceUrl,
+            agentV2ServiceUrl,
             webPushVapidPublicKey,
         }: {
             tokenAgent: TokenAgent<TokenAgentAppServicePrivateSide>;
             cookieNameSuffix: string;
             sessionCookie: SessionCookie;
             agentServiceUrl: string | null;
+            agentV2ServiceUrl: string | null;
             webPushVapidPublicKey: string;
         },
     ) {
@@ -129,6 +137,7 @@ export class LoaderContextModule extends ContextModuleBase {
         this.cookieNameSuffix = cookieNameSuffix;
         this.sessionCookie = sessionCookie;
         this.agentServiceUrl = agentServiceUrl;
+        this.agentV2ServiceUrl = agentV2ServiceUrl;
         this.webPushVapidPublicKey = webPushVapidPublicKey;
     }
 

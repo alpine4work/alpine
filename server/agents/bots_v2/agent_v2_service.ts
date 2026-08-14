@@ -1,4 +1,5 @@
 import {AgentV2ServiceEnv} from "~/server/agents/bots_v2/internal/agent_v2_service_env.js";
+import {handleClaudeAgentConversationStateRequest} from "~/server/agents/bots_v2/internal/handle_claude_agent_conversation_state_request.js";
 import {runClaudeAgentWebhook} from "~/server/agents/bots_v2/internal/run_claude_agent_webhook.js";
 import {AwsRequestSigner} from "~/server/helpers/aws_request_signer.js";
 import {createSimpleErrorResponse} from "~/server/helpers/create_simple_error_response.js";
@@ -8,7 +9,10 @@ import {InternalError} from "~/shared/error/error.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
-type AgentV2ServiceRoute = {type: "ClaudeWebhook"} | {type: "NotFound"};
+type AgentV2ServiceRoute =
+    | {type: "ClaudeWebhook"}
+    | {type: "ClaudeConversationState"}
+    | {type: "NotFound"};
 
 function createTracer(env: AgentV2ServiceEnv, executionContext: ExecutionContext) {
     const streamName = env.KINESIS_TRACER_STREAM_NAME;
@@ -66,6 +70,11 @@ async function handleFetch(
             route = {type: "ClaudeWebhook"};
             break;
         }
+        case "/claude/conversation-state": {
+            routeString = "/claude/conversation-state";
+            route = {type: "ClaudeConversationState"};
+            break;
+        }
         default: {
             routeString = "/*";
             route = {type: "NotFound"};
@@ -96,6 +105,9 @@ async function handleFetch(
                         }
                         throw error;
                     }
+                }
+                case "ClaudeConversationState": {
+                    return await handleClaudeAgentConversationStateRequest(span, request, env);
                 }
                 default:
                     throw exhaustive(route);

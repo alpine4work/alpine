@@ -58,6 +58,7 @@ export const options = {
     webPushVapidPrivateKey: {type: "string"},
     agentServiceLocalPort: {type: "string"},
     agentServiceUrl: {type: "string"},
+    agentV2ServiceUrl: {type: "string"},
     chatGptLocalUnscopedApiKey: {type: "string"},
     chatGptLocalScopedApiKey: {type: "string"},
     chatGptWebhookSecret: {type: "string"},
