@@ -79,6 +79,7 @@ import {isRangeContained} from "~/shared/helpers/geometry/is_range_contained.js"
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {hasDatabasesFeature} from "~/shared/spaces/has_databases_feature.js";
 import {alpineCompanyKnownSpaceId} from "~/shared/spaces/known_space_ids.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 
@@ -120,8 +121,7 @@ export function CreateWidgetSecondaryMenuBar({
     const canRenderSiteButton =
         process.env.NODE_ENV !== "production" || space.id === alpineCompanyKnownSpaceId;
     const siteButtonRef = useRef<HTMLElement & {press(): void}>(null);
-    const canRenderDatabaseButton =
-        process.env.NODE_ENV !== "production" || space.id === alpineCompanyKnownSpaceId;
+    const canRenderDatabaseButton = hasDatabasesFeature(space.id);
     const databaseButtonRef = useRef<HTMLElement & {press(): void}>(null);
     const menuItemRefs = [
         useRef<HTMLElement & {press(): void}>(null),
