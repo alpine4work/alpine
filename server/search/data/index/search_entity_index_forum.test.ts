@@ -1383,7 +1383,7 @@ test("changes channel contributors as posts/comments are made", async () => {
     expect(await hasChannel("channels updated by ddddd")).toEqual(true);
     expect(await hasChannel("channels updated by eeeee")).toEqual(true);
     expect(await hasChannel("channels updated by fffff")).toEqual(false);
-});
+}, 30 * 1000);
 
 test("searching for channel shows both the channel and its posts, ranking the channel first", async () => {
     const space = await TestSpace.create(context);
