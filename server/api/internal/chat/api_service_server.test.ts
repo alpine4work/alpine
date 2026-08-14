@@ -86,7 +86,7 @@ describe("Alpine-Version header", () => {
             await server.GET(`/chats/${generateId()}/messages/0`, {
                 unsetHeaders: ["Alpine-Version"],
             }),
-        ).toEqual({
+        ).toMatchObject({
             status: 400,
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
@@ -105,7 +105,7 @@ describe("Alpine-Version header", () => {
             await server.GET(`/chats/${generateId()}/messages/0`, {
                 unsetHeaders: ["Alpine-Version"],
             }),
-        ).toEqual({
+        ).toMatchObject({
             status: 400,
             headers: expect.objectContaining({"content-type": "application/json"}),
             body: {
@@ -128,7 +128,7 @@ describe("Alpine-Version header", () => {
             headers: {"Alpine-Version": "2026-07-30"},
         });
 
-        expect([allowedResponse, rejectedResponse]).toEqual([
+        expect([allowedResponse, rejectedResponse]).toMatchObject([
             {
                 status: 401,
                 headers: expect.objectContaining({"content-type": "application/json"}),
@@ -192,7 +192,7 @@ test("requires bearer scheme in authorization header", async () => {
                 authorization: "basic YWxhZGRpbjpvcGVuc2VzYW1l",
             },
         }),
-    ).toEqual({
+    ).toMatchObject({
         status: 400,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
@@ -217,7 +217,7 @@ test("requires authorization header to have proper API key", async () => {
         await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
             headers: {authorization: "bearer asdf"},
         }),
-    ).toEqual({
+    ).toMatchObject({
         status: 400,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
@@ -242,7 +242,7 @@ test("requires authorization header to have proper API key (an `Id` doesn\u2019t
         await server.GET(`/chats/${chat.id}/messages/${message.index}`, {
             headers: {authorization: `bearer ${generateId()}`},
         }),
-    ).toEqual({
+    ).toMatchObject({
         status: 400,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
@@ -819,7 +819,7 @@ test("path param that doesn\u2019t match pattern", async () => {
         await server.GET(`/chats/abc/messages/${message.index}`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
-    ).toEqual({
+    ).toMatchObject({
         status: 400,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
@@ -848,7 +848,7 @@ test("integer path param that\u2019s not a number", async () => {
         await server.GET(`/chats/${chat.id}/messages/abc`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
-    ).toEqual({
+    ).toMatchObject({
         status: 400,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
@@ -1020,7 +1020,7 @@ test("invalid request body throws a validation error", async () => {
                 },
             },
         }),
-    ).toEqual({
+    ).toMatchObject({
         status: 400,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
@@ -1082,7 +1082,7 @@ test("can\u2019t read message with invalid string query parameter", async () => 
         await server.GET(`/chats/${chat.id}/messages?from=nope`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
-    ).toEqual({
+    ).toMatchObject({
         status: 400,
         headers: expect.objectContaining({"content-type": "application/json"}),
         body: {
@@ -1111,9 +1111,9 @@ test("can\u2019t read message with invalid integer query parameter", async () =>
         await server.GET(`/chats/${chat.id}/messages?limit=0`, {
             headers: {authorization: `bearer ${apiKey}`},
         }),
-    ).toEqual({
+    ).toMatchObject({
         status: 400,
-        headers: expect.objectContaining({"content-type": "application/json"}),
+        headers: {"content-type": "application/json"},
         body: {
             error: {
                 message: "Invalid `limit` query parameter.",

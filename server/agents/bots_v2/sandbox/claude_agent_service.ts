@@ -47,6 +47,15 @@ export type ClaudeAgentServiceEvent =
           error: unknown;
       };
 
+// Kill the process if we get an uncaught exception before the tracer initializes.
+function handleUncaughtExceptionBeforeTracerInitialization(error: unknown) {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    process.exit(1);
+}
+
+process.on("uncaughtException", handleUncaughtExceptionBeforeTracerInitialization);
+
 main()
     .then(
         () => {
@@ -54,7 +63,7 @@ main()
         },
         async error => {
             // eslint-disable-next-line no-console
-            console.error(error);
+            console.error("Main failed:", error);
 
             const content: ApiContent = {
                 elements: [
@@ -96,6 +105,24 @@ async function main() {
             "Run Claude agent service",
             request.tracerContext,
             async span => {
+                // Now that we've initialized our tracer, don't crash the process on uncaught
+                // exceptions and instead log the exception with our tracer.
+                process.off("uncaughtException", handleUncaughtExceptionBeforeTracerInitialization);
+                process.on("uncaughtException", (error, origin) => {
+                    switch (origin) {
+                        case "uncaughtException": {
+                            tracer.logException("Uncaught exception", error);
+                            break;
+                        }
+                        case "unhandledRejection": {
+                            tracer.logException("Unhandled rejection", error);
+                            break;
+                        }
+                        default:
+                            throw exhaustive(origin);
+                    }
+                });
+
                 await actuallyMain(span, request);
             },
         );

@@ -159,36 +159,60 @@ export async function runClaudeAgentWebhook(
                 ),
             );
 
-            const sandboxProcess = await span.withSpan("Start sandbox process", async () => {
-                return await sandbox.startProcess(
-                    // eslint-disable-next-line cyberworlds/string-quotes
-                    `node /workspace/claude_agent_service_bundle.mjs '${requestArg}'`,
-                );
-            });
+            const startProcessAndAcknowledgeEvent = async () => {
+                const sandboxProcess = await span.withSpan("Start sandbox process", async () => {
+                    return await sandbox.startProcess(
+                        // eslint-disable-next-line cyberworlds/string-quotes
+                        `node /workspace/claude_agent_service_bundle.mjs '${requestArg}'`,
+                    );
+                });
 
-            // This function will reject if the process exits before the event is acknowledged.
-            try {
-                await span.withSpan("Wait for sandbox to acknowledge event", () =>
-                    sandboxProcess.waitForLog(`Acknowledged event ${requestBody.eventId}`),
-                );
-            } catch (error) {
-                // If we exited with code 3, that's a signal that the sandbox wrote the error
-                // content to `/workspace/error.json`. Read the file and use it as our error
-                // content.
-                if (
-                    isObject(error) &&
-                    isObject(error.errorResponse) &&
-                    isObject(error.errorResponse.context) &&
-                    error.errorResponse.context.exitCode === 3
-                ) {
-                    const {content} = await sandbox.readFile("/workspace/error.json", {
-                        encoding: "utf8",
-                    });
+                // This function will reject if the process exits before the event is acknowledged.
+                try {
+                    await span.withSpan("Wait for sandbox to acknowledge event", () =>
+                        sandboxProcess.waitForLog(`Acknowledged event ${requestBody.eventId}`),
+                    );
+                } catch (error) {
+                    // If we exited with code 3, that's a signal that the sandbox wrote the error
+                    // content to `/workspace/error.json`. Read the file and use it as our error
+                    // content.
+                    if (
+                        isObject(error) &&
+                        isObject(error.errorResponse) &&
+                        isObject(error.errorResponse.context) &&
+                        error.errorResponse.context.exitCode === 3
+                    ) {
+                        const {content} = await sandbox.readFile("/workspace/error.json", {
+                            encoding: "utf8",
+                        });
 
-                    errorContent = JSON.parse(content).content;
+                        errorContent = JSON.parse(content).content;
+                    }
+
+                    throw error;
                 }
+            };
 
-                throw error;
+            const promiseResolver = createPromiseResolver();
+            const timeout = createTimeout(promiseResolver.resolve, 10 * 1000);
+
+            let hasTimedOut = false;
+            try {
+                hasTimedOut = await Promise.race([
+                    promiseResolver.promise.then(() => true),
+                    startProcessAndAcknowledgeEvent().then(() => false),
+                ]);
+            } finally {
+                timeout.clear();
+            }
+
+            // We give `startProcessAndAcknowledgeEvent()` 10 seconds. If it times out then we
+            // assume there's a dead leader so we kill all processes in the sandbox and try
+            // starting the process one more time.
+            if (hasTimedOut) {
+                await span.withSpan("Kill all sandbox processes", () => sandbox.killAllProcesses());
+
+                await startProcessAndAcknowledgeEvent();
             }
 
             // Now it's the sandbox's responsibility to keep the message stream alive. The
@@ -229,24 +253,25 @@ export async function runClaudeAgentWebhook(
         }
     })();
 
-    // We need to respond to Alpine within 10 seconds or else Alpine will retry the
-    // webhook. So wait 8 seconds and then if the message hasn't been acknowledged in
-    // that time it probably means the agent is working. So finish the webhook request
-    // and register `evaluationContext.waitUntil()` to have Cloudflare wait for 30 more
-    // seconds.
-    const promiseResolver = createPromiseResolver();
-    const timeout = createTimeout(promiseResolver.resolve, 8 * 1000);
+    {
+        // We need to respond to Alpine within 10 seconds or else Alpine will retry the
+        // webhook. So wait 8 seconds and then if the message hasn't been acknowledged in
+        // that time it probably means the agent is working. So finish the webhook request
+        // and register `evaluationContext.waitUntil()` to have Cloudflare wait for 30 more
+        // seconds.
+        const promiseResolver = createPromiseResolver();
+        const timeout = createTimeout(promiseResolver.resolve, 8 * 1000);
 
-    try {
-        await Promise.race([promiseResolver.promise, promise]);
-    } finally {
-        timeout.clear();
-        promiseResolver.resolve();
+        try {
+            await Promise.race([promiseResolver.promise, promise]);
+        } finally {
+            timeout.clear();
+        }
+
+        // Wait on `promise` to complete for 30 more seconds. This should be enough time to
+        // spin up the container and start running Claude.
+        evaluationContext.waitUntil(promise);
     }
-
-    // Wait on `promise` to complete for 30 more seconds. This should be enough time to
-    // spin up the container and start running Claude.
-    evaluationContext.waitUntil(promise);
 
     return createSimpleOkResponse();
 }
