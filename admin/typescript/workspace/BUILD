@@ -27,6 +27,9 @@ js_binary(
     entry_point = "workspace_typescript_test.cjs",
     env = {
         "NODE_ENV": "test",
+        # The combined workspace TypeScript and type-aware ESLint program exceeds
+        # Node's default heap limit.
+        "NODE_OPTIONS": "--max-old-space-size=8192",
         # Make sure `chalk` (used by ESLint) always renders colors. Bazel will strip
         # Ansi codes when appropriate.
         "FORCE_COLOR": "1",
