@@ -1,7 +1,12 @@
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 
 export type ClaudeAgentConversationState = {
-    /** The sandbox's persisted `state.json`, or `null` if it hasn't run yet. */
+    /**
+     * The sandbox's persisted `state.json`, falling back to the
+     * `last-known-state.json` archived when a run errored, or `null` if it hasn't run
+     * yet.
+     */
     readonly state: unknown;
 
     /** The Claude Agent SDK session the transcript below belongs to. */
@@ -32,6 +37,11 @@ export type ClaudeAgentConversationState = {
  * order, so a key sort is chronological. Deeper paths under `sessions/` are
  * subagent transcripts, which we skip.
  *
+ * When a run errors, the sandbox archives `state.json` as `last-known-state.json`
+ * before resetting the bucket (see the "nuclear option" in `run_claude_agent.ts`),
+ * so we fall back to the archive — the debugger is most useful right after an
+ * error.
+ *
  * Lenient by design (this backs a debug view): a missing `state.json` means
  * "hasn't run yet" and returns nulls rather than throwing, and unparseable
  * transcript lines are dropped.
@@ -42,11 +52,24 @@ export async function readClaudeAgentConversationStateFromBucket(
 ): Promise<ClaudeAgentConversationState> {
     const prefix = `sandbox/${sandboxId}/`;
 
+    // If an error was thrown during hte last execution, we delete the `state.json` to
+    // avoid corrupted state in future executions. Before we delete the `state.json`,
+    // we archive it as `last-known-state.json`. When we load the state for the
+    // conversation, we fallback to the last-known-state.json if the default state.json
+    // is not found.
+    const [defaultStateObject, lastKnownStateObject] = await runAllPromises([
+        (async () =>
+            (await bucket.get(`${prefix}state.json`)) ??
+            (await bucket.get(`/${prefix}state.json`)))(),
+        (async () =>
+            (await bucket.get(`${prefix}last-known-state.json`)) ??
+            (await bucket.get(`/${prefix}last-known-state.json`)))(),
+    ]);
+
     // Try the object key both with and without the leading slash since the mount
     // library's key mapping isn't documented (matches
     // `check_claude_agent_approval_decision_event.ts`).
-    const stateObject =
-        (await bucket.get(`${prefix}state.json`)) ?? (await bucket.get(`/${prefix}state.json`));
+    const stateObject = defaultStateObject ?? lastKnownStateObject;
 
     const state = stateObject === null ? null : parseJsonOrNull(await stateObject.text());
     const sessionId =

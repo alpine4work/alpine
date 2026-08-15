@@ -346,11 +346,13 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
                             {payload: part.payload},
                         );
                     } catch (error) {
-                        // TODO: Remove this. Quite useful right now though as we're debugging some
-                        // issues with failed message stream part payloads.
-                        //
-                        // eslint-disable-next-line no-console
-                        console.error("Put message stream part failed with payload:", part.payload);
+                        // TODO: Remove this. Quite useful right now though as we're debugging some issues
+                        // with failed message stream part payloads.
+                        span.log("Put message stream part failed with payload", {
+                            exception: {
+                                message: JSON.stringify(part.payload),
+                            },
+                        });
 
                         throw error;
                     }

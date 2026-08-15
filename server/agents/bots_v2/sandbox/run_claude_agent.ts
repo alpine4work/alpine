@@ -131,11 +131,40 @@ export async function runClaudeAgent(parentSpan: TracerSpan, options: RunClaudeA
             // won't use the session store to persist the session if an error is thrown. So we
             // get into a bad state if we have a `sessionId` in `ClaudeAgentSessionStore` but
             // that session doesn't exist in the R2 bucket because an error was thrown.
-            await parentSpan.withSpan("Delete all Claude agent storage after error", async () => {
+            await parentSpan.withSpan("Delete all Claude agent storage after error", async span => {
+                await fs
+                    .copyFile(
+                        "/workspace/bucket/state.json",
+                        "/workspace/bucket/last-known-state.json",
+                    )
+                    .then(
+                        () => {},
+                        // Archiving is best-effort. Recording the exception on the span must never block
+                        // the reset below.
+                        copyError => {
+                            // No `state.json` means there's nothing new to archive. Keep the previous archive,
+                            // if any.
+                            if (isObject(copyError) && copyError.code === "ENOENT") return;
+                            span.addException(copyError);
+                        },
+                    );
+
                 await runAllPromises(
-                    (await fs.readdir("/workspace/bucket")).map(name =>
-                        fs.rm(`/workspace/bucket/${name}`, {recursive: true}),
-                    ),
+                    (await fs.readdir("/workspace/bucket"))
+                        // We do keep two things for debugging. Neither is visible to the next attempt,
+                        // which only reads `state.json`:
+                        //
+                        // - `state.json` is archived as `last-known-state.json` (overwriting any previous
+                        //   archive) so the conversation state debugger can show what happened right
+                        //   before the error (see `read_claude_agent_conversation_state_from_bucket.ts`).
+                        // - The `sessions/` transcripts, which the archived `sessionId` points at. These
+                        //   orphans are inert by construction: the SDK's `SessionStore` interface is
+                        //   key-addressed with no list operation, so a session is only ever read by an
+                        //   exact id passed through the `resume` option — and the only source of that id
+                        //   is the `state.json` we delete here. The next run comes up with
+                        //   `sessionId: null`, resumes nothing, and mints a fresh session id.
+                        .filter(name => name !== "last-known-state.json" && name !== "sessions")
+                        .map(name => fs.rm(`/workspace/bucket/${name}`, {recursive: true})),
                 );
             });
 
