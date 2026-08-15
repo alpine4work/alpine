@@ -125,24 +125,35 @@ export function createApiClient({
                             body: requestBody,
                             signal: request.signal,
                         },
-                        async response => {
+                        async (response, span) => {
                             // If the request failed, then throw an error. We want to mark this span as failed
                             // and we don't want to handle errors inline.
                             if (!response.ok) {
                                 const responseBody: ApiErrorResponse = await response.json();
 
-                                // TODO: Remove this. Quite useful right now though as we're
-                                // debugging some issues with failed message stream part payloads.
-                                // Placed here, inside the retry loop, so every failed attempt logs
-                                // its request body — including attempts the retry loop swallows
-                                // when a later attempt succeeds.
+                                // TODO: Remove this. Quite useful right now though as we're debugging some issues
+                                // with failed message stream part payloads. Placed here, inside the retry loop, so
+                                // every failed attempt logs its request body — including attempts the retry loop
+                                // swallows when a later attempt succeeds.
+                                //
+                                // Logged to both channels: the console is visible in development (where sandbox
+                                // stdout/stderr is forwarded to worker logs), and the span event is visible in
+                                // production (where sandbox console output isn't collected, but tracer events
+                                // reach Honeycomb attached to this request's fetch span).
+                                const requestBodyText =
+                                    requestBody === null
+                                        ? null
+                                        : new TextDecoder().decode(requestBody);
+
                                 // eslint-disable-next-line no-console
                                 console.error(
                                     `API request to \`${schemaPath}\` failed with body`,
-                                    requestBody === null
-                                        ? null
-                                        : new TextDecoder().decode(requestBody),
+                                    requestBodyText,
                                 );
+
+                                span.log(`API request to \`${schemaPath}\` failed with body`, {
+                                    exception: {message: requestBodyText ?? undefined},
+                                });
 
                                 // Our API doesn't share the internal `ErrorCode` we use, so infer an error code
                                 // from the HTTP status code.
