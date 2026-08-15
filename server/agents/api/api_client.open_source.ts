@@ -131,6 +131,19 @@ export function createApiClient({
                             if (!response.ok) {
                                 const responseBody: ApiErrorResponse = await response.json();
 
+                                // TODO: Remove this. Quite useful right now though as we're
+                                // debugging some issues with failed message stream part payloads.
+                                // Placed here, inside the retry loop, so every failed attempt logs
+                                // its request body — including attempts the retry loop swallows
+                                // when a later attempt succeeds.
+                                // eslint-disable-next-line no-console
+                                console.error(
+                                    `API request to \`${schemaPath}\` failed with body`,
+                                    requestBody === null
+                                        ? null
+                                        : new TextDecoder().decode(requestBody),
+                                );
+
                                 // Our API doesn't share the internal `ErrorCode` we use, so infer an error code
                                 // from the HTTP status code.
                                 const errorCode = getErrorCodeForHttpStatusCode(response.status);

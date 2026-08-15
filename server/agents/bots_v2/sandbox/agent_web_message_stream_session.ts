@@ -336,26 +336,14 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
                         }
                     }
 
-                    try {
-                        await putApiMessageStreamPart(
-                            span,
-                            this.#apiClient,
-                            this.#room,
-                            this.messageIndex,
-                            part.index,
-                            {payload: part.payload},
-                        );
-                    } catch (error) {
-                        // TODO: Remove this. Quite useful right now though as we're debugging some issues
-                        // with failed message stream part payloads.
-                        span.log("Put message stream part failed with payload", {
-                            exception: {
-                                message: JSON.stringify(part.payload),
-                            },
-                        });
-
-                        throw error;
-                    }
+                    await putApiMessageStreamPart(
+                        span,
+                        this.#apiClient,
+                        this.#room,
+                        this.messageIndex,
+                        part.index,
+                        {payload: part.payload},
+                    );
                 }
             } finally {
                 // Start the ping timeout schedule again since we cleared the timeout earlier.
