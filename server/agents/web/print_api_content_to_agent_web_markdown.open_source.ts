@@ -78,7 +78,7 @@ export async function printApiContentToAgentWebMarkdownTree(
     };
 }
 
-const fileHtmlErrataRegExp =
+const agentWebFileHtmlErrataRegExp =
     /(?: controls| style="flex: [^"]*"| type="[^"]*"|; align-items: stretch|; clear: both)/g;
 
 async function traverseApiContentMarkdownNode(
@@ -137,14 +137,7 @@ async function traverseApiContentMarkdownNode(
                 if (element.type === "Preview") {
                     pageLink = element.reference;
                 } else {
-                    const {file} = element;
-
-                    pageLink = {
-                        type: "File",
-                        id: file.id,
-                        contentType: file.contentType,
-                        contentLength: file.contentLength,
-                    };
+                    pageLink = intoAgentWebFileObject(element.file);
                 }
 
                 const pageLinkPathname = await createAgentWebPageStoredLinkPathname(
@@ -154,16 +147,18 @@ async function traverseApiContentMarkdownNode(
                 const pageLinkLabel =
                     pageLink.type !== "File" ? printAgentWebPageStoredLinkLabel(pageLink) : null;
 
+                // We control the HTML printed by the file element so a simple string replace is
+                // sufficient for printing the right path in agent web markdown.
                 const newValue = node.value
-                    // Strip any accessory attributes that are provided in case the printed HTML is
-                    // actually rendered in a browser. An agent doesn't need these attributes.
-                    .replaceAll(fileHtmlErrataRegExp, "")
-                    // We control the HTML printed by the file element so a simple string replace is
-                    // sufficient for printing the right path in agent web markdown.
+                    .replaceAll(agentWebFileHtmlErrataRegExp, "")
                     .replaceAll(
                         /( alt="[^"]*")?( (?:src|data)=")([^"]*)(")/g,
                         (substring, string1, string2, string3, string4) => {
-                            return `${string1 && pageLinkLabel !== null ? ` alt="${escapeHtml(pageLinkLabel)}"` : ""}${string2}${pageLinkPathname}${string4}`;
+                            const altAttribute =
+                                pageLinkLabel !== null
+                                    ? ` alt="${escapeHtml(pageLinkLabel)}"`
+                                    : (string1 ?? "");
+                            return `${altAttribute}${string2}${pageLinkPathname}${string4}`;
                         },
                     );
 
@@ -194,13 +189,7 @@ async function traverseApiContentMarkdownNode(
                             url = printApiPreviewReferenceToPreviewUrl(item.element.reference);
                         } else {
                             const {file} = item.element;
-
-                            pageLink = {
-                                type: "File",
-                                id: file.id,
-                                contentType: file.contentType,
-                                contentLength: file.contentLength,
-                            };
+                            pageLink = intoAgentWebFileObject(file);
 
                             url = printApiFileContentUrl(file.id);
                         }
@@ -224,18 +213,20 @@ async function traverseApiContentMarkdownNode(
 
                 const pageLinkByUrl = new Map(pageLinkByUrlEntries);
 
+                // We control the HTML printed by each gallery element so a simple string replace
+                // is sufficient for printing the right paths in agent web markdown.
                 const newValue = node.value
-                    // Strip any accessory attributes that are provided in case the printed HTML is
-                    // actually rendered in a browser. An agent doesn't need these attributes.
-                    .replaceAll(fileHtmlErrataRegExp, "")
-                    // We control the HTML printed by the file element so a simple string replace is
-                    // sufficient for printing the right path in agent web markdown.
+                    .replaceAll(agentWebFileHtmlErrataRegExp, "")
                     .replaceAll(
                         /( alt="[^"]*")?( (?:src|data)=")([^"]*)(")/g,
                         (substring, string1, string2, string3, string4) => {
                             const pageLink = pageLinkByUrl.get(string3);
                             if (!pageLink) return substring;
-                            return `${string1 && pageLink.label !== null ? ` alt="${escapeHtml(pageLink.label)}"` : ""}${string2}${escapeHtml(pageLink.pathname)}${string4}`;
+                            const altAttribute =
+                                pageLink.label !== null
+                                    ? ` alt="${escapeHtml(pageLink.label)}"`
+                                    : (string1 ?? "");
+                            return `${altAttribute}${string2}${escapeHtml(pageLink.pathname)}${string4}`;
                         },
                     );
 
@@ -307,13 +298,7 @@ async function traverseApiContentMarkdownNode(
                 // This `fileElement` will always be a response specialization because we print
                 // `ApiContentResponse`.
                 const fileElement = node.data.fileElement as ApiContentFileBlockElementResponse;
-
-                const pageLink: AgentWebPageStoredLink = {
-                    type: "File",
-                    id: fileElement.file.id,
-                    contentType: fileElement.file.contentType,
-                    contentLength: fileElement.file.contentLength,
-                };
+                const pageLink = intoAgentWebFileObject(fileElement.file);
 
                 const pageLinkPathname = await createAgentWebPageStoredLinkPathname(
                     storage,
@@ -321,9 +306,8 @@ async function traverseApiContentMarkdownNode(
                 );
 
                 return {
-                    type: "image",
+                    ...node,
                     url: pageLinkPathname,
-                    alt: null,
                 };
             }
 
@@ -352,6 +336,18 @@ async function traverseApiContentMarkdownNode(
         default:
             return node;
     }
+}
+
+function intoAgentWebFileObject(
+    file: ApiContentFileBlockElementResponse["file"],
+): Extract<AgentWebPageStoredLink, {type: "File"}> {
+    return {
+        type: "File",
+        id: file.id,
+        contentType: file.contentType,
+        contentLength: file.contentLength,
+        ...(file.caption !== undefined ? {caption: file.caption} : {}),
+    };
 }
 
 async function traverseApiContentMarkdownHtmlNode(

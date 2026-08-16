@@ -607,6 +607,9 @@ export async function convertMarkdownTreeToAgentWebMarkdownTree(
                                     id: pageLink.id,
                                     contentType: pageLink.contentType,
                                     contentLength: pageLink.contentLength,
+                                    ...(pageLink.caption !== undefined
+                                        ? {caption: pageLink.caption}
+                                        : {}),
                                 },
                             },
                         },
@@ -815,6 +818,9 @@ async function traverseMarkdownHtmlNode(
                                     id: pageLink.id,
                                     contentType: pageLink.contentType,
                                     contentLength: pageLink.contentLength,
+                                    ...(pageLink.caption !== undefined
+                                        ? {caption: pageLink.caption}
+                                        : {}),
                                 },
                             };
 

@@ -61,7 +61,7 @@ export function convertToUrlPathnameSlug(
         ) {
             string = limitedString;
         } else {
-            string = limitedString.slice(0, lastSeparatorIndex - 1);
+            string = limitedString.slice(0, lastSeparatorIndex);
         }
     }
 

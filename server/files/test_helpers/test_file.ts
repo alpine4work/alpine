@@ -14,6 +14,7 @@ import {TestContext, TestSessionActionContext} from "~/server/spaces/test_helper
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {FileAnalysisResult} from "~/shared/files/file_analysis.js";
 import {FileImagePreviewPlaceholder} from "~/shared/files/file_image_preview_placeholder.js";
 import {FileModel} from "~/shared/files/file_model.js";
 import {FileId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -42,7 +43,11 @@ export const testFileAnalysis = {
     result: {tags: ["test file"]},
 } as const;
 
-export async function uploadTestFile(context: TestSessionActionContext, spaceId: SpaceId) {
+export async function uploadTestFile(
+    context: TestSessionActionContext,
+    spaceId: SpaceId,
+    {analysis = testFileAnalysis.result}: {analysis?: FileAnalysisResult} = {},
+) {
     const {fileId} = await startUploadingFile(context, {
         spaceId,
         contentType: "image/png",
@@ -80,7 +85,7 @@ export async function uploadTestFile(context: TestSessionActionContext, spaceId:
         testFileImagePreviewPlaceholder,
     );
 
-    await fileUploader.finishProcessingAnalysis(context, testFileAnalysis.result);
+    await fileUploader.finishProcessingAnalysis(context, analysis);
 
     return {fileId};
 }
@@ -103,10 +108,14 @@ export class TestFile {
         this._fromAuthorizer = fromAuthorizer;
     }
 
-    public static async create(session: TestSpaceSession): Promise<TestFile> {
+    public static async create(
+        session: TestSpaceSession,
+        {analysis}: {analysis?: FileAnalysisResult} = {},
+    ): Promise<TestFile> {
         const {fileId} = await uploadTestFile(
             session.context.action(session, {serviceName: "EdgeService"}),
             session.space.id,
+            {analysis},
         );
 
         return new TestFile(session.context, session.space, fileId, null);

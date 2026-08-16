@@ -1625,6 +1625,249 @@ Review this today:
 `,
     },
     {
+        name: "image file element with caption",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "image/png",
+                        contentLength: 100,
+                        caption: "My caption",
+                    },
+                },
+            ],
+        },
+        markdown: `\
+![My caption](/file/my-caption.png)
+`,
+    },
+    {
+        name: "image file elements without analysis dedupe default pathnames",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "image/png",
+                        contentLength: 100,
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file2Id,
+                        contentType: "image/png",
+                        contentLength: 200,
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file3Id,
+                        contentType: "image/png",
+                        contentLength: 300,
+                    },
+                },
+            ],
+        },
+        markdown: `\
+![](/file/image.png)
+
+![](/file/image-2.png)
+
+![](/file/image-3.png)
+`,
+    },
+    {
+        name: "image file elements with different analysis do not dedupe pathnames",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "image/png",
+                        contentLength: 100,
+                        caption: "First caption",
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file2Id,
+                        contentType: "image/png",
+                        contentLength: 200,
+                        caption: "Second caption",
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file3Id,
+                        contentType: "image/png",
+                        contentLength: 300,
+                        caption: "Third caption",
+                    },
+                },
+            ],
+        },
+        markdown: `\
+![First caption](/file/first-caption.png)
+
+![Second caption](/file/second-caption.png)
+
+![Third caption](/file/third-caption.png)
+`,
+    },
+    {
+        name: "image file elements with the same analysis dedupe pathnames",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "image/png",
+                        contentLength: 100,
+                        caption: "Shared caption",
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file2Id,
+                        contentType: "image/png",
+                        contentLength: 200,
+                        caption: "Shared caption",
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file3Id,
+                        contentType: "image/png",
+                        contentLength: 300,
+                        caption: "Shared caption",
+                    },
+                },
+            ],
+        },
+        markdown: `\
+![Shared caption](/file/shared-caption.png)
+
+![Shared caption](/file/shared-caption-2.png)
+
+![Shared caption](/file/shared-caption-3.png)
+`,
+    },
+    {
+        name: "image file elements only dedupe colliding analysis pathnames",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "image/png",
+                        contentLength: 100,
+                        caption: "Shared caption",
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file2Id,
+                        contentType: "image/png",
+                        contentLength: 200,
+                        caption: "Different caption",
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file3Id,
+                        contentType: "image/png",
+                        contentLength: 300,
+                        caption: "Shared caption",
+                    },
+                },
+            ],
+        },
+        markdown: `\
+![Shared caption](/file/shared-caption.png)
+
+![Different caption](/file/different-caption.png)
+
+![Shared caption](/file/shared-caption-2.png)
+`,
+    },
+    {
+        name: "image file elements with a long caption",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "image/png",
+                        contentLength: 100,
+                        caption:
+                            "A detailed photograph of a snowy owl with dramatic white feathers spread wide across a moonlit forest",
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file2Id,
+                        contentType: "image/png",
+                        contentLength: 200,
+                        caption: "Second caption",
+                    },
+                },
+            ],
+        },
+        markdown: `\
+![A detailed photograph of a snowy owl with dramatic white feathers spread wide across a moonlit forest](/file/a-detailed-photograph-of-a-snowy-owl-with.png)
+
+![Second caption](/file/second-caption.png)
+`,
+    },
+    {
+        name: "image file elements with the same long caption dedupe pathnames",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "image/png",
+                        contentLength: 100,
+                        caption:
+                            "A detailed photograph of a snowy owl with dramatic white feathers spread wide across a moonlit forest",
+                    },
+                },
+                {
+                    type: "File",
+                    file: {
+                        id: file2Id,
+                        contentType: "image/png",
+                        contentLength: 200,
+                        caption:
+                            "A detailed photograph of a snowy owl with dramatic white feathers spread wide across a moonlit forest",
+                    },
+                },
+            ],
+        },
+        markdown: `\
+![A detailed photograph of a snowy owl with dramatic white feathers spread wide across a moonlit forest](/file/a-detailed-photograph-of-a-snowy-owl-with.png)
+
+![A detailed photograph of a snowy owl with dramatic white feathers spread wide across a moonlit forest](/file/a-detailed-photograph-of-a-snowy-owl-with-2.png)
+`,
+    },
+    {
         name: "video file element",
         content: {
             elements: [
@@ -1640,6 +1883,25 @@ Review this today:
         },
         markdown: `\
 <video src="/file/video.mp4"></video>
+`,
+    },
+    {
+        name: "video file element with caption",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "video/mp4",
+                        contentLength: 100,
+                        caption: "My caption",
+                    },
+                },
+            ],
+        },
+        markdown: `\
+<video aria-label="My caption" src="/file/my-caption.mp4"></video>
 `,
     },
     {
@@ -1661,6 +1923,25 @@ Review this today:
 `,
     },
     {
+        name: "audio file element with caption",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "audio/webm",
+                        contentLength: 100,
+                        caption: "My caption",
+                    },
+                },
+            ],
+        },
+        markdown: `\
+<audio aria-label="My caption" src="/file/my-caption.weba"></audio>
+`,
+    },
+    {
         name: "PDF file element",
         content: {
             elements: [
@@ -1676,6 +1957,25 @@ Review this today:
         },
         markdown: `\
 <object data="/file/file.pdf"></object>
+`,
+    },
+    {
+        name: "PDF file element with caption",
+        content: {
+            elements: [
+                {
+                    type: "File",
+                    file: {
+                        id: file1Id,
+                        contentType: "application/pdf",
+                        contentLength: 100,
+                        caption: "My caption",
+                    },
+                },
+            ],
+        },
+        markdown: `\
+<object aria-label="My caption" data="/file/my-caption.pdf"></object>
 `,
     },
     {
@@ -1695,6 +1995,7 @@ Review this today:
                                             id: file1Id,
                                             contentType: "image/png",
                                             contentLength: 100,
+                                            caption: "My caption",
                                         },
                                     },
                                 },
@@ -1717,7 +2018,7 @@ Review this today:
         },
         markdown: `\
 <div style="display: flex">
-<img src="/file/image.png" />
+<img alt="My caption" src="/file/my-caption.png" />
 <video src="/file/video.mp4"></video>
 </div>
 `,

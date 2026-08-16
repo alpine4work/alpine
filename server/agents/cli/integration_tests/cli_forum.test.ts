@@ -360,7 +360,7 @@ test("read channel posts with comment counts", async () => {
 
 Uncommented roadmap summary
 
-[See more »](/post/alice-in-post-comment-counts-uncommented-roadma)
+[See more »](/post/alice-in-post-comment-counts-uncommented-roadmap)
 
 </post>
 
@@ -368,7 +368,7 @@ Uncommented roadmap summary
 
 Commented launch summary
 
-[See more »](/post/alice-in-post-comment-counts-commented-launc)
+[See more »](/post/alice-in-post-comment-counts-commented-launch)
 
 </post>
 
@@ -582,14 +582,14 @@ The source image is available below.
 `);
 
     expect(await cli.run("alpine search 'YouTube attachment review'")).toEqual(`\
-1. [Alice in Evidence Updates: **YouTube attachment review**](/post/alice-in-evidence-updates-youtube-attachmen)
+1. [Alice in Evidence Updates: **YouTube attachment review**](/post/alice-in-evidence-updates-youtube-attachment)
 
 2. [Post **attachment** source](/document/post-attachment-source)
 
    The source image is available below.
 `);
 
-    expect(await cli.run("alpine read /post/alice-in-evidence-updates-youtube-attachmen"))
+    expect(await cli.run("alpine read /post/alice-in-evidence-updates-youtube-attachment"))
         .toEqual(`\
 Post in [Evidence Updates](/channel/evidence-updates).
 
@@ -612,7 +612,7 @@ End of comments.
 
     expect(
         await cli.run(`\
-alpine update /post/alice-in-evidence-updates-youtube-attachmen --old 'End of comments.' --new '<comment timezone="UTC">
+alpine update /post/alice-in-evidence-updates-youtube-attachment --old 'End of comments.' --new '<comment timezone="UTC">
 
 I attached the image to this follow-up.
 
@@ -627,7 +627,7 @@ Update was successful.
 `);
 
     expect(
-        (await cli.run("alpine read /post/alice-in-evidence-updates-youtube-attachmen")).replace(
+        (await cli.run("alpine read /post/alice-in-evidence-updates-youtube-attachment")).replace(
             /^<time>(?!May 14th at 11:00am EDT).*<\/time>$/m,
             "<time>Created recently</time>",
         ),

@@ -704,7 +704,7 @@ test("does not use scroll truncation around a comment after replacing a shorter 
     });
 
     expect(response).toEqual(`\
-Comments on [post](/post/a-long-post-title-that-makes-the-comment). [« Previous page](/post/a-long-post-title-that-makes-the-comment?before=1) | [Next page »](/post/a-long-post-title-that-makes-the-comment?after=1)
+Comments on [post](/post/a-long-post-title-that-makes-the-comments). [« Previous page](/post/a-long-post-title-that-makes-the-comments?before=1) | [Next page »](/post/a-long-post-title-that-makes-the-comments?after=1)
 
 <time>May 14th at 11:05am EDT</time>
 
@@ -747,7 +747,7 @@ test("does not use scroll truncation before a comment after replacing a shorter 
     });
 
     expect(response).toEqual(`\
-Comments on [post](/post/a-long-post-title-that-makes-the-comment). [Previous page »](/post/a-long-post-title-that-makes-the-comment?before=1)
+Comments on [post](/post/a-long-post-title-that-makes-the-comments). [Previous page »](/post/a-long-post-title-that-makes-the-comments?before=1)
 
 <time>May 14th at 11:05am EDT</time>
 

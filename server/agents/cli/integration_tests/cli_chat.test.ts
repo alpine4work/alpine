@@ -888,7 +888,9 @@ test("add a message with a file attachment to a room chat", async () => {
         body: "The source image is available below.",
         access: "Public",
     });
-    const file = await TestFile.create(cli.session);
+    const file = await TestFile.create(cli.session, {
+        analysis: {caption: "Test file caption", tags: ["test file"]},
+    });
     await sourceDocument.attachFile(cli.session, file);
 
     const chat = await TestChat.createRoom(cli.session, {name: "YouTube attachment room"});
@@ -929,7 +931,7 @@ The following results don’t match any natural language filter but Alpine thoug
 
 The source image is available below.
 
-![](/file/image.png)
+![Test file caption](/file/test-file-caption.png)
 `);
 
     expect(await cli.run("alpine search 'YouTube attachment room'")).toEqual(`\
@@ -952,7 +954,7 @@ alpine update /chat/youtube-attachment-room --old 'End of messages.' --new '<mes
 
 I attached the image to this follow-up.
 
-![](/file/image.png)
+![Test file caption](/file/test-file-caption.png)
 
 </message>
 
@@ -977,7 +979,7 @@ End of messages.'
 
 I attached the image to this follow-up.
 
-![](/file/image.png)
+![Test file caption](/file/test-file-caption.png)
 
 </message>
 

@@ -50,6 +50,18 @@ describe("apostrophe s", () => {
     });
 });
 
+describe("limited length", () => {
+    test("truncates at the preceding word boundary", () => {
+        expect(
+            convertToUrlPathnameSlug(
+                "A detailed photograph of a snowy owl with dramatic white feathers spread wide across a moonlit forest",
+                "-",
+                {limitLength: 50},
+            ),
+        ).toBe("a-detailed-photograph-of-a-snowy-owl-with");
+    });
+});
+
 describe("allowed characters", () => {
     test("preserves explicitly allowed characters", () => {
         expect(

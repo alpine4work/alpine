@@ -389,9 +389,9 @@ test("truncates long message previews and prints the rest of the match after the
     ]);
 
     expect(await callAgentWebSearchTool(context, {query: "test"})).toEqual(`\
-1. [Jane: **Important** document comment **keyword** with a really long](/document-comment/jane-important-document-comment-keyword-with-a-reall) body match that will be displayed outside of the link itself
+1. [Jane: **Important** document comment **keyword** with a really long](/document-comment/jane-important-document-comment-keyword-with-a-really) body match that will be displayed outside of the link itself
 
-2. [Bob: We need to update the documentation with all the latest](/task-comment/bob-we-need-to-update-the-documentation-with-all-th) changes and improvements`);
+2. [Bob: We need to update the documentation with all the latest](/task-comment/bob-we-need-to-update-the-documentation-with-all-the) changes and improvements`);
 });
 
 test("groups results under the parsed filter summary", async () => {

@@ -50,6 +50,7 @@ import {
     ApiTaskReferenceResponse,
     ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {fileAnalysisCaptionMaxLength} from "~/shared/files/file_analysis.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
@@ -289,22 +290,30 @@ const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElementR
     fc.record({
         type: fc.constant("File"),
         key: ApiContentKeyArbitrary,
-        file: fc.record({
-            id: fc.oneof(
-                {weight: 100, arbitrary: createIdArbitrary<FileId>()},
-                {weight: 1, arbitrary: fc.constant(unknownFileId)},
-            ),
-            contentType: fc.oneof(
-                fc.constant("image/png"),
-                fc.constant("image/jpeg"),
-                fc.constant("video/mp4"),
-                fc.constant("audio/mpeg"),
-                fc.constant("application/pdf"),
-                fc.constant("application/yaml"),
-                fc.constant("application/octet-stream"),
-            ),
-            contentLength: fc.integer({min: 0}),
-        }),
+        file: fc.record(
+            {
+                id: fc.oneof(
+                    {weight: 100, arbitrary: createIdArbitrary<FileId>()},
+                    {weight: 1, arbitrary: fc.constant(unknownFileId)},
+                ),
+                contentType: fc.oneof(
+                    fc.constant("image/png"),
+                    fc.constant("image/jpeg"),
+                    fc.constant("video/mp4"),
+                    fc.constant("audio/mpeg"),
+                    fc.constant("application/pdf"),
+                    fc.constant("application/yaml"),
+                    fc.constant("application/octet-stream"),
+                ),
+                contentLength: fc.integer({min: 0}),
+                caption: fc.string({
+                    unit: "grapheme-ascii",
+                    minLength: 1,
+                    maxLength: fileAnalysisCaptionMaxLength,
+                }),
+            },
+            {requiredKeys: ["id", "contentType", "contentLength"]},
+        ),
         marks: fc.oneof(
             {arbitrary: fc.constant([]), weight: 20},
             fc.array(ApiContentCommentMarkArbitrary, {maxLength: 3}),

@@ -69,6 +69,7 @@ export type AgentWebPageStoredLink =
           readonly id: FileId;
           readonly contentType: FileContentType;
           readonly contentLength: number;
+          readonly caption?: string;
       };
 
 assertAssignableTypes<AgentWebPageStoredLink, AgentWebPageStoredLinkKeyObject>();
@@ -158,7 +159,13 @@ function actuallyPrintAgentWebPageStoredLinkPathname(
             return `/site/${slugify(link.title)}${dedupe}`;
         }
         case "File": {
-            return `/file/${slugify(getFileContentTypeNoun(link.contentType))}${dedupe}.${getFileContentTypePreferredExtension(link.contentType)}`;
+            const extension = getFileContentTypePreferredExtension(link.contentType);
+            const filename =
+                link.caption !== undefined
+                    ? slugify(link.caption)
+                    : slugify(getFileContentTypeNoun(link.contentType));
+
+            return `/file/${filename}${dedupe}.${extension}`;
         }
         default:
             throw exhaustive(link);
