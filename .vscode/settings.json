@@ -23,6 +23,13 @@
     // process manager with this set to `true`.
     "search.followSymlinks": false,
 
+    // Exclude Bazel-generated files from the file watcher. They'll still show up in
+    // the file explorer, but vscode won't receive events for them when they change. We
+    // don't have anything that depends on these events, so it's safe to exclude them.
+    "files.watcherExclude": {
+        "**/bazel-*/**": true
+    },
+
     // To enable file nesting, add this to your personal settings:
     //
     // ```
@@ -50,6 +57,10 @@
     "typescript.enablePromptUseWorkspaceTsdk": true,
     "javascript.preferences.importModuleSpecifier": "non-relative",
     "typescript.preferences.importModuleSpecifier": "non-relative",
+    // Increase the memory limit for the TypeScript server to 8GB. Our project is too
+    // large for the default of ~3GB.
+    "typescript.tsserver.maxTsServerMemory": 8192,
+    "eslint.execArgv": ["--max_old_space_size=8192"],
 
     /* ========================================================================== *\
      *                                 Markdown                                   *
