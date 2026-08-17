@@ -8,6 +8,7 @@ import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markd
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {captureResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 import {noop} from "~/shared/helpers/control/noop.open_source.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.open_source.js";
@@ -57,189 +58,16 @@ async function main() {
             const markdownDirectoryPath = dirname(markdownPath);
 
             const markdownContent = await fs.readFile(markdownPath, "utf8");
-            const markdownTree = parseMarkdownTree(markdownContent);
 
-            let charBefore: string | null = null;
-
-            const traverse = (node: Root | RootContent) => {
-                switch (node.type) {
-                    case "yaml": {
-                        // Parse/print YAML to a standard format without the prose wrapping from our
-                        // default Prettier config.
-                        node.value = Yaml.stringify(Yaml.parse(node.value), {
-                            indent: 2,
-                            lineWidth: 0,
-                        }).trimEnd();
-                        break;
-                    }
-
-                    case "heading":
-                    case "paragraph":
-                    case "tableCell": {
-                        charBefore = null;
-                        break;
-                    }
-
-                    // Replace straight quotes with proper curly quotes. Markdown, unlike
-                    // `<ContentEditor>` which automatically adds curly quotes while the user is typing
-                    // and unlike JavaScript code which has a lint warning when you don't use curly
-                    // quotes, doesn't currently have a way to prevent us from using straight quotes.
-                    // So in our build step we add curly quotes.
-                    case "text": {
-                        let value = node.value;
-
-                        for (let index = 0; index < value.length; index++) {
-                            const char = value[index]!;
-
-                            // eslint-disable-next-line cyberworlds/string-quotes
-                            if (char !== "'" && char !== '"') {
-                                charBefore = char;
-                                continue;
-                            }
-
-                            let properQuote: string;
-
-                            // eslint-disable-next-line cyberworlds/string-quotes
-                            if (char === '"') {
-                                if (
-                                    charBefore === null ||
-                                    /(\p{White_Space}|["\u201C\u201D])/u.test(charBefore)
-                                ) {
-                                    properQuote = "\u201C";
-                                } else {
-                                    properQuote = "\u201D";
-                                }
-                            } else {
-                                if (
-                                    charBefore === null ||
-                                    /(\p{White_Space}|['\u2018\u2019])/u.test(charBefore)
-                                ) {
-                                    properQuote = "\u2018";
-                                } else {
-                                    properQuote = "\u2019";
-                                }
-                            }
-
-                            value = value.slice(0, index) + properQuote + value.slice(index + 1);
-                            charBefore = char;
-                        }
-
-                        // Make sure prose is not wrapped in the final generated markdown. We theorize that
-                        // agents are better at reading unwrapped prose so there's not a bunch of pesky
-                        // `\n` tokens lying around that are less common in the training data.
-                        node.value = value.replaceAll(/\n+/g, " ");
-                        break;
-                    }
-
-                    case "link": {
-                        // Link to the open internet, allowed.
-                        if (/^https?:\/\//.test(node.url)) break;
-
-                        const linkPath = resolvePath(markdownDirectoryPath, node.url);
-
-                        // Make sure all links are valid.
-                        if (!markdownPaths.has(linkPath)) {
-                            throw new InternalError(quote`Link not found: ${node.url}`);
-                        }
-
-                        // Drop the ".internal" suffix. When open sourced these will all be plain `.md`
-                        // files.
-                        node.url = node.url.replace(/\.internal\.md$/, ".md");
-                        break;
-                    }
-                }
-
-                if ("children" in node) {
-                    let nextIndex = 0;
-
-                    while (nextIndex < node.children.length) {
-                        const index = nextIndex;
-                        nextIndex++;
-                        const childNode = node.children[index]!;
-
-                        traverse(childNode);
-
-                        // Strip HTML comments from markdown. HTML comments are internal developer only
-                        // notes which aren't to be shared with agents.
-                        if (childNode.type === "html") {
-                            const comments: Array<{start: number; end: number}> = [];
-
-                            const tokenizer = new HtmlTokenizer(
-                                {},
-                                {
-                                    oncomment: (start, end) => {
-                                        comments.push({start: start - 4, end: end + 2});
-                                    },
-
-                                    ontext: noop,
-                                    ontextentity: noop,
-                                    onopentagname: noop,
-                                    onopentagend: noop,
-                                    onclosetag: noop,
-                                    onattribname: noop,
-                                    onattribdata: noop,
-                                    onattribentity: noop,
-                                    onattribend: noop,
-                                    oncdata: noop,
-                                    ondeclaration: noop,
-                                    onend: noop,
-                                    onprocessinginstruction: noop,
-                                    onselfclosingtag: noop,
-                                },
-                            );
-
-                            tokenizer.write(childNode.value);
-                            tokenizer.end();
-
-                            for (const comment of comments.reverse()) {
-                                childNode.value =
-                                    childNode.value.slice(0, comment.start) +
-                                    childNode.value.slice(comment.end);
-                            }
-
-                            if (childNode.value.trim().length === 0) {
-                                node.children.splice(index, 1);
-                                nextIndex = index;
-                            }
-                        }
-                    }
-                }
-            };
-
-            traverse(markdownTree);
-
-            const formattedMarkdownContent = printMarkdownTree(markdownTree);
-
-            const traverseForCli = (node: Root | RootContent) => {
-                // Transform links to be prefixed with `/skill/` so when the CLI reads the skill it
-                // knows to call the `read` tool with the `/skill/` path.
-                if (node.type === "link" && !/^https?:\/\//.test(node.url)) {
-                    assert(!node.url.startsWith("../"));
-                    node.url = resolvePath("/skill", node.url.slice(0, -3));
-                }
-
-                if ("children" in node) {
-                    let nextIndex = 0;
-
-                    while (nextIndex < node.children.length) {
-                        const index = nextIndex;
-                        nextIndex++;
-                        const childNode = node.children[index]!;
-
-                        traverseForCli(childNode);
-
-                        // Remove YAML skill frontmatter when preparing the skill for the CLI.
-                        if (childNode.type === "yaml") {
-                            node.children.splice(index, 1);
-                            nextIndex = index;
-                        }
-                    }
-                }
-            };
-
-            traverseForCli(markdownTree);
-
-            const formattedMarkdownContentForCli = printMarkdownTree(markdownTree);
+            const {formattedMarkdownContent, formattedMarkdownContentForCli} = await formatMarkdown(
+                {
+                    markdownContent,
+                    links: {
+                        markdownDirectoryPath,
+                        markdownPaths,
+                    },
+                },
+            );
 
             // Make sure the file size is under `agentWebBytesDefaultLimit` (20kb as of
             // 2026-07-27). Which is the default limit for `read`. We calculated
@@ -283,4 +111,243 @@ ${Array.from(filterIterable(formattedMarkdownEntriesForCli, isNonNullable), ([pa
 }).join("")}]);
 `,
     );
+}
+
+async function formatMarkdown({
+    markdownContent,
+    links,
+}: {
+    markdownContent: string;
+    links: {
+        markdownDirectoryPath: string;
+        markdownPaths: ReadonlySet<string>;
+    } | null;
+}): Promise<{
+    formattedMarkdownContent: string;
+    formattedMarkdownContentForCli: string;
+}> {
+    const markdownTree = parseMarkdownTree(markdownContent);
+
+    let charBefore: string | null = null;
+
+    const traverse = async (node: Root | RootContent) => {
+        switch (node.type) {
+            case "yaml": {
+                // Parse/print YAML to a standard format without the prose wrapping from our
+                // default Prettier config.
+                node.value = Yaml.stringify(Yaml.parse(node.value), {
+                    indent: 2,
+                    lineWidth: 0,
+                }).trimEnd();
+                break;
+            }
+
+            case "heading":
+            case "paragraph":
+            case "tableCell": {
+                charBefore = null;
+                break;
+            }
+
+            // Replace straight quotes with proper curly quotes. Markdown, unlike
+            // `<ContentEditor>` which automatically adds curly quotes while the user is typing
+            // and unlike JavaScript code which has a lint warning when you don't use curly
+            // quotes, doesn't currently have a way to prevent us from using straight quotes.
+            // So in our build step we add curly quotes.
+            case "text": {
+                let value = node.value;
+
+                for (let index = 0; index < value.length; index++) {
+                    const char = value[index]!;
+
+                    // eslint-disable-next-line cyberworlds/string-quotes
+                    if (char !== "'" && char !== '"') {
+                        charBefore = char;
+                        continue;
+                    }
+
+                    let properQuote: string;
+
+                    // eslint-disable-next-line cyberworlds/string-quotes
+                    if (char === '"') {
+                        if (
+                            charBefore === null ||
+                            /(\p{White_Space}|["\u201C\u201D])/u.test(charBefore)
+                        ) {
+                            properQuote = "\u201C";
+                        } else {
+                            properQuote = "\u201D";
+                        }
+                    } else {
+                        if (
+                            charBefore === null ||
+                            /(\p{White_Space}|['\u2018\u2019])/u.test(charBefore)
+                        ) {
+                            properQuote = "\u2018";
+                        } else {
+                            properQuote = "\u2019";
+                        }
+                    }
+
+                    value = value.slice(0, index) + properQuote + value.slice(index + 1);
+                    charBefore = char;
+                }
+
+                // Make sure prose is not wrapped in the final generated markdown. We theorize that
+                // agents are better at reading unwrapped prose so there's not a bunch of pesky
+                // `\n` tokens lying around that are less common in the training data.
+                node.value = value.replaceAll(/\n+/g, " ");
+                break;
+            }
+
+            case "inlineCode": {
+                if (node.value.length > 0) {
+                    charBefore = node.value[node.value.length - 1]!;
+                }
+                break;
+            }
+
+            case "link": {
+                if (!links) break;
+
+                // Link to the open internet, allowed.
+                if (/^https?:\/\//.test(node.url)) break;
+
+                const linkPath = resolvePath(links.markdownDirectoryPath, node.url);
+
+                // Make sure all links are valid.
+                if (!links.markdownPaths.has(linkPath)) {
+                    throw new InternalError(quote`Link not found: ${node.url}`);
+                }
+
+                // Drop the ".internal" suffix. When open sourced these will all be plain `.md`
+                // files.
+                node.url = node.url.replace(/\.internal\.md$/, ".md");
+                break;
+            }
+
+            // Run the same formatter on any markdown code blocks. That way any text wrapping
+            // is undone and any straight quotes become curly quotes.
+            case "code": {
+                if (node.lang !== "md") {
+                    if (node.lang === "js") break;
+
+                    // If the lang is `null` but the code block is valid URL search params then this is
+                    // "Default filters and sorts" for a task collection. Allow it!
+                    if (
+                        node.lang === null &&
+                        captureResult(() => new URLSearchParams(node.value.trim())).ok
+                    ) {
+                        break;
+                    }
+
+                    throw new InternalError(quote`Unrecognized code language: ${node.lang}`);
+                }
+
+                const {formattedMarkdownContent} = await formatMarkdown({
+                    markdownContent: node.value,
+                    links: null,
+                });
+
+                node.value = formattedMarkdownContent.trim();
+                break;
+            }
+        }
+
+        if ("children" in node) {
+            let nextIndex = 0;
+
+            while (nextIndex < node.children.length) {
+                const index = nextIndex;
+                nextIndex++;
+                const childNode = node.children[index]!;
+
+                await traverse(childNode);
+
+                // Strip HTML comments from markdown. HTML comments are internal developer only
+                // notes which aren't to be shared with agents.
+                if (childNode.type === "html") {
+                    const comments: Array<{start: number; end: number}> = [];
+
+                    const tokenizer = new HtmlTokenizer(
+                        {},
+                        {
+                            oncomment: (start, end) => {
+                                comments.push({start: start - 4, end: end + 2});
+                            },
+
+                            ontext: noop,
+                            ontextentity: noop,
+                            onopentagname: noop,
+                            onopentagend: noop,
+                            onclosetag: noop,
+                            onattribname: noop,
+                            onattribdata: noop,
+                            onattribentity: noop,
+                            onattribend: noop,
+                            oncdata: noop,
+                            ondeclaration: noop,
+                            onend: noop,
+                            onprocessinginstruction: noop,
+                            onselfclosingtag: noop,
+                        },
+                    );
+
+                    tokenizer.write(childNode.value);
+                    tokenizer.end();
+
+                    for (const comment of comments.reverse()) {
+                        childNode.value =
+                            childNode.value.slice(0, comment.start) +
+                            childNode.value.slice(comment.end);
+                    }
+
+                    if (childNode.value.trim().length === 0) {
+                        node.children.splice(index, 1);
+                        nextIndex = index;
+                    }
+                }
+            }
+        }
+    };
+
+    await traverse(markdownTree);
+
+    const formattedMarkdownContent = printMarkdownTree(markdownTree);
+
+    const traverseForCli = (node: Root | RootContent) => {
+        // Transform links to be prefixed with `/skill/` so when the CLI reads the skill it
+        // knows to call the `read` tool with the `/skill/` path.
+        if (node.type === "link" && !/^https?:\/\//.test(node.url) && !node.url.startsWith("/")) {
+            assert(!node.url.startsWith("../"));
+            node.url = resolvePath("/skill", node.url.slice(0, -3));
+        }
+
+        if ("children" in node) {
+            let nextIndex = 0;
+
+            while (nextIndex < node.children.length) {
+                const index = nextIndex;
+                nextIndex++;
+                const childNode = node.children[index]!;
+
+                traverseForCli(childNode);
+
+                // Remove YAML skill frontmatter when preparing the skill for the CLI.
+                if (childNode.type === "yaml") {
+                    node.children.splice(index, 1);
+                    nextIndex = index;
+                }
+            }
+        }
+    };
+
+    traverseForCli(markdownTree);
+
+    const formattedMarkdownContentForCli = printMarkdownTree(markdownTree);
+
+    return {
+        formattedMarkdownContent,
+        formattedMarkdownContentForCli,
+    };
 }

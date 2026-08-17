@@ -31,8 +31,9 @@ test("can create and update linked records", async ({page, context: browserConte
 
     await page.bringToFront();
     const companyCell = databaseGridViewCell(page, "Company");
-    await openRelationOption(page, companyCell, "Acme");
+    const companyOption = await openRelationOption(page, companyCell, "Acme");
     await page.getByLabel("Search records").fill("Acme");
+    await expect(companyOption).toBeVisible();
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
 

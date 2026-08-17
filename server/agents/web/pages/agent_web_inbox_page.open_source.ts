@@ -5,8 +5,8 @@ import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_sou
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.open_source.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
     ApiAccountReference,
     ApiAccountReferenceResponse,
@@ -429,7 +429,7 @@ export function updateAgentWebInboxPage(
     newPage: AgentWebInboxPage,
 ): never {
     throw new InvalidArgumentError("Can\u2019t update inboxes", {
-        displayMessage: errorDisplayMessage`Can\u2019t update inboxes using the \`update\` tool. Try updating another page instead.`,
+        displayMessage: errorDisplayMessage`Can\u2019t update inboxes using the \`update\` tool. Tell the user they\u2019ll need to dismiss any notifications themselves from their inbox. Try updating another page instead.`,
     });
 }
 

@@ -29,7 +29,7 @@ const expectedHelpMiddle = `\
 
 ## Tips
 
-### Updating`;
+### Searching`;
 
 const expectedHelpEnding = `\
 - If you\u2019re talking with people somewhere that everyone in the space can access then you can only see things that everyone in the space can access.
@@ -68,8 +68,10 @@ test("read a skill linked from help", async () => {
 });
 
 test("read a second skill with different documentation", async () => {
-    expect(await cli.run("alpine read /skill/accounts")).toEqual(`\
-Does this work???
+    expect(await cli.run("alpine read /skill/accounts")).toContain(`\
+# Accounts
+
+An account represents some actor in Alpine. Either a human (who logs in with an email address) or a bot. You will access Alpine through a bot account (you can find the path to your account with \`/bot/me\`).
 `);
 });
 

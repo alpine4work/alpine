@@ -38,6 +38,30 @@ Create was successful. New task: [Prepare active launch](/task/prepare-active-la
 `);
 });
 
+test("create a task with only newly created subtasks", async () => {
+    expect(
+        await cli.run(`\
+alpine create task '# My task
+
+## Subtasks
+
+- Subtask 1 (Open)
+- Subtask 2 (Open)
+- Subtask 3 (Open)'
+`),
+    ).toEqual(`\
+Create was successful. New task: [My task](/task/my-task).
+
+Also created these tasks:
+
+- [Subtask 1 (Open)](/task/subtask-1)
+
+- [Subtask 2 (Open)](/task/subtask-2)
+
+- [Subtask 3 (Open)](/task/subtask-3)
+`);
+});
+
 test("create and read a task with every field", async () => {
     await cli.session.space.createSession({name: "Alice"});
 
@@ -74,6 +98,7 @@ Create was successful. New task collection: [Roadmap](/task-collection/roadmap).
 alpine create task '# Ship task page
 
 - Status: Open (active)
+- Layout: Project
 - Parent: [Launch program](/task/launch-program)
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
@@ -106,6 +131,7 @@ Also created this task: [Draft launch brief (Open, active)](/task/draft-launch-b
 # Ship task page
 
 - Status: Open (active)
+- Layout: Project
 - Parent: [Launch program](/task/launch-program)
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
@@ -212,6 +238,10 @@ alpine update /task/initial-task \\
   --old '# Initial task' \\
   --new '# Updated task'
 alpine update /task/initial-task \\
+  --old '- Status: Open' \\
+  --new '- Status: Open
+- Layout: Project'
+alpine update /task/initial-task \\
   --old '- Parent: [First parent](/task/first-parent)' \\
   --new '- Parent: [Second parent](/task/second-parent)'
 alpine update /task/initial-task \\
@@ -242,12 +272,14 @@ Update was successful.
 Update was successful.
 Update was successful.
 Update was successful.
+Update was successful.
 `);
 
     expect(await cli.run("alpine read /task/initial-task")).toEqual(`\
 # Updated task
 
 - Status: Closed
+- Layout: Project
 - Parent: [Second parent](/task/second-parent)
 - Assignee: [Bob](/human/bob)
 - Collections: [Second collection](/task-collection/second-collection), [Third collection](/task-collection/third-collection)
@@ -397,6 +429,7 @@ Create was successful. New task collection: [Delta](/task-collection/delta).
 alpine create task '# Embedded launch task
 
 - Status: Open (active)
+- Layout: Project
 - Parent: [Reference parent](/task/reference-parent)
 - Assignee: [Alice](/human/alice)
 - Collections: [Alpha](/task-collection/alpha), [Beta](/task-collection/beta), [Gamma](/task-collection/gamma), [Delta](/task-collection/delta)
@@ -445,6 +478,17 @@ Color: Blue
   - Due date: July 12th, 2027
 
 End of tasks.
+`);
+});
+
+test("reject a Layout field in a task collection", async () => {
+    expect(
+        await cli.run(`alpine create task-collection '# Layout roadmap
+
+- Layout task (Open)
+  - Layout: Project'`),
+    ).toEqual(`\
+Error: Couldn\u2019t create task collection. Task field \u201CLayout\u201D on line 4 isn\u2019t supported in this context. Try again with one of \u201CParent\u201D, \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.
 `);
 });
 
@@ -797,6 +841,125 @@ alpine update /task-collection/filtered-roadmap \\
 Error: Couldn\u2019t update \`/task-collection/filtered-roadmap\`. An unexpected error occurred, please try again. If the problem continues, let us know at support@alpine.inc
 
 > Internal error: Changing the default filters and sorts of a task collection hasn\u2019t been implemented yet
+`);
+});
+
+test("read and update a filtered and sorted task view without moving tasks", async () => {
+    expect(
+        await cli.run(`\
+alpine create task-collection '# Task view roadmap
+
+- Task view urgent (Open)
+  - Priority: Urgent
+- Task view high (Open)
+  - Priority: High
+- Task view low (Open)
+  - Priority: Low'
+`),
+    ).toEqual(`\
+Create was successful. New task collection: [Task view roadmap](/task-collection/task-view-roadmap).
+
+Also created these tasks:
+
+- [Task view urgent (Open)](/task/task-view-urgent)
+
+- [Task view high (Open)](/task/task-view-high)
+
+- [Task view low (Open)](/task/task-view-low)
+`);
+
+    const path = "/task-view?collection=task-view-roadmap&priority=high,urgent&sort=-priority";
+    expect(await cli.run(`alpine read '${path}'`)).toEqual(`\
+# Untitled
+
+- [Task view urgent (Open)](/task/task-view-urgent)
+  - Collections: [Task view roadmap](/task-collection/task-view-roadmap)
+  - Priority: Urgent
+
+- [Task view high (Open)](/task/task-view-high)
+  - Collections: [Task view roadmap](/task-collection/task-view-roadmap)
+  - Priority: High
+
+End of tasks.
+`);
+
+    expect(
+        await cli.run(`\
+alpine update '${path}' \\
+  --old '- [Task view urgent (Open)](/task/task-view-urgent)
+  - Collections: [Task view roadmap](/task-collection/task-view-roadmap)
+  - Priority: Urgent
+
+- [Task view high (Open)](/task/task-view-high)
+  - Collections: [Task view roadmap](/task-collection/task-view-roadmap)
+  - Priority: High' \\
+  --new '- [Task view high (Open)](/task/task-view-high)
+  - Collections: [Task view roadmap](/task-collection/task-view-roadmap)
+  - Priority: High
+
+- [Task view urgent (Open)](/task/task-view-urgent)
+  - Collections: [Task view roadmap](/task-collection/task-view-roadmap)
+  - Priority: Urgent'
+`),
+    ).toEqual(`\
+Error: Couldn\u2019t update \`${path}\`. Can\u2019t reorder tasks in task view markdown because the view is always automatically sorted. To move a task, update a field used by the view\u2019s \`sort\` URL search param (defaults to \`sort=created\` if not present), then call the \`read\` tool again to see the updated order. Try again without reordering tasks.
+`);
+
+    expect(
+        await cli.run(`\
+alpine update '${path}' \\
+  --old 'Priority: High' \\
+  --new 'Priority: Medium'
+`),
+    ).toEqual(`\
+Update was successful.
+`);
+
+    expect(await cli.run(`alpine read '${path}'`)).toEqual(`\
+# Untitled
+
+- [Task view urgent (Open)](/task/task-view-urgent)
+  - Collections: [Task view roadmap](/task-collection/task-view-roadmap)
+  - Priority: Urgent
+
+End of tasks.
+`);
+});
+
+test("paginate a task view and reject its cursor with different sorts", async () => {
+    const collection = await TestTaskCollection.create(cli.session, {
+        name: "Task view cursor roadmap",
+        access: "Public",
+    });
+    for (let index = 1; index <= 8; index++) {
+        await TestTask.create(cli.session, {
+            title: `Task view cursor ${index.toString().padStart(2, "0")}`,
+            collections: collection,
+        });
+    }
+
+    expect(await cli.run("alpine search 'Task view cursor roadmap'")).toEqual(`\
+## Tasks
+
+1. [**Task view cursor roadmap**](/task-collection/task-view-cursor-roadmap)
+`);
+
+    const firstPage = await cli.run(
+        "alpine read '/task-view?collection=task-view-cursor-roadmap&sort=created' --limit 160b",
+    );
+    expect(firstPage).toEqual(
+        expect.stringContaining("# Untitled\n\n[Next page \u00bb](/task-view?after="),
+    );
+
+    const nextPagePath = firstPage.match(/\[Next page \u00bb\]\(([^)]+)\)/)?.[1];
+    assert(nextPagePath !== undefined);
+    expect(await cli.run(`alpine read '${nextPagePath}'`)).toEqual(
+        expect.stringContaining("End of tasks."),
+    );
+
+    const mismatchedSortPath = nextPagePath.replace("&sort=created", "&sort=-created");
+    expect(await cli.run(`alpine read '${mismatchedSortPath}'`)).toEqual(`\
+Error: Couldn\u2019t read \`${mismatchedSortPath}\`. Invalid task query cursor for this view. Try again with a task query cursor that matches the requested sorts.
 `);
 });
 

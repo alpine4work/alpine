@@ -13,6 +13,8 @@ import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export type AgentWebSessionLmdbStorageKey = [OrderKey, ...NonEmptyReadonlyArray<string>];
 
+export const agentWebSessionLmdbStorageFilesOrderKey = assertOrderKey("Zz");
+
 /**
  * Creates agent web session storage backed by an open LMDB database.
  *

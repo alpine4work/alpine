@@ -25,10 +25,10 @@ import {
 import {parseAgentWebTaskPageDueDateStringForUpdate} from "~/server/agents/web/pages/parse_agent_web_task_page_due_date_string_for_update.open_source.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.open_source.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
@@ -38,6 +38,7 @@ import {
     ApiMentionReferenceResponse,
     ApiTaskCollectionReferenceResponse,
     ApiTaskDue,
+    ApiTaskLayout,
     ApiTaskPatch,
     ApiTaskPriority,
     ApiTaskReferenceResponse,
@@ -60,6 +61,7 @@ export type AgentWebTaskPage = {
     readonly type: "Task";
     readonly title: string;
     readonly status: ApiTaskStatus;
+    readonly layout: ApiTaskLayout | null;
     readonly parent: ApiTaskReferenceResponse | null;
     readonly assignee: ApiAccountReferenceResponse | null;
     readonly collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
@@ -153,6 +155,7 @@ export async function readAgentWebTaskPage(
         type: "Task",
         title: task.title,
         status: task.status,
+        layout: task.layout ?? null,
         parent: task.parent
             ? {
                   type: "Task",
@@ -280,6 +283,7 @@ export async function createAgentWebTaskPage(
             task: {
                 title: newPage.title,
                 status: newPage.status,
+                ...(newPage.layout ? {layout: newPage.layout} : {}),
                 parent: newPage.parent ? {task: {id: newPage.parent.id}} : undefined,
                 assignee: newPage.assignee ? {id: newPage.assignee.id} : undefined,
                 collections: newPage.collections.map(collection => ({
@@ -401,6 +405,10 @@ export async function updateAgentWebTaskPage(
             oldPage.status.isActive !== newPage.status.isActive)
     ) {
         patches.push({type: "SetStatus", status: newPage.status});
+    }
+
+    if (oldPage.layout?.type !== newPage.layout?.type) {
+        patches.push({type: "SetLayout", layout: newPage.layout});
     }
 
     if (oldPage.dueDateString !== newPage.dueDateString) {
@@ -757,6 +765,7 @@ export async function parseAgentWebTaskPage(
         fieldsList !== null
             ? parseAgentWebTaskFieldListItems(storage, fieldsList.children, [
                   "status",
+                  "layout",
                   "parent",
                   "assignee",
                   "collections",
@@ -775,6 +784,7 @@ export async function parseAgentWebTaskPage(
         type: "Task",
         title,
         status: fields?.status ?? {type: "Open", isActive: false},
+        layout: fields?.layout ?? null,
         parent: fields?.parent ?? null,
         assignee: fields?.assignee ?? null,
         collections: fields?.collections ?? [],

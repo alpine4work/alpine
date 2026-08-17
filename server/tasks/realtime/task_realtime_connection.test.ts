@@ -370,9 +370,7 @@ test("can\u2019t load a query with no filters", async () => {
     expect(testTakeEvents(connection)).toEqual([]);
 
     await expect(testSubscribeToQuery(connection, query(session))).rejects.toThrow(
-        new PermissionDeniedError(
-            "Query may reveal tasks the session account is not allowed to see",
-        ),
+        new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
     );
 
     expect(testTakeEvents(connection)).toEqual([]);

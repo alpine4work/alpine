@@ -2823,6 +2823,55 @@ Review this today:
 ![](/site/unknown)
 `,
     },
+    {
+        name: "GFM table containing a short account mention",
+        content: {
+            elements: [
+                {
+                    type: "Table",
+                    width: 1,
+                    hasHeaderRow: true,
+                    hasHeaderColumn: false,
+                    columns: [{width: 1}, {width: 1}],
+                    rows: [
+                        {
+                            cells: [
+                                {
+                                    elements: [
+                                        {
+                                            type: "Paragraph",
+                                            elements: [
+                                                {
+                                                    type: "Mention",
+                                                    reference: {
+                                                        type: "Account",
+                                                        id: assertId<AccountId>(
+                                                            "00000000000000000000000004",
+                                                        ),
+                                                        title: "",
+                                                        shortName: "*",
+                                                    },
+                                                    isAccountShortName: true,
+                                                },
+                                                {type: "Text", text: "1234567890123"},
+                                            ],
+                                        },
+                                    ],
+                                },
+                                {
+                                    elements: [{type: "Paragraph", elements: []}],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+        markdown: `\
+| [\\*](/human/unknown)1234567890123 | |
+| - | - |
+`,
+    },
 ];
 
 for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of testCases) {

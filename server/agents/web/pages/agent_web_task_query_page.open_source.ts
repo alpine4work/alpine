@@ -5,6 +5,7 @@ import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_sou
 import {printAgentWebPageStoredLinkLabel} from "~/server/agents/web/agent_web_page_stored_link.open_source.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {
+    AgentWebTaskQueryId,
     agentWebTaskQueryCursorHashLength,
     createAgentWebTaskQueryCursorHash,
     getAgentWebTaskQueryCursorForHashIfExists,
@@ -27,11 +28,11 @@ import {
     printAgentWebTaskFieldListItems,
 } from "~/server/agents/web/pages/agent_web_task_fields.open_source.js";
 import {parseAgentWebTaskPageDueDateStringForUpdate} from "~/server/agents/web/pages/parse_agent_web_task_page_due_date_string_for_update.open_source.js";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {ApiContentNormalizer} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {
     ApiAccountReferenceResponse,
@@ -55,6 +56,7 @@ import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_sourc
 import {partitionArray} from "~/shared/helpers/array/partition_array.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -84,6 +86,40 @@ export type AgentWebTaskQueryPageQuery = {
     readonly filters: ReadonlyArray<ApiTaskQueryFilterResponseWithoutAccountSpace>;
     readonly sorts: ReadonlyArray<ApiTaskQuerySort>;
 };
+
+type AgentWebTaskQueryPageLinkBase =
+    | {type: "TaskCollection"; id: TaskCollectionId}
+    | {type: "TaskSubtasks"; task: {id: TaskId}}
+    | {type: "TaskView"};
+
+type AgentWebTaskQueryPageLink = Extract<
+    AgentWebPageLink,
+    {type: "TaskCollection" | "TaskSubtasks" | "TaskView"}
+>;
+
+assertAssignableTypes<AgentWebTaskQueryPageLink, AgentWebTaskQueryPageLinkBase>();
+
+type AgentWebTaskQueryPageLinkNullableBase =
+    | {type: "TaskCollection"; id: TaskCollectionId | null}
+    | {type: "TaskSubtasks"; task: {id: TaskId | null}}
+    | {type: "TaskView"};
+
+assertAssignableTypes<AgentWebTaskQueryPageLinkBase, AgentWebTaskQueryPageLinkNullableBase>();
+
+type AgentWebTaskQueryPageType = AgentWebTaskQueryPageLink["type"];
+
+function getAgentWebTaskQueryId(pageLink: AgentWebTaskQueryPageLinkBase): AgentWebTaskQueryId {
+    switch (pageLink.type) {
+        case "TaskCollection":
+            return `TaskCollection:${pageLink.id}`;
+        case "TaskSubtasks":
+            return `Task:${pageLink.task.id}`;
+        case "TaskView":
+            return "TaskView";
+        default:
+            throw exhaustive(pageLink);
+    }
+}
 
 /**
  * Pagination for a task query page which is printed as a "Next page »" link.
@@ -224,9 +260,7 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
         buildPage,
         printPage,
     }: {
-        pageLink:
-            | {type: "TaskCollection"; id: TaskCollectionId}
-            | {type: "TaskSubtasks"; task: {id: TaskId}};
+        pageLink: AgentWebTaskQueryPageLinkBase;
         searchParams: URLSearchParams;
         limitLength: number;
         readTaskBatch: (input: {
@@ -234,7 +268,7 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             query: AgentWebTaskQueryPageQuery;
             limit: number;
         }) => Promise<{
-            pageLink: Extract<AgentWebPageLink, {type: "TaskCollection" | "TaskSubtasks"}>;
+            pageLink: AgentWebTaskQueryPageLink;
             resource: Resource;
             isManuallyOrdered: boolean;
             nextCursor: ApiTaskQueryCursor | null;
@@ -318,9 +352,7 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
                     : {
                           nextCursorHash: await createAgentWebTaskQueryCursorHash(
                               context.storage,
-                              pageLink.type === "TaskCollection"
-                                  ? `TaskCollection:${pageLink.id}`
-                                  : `Task:${pageLink.task.id}`,
+                              getAgentWebTaskQueryId(pageLink),
                               pageNextCursor,
                           ),
                           query,
@@ -378,7 +410,7 @@ async function truncateAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPage>
         limitLength,
         response,
     }: {
-        pageLink: Extract<AgentWebPageLink, {type: "TaskCollection" | "TaskSubtasks"}>;
+        pageLink: AgentWebTaskQueryPageLink;
         page: Page;
         metadata: AgentWebTaskQueryPageMetadata;
         query: AgentWebTaskQueryPageQuery;
@@ -461,9 +493,7 @@ async function truncateAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPage>
     // The "Next page" link continues from the last task left after truncation.
     const nextCursorHash = await createAgentWebTaskQueryCursorHash(
         storage,
-        pageLink.type === "TaskCollection"
-            ? `TaskCollection:${pageLink.id}`
-            : `Task:${pageLink.task.id}`,
+        getAgentWebTaskQueryId(pageLink),
         assertExists(metadata.tasks[truncatedTaskCount - 1]).cursor,
     );
 
@@ -566,9 +596,7 @@ async function truncateAgentWebTaskQueryPage<Page extends AgentWebTaskQueryPage>
 
 async function parseAgentWebTaskQueryPageSearchParams(
     storage: AgentWebSessionStorage,
-    pageLink:
-        | {type: "TaskCollection"; id: TaskCollectionId}
-        | {type: "TaskSubtasks"; task: {id: TaskId}},
+    pageLink: AgentWebTaskQueryPageLinkBase,
     searchParams: URLSearchParams,
 ): Promise<{
     afterCursor: ApiTaskQueryCursor | null;
@@ -582,9 +610,7 @@ async function parseAgentWebTaskQueryPageSearchParams(
 
             const storedAfterCursor = await getAgentWebTaskQueryCursorForHashIfExists(
                 storage,
-                pageLink.type === "TaskCollection"
-                    ? `TaskCollection:${pageLink.id}`
-                    : `Task:${pageLink.task.id}`,
+                getAgentWebTaskQueryId(pageLink),
                 afterCursorHash,
             );
 
@@ -592,6 +618,7 @@ async function parseAgentWebTaskQueryPageSearchParams(
                 const pageNoun = {
                     TaskCollection: errorDisplayMessage`task collection`,
                     TaskSubtasks: errorDisplayMessage`task\u2019s subtasks`,
+                    TaskView: errorDisplayMessage`task view`,
                 }[pageLink.type];
 
                 throw new InvalidArgumentError("Expected `after` search param to be a cursor", {
@@ -625,7 +652,7 @@ export async function printAgentWebTaskQueryPageSearchParams(
 
 export async function printAgentWebTaskQueryPageTaskList(
     storage: AgentWebSessionStorage,
-    pageType: "TaskCollection" | "TaskSubtasks",
+    pageType: AgentWebTaskQueryPageType,
     tasks: ReadonlyArray<AgentWebTaskQueryPageTask>,
 ): Promise<List | null> {
     if (tasks.length === 0) return null;
@@ -642,7 +669,7 @@ export async function printAgentWebTaskQueryPageTaskList(
 
 export async function printAgentWebTaskQueryPageTaskListItem(
     storage: AgentWebSessionStorage,
-    pageType: "TaskCollection" | "TaskSubtasks",
+    pageType: AgentWebTaskQueryPageType,
     pageTask: AgentWebTaskQueryPageTask,
 ): Promise<ListItem> {
     const taskReference: ApiTaskReferenceResponse | null =
@@ -661,7 +688,7 @@ export async function printAgentWebTaskQueryPageTaskListItem(
             : createAgentWebPageStoredLinkPathname(storage, taskReference),
         runAllPromises(
             printAgentWebTaskFieldListItems(storage, {
-                parent: pageType === "TaskCollection" ? pageTask.parent : null,
+                parent: pageType !== "TaskSubtasks" ? pageTask.parent : null,
                 subtasks: pageTask.subtasks,
                 assignee: pageTask.assignee,
                 collections: pageTask.collections,
@@ -704,7 +731,7 @@ export async function printAgentWebTaskQueryPageTaskListItem(
 
 export function parseAgentWebTaskQueryPageTasks(
     storage: AgentWebSessionStorage,
-    pageType: "TaskCollection" | "TaskSubtasks",
+    pageType: AgentWebTaskQueryPageType,
     taskList: List | null,
 ): Promise<ReadonlyArray<AgentWebTaskQueryPageTask>> {
     if (taskList === null) return Promise.resolve([]);
@@ -718,7 +745,7 @@ export function parseAgentWebTaskQueryPageTasks(
 
 async function parseAgentWebTaskQueryPageTask(
     storage: AgentWebSessionStorage,
-    pageType: "TaskCollection" | "TaskSubtasks",
+    pageType: AgentWebTaskQueryPageType,
     taskListItem: ListItem,
 ): Promise<AgentWebTaskQueryPageTask> {
     const createError = () =>
@@ -804,7 +831,7 @@ async function parseAgentWebTaskQueryPageTask(
 export async function parseAgentWebTaskQueryPageTaskReference(
     storage: AgentWebSessionStorage,
     link: Link,
-    pageType: "TaskCollection" | "TaskSubtasks",
+    pageType: AgentWebTaskQueryPageType,
 ): Promise<{
     // NOTE(calebmer): Intentionally returns this type that's not compatible with
     // `ApiTaskReferenceResponse` because unlike when we usually parse
@@ -823,7 +850,7 @@ export async function parseAgentWebTaskQueryPageTaskReference(
         const quotedValue = curlyQuote([link]);
 
         throw new InvalidArgumentError("Unknown task link in task query", {
-            displayMessage: errorDisplayMessage`Couldn\u2019t find a task for the link ${quotedValue} on line ${link.position?.start.line ?? "unknown"}. You may only add a task you\u2019ve previously seen to ${{TaskCollection: errorDisplayMessage`a collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageType]}. Try calling the \`create\` tool to create a new task and then add that new task to ${{TaskCollection: errorDisplayMessage`the collection`, TaskSubtasks: errorDisplayMessage`the subtasks`}[pageType]}, or try calling the \`search\` tool to find an existing task you want to add to ${{TaskCollection: errorDisplayMessage`the collection`, TaskSubtasks: errorDisplayMessage`the subtasks`}[pageType]}.`,
+            displayMessage: errorDisplayMessage`Couldn\u2019t find a task for the link ${quotedValue} on line ${link.position?.start.line ?? "unknown"}. You may only add a task you\u2019ve previously seen to ${{TaskCollection: errorDisplayMessage`a collection`, TaskSubtasks: errorDisplayMessage`subtasks`, TaskView: errorDisplayMessage`a view`}[pageType]}. Try calling the \`create\` tool to create a new task and then add that new task to ${{TaskCollection: errorDisplayMessage`the collection`, TaskSubtasks: errorDisplayMessage`the subtasks`, TaskView: errorDisplayMessage`the view`}[pageType]}, or try calling the \`search\` tool to find an existing task you want to add to ${{TaskCollection: errorDisplayMessage`the collection`, TaskSubtasks: errorDisplayMessage`the subtasks`, TaskView: errorDisplayMessage`the view`}[pageType]}.`,
         });
     }
 
@@ -902,26 +929,20 @@ export function normalizeAgentWebTaskQueryPage(
 
 export async function updateAgentWebTaskQueryPage(
     context: AgentWebContext,
-    pageLink:
-        | {type: "TaskCollection"; id: TaskCollectionId | null}
-        | {type: "TaskSubtasks"; task: {id: TaskId | null}},
+    pageLink: AgentWebTaskQueryPageLinkNullableBase,
     oldPageMetadata: AgentWebTaskQueryPageMetadata,
     oldPage: AgentWebTaskQueryPage,
     newPage: AgentWebTaskQueryPage,
     {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<{
-    execute: (
-        pageLink:
-            | {type: "TaskCollection"; id: TaskCollectionId}
-            | {type: "TaskSubtasks"; task: {id: TaskId}},
-    ) => Promise<AgentWebTaskQueryPageMetadata>;
+    execute: (pageLink: AgentWebTaskQueryPageLinkBase) => Promise<AgentWebTaskQueryPageMetadata>;
 }> {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
 
     if (!isDeepEqual(oldPage.pagination, newPage.pagination)) {
         throw new InvalidArgumentError("Can\u2019t update task query pagination", {
-            displayMessage: errorDisplayMessage`You can\u2019t update the \u201C${agentWebTaskQueryPageNextPageLinkText}\u201D link in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Try again with a more specific update that leaves the \u201C${agentWebTaskQueryPageNextPageLinkText}\u201D link unchanged.`,
+            displayMessage: errorDisplayMessage`You can\u2019t update the \u201C${agentWebTaskQueryPageNextPageLinkText}\u201D link in ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`, TaskView: errorDisplayMessage`task view`}[pageLink.type]} markdown. Try again with a more specific update that leaves the \u201C${agentWebTaskQueryPageNextPageLinkText}\u201D link unchanged.`,
         });
     }
 
@@ -1020,7 +1041,7 @@ export async function updateAgentWebTaskQueryPage(
         const quotedTitle = curlyQuote(newTask.title);
 
         throw new InvalidArgumentError("Duplicate task in task query page", {
-            displayMessage: errorDisplayMessage`The task ${quotedTitle} appears more than once on this ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} page. Each task may only appear once. Try again after removing the duplicate task link.`,
+            displayMessage: errorDisplayMessage`The task ${quotedTitle} appears more than once on this ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`, TaskView: errorDisplayMessage`task view`}[pageLink.type]} page. Each task may only appear once. Try again after removing the duplicate task link.`,
         });
     }
 
@@ -1081,7 +1102,27 @@ export async function updateAgentWebTaskQueryPage(
         filterIterable(newCommonTaskIds, taskId => !stableTaskIds.has(taskId)),
     );
 
-    if (!oldPageMetadata.isManuallyOrdered) {
+    if (pageLink.type === "TaskView") {
+        if (addedTaskIds.length > 0 || createdPageTasks.length > 0) {
+            throw new InvalidArgumentError("Can\u2019t add tasks to a task view", {
+                displayMessage: errorDisplayMessage`Can\u2019t add tasks to task view markdown because the view\u2019s tasks are selected by its URL search param filters. Try updating a task\u2019s fields so they match the filters, then call the \`read\` tool again to see the updated view.`,
+            });
+        }
+
+        if (removedTaskIds.length > 0) {
+            throw new InvalidArgumentError("Can\u2019t remove tasks from a task view", {
+                displayMessage: errorDisplayMessage`Can\u2019t remove tasks from task view markdown because the view\u2019s tasks are selected by its URL search param filters. Try updating a task\u2019s fields so they no longer match the filters, then call the \`read\` tool again to see the updated view.`,
+            });
+        }
+
+        if (movedTaskIds.size > 0) {
+            throw new InvalidArgumentError("Can\u2019t move tasks in a task view", {
+                displayMessage: errorDisplayMessage`Can\u2019t reorder tasks in task view markdown because the view is always automatically sorted. To move a task, update a field used by the view\u2019s \`sort\` URL search param (defaults to \`sort=created\` if not present), then call the \`read\` tool again to see the updated order. Try again without reordering tasks.`,
+            });
+        }
+    }
+
+    if (pageLink.type !== "TaskView" && !oldPageMetadata.isManuallyOrdered) {
         if (addedTaskIds.length > 0 || createdPageTasks.length > 0) {
             throw new InvalidArgumentError(
                 "Can\u2019t add tasks in an automatically ordered query",
@@ -1090,6 +1131,7 @@ export async function updateAgentWebTaskQueryPage(
                 },
             );
         }
+
         if (movedTaskIds.size > 0) {
             throw new InvalidArgumentError(
                 "Can\u2019t move tasks in an automatically ordered query",
@@ -1266,7 +1308,7 @@ export async function updateAgentWebTaskQueryPage(
                     .replaceAll("\n", "\\n");
 
                 throw new InvalidArgumentError("Can\u2019t update task fields while adding task", {
-                    displayMessage: errorDisplayMessage`You can\u2019t change the task ${quotedTitle}\u2019s title or fields while adding it to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`}[pageLink.type]} markdown. Add the task with its current title and fields, then call the \`update\` tool again if you want to change its title or fields. Try again with this exact markdown for the task: ${quote(taskMarkdown)}`,
+                    displayMessage: errorDisplayMessage`You can\u2019t change the task ${quotedTitle}\u2019s title or fields while adding it to ${{TaskCollection: errorDisplayMessage`task collection`, TaskSubtasks: errorDisplayMessage`subtasks`, TaskView: errorDisplayMessage`task view`}[pageLink.type]} markdown. Add the task with its current title and fields, then call the \`update\` tool again if you want to change its title or fields. Try again with this exact markdown for the task: ${quote(taskMarkdown)}`,
                 });
             }
 
@@ -1476,6 +1518,11 @@ export async function updateAgentWebTaskQueryPage(
                     isCreate = originalPageLink.task.id === null;
                     break;
                 }
+                case "TaskView": {
+                    assert(originalPageLink.type === "TaskView");
+                    isCreate = false;
+                    break;
+                }
                 default:
                     throw exhaustive(pageLink);
             }
@@ -1498,6 +1545,8 @@ export async function updateAgentWebTaskQueryPage(
             // positions. Build movement patches in the page's new order so tasks moved between
             // the same cursors end up in the order the agent wrote.
             for (const taskIndex of repositionedPageTaskIndexes) {
+                assert(pageLink.type !== "TaskView");
+
                 let afterCursor: ApiTaskQueryCursor | null = null;
 
                 for (let index = taskIndex - 1; index >= 0; index--) {
@@ -1559,6 +1608,8 @@ export async function updateAgentWebTaskQueryPage(
             const patches: Array<TaskBatchExecution> = [];
 
             for (const removedTaskId of removedTaskIds) {
+                assert(pageLink.type !== "TaskView");
+
                 removePatches.push({
                     type: "Update",
                     id: removedTaskId,
@@ -1581,6 +1632,7 @@ export async function updateAgentWebTaskQueryPage(
 
                 switch (execution.type) {
                     case "Create": {
+                        assert(pageLink.type !== "TaskView");
                         assert(movementPatch !== undefined);
 
                         const task: ApiTaskCreateRequest =
@@ -1621,6 +1673,7 @@ export async function updateAgentWebTaskQueryPage(
                         break;
                     }
                     case "Add": {
+                        assert(pageLink.type !== "TaskView");
                         patches.push({
                             taskIndex: execution.taskIndex,
                             patch: {
@@ -1705,6 +1758,7 @@ export async function updateAgentWebTaskQueryPage(
 
                     switch (patch.patch.type) {
                         case "Create": {
+                            assert(pageLink.type !== "TaskView");
                             assert(result.type === "Create");
                             assert(result.results.length === (patch.patch.patches?.length ?? 0));
 
@@ -1751,6 +1805,9 @@ export async function updateAgentWebTaskQueryPage(
                                             result.result.cursor,
                                         );
                                     }
+                                    break;
+                                }
+                                case "TaskView": {
                                     break;
                                 }
                                 default:

@@ -677,6 +677,74 @@ End of comments.
     ).toEqual([{type: "File", id: file.id}]);
 });
 
+test("add a post comment with a post preview attachment", async () => {
+    const channel = await TestChannel.create(cli.session, {name: "Conversation Threads"});
+    const originalPost = await channel.createPost(cli.session, "Original conversation");
+
+    const originalPostSearch = await cli.run("alpine search 'Original conversation'");
+    const originalPostPath = originalPostSearch.match(/\((\/post\/[^)]+)\)/)?.[1];
+    assert(originalPostPath);
+
+    expect(await cli.run(`alpine read ${originalPostPath}`)).toContain(
+        '<post from="[Anthony](/human/anthony-mose)">',
+    );
+
+    const continuingPostCreate = await cli.run(`\
+alpine create post 'Post in [Conversation Threads](/channel/conversation-threads).
+
+<post>
+
+Continuing the conversation
+
+</post>'
+`);
+    const continuingPostPath = continuingPostCreate.match(/\((\/post\/[^)]+)\)/)?.[1];
+    assert(continuingPostPath);
+
+    expect(continuingPostCreate).toEqual(`\
+Create was successful. New post: [My in Conversation Threads: Continuing the conversation](${continuingPostPath}).
+`);
+
+    expect(
+        await cli.run(`\
+alpine update ${originalPostPath} --old '</post>' --new '</post>
+
+<comment>
+
+Let'"'"'s continue the conversation here:
+
+![My: Continuing the conversation](${continuingPostPath})
+
+</comment>'
+`),
+    ).toEqual(`\
+Update was successful.
+`);
+
+    expect(await cli.run(`alpine read ${originalPostPath}`)).toContain(`\
+<comment id="0" from="[My](/bot/my-bot)">
+
+Let's continue the conversation here:
+
+![My in Conversation Threads: Continuing the conversation](${continuingPostPath})
+
+</comment>`);
+
+    const newComment = await originalPost._getMessage(cli.session.action(), 0);
+    assert(newComment.payload.type === "Content");
+
+    expect(newComment.payload.content.doc.textContent).toEqual(
+        "Let's continue the conversation here:",
+    );
+    expect(newComment.payload.files).toHaveLength(1);
+    const postPreview = newComment.payload.files[0];
+    assert(postPreview?.type === "FileEntity");
+    assert(postPreview.fileEntityResult.ok);
+
+    expect(postPreview.fileEntityId).toMatch(/^Post:/);
+    expect(postPreview.fileEntityResult.value.type).toEqual("Post");
+});
+
 test("paginate post comments", async () => {
     const aliceSession = await cli.session.space.createSession({name: "Alice"});
     const channel = await TestChannel.create(cli.session, {name: "Launch Updates"});

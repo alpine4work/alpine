@@ -8,6 +8,7 @@ ts_project(
         "//server/api/internal/test_helpers",
         "//shared/api/content/test_helpers",
         "//server/bots/test_helpers",
+        "//server/chat/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/files/test_helpers",
         "//server/spaces/test_helpers",

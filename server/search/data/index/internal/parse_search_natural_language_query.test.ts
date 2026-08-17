@@ -3449,6 +3449,28 @@ describe("provides duration slop when referencing precise date", () => {
             ],
         });
     });
+
+    test("posts created before July 12, 2026", () => {
+        expect(
+            parseSearchNaturalLanguageQuery("posts created before July 12, 2026", options),
+        ).toEqual({
+            isLowConfidence: false,
+            queryTexts: [],
+            controlQueryTexts: ["posts created before July 12, 2026"],
+            filters: [
+                createDefaultedFilter({
+                    entityTypes: ["Post"],
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: null,
+                            inclusiveUpperBoundDate: new Date("2026-07-13T05:59:59.999Z"),
+                        },
+                    },
+                }),
+            ],
+        });
+    });
 });
 
 describe("parses entity type then date field then date", () => {

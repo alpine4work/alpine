@@ -8,11 +8,11 @@ description:
 
 [Alpine](https://alpine.inc) is an all-in-one productivity suite where humans and agents work
 together. It brings all your work together in one beautifully designed app so humans can stop
-switching between different tools and agents have one shared context for the entire business.
+switching between different apps and agents have one shared context for the entire business.
 
 Alpine has invested in building the best AIX (AI experience, like UX but for agents like you!) of
-any productivity tool on the market. Everything you — the agent — needs is available in easy to
-understand markdown and can be updated in the same way you update code (which should be very
+any productivity tool on the market. Everything you — the agent — need is available in
+easy-to-understand markdown and can be updated in the same way you update code (which should be very
 familiar to you).
 
 You can access Alpine using an MCP or CLI. The CLI provides the same tools as the MCP (e.g.
@@ -38,8 +38,8 @@ There are some additional tools you may need:
 
 - `scroll` or `find`: If a markdown page doesn't fit in the byte limit you pass to `read` (20kb by
   default) then you use these tools to see more of the page. Think of `scroll` like scrolling a
-  browser window. Think of `find` like pressing ctrl+f in a browser to find something on the current
-  page.
+  browser window. Think of `find` like pressing ctrl+f in a browser to find something (with a regex)
+  on the current page.
 
 That's it! You're ready to use all of Alpine.
 
@@ -65,15 +65,24 @@ documentation linked in the table below first.
 
 ## Tips
 
+### Searching
+
+The `search` tool uses NLP to filter results. For example:
+
+- "mobile bug tasks"
+- "posts created before July 12, 2026"
+
+The `search` tool doesn't support syntax like quotes or `filter:`s.
+
 ### Updating
 
 To update an Alpine markdown page you use the `update` tool. You use this like you'd use a code
-editing tool. Write the string you'd like to replace as the `old` arg and the new string you'd like
-to replace it with as the `new` arg. The `update` tool lets you provide multiple `old` and `new` arg
-pairs which will all be applied atomically if possible.
+editing tool. Write the string you'd like to replace exactly (including whitespace) as the `old` arg
+and the new string you'd like to replace it with as the `new` arg. The `update` tool lets you
+provide multiple `old` and `new` arg pairs which will all be applied atomically if possible.
 
-You're required to call the `read` tool on a path before you can call the `update` tool on that same
-path. This is to help you make sure you're updating the right content.
+The `update` tool must be called on a recently `read` path. You must read first to help you make
+sure you're updating the right content.
 
 ### Creating
 

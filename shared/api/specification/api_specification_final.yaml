@@ -98,6 +98,33 @@ paths:
                                         $ref: "#/components/schemas/Space"
                 default:
                     $ref: "#/components/responses/Error"
+    /spaces/{id}/accounts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema:
+                  $ref: "#/components/schemas/SpaceId"
+        get:
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - space
+                                    - accounts
+                                additionalProperties: false
+                                properties:
+                                    space:
+                                        $ref: "#/components/schemas/Space"
+                                    accounts:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/Account_Response"
+                default:
+                    $ref: "#/components/responses/Error"
     /spaces/{id}/accounts/{accountId}:
         parameters:
             - name: id
@@ -1545,6 +1572,40 @@ paths:
                     $ref: "#/components/responses/GetTaskWithNotes"
                 default:
                     $ref: "#/components/responses/Error"
+    /tasks-query:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - spaceId
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                limit:
+                                    type: integer
+                                    minimum: 1
+                                    maximum: 100
+                                    default: 10
+                                cursor:
+                                    $ref: "#/components/schemas/TaskQueryCursor"
+                                filters:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQueryFilter"
+                                sorts:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQuerySort"
+            responses:
+                "200":
+                    $ref: "#/components/responses/GetTasks"
+                default:
+                    $ref: "#/components/responses/Error"
     /tasks/{id}:
         parameters:
             - name: id
@@ -2289,23 +2350,29 @@ paths:
                             schema:
                                 type: object
                                 required:
-                                    - id
-                                    - contentType
-                                    - contentLength
-                                    - signedUrl
-                                    - isUploading
+                                    - file
                                 additionalProperties: false
                                 properties:
-                                    id:
-                                        $ref: "#/components/schemas/FileId"
-                                    contentType:
-                                        type: string
-                                    contentLength:
-                                        type: integer
-                                    signedUrl:
-                                        type: string
-                                    isUploading:
-                                        type: boolean
+                                    file:
+                                        type: object
+                                        required:
+                                            - id
+                                            - contentType
+                                            - contentLength
+                                            - signedUrl
+                                            - isUploading
+                                        additionalProperties: false
+                                        properties:
+                                            id:
+                                                $ref: "#/components/schemas/FileId"
+                                            contentType:
+                                                $ref: "#/components/schemas/FileContentType"
+                                            contentLength:
+                                                type: integer
+                                            signedUrl:
+                                                type: string
+                                            isUploading:
+                                                type: boolean
                 default:
                     $ref: "#/components/responses/Error"
     /files/{id}/content:
@@ -2540,6 +2607,27 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             notes:
                                 $ref: "#/components/schemas/TaskNotes_Response"
+        GetTasks:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                            - spaceId
+                            - nextCursor
+                            - tasks
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            nextCursor:
+                                oneOf:
+                                    - $ref: "#/components/schemas/TaskQueryCursor"
+                                    - type: "null"
+                            tasks:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/TaskQueryItem_Response"
         GetTaskCollectionTasks:
             content:
                 application/json:
@@ -10450,6 +10538,17 @@ components:
                     $ref: "#/components/schemas/TaskId"
                 patch:
                     $ref: "#/components/schemas/TaskPatch_Response"
+        TaskQueryCollectionsFilter_Response:
+            type: object
+            required:
+                - type
+                - operation
+            additionalProperties: false
+            properties:
+                type:
+                    const: Collections
+                operation:
+                    $ref: "#/components/schemas/TaskQueryCollectionsFilterOperation_Response"
         TaskNotesSetContentPatch_Response:
             type: object
             required:
@@ -10465,17 +10564,6 @@ components:
                     minimum: 0
                 content:
                     $ref: "#/components/schemas/Content_Response"
-        TaskQueryCollectionsFilter_Response:
-            type: object
-            required:
-                - type
-                - operation
-            additionalProperties: false
-            properties:
-                type:
-                    const: Collections
-                operation:
-                    $ref: "#/components/schemas/TaskQueryCollectionsFilterOperation_Response"
         MessageStreamContentPartPayload_Response:
             type: object
             required:
@@ -10656,13 +10744,6 @@ components:
                 mapping:
                     SetName: "#/components/schemas/ChannelSetNamePatch"
                     SetDescription: "#/components/schemas/ChannelSetDescriptionPatch_Response"
-        TaskNotesPatch_Response:
-            oneOf:
-                - $ref: "#/components/schemas/TaskNotesSetContentPatch_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    SetContent: "#/components/schemas/TaskNotesSetContentPatch_Response"
         TaskQueryFilter_Response:
             oneOf:
                 - $ref: "#/components/schemas/TaskQueryStatusFilter"
@@ -10694,6 +10775,13 @@ components:
                     AssignedTime: "#/components/schemas/TaskQueryAssignedTimeFilter"
                     ClosedTime: "#/components/schemas/TaskQueryClosedTimeFilter"
                     ActivatedTime: "#/components/schemas/TaskQueryActivatedTimeFilter"
+        TaskNotesPatch_Response:
+            oneOf:
+                - $ref: "#/components/schemas/TaskNotesSetContentPatch_Response"
+            discriminator:
+                propertyName: type
+                mapping:
+                    SetContent: "#/components/schemas/TaskNotesSetContentPatch_Response"
         MessageStreamPartPayload_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageStreamContentPartPayload_Response"

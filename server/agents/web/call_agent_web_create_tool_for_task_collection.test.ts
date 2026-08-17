@@ -706,6 +706,25 @@ test("validates task fields before creating a task collection", async () => {
     expect(getApiPostTaskCollectionsRequestHistory()).toHaveLength(0);
 });
 
+test("rejects a Layout field before creating a task collection", async () => {
+    const result = await callAgentWebCreateTool(context, {
+        type: "task-collection",
+        content: `# Roadmap
+
+- Draft launch plan (Open)
+  - Layout: Project`,
+    });
+
+    expect({result, requests: api.getRequestHistory()}).toEqual({
+        result:
+            "Error: Couldn\u2019t create task collection. " +
+            ("Task field \u201CLayout\u201D on line 4 isn\u2019t supported in this context. Try again " +
+                "with one of \u201CParent\u201D, \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
+                "\u201CPriority\u201D, or \u201CDue date\u201D."),
+        requests: [],
+    });
+});
+
 test("validates a new task\u2019s additional collection count before creating a collection", async () => {
     await storeAgentWebPageLinkForTest(storage, {
         type: "TaskCollection",

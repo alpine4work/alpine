@@ -13,6 +13,7 @@ import {
     ApiTaskResponse,
     ApiTaskWithNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {
@@ -27,7 +28,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 const {span} = testTracer.startSpan("call_agent_web_read_tool_for_task.test.ts");
@@ -95,6 +98,7 @@ test("reads full task page", async () => {
     mockGetTask(api, spaceId, taskId, {
         title: "Ship task page",
         status: {type: "Open", isActive: true},
+        layout: {type: "Project"},
         parent: {
             task: {
                 id: parentTaskId,
@@ -141,6 +145,7 @@ test("reads full task page", async () => {
 # Ship task page
 
 - Status: Open (active)
+- Layout: Project
 - Parent: [Parent task](/task/parent-task)
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering), [Roadmap](/task-collection/roadmap)
@@ -191,6 +196,7 @@ test("reads task subtasks beneath notes and ignores task page URL filters and so
     const firstSubtask = createApiTaskMock({
         index: 301,
         title: "First subtask",
+        layout: "Project",
         parent: {id: taskId, title: "Task with subtasks", status: taskStatus},
     });
     const secondSubtask = createApiTaskMock({

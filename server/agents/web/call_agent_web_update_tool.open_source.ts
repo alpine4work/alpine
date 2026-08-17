@@ -32,6 +32,10 @@ import {
     updateAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.open_source.js";
 import {
+    parseAgentWebSpacePage,
+    updateAgentWebSpacePage,
+} from "~/server/agents/web/pages/agent_web_space_page.open_source.js";
+import {
     parseAgentWebTaskCollectionPage,
     updateAgentWebTaskCollectionPage,
 } from "~/server/agents/web/pages/agent_web_task_collection_page.open_source.js";
@@ -47,6 +51,10 @@ import {
     parseAgentWebTaskSubtasksPage,
     updateAgentWebTaskSubtasksPage,
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.open_source.js";
+import {
+    parseAgentWebTaskViewPage,
+    updateAgentWebTaskViewPage,
+} from "~/server/agents/web/pages/agent_web_task_view_page.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
 import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
@@ -345,6 +353,16 @@ async function updateAgentWebPageLink(
 
             return updateAgentWebInboxPage(context, oldPageMetadata, oldPage, newPage);
         }
+        case "Space": {
+            const oldResponse = oldResponseLazy.get();
+
+            const [oldPage, newPage] = await runAllPromises([
+                parseAgentWebSpacePage(context.storage, oldPageMetadata.id, oldResponse),
+                parseAgentWebSpacePage(context.storage, oldPageMetadata.id, newResponse),
+            ]);
+
+            return updateAgentWebSpacePage(context, oldPageMetadata, oldPage, newPage);
+        }
         case "Document": {
             const newPage = await parseAgentWebDocumentPage(
                 context.storage,
@@ -464,6 +482,22 @@ async function updateAgentWebPageLink(
             ]);
 
             return await updateAgentWebTaskSubtasksPage(
+                context,
+                oldPageMetadata,
+                oldPage,
+                newPage,
+                options,
+            );
+        }
+        case "TaskView": {
+            const oldResponse = oldResponseLazy.get();
+
+            const [oldPage, newPage] = await runAllPromises([
+                parseAgentWebTaskViewPage(context.storage, null, oldResponse),
+                parseAgentWebTaskViewPage(context.storage, null, newResponse),
+            ]);
+
+            return await updateAgentWebTaskViewPage(
                 context,
                 oldPageMetadata,
                 oldPage,

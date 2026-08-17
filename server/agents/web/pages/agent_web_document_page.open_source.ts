@@ -6,7 +6,7 @@ import {curlyQuote} from "~/server/agents/web/internal/curly_quote.open_source.j
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.open_source.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.open_source.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";

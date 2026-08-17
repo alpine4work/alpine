@@ -24,12 +24,21 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 /**
  * Get a the error constructor for the provided error code.
  */
-export function getErrorConstructorForCode(
-    code: ErrorCode,
-): new (
-    message: string,
-    options?: {cause?: unknown; displayMessage?: ErrorDisplayMessage; aggregateDedupeKey?: string},
-) => ErrorBase {
+export function getErrorConstructorForCode(code: ErrorCode): {
+    new (
+        message: string,
+        options?: {
+            cause?: unknown;
+            displayMessage?: ErrorDisplayMessage;
+            aggregateDedupeKey?: string;
+        },
+    ): ErrorBase;
+    from(
+        error: unknown,
+        newMessage?: string,
+        options?: {displayMessage?: ErrorDisplayMessage},
+    ): ErrorBase;
+} {
     switch (code) {
         case ErrorCode.Cancelled:
             return CancelledError;

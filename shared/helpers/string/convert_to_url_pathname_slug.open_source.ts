@@ -25,8 +25,9 @@ export function convertToUrlPathnameSlug(
     // "Rose Compás" becomes "Rose Compas".
     string = removeAccents(string);
 
-    // Remove apostrophe "'s" so "it's" and "Rose's" become "its" and "Roses".
-    string = string.replaceAll(/(?<=[^\s])[\u2019\u0027]s/g, "s");
+    // Remove apostrophe "'s" so "it's" and "Rose's" become "its" and "Roses". And
+    // "'m", "'t", etc. to replace any contractions we can.
+    string = string.replaceAll(/(?<=[^\s])[\u2019\u0027]([stdm]|ve|ll|re)/g, "$1");
 
     // Replace ampersands with "and" so `D&D` becomes `d-and-d` instead of `d-d`.
     string = string.replaceAll("&", " and ");

@@ -154,6 +154,30 @@ paths:
                                     space:
                                         $ref: "#/components/schemas/Space"
 
+    /spaces/{id}/accounts:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: {$ref: "#/components/schemas/SpaceId"}
+        get:
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [space, accounts]
+                                additionalProperties: false
+                                properties:
+                                    space:
+                                        $ref: "#/components/schemas/Space"
+                                    accounts:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/Account"
+
     /spaces/{id}/accounts/{accountId}:
         parameters:
             - name: id
@@ -1443,6 +1467,38 @@ paths:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetTaskWithNotes"}
 
+    /tasks-query:
+        post:
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [spaceId]
+                            additionalProperties: false
+                            properties:
+                                spaceId:
+                                    $ref: "#/components/schemas/SpaceId"
+                                limit:
+                                    type: integer
+                                    minimum: 1
+                                    maximum: 100
+                                    default: 10
+                                cursor:
+                                    $ref: "#/components/schemas/TaskQueryCursor"
+                                filters:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQueryFilter"
+                                sorts:
+                                    type: array
+                                    items:
+                                        $ref: "#/components/schemas/TaskQuerySort"
+            responses:
+                default: {$ref: "#/components/responses/Error"}
+                "200": {$ref: "#/components/responses/GetTasks"}
+
     /tasks/{id}:
         parameters:
             - name: id
@@ -2111,19 +2167,25 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                required: [id, contentType, contentLength, signedUrl, isUploading]
+                                required: [file]
                                 additionalProperties: false
                                 properties:
-                                    id:
-                                        $ref: "#/components/schemas/FileId"
-                                    contentType:
-                                        type: string
-                                    contentLength:
-                                        type: integer
-                                    signedUrl:
-                                        type: string
-                                    isUploading:
-                                        type: boolean
+                                    file:
+                                        type: object
+                                        required:
+                                            [id, contentType, contentLength, signedUrl, isUploading]
+                                        additionalProperties: false
+                                        properties:
+                                            id:
+                                                $ref: "#/components/schemas/FileId"
+                                            contentType:
+                                                $ref: "#/components/schemas/FileContentType"
+                                            contentLength:
+                                                type: integer
+                                            signedUrl:
+                                                type: string
+                                            isUploading:
+                                                type: boolean
 
     /files/{id}/content:
         parameters:
@@ -2335,6 +2397,25 @@ components:
                                 $ref: "#/components/schemas/SpaceId"
                             notes:
                                 $ref: "#/components/schemas/TaskNotes"
+
+        GetTasks:
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required: [spaceId, nextCursor, tasks]
+                        additionalProperties: false
+                        properties:
+                            spaceId:
+                                $ref: "#/components/schemas/SpaceId"
+                            nextCursor:
+                                oneOf:
+                                    - $ref: "#/components/schemas/TaskQueryCursor"
+                                    - type: "null"
+                            tasks:
+                                type: array
+                                items:
+                                    $ref: "#/components/schemas/TaskQueryItem"
 
         GetTaskCollectionTasks:
             content:

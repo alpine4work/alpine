@@ -540,9 +540,7 @@ test("fails if query is unauthorized", async () => {
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError(
-            "Query may reveal tasks the session account is not allowed to see",
-        ),
+        new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
     );
 });
 
@@ -654,9 +652,7 @@ test("fails if one query is unauthorized and one is authorized", async () => {
             ],
         }),
     ).rejects.toThrow(
-        new PermissionDeniedError(
-            "Query may reveal tasks the session account is not allowed to see",
-        ),
+        new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
     );
 });
 

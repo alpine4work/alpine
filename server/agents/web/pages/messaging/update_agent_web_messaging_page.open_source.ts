@@ -428,6 +428,19 @@ export async function updateAgentWebMessagingPage<
 
         const {content, files} = extractApiMessageFilesFromContent(newBlock.content);
 
+        if (
+            content.elements.some(
+                element =>
+                    element.type === "File" ||
+                    element.type === "Preview" ||
+                    element.type === "FileGallery",
+            )
+        ) {
+            throw new InvalidArgumentError("Message files must be last", {
+                displayMessage: errorDisplayMessage`Files must be the last thing in a ${quote(`<${messageNouns.noun}>`)}. Try again with all files after the ${messageNouns.noun} content right before ${quote(`</${messageNouns.noun}>`)}.`,
+            });
+        }
+
         let newBlockParentRange: {
             messageRange: AgentWebMessagingPageMessageRange;
             contentRange: ApiContentRange;

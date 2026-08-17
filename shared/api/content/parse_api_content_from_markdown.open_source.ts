@@ -20,6 +20,7 @@ import {gfmStrikethrough} from "micromark-extension-gfm-strikethrough";
 import {gfmTable} from "micromark-extension-gfm-table";
 import {gfmTaskListItem} from "micromark-extension-gfm-task-list-item";
 import {math} from "micromark-extension-math";
+import {computeApiContentGfmTableLayout} from "~/shared/api/content/compute_api_content_gfm_table_layout.open_source.js";
 import {
     normalizeApiContentBlockElement,
     normalizeApiContentInlineElementMarks,
@@ -1547,7 +1548,7 @@ function* parseApiContentBlockElementFromMarkdown(
             break;
         }
         case "table": {
-            let columnCount = 0;
+            const tableLayout = computeApiContentGfmTableLayout(content);
 
             const rows = content.children.map(row => {
                 const cells = row.children.map((cell): ApiContentTableBlockElementCell => {
@@ -1569,8 +1570,6 @@ function* parseApiContentBlockElementFromMarkdown(
                     cells.push({elements: [{type: "Paragraph", elements: []}]});
                 }
 
-                columnCount = Math.max(columnCount, cells.length);
-
                 return {cells};
             });
 
@@ -1581,14 +1580,12 @@ function* parseApiContentBlockElementFromMarkdown(
                         {elements: [{type: "Paragraph", elements: []}]},
                     ],
                 });
-
-                columnCount = Math.max(columnCount, 2);
             }
 
             yield {
                 type: "Table",
-                width: 1,
-                columns: createArrayWithLength(columnCount, () => ({width: 1})),
+                width: tableLayout.tableWidth,
+                columns: tableLayout.columnWidths.map(width => ({width})),
                 hasHeaderRow: true,
                 rows,
             };

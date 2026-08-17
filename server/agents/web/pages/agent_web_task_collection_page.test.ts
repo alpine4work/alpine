@@ -1634,6 +1634,23 @@ task you want to add to the collection.
             `,
         },
         {
+            name: "layout task field isn\u2019t allowed in a task collection",
+            pageLink: collectionId,
+            setupStorage: async storage => {
+                await storeAgentWebPageLinkForTest(storage, writeSpecTaskReference);
+            },
+            markdown: `# Roadmap
+
+- [Write spec (Open)](/task/write-spec)
+  - Layout: Project
+`,
+            parseError: markdown`
+Error: Task field \u201CLayout\u201D on line 4 isn\u2019t supported in this context. Try again with
+one of \u201CParent\u201D, \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D,
+\u201CPriority\u201D, or \u201CDue date\u201D.
+            `,
+        },
+        {
             name: "status task field isn\u2019t allowed in a task collection",
             pageLink: collectionId,
             setupStorage: async storage => {
@@ -1646,9 +1663,9 @@ task you want to add to the collection.
   - Status: Open
 `,
             parseError: markdown`
-Error: Unknown task field \u201CStatus\u201D on line 4. Try again with one of \u201CParent\u201D,
-\u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or
-\u201CDue date\u201D.
+Error: Task field \u201CStatus\u201D on line 4 isn\u2019t supported in this context. Try again with
+one of \u201CParent\u201D, \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D,
+\u201CPriority\u201D, or \u201CDue date\u201D.
             `,
         },
         {

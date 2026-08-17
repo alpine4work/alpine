@@ -38,7 +38,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 const spaceId = generateId<SpaceId>();
@@ -446,7 +448,7 @@ test.each([
             limit: 5,
         });
 
-        const {response} = await actuallyCallAgentWebReadTool(context, {
+        const response = await callAgentWebReadTool(context, {
             path: `${documentThreadPath}?after=blockquote&before=5&from=${options.from}`,
             limit: "20kb",
         });
@@ -474,14 +476,12 @@ test("reads a document comment in a bounded range from the end", async () => {
         limit: 1,
     });
 
-    const {isError, response} = await actuallyCallAgentWebReadTool(context, {
+    const response = await callAgentWebReadTool(context, {
         path: `${documentThreadPath}?from=end&before=2&after=0`,
         limit: "20kb",
     });
 
-    expect({isError, response}).toEqual({
-        isError: false,
-        response: `\
+    expect(response).toEqual(`\
 Document comment thread on [Launch Spec](/document/launch-spec).
 
 <time>May 14th at 11:05am EDT</time>
@@ -490,8 +490,7 @@ Document comment thread on [Launch Spec](/document/launch-spec).
 
 Comment 1.
 
-</comment>`,
-    });
+</comment>`);
 });
 
 test("reads a document thread with no comments", async () => {

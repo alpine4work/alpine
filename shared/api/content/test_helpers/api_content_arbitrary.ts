@@ -4,7 +4,7 @@ import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_conte
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {apiContentInlineElementMarkTypeNormalizedOrder} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {
-    isSimpleApiContentTableBlockElementForTest,
+    computeApiContentTableBlockElementGfmTableLayoutForTest,
     printApiMentionReferenceToMentionUrl,
 } from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
@@ -651,10 +651,21 @@ const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElemen
                     };
                 });
 
-                const newTable: ApiContentTableBlockElementResponse = {...oldTable, rows};
+                let newTable: ApiContentTableBlockElementResponse = {...oldTable, rows};
 
-                // Make sure we can print the table as a GFM table.
-                assert(isSimpleApiContentTableBlockElementForTest(newTable));
+                const tableLayout =
+                    computeApiContentTableBlockElementGfmTableLayoutForTest(newTable);
+
+                // Make sure we can print the table as a GFM table. If the table isn't printable as
+                // a GFM table then this will be null.
+                assert(tableLayout !== null);
+
+                newTable = {
+                    ...newTable,
+                    width: tableLayout.tableWidth,
+                    columns: tableLayout.columnWidths.map(width => ({width})),
+                };
+
                 return newTable;
             }),
 

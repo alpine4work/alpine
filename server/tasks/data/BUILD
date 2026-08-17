@@ -6,6 +6,7 @@ ts_project(
         "//:node_modules/@types/json-bigint",
         "//:node_modules/json-bigint",
         "//server/bots/test_helpers",
+        "//server/chat/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/messaging/test_helpers/suite",
         "//server/spaces/test_helpers",

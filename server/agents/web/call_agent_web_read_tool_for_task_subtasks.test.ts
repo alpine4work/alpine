@@ -12,6 +12,7 @@ import {
     ApiTaskResponse,
     ApiTaskWithNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -21,7 +22,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 const spaceId = generateId<SpaceId>();
@@ -67,6 +70,7 @@ test("reads task subtasks with the parent task preamble", async () => {
         index: 0,
         title: "First subtask",
         parent: parentTask,
+        layout: "Project",
         priority: "High",
     });
     const secondSubtask = createApiTaskMock({

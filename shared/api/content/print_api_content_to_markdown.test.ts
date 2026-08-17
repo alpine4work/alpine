@@ -4692,6 +4692,541 @@ This text has <mark data-comment="${threadId2}"><mark data-comment="${threadId3}
 `,
                 },
                 {
+                    description: "GFM table with inferred table width",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1.25,
+                                columns: [
+                                    {width: 1},
+                                    {width: 1},
+                                    {width: 1},
+                                    {width: 1},
+                                    {width: 1},
+                                ],
+                                hasHeaderRow: true,
+                                hasHeaderColumn: false,
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "A"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "B"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "C"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "D"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "E"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+| A | B | C | D | E |
+| - | - | - | - | - |
+`,
+                },
+                {
+                    description: "GFM table widths are computed from visible cell content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                columns: [{width: 1}, {width: 1.5}, {width: 2.5}],
+                                hasHeaderRow: true,
+                                hasHeaderColumn: false,
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Short"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "Longer column content",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "Significantly longer column content",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "A"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "B"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "C"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+| Short | Longer column content | Significantly longer column content |
+| - | - | - |
+| A | B | C |
+`,
+                },
+                {
+                    description: "GFM table widths use the widest cell in each column",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                columns: [{width: 1.43}, {width: 2}, {width: 1}],
+                                hasHeaderRow: true,
+                                hasHeaderColumn: false,
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "A"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "B"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "C"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "12345678901234567890",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "B"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "C"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "A"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "1234567890123456789012345678",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "C"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+| A | B | C |
+| - | - | - |
+| 12345678901234567890 | B | C |
+| A | 1234567890123456789012345678 | C |
+`,
+                },
+                {
+                    description: "GFM table widths are normalized by the narrowest column",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                columns: [{width: 1}, {width: 2}],
+                                hasHeaderRow: true,
+                                hasHeaderColumn: false,
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "12345678901234567890",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "1234567890123456789012345678901234567890",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "A"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "B"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+| 12345678901234567890 | 1234567890123456789012345678901234567890 |
+| - | - |
+| A | B |
+`,
+                },
+                {
+                    description: "GFM table widths cap very long cell content",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1,
+                                columns: [{width: 1}, {width: 4.71}],
+                                hasHeaderRow: true,
+                                hasHeaderColumn: false,
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "Short"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "1234567890123456789012345678901234567890123456789012345678901234567890",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "A"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "B"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+| Short | 1234567890123456789012345678901234567890123456789012345678901234567890 |
+| - | - |
+| A | B |
+`,
+                },
+                {
+                    description: "GFM tables grow wider than four columns",
+                    content: {
+                        elements: [
+                            {
+                                type: "Table",
+                                width: 1.25,
+                                columns: [
+                                    {width: 1},
+                                    {width: 1.5},
+                                    {width: 1},
+                                    {width: 1},
+                                    {width: 2.5},
+                                ],
+                                hasHeaderRow: true,
+                                hasHeaderColumn: false,
+                                rows: [
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "A"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "Longer column content",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "C"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "D"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [
+                                                            {
+                                                                type: "Text",
+                                                                text: "Significantly longer column content",
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                    {
+                                        cells: [
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "1"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "2"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "3"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "4"}],
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                elements: [
+                                                    {
+                                                        type: "Paragraph",
+                                                        elements: [{type: "Text", text: "5"}],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    expectedMarkdown: `\
+| A | Longer column content | C | D | Significantly longer column content |
+| - | - | - | - | - |
+| 1 | 2 | 3 | 4 | 5 |
+`,
+                },
+                {
                     description: "simple GFM table with formatted text",
                     content: {
                         elements: [
@@ -5955,7 +6490,7 @@ Single line
                             {
                                 type: "Table",
                                 width: 1,
-                                columns: [{width: 1}],
+                                columns: [{width: 1}, {width: 1}],
                                 hasHeaderRow: true,
                                 hasHeaderColumn: false,
                                 rows: [
@@ -9766,7 +10301,7 @@ _-X_**[~~-y/@\\\`/$bz1~~](https://63o.kry)G**
                                 width: 1,
                                 hasHeaderRow: true,
                                 hasHeaderColumn: false,
-                                columns: [],
+                                columns: [{width: 1}, {width: 4.71}],
                                 rows: [
                                     {
                                         cells: [

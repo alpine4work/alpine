@@ -21,8 +21,8 @@ import {
     readAgentWebTaskQueryPage,
     updateAgentWebTaskQueryPage,
 } from "~/server/agents/web/pages/agent_web_task_query_page.open_source.js";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
     ApiTaskReferenceResponse,
     ApiTaskResponse,

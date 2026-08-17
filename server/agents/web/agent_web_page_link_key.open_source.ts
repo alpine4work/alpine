@@ -23,7 +23,9 @@ export function printAgentWebPageLinkKey(key: AgentWebPageLinkKeyObject): AgentW
         case "DocumentThread":
         case "TaskMessageList":
         case "TaskSubtasks":
+        case "TaskView":
         case "Inbox":
+        case "Space":
         case "MyAccount":
             return printAgentWebPageRoutedLinkKey(key);
         default:
@@ -39,7 +41,9 @@ export function parseAgentWebPageLinkKey(key: AgentWebPageLinkKey): AgentWebPage
         case "DocumentThread":
         case "TaskMessageList":
         case "TaskSubtasks":
+        case "TaskView":
         case "Inbox":
+        case "Space":
             return parseAgentWebPageRoutedLinkKey(key as AgentWebPageRoutedLinkKey);
         default:
             return parseAgentWebPageStoredLinkKey(key as AgentWebPageStoredLinkKey);

@@ -12,6 +12,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {ApiTaskQueryDefaultsResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {
@@ -25,7 +26,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 const spaceId = generateId<SpaceId>();
@@ -122,6 +125,7 @@ test("reads a task collection page with task fields", async () => {
         createApiTaskMock({
             index: 0,
             title: "Write spec",
+            layout: "Project",
             parent: {title: "Plan launch"},
             assignee: aliceAccount,
             collections: [

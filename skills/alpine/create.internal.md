@@ -12,7 +12,7 @@ the markdown content for the new page. Read the link to learn more about the mar
 each type.
 
 - [`document`](documents.internal.md)
-- [`document-comment-thread`](documents.internal.md)
+- [`document-comment-thread`](document-comments.internal.md)
 - [`chat`](chat.internal.md)
 - [`channel`](forum.internal.md)
 - [`post`](forum.internal.md)

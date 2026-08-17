@@ -160,6 +160,18 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
                 url: `https://alpine.inc/inbox/${spaceId}`,
             };
         }
+        case "TaskView": {
+            return {
+                type: "Url",
+                url: `https://alpine.inc/my-tasks/${spaceId}`,
+            };
+        }
+        case "Space": {
+            return {
+                type: "Url",
+                url: `https://alpine.inc/settings/${spaceId}/general`,
+            };
+        }
         case "Skill": {
             // If the agent writes a skill link then output that as a URL to the skill file in
             // our open source mirror so the user can go open that file and see what the agent

@@ -25,11 +25,13 @@ export const apiFilesPaths: Pick<ApiPaths, keyof ApiPaths & `/files/${string}`> 
             if (fileId === unknownFileId) {
                 return {
                     content: {
-                        id: unknownFileId,
-                        contentType: "image/png",
-                        contentLength: transparentPixelPng.byteLength,
-                        signedUrl: transparentPixelPngDataUrl,
-                        isUploading: false,
+                        file: {
+                            id: unknownFileId,
+                            contentType: "image/png",
+                            contentLength: transparentPixelPng.byteLength,
+                            signedUrl: transparentPixelPngDataUrl,
+                            isUploading: false,
+                        },
                     },
                 };
             }
@@ -43,11 +45,13 @@ export const apiFilesPaths: Pick<ApiPaths, keyof ApiPaths & `/files/${string}`> 
 
             return {
                 content: {
-                    id: file.id,
-                    contentType: file.contentType,
-                    contentLength: file.contentLength,
-                    signedUrl: signedUrl.toString(),
-                    isUploading: file.initialData.isUploading,
+                    file: {
+                        id: file.id,
+                        contentType: file.contentType,
+                        contentLength: file.contentLength,
+                        signedUrl: signedUrl.toString(),
+                        isUploading: file.initialData.isUploading,
+                    },
                 },
             };
         },

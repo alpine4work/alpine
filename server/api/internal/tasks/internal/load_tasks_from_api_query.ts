@@ -14,7 +14,7 @@ import {TaskRealtimeLoadQueriesInputQuery} from "~/shared/tasks/task_realtime_se
 
 type ApiTaskRealtimeLoadQueriesInputQuery = Extract<
     TaskRealtimeLoadQueriesInputQuery,
-    {type: "Collection" | "Children"}
+    {type: "Normalized" | "Collection" | "Children"}
 >;
 
 export async function loadTasksFromApiQuery(
@@ -44,8 +44,12 @@ export async function loadTasksFromApiQuery(
     const query = assertExists(queries[0]);
     const {loadedState, sorts} = query;
 
-    const cursor = inputQuery.expensivelyAfterCursorForApi;
-    const afterCursor = cursor !== undefined ? decodeApiTaskQueryCursor(sorts, cursor) : null;
+    const afterCursor =
+        inputQuery.type === "Normalized"
+            ? (inputQuery.expensivelyAfterCursor ?? null)
+            : inputQuery.expensivelyAfterCursorForApi === undefined
+              ? null
+              : decodeApiTaskQueryCursor(sorts, inputQuery.expensivelyAfterCursorForApi);
 
     const tasks = getTasksInRealtimeQueryLoadedRangeForApi({
         query,

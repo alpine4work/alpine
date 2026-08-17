@@ -10,19 +10,23 @@ import {
     searchByKeywords,
     searchBySemantics,
 } from "~/server/search/data/index/search_entity_index.js";
+import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_all_space_accounts.js";
 import {getAccountWithoutAvatar} from "~/server/spaces/get_account.js";
 import {getSpace} from "~/server/spaces/get_space.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {DynamoIndexCursorSchema} from "~/shared/dynamo/dynamo_opaque_strings.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {mergeKeywordAndSemanticSearchResults} from "~/shared/search/merge_keyword_and_semantic_search_results.js";
 import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {standardSearchOptions} from "~/shared/search/search_options.js";
+import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 
 export const apiSpacesPaths: Pick<
     ApiPaths,
@@ -117,6 +121,54 @@ export const apiSpacesPaths: Pick<
                         id: pathParameters.id,
                         name: space.name,
                     },
+                },
+            };
+        },
+    },
+
+    "/spaces/{id}/accounts": {
+        get: async (context, {pathParameters}) => {
+            const [space, accounts] = await runAllPromises([
+                getSpace(context, pathParameters.id, {
+                    consistency: "StrongWithinCache",
+                }),
+                expensivelyGetAllSpaceAccounts(context, pathParameters.id, {
+                    consistency: "Strong",
+                }),
+            ]);
+
+            return {
+                content: {
+                    space: {
+                        id: pathParameters.id,
+                        name: space.name,
+                    },
+                    accounts: accounts
+                        .toSorted((account1, account2) => {
+                            const getStateOrder = (
+                                state: "Active" | "Removed" | "InvitePending",
+                            ): number => {
+                                switch (state) {
+                                    case "Active":
+                                        return 0;
+                                    case "InvitePending":
+                                        return 1;
+                                    case "Removed":
+                                        return 2;
+                                    default:
+                                        throw exhaustive(state);
+                                }
+                            };
+
+                            return (
+                                getStateOrder(account1.initialData.space.state.type) -
+                                    getStateOrder(account2.initialData.space.state.type) ||
+                                account1.initialData.space.addedTime.getTime() -
+                                    account2.initialData.space.addedTime.getTime() ||
+                                defaultCompareStrings(account1.id, account2.id)
+                            );
+                        })
+                        .map(account => intoApiAccount(account.initialData)),
                 },
             };
         },

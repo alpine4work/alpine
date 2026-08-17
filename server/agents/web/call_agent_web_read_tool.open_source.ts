@@ -1,7 +1,10 @@
 import {addHours} from "date-fns";
 import {Root} from "mdast";
 import {getApiReference} from "~/server/agents/api/api_client.open_source.js";
-import {parseAgentWebBytes} from "~/server/agents/web/agent_web_bytes.open_source.js";
+import {
+    parseAgentWebBytes,
+    printAgentWebBytes,
+} from "~/server/agents/web/agent_web_bytes.open_source.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {
     AgentWebPage,
@@ -61,6 +64,12 @@ import {
     readAgentWebPostPage,
 } from "~/server/agents/web/pages/agent_web_post_page.open_source.js";
 import {
+    normalizeAgentWebSpacePage,
+    parseAgentWebSpacePage,
+    printAgentWebSpacePage,
+    readAgentWebSpacePage,
+} from "~/server/agents/web/pages/agent_web_space_page.open_source.js";
+import {
     normalizeAgentWebTaskCollectionPage,
     parseAgentWebTaskCollectionPage,
     printAgentWebTaskCollectionPage,
@@ -85,6 +94,12 @@ import {
     printAgentWebTaskSubtasksPage,
     readAgentWebTaskSubtasksPage,
 } from "~/server/agents/web/pages/agent_web_task_subtasks_page.open_source.js";
+import {
+    normalizeAgentWebTaskViewPage,
+    parseAgentWebTaskViewPage,
+    printAgentWebTaskViewPage,
+    readAgentWebTaskViewPage,
+} from "~/server/agents/web/pages/agent_web_task_view_page.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
@@ -93,28 +108,56 @@ import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_mar
 import {parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible} from "~/shared/api/content/parse_api_content_from_markdown_url_if_possible.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
+    ErrorBase,
     FailedPreconditionError,
     InternalError,
     InvalidArgumentError,
     NotFoundError,
     UnimplementedError,
+    getErrorCode,
 } from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {getErrorCodeForHttpStatusCode} from "~/shared/error/get_error_code_for_http_status_code.open_source.js";
+import {getErrorConstructorForCode} from "~/shared/error/get_error_constructor_for_code.open_source.js";
+import {FileContentType} from "~/shared/files/file_content_type.open_source.js";
 import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {FileId} from "~/shared/id/types/id_types.open_source.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export const agentWebReadResponseExpirationHours = 1;
+
+export type CallAgentWebReadToolResult =
+    | {
+          isError: false;
+          response: CallAgentWebReadToolResponse;
+          pageLink: AgentWebPageLinkKeyObject;
+      }
+    | {
+          isError: true;
+          response: {type: "String"; string: string};
+      };
+
+type CallAgentWebReadToolResponse =
+    | {type: "String"; string: string}
+    | {
+          type: "File";
+          id: FileId;
+          contentType: FileContentType;
+          contentLength: number;
+          pathname: string;
+          fetch: <Value>(
+              action: (stream: ReadableStream, response: Response) => Promise<Value>,
+          ) => Promise<Value>;
+      };
 
 export async function callAgentWebReadTool(
     context: AgentWebContext,
     options: {path: string; limit?: string},
-): Promise<
-    | {isError: false; response: string; pageLink: AgentWebPageLinkKeyObject}
-    | {isError: true; response: string}
-> {
+): Promise<CallAgentWebReadToolResult> {
     return await context.span.withSpan("Call agent web read tool", async span => {
         return await withInstrumentedAgentWebSessionStorage(
             span,
@@ -135,16 +178,24 @@ export async function callAgentWebReadTool(
                     span.addException(error);
                     return {
                         isError: true,
-                        response: printAgentWebError(
-                            `Couldn\u2019t read ${quote(options.path)}`,
-                            error,
-                        ),
+                        response: {
+                            type: "String",
+                            string: printAgentWebError(
+                                `Couldn\u2019t read ${quote(options.path)}`,
+                                error,
+                            ),
+                        },
                     };
                 }
             },
         );
     });
 }
+
+type ActuallyCallAgentWebReadToolResult = {
+    pageLink: AgentWebPageLinkKeyObject;
+    response: CallAgentWebReadToolResponse;
+};
 
 async function actuallyCallAgentWebReadTool(
     context: AgentWebContext,
@@ -155,10 +206,7 @@ async function actuallyCallAgentWebReadTool(
         path: string;
         limit?: string;
     },
-): Promise<{
-    pageLink: AgentWebPageLinkKeyObject;
-    response: string;
-}> {
+): Promise<ActuallyCallAgentWebReadToolResult> {
     // Allow passing in an Alpine URL to the `read` tool. This will help users who copy
     // an Alpine URL from their browser and paste it into their agent. The agent can
     // then take the URL and turn it into a human-readable path and operate on that.
@@ -194,24 +242,20 @@ async function actuallyCallAgentWebReadTool(
 
         return {
             pageLink: referenceResponse,
-            response: `Found path for URL: ${quote(pathname)}.\n\nCall the \`read\` tool again with that path to see the ${getApiMentionReferenceNoun(reference.type)}\u2019s content.`,
+            response: {
+                type: "String",
+                string: `Found path for URL: ${quote(pathname)}.\n\nCall the \`read\` tool again with that path to see the ${getApiMentionReferenceNoun(reference.type)}\u2019s content.`,
+            },
         };
     }
 
     const {path, pathname, searchParams} = normalizeAgentWebPath(originalPath);
 
-    // The agent gives us a limit in bytes (which conventionally is understood as UTF-8
-    // code units) but for convenience we treat it as UTF-16 code units since that's
-    // how JavaScript strings are represented. This means in extreme cases we may
-    // return a string up to 2x longer in UTF-8 code units than the requested byte
-    // limit.
-    const limitLength = parseAgentWebBytes(limitBytesString);
-
     return await getOrSetDefaultMapValue(
         context.storage.readResponseMutexByPath,
         path,
         () => new Mutex(),
-    ).withLock(async () => {
+    ).withLock(async (): Promise<ActuallyCallAgentWebReadToolResult> => {
         const pageLinkResult = await routeAgentWebPageLinkPathname(context.storage, pathname);
 
         if (!pageLinkResult) {
@@ -231,6 +275,23 @@ async function actuallyCallAgentWebReadTool(
                 displayMessage: errorDisplayMessage`This path was redirected to ${quote(latestPathname)}. Try calling the \`read\` tool again with the new path.`,
             });
         }
+
+        // Files are handled differently because they don't return a string response.
+        // Instead we want to load their content and make it available for the agent.
+        if (pageLink.type === "File") {
+            return await readAgentWebFile(context, {
+                pathname,
+                pageLink,
+                limit: limitBytesString,
+            });
+        }
+
+        // The agent gives us a limit in bytes (which conventionally is understood as UTF-8
+        // code units) but for convenience we treat it as UTF-16 code units since that's
+        // how JavaScript strings are represented. This means in extreme cases we may
+        // return a string up to 2x longer in UTF-8 code units than the requested byte
+        // limit.
+        const limitLength = parseAgentWebBytes(limitBytesString);
 
         const {response, metadata: pageMetadata} = await readAgentWebPageLink(context, pageLink, {
             searchParams,
@@ -291,14 +352,17 @@ async function actuallyCallAgentWebReadTool(
         await context.storage.readResponseByPath.put(path, readResponse);
 
         if (response.length <= limitLength) {
-            return {pageLink, response};
+            return {pageLink, response: {type: "String", string: response}};
         } else {
             return {
                 pageLink,
-                response: truncateAgentWebReadResponse(
-                    {response, newlineIndexes},
-                    {offsetNewline: 0, limitLength, isScrollTool: false},
-                ),
+                response: {
+                    type: "String",
+                    string: truncateAgentWebReadResponse(
+                        {response, newlineIndexes},
+                        {offsetNewline: 0, limitLength, isScrollTool: false},
+                    ),
+                },
             };
         }
     });
@@ -323,7 +387,7 @@ async function actuallyCallAgentWebReadTool(
 export async function independentlyCallAgentWebReadToolWithoutTruncation(
     context: AgentWebContext,
     options: {
-        pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill" | "MyAccount"}>;
+        pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill" | "MyAccount" | "File"}>;
         searchParams?: URLSearchParams;
         limit?: string;
     },
@@ -354,7 +418,7 @@ async function actuallyIndependentlyCallAgentWebReadToolWithoutTruncation(
         searchParams = new URLSearchParams(),
         limit: limitBytesString = agentWebBytesDefaultLimit,
     }: {
-        pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill" | "MyAccount"}>;
+        pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill" | "MyAccount" | "File"}>;
         searchParams?: URLSearchParams;
         limit?: string;
     },
@@ -438,7 +502,9 @@ async function readAgentWebPageLink(
     // We intentionally use the "key object" type so the code within this function
     // doesn't rely on `title` or any extra data we include in the full link object to
     // print a friendly path for the agent.
-    pageLink: Exclude<AgentWebPageLinkKeyObject, {type: "Skill"}> | AgentWebPageSkillRoutedLink,
+    pageLink:
+        | Exclude<AgentWebPageLinkKeyObject, {type: "Skill" | "File"}>
+        | AgentWebPageSkillRoutedLink,
     options: {
         searchParams: URLSearchParams;
         limitLength: number;
@@ -475,10 +541,6 @@ async function readAgentWebPageLink(
                 options,
             );
         }
-        case "File": {
-            // TODO(#agents-web): How should we return a file via the CLI or MCP?
-            throw new UnimplementedError("Reading a file is unimplemented");
-        }
         case "Channel": {
             return await readAgentWebChannelPage(context, pageLink.id, options);
         }
@@ -514,12 +576,18 @@ async function readAgentWebPageLink(
         case "TaskSubtasks": {
             return await readAgentWebTaskSubtasksPage(context, pageLink.task.id, options);
         }
+        case "TaskView": {
+            return await readAgentWebTaskViewPage(context, options);
+        }
         case "Site": {
             // TODO(#agents-web): Implement sites API and agent web format.
             throw new UnimplementedError("Reading a site is unimplemented");
         }
         case "Inbox": {
             return await readAgentWebInboxPage(context, pageLink.account, options);
+        }
+        case "Space": {
+            return await readAgentWebSpacePage(context, options);
         }
         case "MyAccount": {
             const {
@@ -566,6 +634,9 @@ function normalizeAgentWebPage(
         case "Inbox": {
             return normalizeAgentWebInboxPage(page);
         }
+        case "Space": {
+            return normalizeAgentWebSpacePage(page);
+        }
         case "DocumentThread": {
             return normalizeAgentWebDocumentThreadPage(page);
         }
@@ -586,6 +657,9 @@ function normalizeAgentWebPage(
         }
         case "TaskSubtasks": {
             return normalizeAgentWebTaskSubtasksPage(page);
+        }
+        case "TaskView": {
+            return normalizeAgentWebTaskViewPage(page);
         }
         case "Post": {
             return normalizeAgentWebPostPage(page);
@@ -612,6 +686,10 @@ function printAgentWebPage(
         case "Inbox": {
             assert(page.type === "Inbox");
             return printAgentWebInboxPage(storage, pageLink.account.id, page);
+        }
+        case "Space": {
+            assert(page.type === "Space");
+            return printAgentWebSpacePage(storage, storage.spaceId, page);
         }
         case "DocumentThread": {
             assert(page.type === "DocumentThread");
@@ -665,6 +743,10 @@ function printAgentWebPage(
             assert(page.type === "TaskSubtasks");
             return printAgentWebTaskSubtasksPage(storage, pageLink.task.id, page);
         }
+        case "TaskView": {
+            assert(page.type === "TaskView");
+            return printAgentWebTaskViewPage(storage, null, page);
+        }
         case "Site": {
             // TODO(#agents-web): Implement sites API and agent web format.
             throw new UnimplementedError("Reading a site is unimplemented");
@@ -690,6 +772,9 @@ async function parseAgentWebPageForTest(
         }
         case "Inbox": {
             return await parseAgentWebInboxPage(storage, pageMetadata.id, response);
+        }
+        case "Space": {
+            return await parseAgentWebSpacePage(storage, pageMetadata.id, response);
         }
         case "DocumentThread": {
             return await parseAgentWebDocumentThreadPage(
@@ -719,7 +804,100 @@ async function parseAgentWebPageForTest(
         case "TaskSubtasks": {
             return await parseAgentWebTaskSubtasksPage(storage, pageMetadata.id, response);
         }
+        case "TaskView": {
+            return await parseAgentWebTaskViewPage(storage, null, response);
+        }
         default:
             throw exhaustive(pageMetadata);
     }
+}
+
+async function readAgentWebFile(
+    context: AgentWebContext,
+    {
+        pathname,
+        pageLink,
+        limit: limitBytesString,
+    }: {
+        pathname: string;
+        pageLink: Extract<AgentWebPageLinkKeyObject, {type: "File"}>;
+        limit: string;
+    },
+): Promise<ActuallyCallAgentWebReadToolResult> {
+    const limitLength = parseAgentWebBytes(limitBytesString);
+
+    const {
+        data: {file},
+    } = await context.api.get(context.span, "/files/{id}", {
+        params: {path: {id: pageLink.id}},
+    });
+
+    const fileMaxLimitLength = 1e7;
+
+    if (file.contentLength > fileMaxLimitLength) {
+        throw new FailedPreconditionError("File too large", {
+            displayMessage: errorDisplayMessage`Can\u2019t read ${printAgentWebBytes(file.contentLength)} file that\u2019s ${printAgentWebBytes(file.contentLength - fileMaxLimitLength)} more than the absolute max file \`read\` tool call limit of 10mb. Try reading a different file or asking the user to upload a smaller file.`,
+        });
+    }
+
+    if (file.contentLength > limitLength) {
+        throw new FailedPreconditionError("File is larger than limit", {
+            displayMessage: errorDisplayMessage`Can\u2019t read ${printAgentWebBytes(file.contentLength)} file that\u2019s ${printAgentWebBytes(file.contentLength - limitLength)} more than the \`read\` tool call\u2019s \`limit\` of ${limitBytesString}. Try calling the \`read\` tool again but with a larger \`limit\` if you still want to read the file knowing how big it is.`,
+        });
+    }
+
+    const signedUrl = new URL(file.signedUrl);
+
+    return {
+        pageLink,
+        response: {
+            type: "File",
+            id: file.id,
+            contentType: file.contentType,
+            contentLength: file.contentLength,
+            pathname,
+            fetch: async <Value>(
+                action: (stream: ReadableStream, response: Response) => Promise<Value>,
+            ) => {
+                try {
+                    return await fetchWithTracer(
+                        context.span,
+                        file.signedUrl,
+                        {
+                            serviceName: "ResourceService",
+                            route: "/files/:spaceId/:fileId",
+                            method: "GET",
+                        },
+                        async response => {
+                            if (!response.ok) {
+                                const errorCode = getErrorCodeForHttpStatusCode(response.status);
+                                const ErrorConstructor = getErrorConstructorForCode(errorCode);
+
+                                throw new ErrorConstructor(
+                                    `Failed to fetch file (status code ${response.status})`,
+                                );
+                            }
+
+                            if (!response.body) {
+                                throw new InternalError("Failed to fetch file (missing body)");
+                            }
+
+                            const value = await action(response.body, response);
+                            return value;
+                        },
+                    );
+                } catch (error) {
+                    // The error already has a display message, great!
+                    if (error instanceof ErrorBase && error.displayMessage) throw error;
+
+                    const errorCode = getErrorCode(error);
+                    const ErrorConstructor = getErrorConstructorForCode(errorCode);
+
+                    throw ErrorConstructor.from(error, undefined, {
+                        displayMessage: errorDisplayMessage`Network request to download file failed. Make sure you can access ${quote(`${signedUrl.protocol}//${signedUrl.host}`)} and then please try again.`,
+                    });
+                }
+            },
+        },
+    };
 }

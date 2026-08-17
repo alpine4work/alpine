@@ -42,6 +42,8 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.open_source.js";
@@ -57,11 +59,20 @@ import {MessageContentPayload} from "~/shared/messaging/message_schema.js";
 import {MessagingRealtimeBroadcastNewMessageRequestSchema} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {emptyReactionSet} from "~/shared/reactions/reaction_set.js";
 import {createAuthorizeSpaceAccessPermissionDeniedError} from "~/shared/spaces/space_error_messages.js";
+import {decodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
+import {normalizeTaskQueryFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {normalizeTaskQuerySorts} from "~/shared/tasks/task_query_normalized_sort.js";
 
 export const apiTasksPaths: Pick<
     ApiPaths,
     keyof ApiPaths &
-        ("/task-collections" | `/task-collections/${string}` | "/tasks" | `/tasks/${string}`)
+        (
+            | "/task-collections"
+            | `/task-collections/${string}`
+            | "/tasks"
+            | `/tasks/${string}`
+            | `/tasks-query`
+        )
 > = {
     "/tasks": {
         patch: async (context, {requestBody}) => {
@@ -125,6 +136,76 @@ export const apiTasksPaths: Pick<
                         ...new ApiTaskConverter(updateEvent).into(task),
                         notes,
                     },
+                },
+            };
+        },
+    },
+
+    "/tasks-query": {
+        post: async (context, {requestBody}) => {
+            const spaceId = context.actor.getSpaceId();
+
+            if (spaceId !== requestBody.spaceId) {
+                throw createAuthorizeSpaceAccessPermissionDeniedError(
+                    spaceId,
+                    context.actor.getPossiblyBotAccountId(),
+                    "Member",
+                );
+            }
+
+            const evaluationContext = {
+                currentAccountId: null,
+                currentDate: today(defaultTimeZone),
+            };
+            const normalizedFiltersResult = normalizeTaskQueryFilters(
+                requestBody.filters?.map(fromApiTaskQueryFilter) ?? [],
+                evaluationContext,
+            );
+            const normalizedSorts = normalizeTaskQuerySorts(
+                requestBody.sorts?.map(fromApiTaskQuerySort) ?? [],
+            );
+
+            let afterCursor;
+
+            try {
+                afterCursor =
+                    requestBody.cursor === undefined
+                        ? undefined
+                        : decodeApiTaskQueryCursor(normalizedSorts, requestBody.cursor);
+            } catch (error) {
+                throw InvalidArgumentError.from(error, undefined, {
+                    // Throw an error with a nice display message for API clients.
+                    displayMessage: errorDisplayMessage`Invalid task query cursor for this view. Try again with a task query cursor that matches the requested sorts.`,
+                });
+            }
+
+            if (normalizedFiltersResult.type === "Impossible") {
+                return {
+                    content: {
+                        spaceId,
+                        nextCursor: null,
+                        tasks: [],
+                    },
+                };
+            }
+
+            const {nextCursor, tasks} = await loadTasksFromApiQuery(context, {
+                query: {
+                    type: "Normalized",
+                    limit: requestBody.limit ?? 10,
+                    filters: normalizedFiltersResult.normalizedFilters,
+                    sorts: normalizedSorts,
+                    expensivelyAfterCursor: afterCursor,
+                },
+                taskIds: [],
+                collectionIds: [],
+            });
+
+            return {
+                content: {
+                    spaceId,
+                    nextCursor,
+                    tasks,
                 },
             };
         },

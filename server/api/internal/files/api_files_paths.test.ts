@@ -41,7 +41,7 @@ test("can get a signed URL for a file attached to a document", async () => {
     expect(response).toMatchObject({
         status: 200,
         body: {
-            signedUrl: expect.any(String),
+            file: {signedUrl: expect.any(String)},
         },
     });
 });
@@ -68,7 +68,7 @@ test("can get a signed URL for a file uploaded by another account", async () => 
     expect(response).toMatchObject({
         status: 200,
         body: {
-            signedUrl: expect.any(String),
+            file: {signedUrl: expect.any(String)},
         },
     });
 });
@@ -148,10 +148,12 @@ test("returns a transparent pixel placeholder for the unknown file id", async ()
     expect(response).toMatchObject({
         status: 200,
         body: {
-            id: unknownFileId,
-            contentType: "image/png",
-            signedUrl: expect.stringContaining("data:image/png;base64,"),
-            isUploading: false,
+            file: {
+                id: unknownFileId,
+                contentType: "image/png",
+                signedUrl: expect.stringContaining("data:image/png;base64,"),
+                isUploading: false,
+            },
         },
     });
 });

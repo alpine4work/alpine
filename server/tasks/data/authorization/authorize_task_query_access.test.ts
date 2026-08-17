@@ -1,4 +1,7 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
@@ -18,6 +21,7 @@ import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryNormalizedFilters,
     assertNonEmptyReadonlyMap,
+    assertNonEmptyReadonlySet,
     defaultTaskQueryNormalizedFilters,
     normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
@@ -28,6 +32,7 @@ import {
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 const context = createTestContext({
+    chatInjection,
     spacesInjection,
     tasksInjection,
 });
@@ -79,9 +84,7 @@ describe("authorizeTaskQueryAccess()", () => {
         await expect(
             testAuthorizeTaskQueryAccess(session.action(), {spaceId: space.id}),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
     });
 
@@ -183,9 +186,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
 
         await expect(
@@ -202,9 +203,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
     });
 
@@ -230,9 +229,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
 
         await expect(
@@ -252,9 +249,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
     });
 
@@ -362,9 +357,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
 
         await expect(
@@ -381,9 +374,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
     });
 
@@ -409,9 +400,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
 
         await expect(
@@ -431,9 +420,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
     });
 
@@ -455,9 +442,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
 
         await expect(
@@ -474,9 +459,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
 
         await expect(
@@ -496,10 +479,313 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
+    });
+
+    describe.each(["Creator", "Assignee"] as const)("%s filters for bot actors", filterType => {
+        test("authorizes an account-scoped bot filtering for the scoped account", async () => {
+            const space = await TestSpace.create(context);
+            const adminSession = await space.createSession({role: "Admin"});
+            const scopedSession = await space.createSession();
+            const bot = await TestBot.createAndInstantiate(adminSession);
+            const accountIds = assertNonEmptyReadonlySet(new Set([scopedSession.account.id]));
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action(scopedSession), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).resolves.toBeUndefined();
+        });
+
+        test("authorizes a chat-scoped bot filtering for the human in a human-bot chat", async () => {
+            const space = await TestSpace.create(context);
+            const humanSession = await space.createSession({role: "Admin"});
+            const bot = await TestBot.createAndInstantiate(humanSession);
+            const chat = await TestChat.get(humanSession, bot);
+            const accountIds = assertNonEmptyReadonlySet(new Set([humanSession.account.id]));
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action({type: "Chat", chatId: chat.id}), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).resolves.toBeUndefined();
+        });
+
+        test("doesn\u2019t authorize a chat-scoped bot filtering for one human in a two-human chat", async () => {
+            const space = await TestSpace.create(context);
+            const firstHumanSession = await space.createSession({role: "Admin"});
+            const secondHumanSession = await space.createSession();
+            const bot = await TestBot.createAndInstantiate(firstHumanSession);
+            const chat = await TestChat.get(firstHumanSession, secondHumanSession);
+            const accountIds = assertNonEmptyReadonlySet(new Set([firstHumanSession.account.id]));
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action({type: "Chat", chatId: chat.id}), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
+
+        test("doesn\u2019t authorize an account-scoped bot filtering for one of two accounts", async () => {
+            const space = await TestSpace.create(context);
+            const adminSession = await space.createSession({role: "Admin"});
+            const [scopedSession, otherSession] = await space.createSessions(2);
+            const bot = await TestBot.createAndInstantiate(adminSession);
+            const accountIds = assertNonEmptyReadonlySet(
+                new Set([scopedSession.account.id, otherSession.account.id]),
+            );
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action(scopedSession), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
+
+        test("doesn\u2019t authorize a chat-scoped bot filtering for one of both humans in a two-human chat", async () => {
+            const space = await TestSpace.create(context);
+            const firstHumanSession = await space.createSession({role: "Admin"});
+            const secondHumanSession = await space.createSession();
+            const bot = await TestBot.createAndInstantiate(firstHumanSession);
+            const chat = await TestChat.get(firstHumanSession, secondHumanSession);
+            const accountIds = assertNonEmptyReadonlySet(
+                new Set([firstHumanSession.account.id, secondHumanSession.account.id]),
+            );
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action({type: "Chat", chatId: chat.id}), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
+
+        test("doesn\u2019t authorize an account-scoped bot filtering for a missing account", async () => {
+            const space = await TestSpace.create(context);
+            const adminSession = await space.createSession({role: "Admin"});
+            const scopedSession = await space.createSession();
+            const bot = await TestBot.createAndInstantiate(adminSession);
+            const accountIds = assertNonEmptyReadonlySet(new Set(["MissingAccount"] as const));
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action(scopedSession), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
+
+        test("doesn\u2019t authorize an account-scoped bot with an empty account filter", async () => {
+            const space = await TestSpace.create(context);
+            const adminSession = await space.createSession({role: "Admin"});
+            const scopedSession = await space.createSession();
+            const bot = await TestBot.createAndInstantiate(adminSession);
+            const emptyAccountFilter = {type: "OneOf" as const, accountIds: new Set()};
+            const filters = {
+                ...defaultTaskQueryNormalizedFilters,
+                ...(filterType === "Creator"
+                    ? {creatorFilter: emptyAccountFilter}
+                    : {assigneeFilter: emptyAccountFilter}),
+            } as unknown as TaskQueryNormalizedFilters;
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action(scopedSession), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
+
+        test("doesn\u2019t authorize an account-scoped bot with a none-of filter", async () => {
+            const space = await TestSpace.create(context);
+            const adminSession = await space.createSession({role: "Admin"});
+            const scopedSession = await space.createSession();
+            const bot = await TestBot.createAndInstantiate(adminSession);
+            const accountIds = assertNonEmptyReadonlySet(new Set([scopedSession.account.id]));
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "NoneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "NoneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action(scopedSession), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
+
+        test("doesn\u2019t authorize an account-scoped bot filtering for a different account", async () => {
+            const space = await TestSpace.create(context);
+            const adminSession = await space.createSession({role: "Admin"});
+            const [scopedSession, otherSession] = await space.createSessions(2);
+            const bot = await TestBot.createAndInstantiate(adminSession);
+            const accountIds = assertNonEmptyReadonlySet(new Set([otherSession.account.id]));
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action(scopedSession), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
+
+        test("doesn\u2019t treat the bot in a human-bot chat as a permission principal", async () => {
+            const space = await TestSpace.create(context);
+            const humanSession = await space.createSession({role: "Admin"});
+            const bot = await TestBot.createAndInstantiate(humanSession);
+            const chat = await TestChat.get(humanSession, bot);
+            const accountIds = assertNonEmptyReadonlySet(new Set([bot.id]));
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action({type: "Chat", chatId: chat.id}), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
+
+        test("doesn\u2019t authorize a space-scoped bot filtering for an account", async () => {
+            const space = await TestSpace.create(context);
+            const humanSession = await space.createSession({role: "Admin"});
+            const bot = await TestBot.createAndInstantiate(humanSession);
+            const accountIds = assertNonEmptyReadonlySet(new Set([humanSession.account.id]));
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action({type: "Space"}), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
+
+        test("doesn\u2019t authorize an account-scoped bot filtering for its account or a missing account", async () => {
+            const space = await TestSpace.create(context);
+            const adminSession = await space.createSession({role: "Admin"});
+            const scopedSession = await space.createSession();
+            const bot = await TestBot.createAndInstantiate(adminSession);
+            const accountIds = assertNonEmptyReadonlySet(
+                new Set([scopedSession.account.id, "MissingAccount"] as const),
+            );
+            const filters =
+                filterType === "Creator"
+                    ? {
+                          ...defaultTaskQueryNormalizedFilters,
+                          creatorFilter: {type: "OneOf" as const, accountIds},
+                      }
+                    : {
+                          ...defaultTaskQueryNormalizedFilters,
+                          assigneeFilter: {type: "OneOf" as const, accountIds},
+                      };
+
+            await expect(
+                testAuthorizeTaskQueryAccess(bot.action(scopedSession), {
+                    spaceId: space.id,
+                    filters,
+                }),
+            ).rejects.toThrow("Query may reveal tasks the actor is not allowed to see");
+        });
     });
 
     test("can authorize a query with a collection you have access to", async () => {
@@ -620,9 +906,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
     });
 
@@ -643,9 +927,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
     });
 
@@ -788,9 +1070,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
     });
 
@@ -920,9 +1200,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 },
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
 
         // This is an impossible filter which will return no results.
@@ -1256,9 +1534,7 @@ describe("authorizeTaskQueryAccess()", () => {
                 ],
             }),
         ).rejects.toThrow(
-            new PermissionDeniedError(
-                "Query may reveal tasks the session account is not allowed to see",
-            ),
+            new PermissionDeniedError("Query may reveal tasks the actor is not allowed to see"),
         );
 
         await testAuthorizeTaskQueryAccess(session2.action(), {

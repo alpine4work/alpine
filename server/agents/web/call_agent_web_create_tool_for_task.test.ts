@@ -202,6 +202,7 @@ test("creates a task with every supported field", async () => {
 # Create everything
 
 - status: Open (Active)
+- layout: project
 - parent: [Parent task](/task/parent-task)
 - assignee: [Alice](/human/alice)
 - collections:
@@ -220,6 +221,7 @@ test("creates a task with every supported field", async () => {
         task: {
             title: "Create everything",
             status: {type: "Open", isActive: true},
+            layout: {type: "Project"},
             parent: {task: {id: parentTaskId}},
             assignee: {id: aliceAccount.id},
             collections: [

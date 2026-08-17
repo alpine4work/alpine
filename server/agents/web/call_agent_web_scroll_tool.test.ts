@@ -12,6 +12,7 @@ import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_conten
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {wikipediaYoutubeDocumentContent} from "~/shared/documents/fixtures/wikipedia_youtube_document_content.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId, DocumentId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -20,7 +21,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 async function callAgentWebScrollTool(

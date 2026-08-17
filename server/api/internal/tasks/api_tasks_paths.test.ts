@@ -3,6 +3,8 @@ import {ApiServiceBotActionContext} from "~/server/api/internal/shared/api_servi
 import {apiTasksPaths} from "~/server/api/internal/tasks/api_tasks_paths.js";
 import {createTestApiServer} from "~/server/api/internal/test_helpers/create_test_api_server.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
+import {chatInjection} from "~/server/chat/data/chat_injection.js";
+import {TestChat} from "~/server/chat/test_helpers/test_chat.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -28,7 +30,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {zeroHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {assertId, generateId} from "~/shared/id/id.open_source.js";
-import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {diffProsemirrorNodes} from "~/shared/prosemirror/diff_prosemirror_nodes.js";
 import {TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {encodeApiTaskQueryCursor} from "~/shared/tasks/model/api_task_query_cursor_encoder.js";
@@ -44,6 +46,7 @@ import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 const baseContext = createTestContext({
+    chatInjection,
     shouldStartOpensearch: true,
     tasksInjection,
     sendRequestToDurableObject: async (actualContext, request) => {
@@ -7706,6 +7709,183 @@ describe("POST /task-collections/{id}/tasks-query", () => {
                 "Invalid task query cursor for this collection",
             ),
         });
+    });
+});
+
+describe("POST /tasks-query", () => {
+    test("filters, sorts, and paginates tasks in a space", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({name: "Alice Smith", role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+        const collection = await TestTaskCollection.create(session, {
+            name: "Untitled task view collection",
+            access: "Public",
+        });
+        const [lowTask, highTask, urgentTask] = await runAllPromises([
+            TestTask.create(session, {title: "Low Task", priority: "Low"}),
+            TestTask.create(session, {title: "High Task", priority: "High"}),
+            TestTask.create(session, {title: "Urgent Task", priority: "Urgent"}),
+        ]);
+        await runAllPromises([
+            lowTask.addCollection(session, collection),
+            highTask.addCollection(session, collection),
+            urgentTask.addCollection(session, collection),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const body = {
+            spaceId: space.id,
+            limit: 1,
+            filters: [
+                {
+                    type: "Collections" as const,
+                    operation: {
+                        type: "IncludesOneOf" as const,
+                        collections: [{id: collection.id}],
+                    },
+                },
+                {
+                    type: "Priority" as const,
+                    operation: {
+                        type: "OneOf" as const,
+                        priorities: [{type: "High" as const}, {type: "Urgent" as const}],
+                    },
+                },
+            ],
+            sorts: [{type: "Priority" as const, direction: "Descending" as const}],
+        };
+        const firstPageResponse = await server.POST("/tasks-query", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body,
+        });
+        const secondPageResponse = await server.POST("/tasks-query", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {...body, cursor: firstPageResponse.body.nextCursor},
+        });
+
+        expect({
+            statuses: [firstPageResponse.status, secondPageResponse.status],
+            spaceIds: [firstPageResponse.body.spaceId, secondPageResponse.body.spaceId],
+            taskTitlesByPage: [firstPageResponse, secondPageResponse].map(response =>
+                response.body.tasks.map(({task}: {task: {title: string}}) => task.title),
+            ),
+            nextCursors: [firstPageResponse.body.nextCursor, secondPageResponse.body.nextCursor],
+        }).toEqual({
+            statuses: [200, 200],
+            spaceIds: [space.id, space.id],
+            taskTitlesByPage: [["Urgent Task"], ["High Task"]],
+            nextCursors: [expect.any(String), null],
+        });
+    });
+
+    test("requires the request body space to match the authenticated space", async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession({role: "Admin"});
+        const bot = await TestBot.createAndInstantiate(session);
+        const apiKey = await bot.createApiKey(session);
+
+        const response = await server.POST("/tasks-query", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {spaceId: generateId<SpaceId>()},
+        });
+
+        expect(response).toEqual(
+            expectedApiErrorResponse(
+                403,
+                "You don\u2019t have access to this space. Try switching spaces or signing out.",
+            ),
+        );
+    });
+
+    test("an account-scoped bot can query tasks assigned to the scoped account", async () => {
+        const space = await TestSpace.create(context);
+        const adminSession = await space.createSession({role: "Admin"});
+        const assigneeSession = await space.createSession();
+        const bot = await TestBot.createAndInstantiate(adminSession);
+        const apiKey = await bot.createApiKey(assigneeSession);
+        const assignedTask = await TestTask.create(adminSession, {
+            title: "Assigned to scoped account",
+            assignee: assigneeSession,
+        });
+        await TestTask.create(adminSession, {
+            title: "Assigned to another account",
+            assignee: adminSession,
+        });
+        await ProcessContextModule.waitForTestTasks();
+
+        const response = await server.POST("/tasks-query", {
+            headers: {authorization: `bearer ${apiKey}`},
+            body: {
+                spaceId: space.id,
+                filters: [
+                    {
+                        type: "Assignee",
+                        operation: {
+                            type: "OneOf",
+                            accounts: [
+                                {type: "Account", account: {id: assigneeSession.account.id}},
+                            ],
+                        },
+                    },
+                ],
+            },
+        });
+
+        expect({
+            status: response.status,
+            taskIds: response.body.tasks.map(({task}: {task: {id: TaskId}}) => task.id),
+        }).toEqual({status: 200, taskIds: [assignedTask.id]});
+    });
+
+    test("a bot scoped to a private two-human chat cannot query either human\u2019s assigned tasks", async () => {
+        const space = await TestSpace.create(context);
+        const adminSession = await space.createSession({role: "Admin"});
+        const [firstHumanSession, secondHumanSession] = await space.createSessions(2);
+        const bot = await TestBot.createAndInstantiate(adminSession);
+        const chat = await TestChat.get(firstHumanSession, secondHumanSession);
+        const apiKey = await bot.createApiKey({type: "Chat", chatId: chat.id});
+        await runAllPromises([
+            TestTask.create(adminSession, {assignee: firstHumanSession}),
+            TestTask.create(adminSession, {assignee: secondHumanSession}),
+        ]);
+        await ProcessContextModule.waitForTestTasks();
+
+        const responses = await runAllPromises(
+            [firstHumanSession, secondHumanSession].map(assigneeSession =>
+                server.POST("/tasks-query", {
+                    headers: {authorization: `bearer ${apiKey}`},
+                    body: {
+                        spaceId: space.id,
+                        filters: [
+                            {
+                                type: "Assignee",
+                                operation: {
+                                    type: "OneOf",
+                                    accounts: [
+                                        {
+                                            type: "Account",
+                                            account: {id: assigneeSession.account.id},
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    },
+                }),
+            ),
+        );
+
+        expect(responses).toEqual([
+            expectedApiErrorResponse(
+                403,
+                "These filters and sorts would reveal tasks you don\u2019t have access to",
+            ),
+            expectedApiErrorResponse(
+                403,
+                "These filters and sorts would reveal tasks you don\u2019t have access to",
+            ),
+        ]);
     });
 });
 

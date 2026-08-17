@@ -14,6 +14,7 @@ import {
     ApiTaskResponse,
     ApiTaskWithNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {
@@ -28,7 +29,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 async function callAgentWebUpdateTool(
@@ -219,6 +222,7 @@ async function readTask({
     taskId = generateId<TaskId>(),
     title,
     status = {type: "Open", isActive: false} as const,
+    layout,
     parent,
     assignee,
     collectionIds = [],
@@ -232,6 +236,7 @@ async function readTask({
     taskId?: TaskId;
     title: string;
     status?: {readonly type: "Open"; readonly isActive: boolean} | {readonly type: "Closed"};
+    layout?: {readonly type: "Project"};
     parent?: typeof parentTaskReference | typeof otherParentTaskReference;
     assignee?: typeof aliceAccount;
     collectionIds?: ReadonlyArray<TaskCollectionId>;
@@ -259,6 +264,7 @@ async function readTask({
         {
             title,
             status,
+            ...(layout ? {layout} : {}),
             ...(parent
                 ? {
                       parent: {
@@ -522,7 +528,7 @@ test("rejects a Parent field on an existing embedded subtask without writing", a
     }).toEqual({
         result:
             `Error: Couldn\u2019t update \`${path}\`. ` +
-            "Unknown task field \u201CParent\u201D on line 8. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+            "Task field \u201CParent\u201D on line 8 isn\u2019t supported in this context. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
         writeRequests: [],
     });
 });
@@ -555,7 +561,7 @@ test("rejects a Parent field on a new embedded subtask without writing", async (
     }).toEqual({
         result:
             `Error: Couldn\u2019t update \`${path}\`. ` +
-            "Unknown task field \u201CParent\u201D on line 8. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+            "Task field \u201CParent\u201D on line 8 isn\u2019t supported in this context. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
         writeRequests: [],
     });
 });
@@ -1020,6 +1026,50 @@ test("changes task status after reading task with status set", async () => {
 
     expect(getTaskPatchRequests().map(request => request.body)).toEqual([
         {patches: [{type: "SetStatus", status: {type: "Open", isActive: true}}]},
+    ]);
+});
+
+test("sets and clears task layout", async () => {
+    const {taskId, path} = await readTask({title: "Layout task"});
+    mockTaskPatch(taskId, 2);
+
+    await callAgentWebUpdateTool(context, {
+        path,
+        updates: [
+            {
+                old: "- Status: Open",
+                new: "- Status: Open\n- Layout: Project",
+                replaceAll: false,
+            },
+        ],
+    });
+    await callAgentWebUpdateTool(context, {
+        path,
+        updates: [{old: "- Layout: Project", new: "- Layout:", replaceAll: false}],
+    });
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetLayout", layout: {type: "Project"}}]},
+        {patches: [{type: "SetLayout", layout: null}]},
+    ]);
+});
+
+test("removes task layout after reading task with layout set", async () => {
+    const {taskId, path} = await readTask({
+        title: "Layout task",
+        layout: {type: "Project"},
+    });
+    mockTaskPatch(taskId);
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path,
+            updates: [{old: "\n- Layout: Project", new: "", replaceAll: false}],
+        }),
+    ).resolves.toEqual("Update was successful.");
+
+    expect(getTaskPatchRequests().map(request => request.body)).toEqual([
+        {patches: [{type: "SetLayout", layout: null}]},
     ]);
 });
 

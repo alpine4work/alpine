@@ -5,10 +5,12 @@ import {AgentWebDocumentPageWithMetadata} from "~/server/agents/web/pages/agent_
 import {AgentWebDocumentThreadPageWithMetadata} from "~/server/agents/web/pages/agent_web_document_thread_page.open_source.js";
 import {AgentWebInboxPageWithMetadata} from "~/server/agents/web/pages/agent_web_inbox_page.open_source.js";
 import {AgentWebPostPageWithMetadata} from "~/server/agents/web/pages/agent_web_post_page.open_source.js";
+import {AgentWebSpacePageWithMetadata} from "~/server/agents/web/pages/agent_web_space_page.open_source.js";
 import {AgentWebTaskCollectionPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_collection_page.open_source.js";
 import {AgentWebTaskMessageListPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_message_list_page.open_source.js";
 import {AgentWebTaskPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_page.open_source.js";
 import {AgentWebTaskSubtasksPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_subtasks_page.open_source.js";
+import {AgentWebTaskViewPageWithMetadata} from "~/server/agents/web/pages/agent_web_task_view_page.open_source.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.open_source.js";
 
@@ -55,16 +57,18 @@ export type AgentWebPageWithMetadata =
     | AgentWebAccountPageWithMetadata
     | AgentWebDocumentPageWithMetadata
     | AgentWebDocumentThreadPageWithMetadata
-    | AgentWebInboxPageWithMetadata
     | AgentWebChannelPageWithMetadata
     | AgentWebChatPageWithMetadata
+    | AgentWebInboxPageWithMetadata
+    | AgentWebMyAccountPageWithMetadata
     | AgentWebPostPageWithMetadata
+    | AgentWebSkillPageWithMetadata
+    | AgentWebSpacePageWithMetadata
     | AgentWebTaskPageWithMetadata
     | AgentWebTaskCollectionPageWithMetadata
     | AgentWebTaskMessageListPageWithMetadata
     | AgentWebTaskSubtasksPageWithMetadata
-    | AgentWebSkillPageWithMetadata
-    | AgentWebMyAccountPageWithMetadata;
+    | AgentWebTaskViewPageWithMetadata;
 
 export type AgentWebSkillPageWithMetadata = {
     readonly type: "Skill";

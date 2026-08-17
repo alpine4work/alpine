@@ -253,6 +253,26 @@ Subtasks for [Plan launch (Open)](/task/plan-launch).
             },
         },
         {
+            name: "task subtasks page with a Layout field",
+            pageLink: parentTaskReference.id,
+            setupStorage: async storage => {
+                await storeAgentWebPageLinkForTest(storage, [
+                    parentTaskReference,
+                    writeSpecTaskReference,
+                ]);
+            },
+            markdown: `Subtasks for [Plan launch (Open)](/task/plan-launch).
+
+- [Write spec (Open)](/task/write-spec)
+  - Layout: Project
+`,
+            parseError: markdown`
+Error: Task field \u201CLayout\u201D on line 4 isn\u2019t supported in this context. Try again with
+one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or
+\u201CDue date\u201D.
+            `,
+        },
+        {
             name: "task subtasks page with a Parent field",
             pageLink: parentTaskReference.id,
             markdown: `\
@@ -274,8 +294,9 @@ Error: (3 errors)
   and then add that new task to the subtasks, or try calling the \`search\` tool to find an existing
   task you want to add to the subtasks.
 
-- Unknown task field \u201CParent\u201D on line 4. Try again with one of \u201CSubtasks\u201D,
-  \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.
+- Task field \u201CParent\u201D on line 4 isn\u2019t supported in this context. Try again with one
+  of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or
+  \u201CDue date\u201D.
             `,
         },
         {

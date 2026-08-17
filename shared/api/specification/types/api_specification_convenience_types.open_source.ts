@@ -1216,11 +1216,11 @@ export type ApiChannelSetDescriptionPatchResponse =
 export type ApiTaskBatchUpdatePatchResponse =
     ApiSpecification.components["schemas"]["TaskBatchUpdatePatch_Response"];
 
-export type ApiTaskNotesSetContentPatchResponse =
-    ApiSpecification.components["schemas"]["TaskNotesSetContentPatch_Response"];
-
 export type ApiTaskQueryCollectionsFilterResponse =
     ApiSpecification.components["schemas"]["TaskQueryCollectionsFilter_Response"];
+
+export type ApiTaskNotesSetContentPatchResponse =
+    ApiSpecification.components["schemas"]["TaskNotesSetContentPatch_Response"];
 
 export type ApiMessageStreamContentPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamContentPartPayload_Response"];
@@ -1267,11 +1267,11 @@ export type ApiDocumentPatchResponse =
 export type ApiChannelPatchResponse =
     ApiSpecification.components["schemas"]["ChannelPatch_Response"];
 
-export type ApiTaskNotesPatchResponse =
-    ApiSpecification.components["schemas"]["TaskNotesPatch_Response"];
-
 export type ApiTaskQueryFilterResponse =
     ApiSpecification.components["schemas"]["TaskQueryFilter_Response"];
+
+export type ApiTaskNotesPatchResponse =
+    ApiSpecification.components["schemas"]["TaskNotesPatch_Response"];
 
 export type ApiMessageStreamPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
@@ -1341,6 +1341,9 @@ export type ApiPatchTasksResponse =
 
 export type ApiGetTaskNotesResponse =
     ApiSpecification.components["responses"]["GetTaskNotes"]["content"]["application/json"];
+
+export type ApiGetTasksResponse =
+    ApiSpecification.components["responses"]["GetTasks"]["content"]["application/json"];
 
 export type ApiGetTaskCollectionTasksResponse =
     ApiSpecification.components["responses"]["GetTaskCollectionTasks"]["content"]["application/json"];

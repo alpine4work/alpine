@@ -26,10 +26,10 @@ import {
 import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/update_agent_web_messaging_page.open_source.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {findApiContentRanges} from "~/shared/api/content/find_api_content_ranges.open_source.js";
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
     unsafelyZipTemporaryKeysIntoApiContentResponse,
     unzipKeysFromApiContentResponse,

@@ -1000,3 +1000,58 @@ End of messages.
         files: [{type: "File", id: file.id}],
     });
 });
+
+test("rejects creating a room chat message with text after a file attachment", async () => {
+    const sourceDocument = await TestDocument.create(cli.session, {
+        title: "Files before text source",
+        body: "The source image is available below.",
+        access: "Public",
+    });
+    const file = await TestFile.create(cli.session);
+    await sourceDocument.attachFile(cli.session, file);
+
+    const chat = await TestChat.createRoom(cli.session, {name: "Files before text room"});
+
+    expect(await cli.run(`alpine read '${cli.services.getBaseUrl()}/doc/${sourceDocument.id}'`))
+        .toEqual(`\
+Found path for URL: \`/document/files-before-text-source\`.
+
+Call the \`read\` tool again with that path to see the document’s content.
+`);
+
+    expect(await cli.run("alpine read /document/files-before-text-source")).toEqual(`\
+# Files before text source
+
+The source image is available below.
+
+![](/file/image.png)
+`);
+
+    expect(await cli.run(`alpine read '${cli.services.getBaseUrl()}/chat/${chat.id}'`)).toEqual(`\
+Found path for URL: \`/chat/files-before-text-room\`.
+
+Call the \`read\` tool again with that path to see the chat’s content.
+`);
+
+    expect(await cli.run("alpine read /chat/files-before-text-room")).toEqual(`\
+# Files before text room
+
+End of messages.
+`);
+
+    expect(
+        await cli.run(`\
+alpine update /chat/files-before-text-room --old 'End of messages.' --new '<message>
+
+![](/file/image.png)
+
+This text comes after the file.
+
+</message>
+
+End of messages.'
+`),
+    ).toEqual(`\
+Error: Couldn’t update \`/chat/files-before-text-room\`. Files must be the last thing in a \`<message>\`. Try again with all files after the message content right before \`</message>\`.
+`);
+});

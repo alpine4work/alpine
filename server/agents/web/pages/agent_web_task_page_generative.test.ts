@@ -35,6 +35,7 @@ const AgentWebTaskPageArbitrary: Arbitrary<AgentWebTaskPage> = fc.record({
     type: fc.constant("Task"),
     title: ApiContentTextArbitrary,
     status: AgentWebTaskPageStatusArbitrary,
+    layout: fc.oneof(fc.constant({type: "Project"} as const), fc.constant(null)),
     parent: fc.oneof(ApiTaskReferenceArbitrary, fc.constant(null)),
     assignee: fc.oneof(ApiAccountReferenceArbitrary, fc.constant(null)),
     collections: fc.uniqueArray(ApiTaskCollectionReferenceArbitrary, {

@@ -27,8 +27,10 @@ export type CliIntegrationTests = {
  * Sets up the Alpine CLI and its integration test environment for a Jest file.
  */
 export function setupCliForTest({
+    spaceName,
     agentWebTaskQueryCursorHash,
 }: {
+    spaceName?: string;
     agentWebTaskQueryCursorHash?: string;
 } = {}): CliIntegrationTests {
     import.meta.jest.setTimeout(60 * 1000);
@@ -77,7 +79,7 @@ export function setupCliForTest({
         const isInitialRun = !hasInitiallyRun;
         hasInitiallyRun = true;
 
-        space = await TestSpace.create(context);
+        space = await TestSpace.create(context, {name: spaceName});
         session = await space.createSession({name: "Anthony Mose", role: "Admin"});
 
         const botAccount = await TestBot.createAndInstantiate(session, {name: "My Bot"});

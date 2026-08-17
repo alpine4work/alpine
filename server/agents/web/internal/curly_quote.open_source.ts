@@ -1,6 +1,6 @@
 import {PhrasingContent} from "mdast";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 
 /**
  * Quote some Markdown. We typically use this in `errorDisplayMessage` to quote

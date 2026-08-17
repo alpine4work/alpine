@@ -22,10 +22,10 @@ import {
     agentWebMessagingPreviousPageLinkTextWithStartArrow,
 } from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.open_source.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
     ApiAccountReferenceResponse,
     ApiContentResponseWithoutKeys,

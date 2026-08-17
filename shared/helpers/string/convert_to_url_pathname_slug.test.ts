@@ -36,13 +36,19 @@ describe("custom separator", () => {
     );
 });
 
-describe("apostrophe s", () => {
+describe("apostrophes", () => {
     const cases = [
         // eslint-disable-next-line cyberworlds/string-quotes
         {input: "Rose's document", output: "roses-document"},
         {input: "Rose\u2019s document", output: "roses-document"},
         // eslint-disable-next-line cyberworlds/string-quotes
         {input: "it's ready", output: "its-ready"},
+        {input: "I can\u2019t imagine", output: "i-cant-imagine"},
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {input: "I can't imagine", output: "i-cant-imagine"},
+        {input: "We\u2019re ready", output: "were-ready"},
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {input: "We're ready", output: "were-ready"},
     ];
 
     test.each(cases)("converts `$input` to `$output`", ({input, output}) => {
@@ -50,7 +56,7 @@ describe("apostrophe s", () => {
     });
 });
 
-describe("limited length", () => {
+describe("length limit", () => {
     test("truncates at the preceding word boundary", () => {
         expect(
             convertToUrlPathnameSlug(
@@ -59,6 +65,25 @@ describe("limited length", () => {
                 {limitLength: 50},
             ),
         ).toBe("a-detailed-photograph-of-a-snowy-owl-with");
+    });
+
+    test("truncates at the last complete word without removing its final character", () => {
+        expect(
+            convertToUrlPathnameSlug(
+                "Alice in Post Comment Counts: Uncommented roadmap summary",
+                "-",
+                {limitLength: 50},
+            ),
+        ).toBe("alice-in-post-comment-counts-uncommented-roadmap");
+    });
+
+    test("truncates within an unusually long word to enforce the length limit", () => {
+        const slug = convertToUrlPathnameSlug("Prefix abcdefghijklmnopqrstuvwxyz", "-", {
+            limitLength: 22,
+        });
+
+        expect(slug).toBe("prefix-abcdefghijklmno");
+        expect(slug).toHaveLength(22);
     });
 });
 

@@ -19,7 +19,9 @@ export type AgentWebPageRoutedLink =
     | AgentWebPageDocumentThreadRoutedLink
     | AgentWebPageTaskMessageListRoutedLink
     | AgentWebPageTaskSubtasksRoutedLink
+    | AgentWebPageTaskViewRoutedLink
     | AgentWebPageInboxRoutedLink
+    | AgentWebPageSpaceRoutedLink
     | AgentWebPageMyAccountRoutedLink;
 
 assertAssignableTypes<AgentWebPageRoutedLink, AgentWebPageRoutedLinkKeyObject>();
@@ -46,9 +48,17 @@ export type AgentWebPageTaskSubtasksRoutedLink = {
     readonly task: ApiTaskReferenceResponse;
 };
 
+export type AgentWebPageTaskViewRoutedLink = {
+    readonly type: "TaskView";
+};
+
 export type AgentWebPageInboxRoutedLink = {
     readonly type: "Inbox";
     readonly account: ApiAccountReferenceResponse;
+};
+
+export type AgentWebPageSpaceRoutedLink = {
+    readonly type: "Space";
 };
 
 export type AgentWebPageMyAccountRoutedLink = {

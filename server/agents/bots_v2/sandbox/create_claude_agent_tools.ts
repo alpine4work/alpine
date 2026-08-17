@@ -22,6 +22,8 @@ import {
     agentWebBytesFindDefaultLimit,
     agentWebBytesFindDefaultMatchLimit,
 } from "~/server/agents/web/default_agent_web_bytes_limit.open_source.js";
+import {isFileCodeContentType} from "~/shared/files/file_content_type.open_source.js";
+import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function createClaudeAgentMcpServer(
@@ -74,7 +76,9 @@ export function createClaudeAgentMcpServer(
             case "File":
             case "Skill":
             case "Inbox":
+            case "Space":
             case "MyAccount":
+            case "TaskView":
                 // TODO: Tool call for everything you can read!
                 break;
             default:
@@ -101,7 +105,84 @@ export function createClaudeAgentMcpServer(
                 pushReadPageLinkToolCall(result.pageLink);
             }
 
-            return {isError: result.isError, content: [{type: "text", text: result.response}]};
+            if (result.response.type === "String") {
+                return {
+                    isError: result.isError,
+                    content: [{type: "text", text: result.response.string}],
+                };
+            }
+
+            switch (result.response.contentType) {
+                // Claude supported image types:
+                // https://platform.claude.com/docs/en/build-with-claude/vision#supported-formats
+                case "image/jpeg":
+                case "image/png":
+                case "image/gif":
+                case "image/webp": {
+                    const content = await result.response.fetch(async (stream, response) => {
+                        const buffer = await response.arrayBuffer();
+                        return encodeBase64(new Uint8Array(buffer));
+                    });
+
+                    return {
+                        content: [
+                            {
+                                type: "image",
+                                mimeType: result.response.contentType,
+                                data: content,
+                            },
+                        ],
+                    };
+                }
+
+                // All other file types can be attached as resources:
+                // https://code.claude.com/docs/en/agent-sdk/custom-tools#resources
+                default: {
+                    // The two supported path formats right now for the `read` tool are
+                    // `/file/demo-image.png` style paths and `https://` style paths. The `https://`
+                    // version is already a valid URI.
+                    const uri = args.path.startsWith("/") ? `alpine:/${args.path}` : args.path;
+
+                    // Code formats are text based and so we can provide them as text instead of
+                    // binary. Which hopefully helps Claude understand the file better.
+                    if (isFileCodeContentType(result.response.contentType)) {
+                        const content = await result.response.fetch(async (stream, response) => {
+                            return await response.text();
+                        });
+
+                        return {
+                            content: [
+                                {
+                                    type: "resource",
+                                    resource: {
+                                        uri,
+                                        mimeType: result.response.contentType,
+                                        text: content,
+                                    },
+                                },
+                            ],
+                        };
+                    } else {
+                        const content = await result.response.fetch(async (stream, response) => {
+                            const buffer = await response.arrayBuffer();
+                            return encodeBase64(new Uint8Array(buffer));
+                        });
+
+                        return {
+                            content: [
+                                {
+                                    type: "resource",
+                                    resource: {
+                                        uri,
+                                        mimeType: result.response.contentType,
+                                        blob: content,
+                                    },
+                                },
+                            ],
+                        };
+                    }
+                }
+            }
         },
         {
             annotations: {

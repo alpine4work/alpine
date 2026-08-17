@@ -8070,7 +8070,7 @@ exports[`processStartNotionImportJob with test framework zips Media-Export-Flat.
         "attrs": {
           "columnWidths": [
             1,
-            1
+            3.14
           ],
           "tableWidth": 1,
           "hasHeaderRow": true,

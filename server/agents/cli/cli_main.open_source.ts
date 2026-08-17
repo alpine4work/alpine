@@ -3,16 +3,21 @@ import {parser as lezerMarkdownParser} from "@lezer/markdown";
 import chalk from "chalk";
 import {addDays} from "date-fns";
 import envPaths from "env-paths";
+import {createWriteStream} from "fs";
 import {mkdir, readFile, writeFile} from "fs/promises";
 import {Database, open} from "lmdb";
-import {join as joinPath} from "path";
+import {join as joinPath, resolve as resolvePath} from "path";
 import * as prettier from "prettier";
 import * as markdownPrettierPlugin from "prettier/plugins/markdown";
+import {Readable} from "stream";
+import {pipeline} from "stream/promises";
 import stripAnsi from "strip-ansi";
 import {ApiClient, createApiClient} from "~/server/agents/api/api_client.open_source.js";
+import {CliArgParser} from "~/server/agents/cli/cli_arg_parser.open_source.js";
 import {createCliTracer} from "~/server/agents/cli/cli_tracer.open_source.js";
 import {
     AgentWebSessionLmdbStorageKey,
+    agentWebSessionLmdbStorageFilesOrderKey,
     createAgentWebSessionLmdbStorage,
 } from "~/server/agents/lmdb/create_agent_web_session_lmdb_storage.open_source.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
@@ -35,7 +40,6 @@ import {
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
 import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
-import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {wrapMaybeArray} from "~/shared/helpers/array/wrap_maybe_array.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {
@@ -44,19 +48,76 @@ import {
     serializeDateString,
 } from "~/shared/helpers/date/date_string.open_source.js";
 import {getCurrentTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
-import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.open_source.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
-import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
-import {convertCamelCaseToKebabCase} from "~/shared/helpers/string/convert_camel_case_to_kebab_case.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {lezerClassHighlighter} from "~/shared/lezer/lezer_class_highlighter.open_source.js";
-
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 process.title = "alpine";
 process.stdin.setEncoding("utf8");
+
+const {dataDirectoryPath, tempDirectoryPath} = (() => {
+    const paths = envPaths("Alpine", {suffix: ""});
+
+    return {
+        dataDirectoryPath: process.env.ALPINE_DATA_PATH ?? paths.data,
+        tempDirectoryPath: process.env.ALPINE_TEMP_PATH ?? paths.temp,
+    };
+})();
+
+const createArgParser = new CliArgParser("create", {
+    requiredPositionalArgs: [{name: "type"}, {name: "content"}],
+});
+
+const readArgParser = new CliArgParser("read", {
+    requiredPositionalArgs: [{name: "path"}],
+    optionalNominalArgs: [{name: "limit", preview: agentWebBytesDefaultLimit}],
+});
+
+const updateArgParser = new CliArgParser("update", {
+    requiredPositionalArgs: [{name: "path"}],
+    requiredNominalListArgs: [
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {name: "old", preview: '"..."'},
+        // eslint-disable-next-line cyberworlds/string-quotes
+        {name: "new", preview: '"..."'},
+    ],
+    optionalNominalFlagArgs: [
+        {
+            name: "replace-all",
+            // We don't advertise the `update` tool's `--replace-all` arg in the command
+            // syntax. If the agent tries to make an update where `--old` is repeated then we
+            // share the existence of `--replace-all` along with a recommendation to prefer a
+            // more specific update. We believe this is the better approach.
+            hidden: true,
+        },
+    ],
+});
+
+const deleteArgParser = new CliArgParser("delete", {
+    requiredPositionalArgs: [{name: "path"}],
+});
+
+const scrollArgParser = new CliArgParser("scroll", {
+    requiredPositionalArgs: [{name: "path"}],
+    requiredNominalArgs: [{name: "offset", preview: "0"}],
+    optionalNominalArgs: [{name: "limit", preview: agentWebBytesDefaultLimit}],
+});
+
+const findArgParser = new CliArgParser("find", {
+    requiredPositionalArgs: [{name: "path"}, {name: "pattern"}],
+    optionalNominalArgs: [
+        {name: "offset", preview: "0"},
+        {name: "limit", preview: agentWebBytesFindDefaultLimit.toString()},
+        {name: "match-limit", preview: agentWebBytesFindDefaultMatchLimit},
+    ],
+});
+
+const searchArgParser = new CliArgParser("search", {
+    requiredPositionalArgs: [{name: "query"}],
+    optionalNominalArgs: [{name: "limit", preview: defaultAgentWebSearchResultLimit.toString()}],
+});
 
 main()
     .then(({exitCode}) => {
@@ -114,8 +175,6 @@ async function main(): Promise<{exitCode: number}> {
             });
         }
     }
-
-    const dataDirectoryPath = process.env.ALPINE_DATA_PATH ?? envPaths("Alpine", {suffix: ""}).data;
 
     try {
         await mkdir(dataDirectoryPath, {recursive: true});
@@ -300,336 +359,32 @@ async function mainWithinTransaction({
         botAccount: authResponse.botAccount,
     };
 
-    return await runAgentsCliCommand(context, command, args);
+    return await runAgentsCliCommand({
+        context,
+        command,
+        args,
+        database,
+    });
 }
 
-class ArgParser<
-    const RequiredPositionalArgs extends ReadonlyArray<{name: string}> = readonly [],
-    const OptionalPositionalArgs extends ReadonlyArray<{name: string}> = readonly [],
-    const RequiredNominalArgs extends ReadonlyArray<{name: string; preview: string}> = readonly [],
-    const OptionalNominalArgs extends ReadonlyArray<{name: string; preview: string}> = readonly [],
-    const OptionalNominalListArgs extends ReadonlyArray<{name: string; preview: string}> =
-        readonly [],
-    const RequiredNominalListArgs extends ReadonlyArray<{name: string; preview: string}> =
-        readonly [],
-    const OptionalNominalFlagArgs extends ReadonlyArray<{name: string; hidden?: boolean}> =
-        readonly [],
-> {
-    readonly #requiredPositionalArgs: RequiredPositionalArgs;
-    readonly #optionalPositionalArgs: OptionalPositionalArgs;
-    readonly #requiredNominalArgs: RequiredNominalArgs;
-    readonly #optionalNominalListArgs: OptionalNominalListArgs;
-    readonly #optionalNominalListArgNameSet: ReadonlySet<string>;
-    readonly #requiredNominalListArgs: RequiredNominalListArgs;
-    readonly #requiredNominalListArgNameSet: ReadonlySet<string>;
-    readonly #optionalNominalArgs: OptionalNominalArgs;
-    readonly #optionalNominalFlagArgs: OptionalNominalFlagArgs;
-    readonly #optionalNominalFlagArgNameSet: ReadonlySet<string>;
-    readonly syntax: string;
-
-    constructor(
-        command: string,
-        {
-            requiredPositionalArgs = [] as any,
-            optionalPositionalArgs = [] as any,
-            requiredNominalArgs = [] as any,
-            optionalNominalListArgs = [] as any,
-            requiredNominalListArgs = [] as any,
-            optionalNominalArgs = [] as any,
-            optionalNominalFlagArgs = [] as any,
-        }: {
-            requiredPositionalArgs?: RequiredPositionalArgs;
-            optionalPositionalArgs?: OptionalPositionalArgs;
-            requiredNominalArgs?: RequiredNominalArgs;
-            optionalNominalListArgs?: OptionalNominalListArgs;
-            requiredNominalListArgs?: RequiredNominalListArgs;
-            optionalNominalArgs?: OptionalNominalArgs;
-            optionalNominalFlagArgs?: OptionalNominalFlagArgs;
-        },
-    ) {
-        const nameSet = (args: ReadonlyArray<{name: string}>) =>
-            new Set(mapIterable(args, arg => arg.name));
-
-        this.#requiredPositionalArgs = requiredPositionalArgs;
-        this.#optionalPositionalArgs = optionalPositionalArgs;
-        this.#requiredNominalArgs = requiredNominalArgs;
-        this.#optionalNominalListArgs = optionalNominalListArgs;
-        this.#optionalNominalListArgNameSet = nameSet(optionalNominalListArgs);
-        this.#requiredNominalListArgs = requiredNominalListArgs;
-        this.#requiredNominalListArgNameSet = nameSet(requiredNominalListArgs);
-        this.#optionalNominalArgs = optionalNominalArgs;
-        this.#optionalNominalFlagArgs = optionalNominalFlagArgs;
-        this.#optionalNominalFlagArgNameSet = nameSet(optionalNominalFlagArgs);
-
-        let syntax = `alpine ${command}`;
-
-        for (const requiredPositionalArg of requiredPositionalArgs) {
-            syntax += ` <${requiredPositionalArg.name}>`;
-        }
-
-        for (const optionalPositionalArg of optionalPositionalArgs) {
-            syntax += ` [${optionalPositionalArg.name}]`;
-        }
-
-        for (const requiredNominalArg of requiredNominalArgs) {
-            syntax += ` --${requiredNominalArg.name} ${requiredNominalArg.preview}`;
-        }
-
-        for (const requiredNominalListArg of requiredNominalListArgs) {
-            syntax += ` --${requiredNominalListArg.name} ${requiredNominalListArg.preview}`;
-        }
-
-        for (const optionalNominalListArg of optionalNominalListArgs) {
-            syntax += ` [--${optionalNominalListArg.name} ${optionalNominalListArg.preview}]`;
-        }
-
-        for (const optionalNominalArg of optionalNominalArgs) {
-            syntax += ` [--${optionalNominalArg.name} ${optionalNominalArg.preview}]`;
-        }
-
-        for (const optionalNominalFlagArg of optionalNominalFlagArgs) {
-            if (optionalNominalFlagArg.hidden) continue;
-            syntax += ` [--${optionalNominalFlagArg.name}]`;
-        }
-
-        this.syntax = syntax;
-    }
-
-    parse(args: ReadonlyArray<string>): {
-        [Key in
-            | RequiredPositionalArgs[number]["name"]
-            | RequiredNominalArgs[number]["name"]]: string;
-    } & {
-        [Key in
-            | OptionalPositionalArgs[number]["name"]
-            | OptionalNominalArgs[number]["name"]
-            | OptionalNominalFlagArgs[number]["name"]]?: string;
-    } & {
-        [Key in
-            | OptionalNominalListArgs[number]["name"]
-            | RequiredNominalListArgs[number]["name"]]: Array<string>;
-    } {
-        const positionalArgs: Array<string> = [];
-        const nominalArgs = new Map<string, string>();
-        const nominalListArgs = new Map<string, Array<string>>();
-
-        let nextIndex = 0;
-        while (nextIndex < args.length) {
-            const index = nextIndex;
-            nextIndex++;
-            const arg = args[index]!;
-
-            const nominalArgMatch = arg.match(/^--([a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)(?:=|$)/);
-
-            if (nominalArgMatch === null) {
-                positionalArgs.push(arg);
-            } else if (nominalArgMatch[0].endsWith("=")) {
-                const nominalArgValueLength = nominalArgMatch[0].length;
-
-                // Allow args to be passed in camelCase syntax (they're then converted to
-                // kebab-case). Error messages may refer to args by their camelCase name (which is
-                // idiomatic for MCP tool call args). So allow agents to repeat the exact camelCase
-                // syntax they've seen in error messages.
-                const nominalArgName = convertCamelCaseToKebabCase(
-                    arg.slice(2, nominalArgValueLength - 1),
-                );
-
-                const nominalArgValue = arg.slice(nominalArgValueLength);
-
-                if (
-                    this.#optionalNominalListArgNameSet.has(nominalArgName) ||
-                    this.#requiredNominalListArgNameSet.has(nominalArgName)
-                ) {
-                    getOrSetDefaultMapValue(nominalListArgs, nominalArgName, () => []).push(
-                        nominalArgValue,
-                    );
-                } else {
-                    if (nominalArgs.has(nominalArgName)) {
-                        throw new InvalidArgumentError("Duplicate nominal argument", {
-                            displayMessage: errorDisplayMessage`There\u2019s more than one ${quote(`--${nominalArgName}`)} args. Try again with only one ${quote(`--${nominalArgName}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
-                        });
-                    }
-
-                    nominalArgs.set(nominalArgName, nominalArgValue);
-                }
-            } else {
-                // Allow args to be passed in camelCase syntax (they're then converted to
-                // kebab-case). Error messages may refer to args by their camelCase name (which is
-                // idiomatic for MCP tool call args). So allow agents to repeat the exact camelCase
-                // syntax they've seen in error messages.
-                const nominalArgName = convertCamelCaseToKebabCase(arg.slice(2));
-
-                let nominalArgValue: string;
-
-                if (this.#optionalNominalFlagArgNameSet.has(nominalArgName)) {
-                    nominalArgValue = "";
-                } else {
-                    nextIndex++;
-                    nominalArgValue = args[index + 1] ?? "";
-                }
-
-                if (
-                    this.#optionalNominalListArgNameSet.has(nominalArgName) ||
-                    this.#requiredNominalListArgNameSet.has(nominalArgName)
-                ) {
-                    getOrSetDefaultMapValue(nominalListArgs, nominalArgName, () => []).push(
-                        nominalArgValue,
-                    );
-                } else {
-                    if (nominalArgs.has(nominalArgName)) {
-                        throw new InvalidArgumentError("Duplicate nominal argument", {
-                            displayMessage: errorDisplayMessage`There\u2019s more than one ${quote(`--${nominalArgName}`)} args. Try again with only one ${quote(`--${nominalArgName}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
-                        });
-                    }
-
-                    nominalArgs.set(nominalArgName, nominalArgValue);
-                }
-            }
-        }
-
-        const nominalValidArgNameSet = new Set(
-            mapIterable(
-                concatIterables<{name: string}>(
-                    this.#requiredNominalArgs ?? emptyArray,
-                    this.#optionalNominalArgs ?? emptyArray,
-                    this.#optionalNominalFlagArgs ?? emptyArray,
-                ),
-                arg => arg.name,
-            ),
-        );
-
-        const parsedArgs: any = {};
-
-        let positionalArgIndex = 0;
-
-        for (const requiredPositionalArg of this.#requiredPositionalArgs) {
-            if (positionalArgIndex >= positionalArgs.length) {
-                throw new InvalidArgumentError("Missing required positional arg", {
-                    displayMessage: errorDisplayMessage`Missing required ${quote(`<${requiredPositionalArg.name}>`)} arg. Try again but add the ${quote(`<${requiredPositionalArg.name}>`)} arg. Expected syntax: ${quote(this.syntax)}.`,
-                });
-            }
-
-            parsedArgs[requiredPositionalArg.name] = positionalArgs[positionalArgIndex];
-            positionalArgIndex++;
-        }
-
-        for (const optionalPositionalArg of this.#optionalPositionalArgs) {
-            if (positionalArgIndex >= positionalArgs.length) break;
-
-            parsedArgs[optionalPositionalArg.name] = positionalArgs[positionalArgIndex];
-            positionalArgIndex++;
-        }
-
-        if (positionalArgIndex < positionalArgs.length) {
-            const unexpectedArgCount = positionalArgs.length - positionalArgIndex;
-
-            throw new InvalidArgumentError("Extra positional args", {
-                displayMessage: errorDisplayMessage`Unexpected args. Try again but remove the ${unexpectedArgCount} unused arg${unexpectedArgCount !== 1 ? "s" : ""}. Expected syntax: ${quote(this.syntax)}.`,
-            });
-        }
-
-        for (const requiredNominalArg of this.#requiredNominalArgs) {
-            if (!nominalArgs.has(requiredNominalArg.name)) {
-                throw new InvalidArgumentError("Missing required nominal arg", {
-                    displayMessage: errorDisplayMessage`Missing required ${quote(`--${requiredNominalArg.name}`)} arg. Try again but add the ${quote(`--${requiredNominalArg.name}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
-                });
-            }
-        }
-
-        for (const [nominalArgName, nominalArgValue] of nominalArgs) {
-            if (nominalValidArgNameSet.has(nominalArgName)) {
-                parsedArgs[nominalArgName] = nominalArgValue;
-            } else {
-                throw new InvalidArgumentError("Unknown nominal arg", {
-                    displayMessage: errorDisplayMessage`Unrecognized ${quote(`--${nominalArgName}`)} arg. Try again without the ${quote(`--${nominalArgName}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
-                });
-            }
-        }
-
-        for (const optionalNominalListArg of this.#optionalNominalListArgs) {
-            parsedArgs[optionalNominalListArg.name] =
-                nominalListArgs.get(optionalNominalListArg.name) ?? [];
-        }
-
-        for (const requiredNominalListArg of this.#requiredNominalListArgs) {
-            const parsedListArgs = nominalListArgs.get(requiredNominalListArg.name) ?? [];
-
-            if (parsedListArgs.length === 0) {
-                throw new InvalidArgumentError("Missing required nominal arg", {
-                    displayMessage: errorDisplayMessage`Missing required ${quote(`--${requiredNominalListArg.name}`)} arg. Try again but add the ${quote(`--${requiredNominalListArg.name}`)} arg. Expected syntax: ${quote(this.syntax)}.`,
-                });
-            }
-
-            parsedArgs[requiredNominalListArg.name] = parsedListArgs;
-        }
-
-        return parsedArgs;
-    }
-}
-
-const createArgParser = new ArgParser("create", {
-    requiredPositionalArgs: [{name: "type"}, {name: "content"}],
-});
-
-const readArgParser = new ArgParser("read", {
-    requiredPositionalArgs: [{name: "path"}],
-    optionalNominalArgs: [{name: "limit", preview: agentWebBytesDefaultLimit}],
-});
-
-const updateArgParser = new ArgParser("update", {
-    requiredPositionalArgs: [{name: "path"}],
-    requiredNominalListArgs: [
-        // eslint-disable-next-line cyberworlds/string-quotes
-        {name: "old", preview: '"..."'},
-        // eslint-disable-next-line cyberworlds/string-quotes
-        {name: "new", preview: '"..."'},
-    ],
-    optionalNominalFlagArgs: [
-        {
-            name: "replace-all",
-            // We don't advertise the `update` tool's `--replace-all` arg in the command
-            // syntax. If the agent tries to make an update where `--old` is repeated then we
-            // share the existence of `--replace-all` along with a recommendation to prefer a
-            // more specific update. We believe this is the better approach.
-            hidden: true,
-        },
-    ],
-});
-
-const deleteArgParser = new ArgParser("delete", {
-    requiredPositionalArgs: [{name: "path"}],
-});
-
-const scrollArgParser = new ArgParser("scroll", {
-    requiredPositionalArgs: [{name: "path"}],
-    requiredNominalArgs: [{name: "offset", preview: "0"}],
-    optionalNominalArgs: [{name: "limit", preview: agentWebBytesDefaultLimit}],
-});
-
-const findArgParser = new ArgParser("find", {
-    requiredPositionalArgs: [{name: "path"}, {name: "pattern"}],
-    optionalNominalArgs: [
-        {name: "offset", preview: "0"},
-        {name: "limit", preview: agentWebBytesFindDefaultLimit.toString()},
-        {name: "match-limit", preview: agentWebBytesFindDefaultMatchLimit},
-    ],
-});
-
-const searchArgParser = new ArgParser("search", {
-    requiredPositionalArgs: [{name: "query"}],
-    optionalNominalArgs: [{name: "limit", preview: defaultAgentWebSearchResultLimit.toString()}],
-});
-
-async function runAgentsCliCommand(
-    context: AgentWebContext,
-    command: string,
-    args: ReadonlyArray<string>,
-): Promise<{isError: boolean; response: string}> {
+async function runAgentsCliCommand({
+    context,
+    command,
+    args,
+    database,
+}: {
+    context: AgentWebContext;
+    command: string;
+    args: ReadonlyArray<string>;
+    database: Database<any, AgentWebSessionLmdbStorageKey>;
+}): Promise<{isError: boolean; response: string}> {
     switch (command) {
         case "help": {
             const {isError, response} = await callAgentWebReadTool(context, {
                 path: "/skill",
             });
+
+            assert(response.type === "String");
 
             // We make the following changes to the `alpine` skill for the `alpine help`
             // command:
@@ -658,7 +413,7 @@ ${scrollArgParser.syntax}
 ${findArgParser.syntax}
 \`\`\`
 
-${response.replace("## Tips", "(You can call the `read` tool with the above skill links to read the skill, e.g. `alpine read /skill/documents`.)\n\n## Tips")}
+${response.string.replace("## Tips", "(You can call the `read` tool with the above skill links to read the skill, e.g. `alpine read /skill/documents`.)\n\n## Tips")}
 
 ### Stdin
 
@@ -690,10 +445,71 @@ Similarly, when adding a lot of content in an update, you can pass \`-\` to \`al
         case "read": {
             const {path, limit} = readArgParser.parse(args);
 
-            return await callAgentWebReadTool(context, {
+            const {isError, response} = await callAgentWebReadTool(context, {
                 path,
                 limit,
             });
+
+            if (response.type === "String") {
+                return {isError, response: response.string};
+            }
+
+            assert(response.pathname.startsWith("/file/"));
+            assert(/\.[a-z0-9]+$/.test(response.pathname));
+
+            const filesDirectoryPath = resolvePath(
+                process.env.ALPINE_FILES_PATH ?? joinPath(tempDirectoryPath, "files"),
+            );
+
+            const filePath = joinPath(filesDirectoryPath, response.pathname.slice("/file/".length));
+
+            // We keep a record of the files we've downloaded in the LMDB database so we don't
+            // have to download them again. Files are immutable, they never change. We expect
+            // this is a worthwhile optimization because an agent may call the `read` tool not
+            // knowing it'll output a long temp directory path and then call the `read` tool
+            // again with some additional code to extract out the path.
+            if (
+                (await database.get([agentWebSessionLmdbStorageFilesOrderKey, filePath])) !==
+                response.id
+            ) {
+                try {
+                    await mkdir(filesDirectoryPath, {recursive: true});
+                } catch (error) {
+                    throw FailedPreconditionError.from(
+                        error,
+                        "Couldn\u2019t create files directory",
+                        {
+                            displayMessage: errorDisplayMessage`Couldn\u2019t create files directory at ${quote(filesDirectoryPath)}. Try changing the \`ALPINE_FILES_PATH\` environment variable to a location you can write to.`,
+                        },
+                    );
+                }
+
+                await response.fetch(async stream => {
+                    try {
+                        await pipeline(
+                            Readable.fromWeb(
+                                // @ts-expect-error: The global TypeScript `ReadableStream` type appears to not
+                                // agree with the Node.js web `ReadableStream` type.
+                                stream,
+                            ),
+                            createWriteStream(filePath),
+                        );
+                    } catch (error) {
+                        throw FailedPreconditionError.from(error, "Couldn\u2019t write file", {
+                            displayMessage: errorDisplayMessage`Couldn\u2019t write to file ${quote(filePath)}. Try changing the \`ALPINE_FILES_PATH\` environment variable to a location you can write to.`,
+                        });
+                    }
+                });
+
+                await database.put(
+                    [agentWebSessionLmdbStorageFilesOrderKey, filePath],
+                    response.id,
+                );
+            }
+
+            // Return `filePath` directly so it's easy for the caller to chain a `read` tool
+            // call for a file with some other command that does more processing on the file.
+            return {isError: false, response: filePath};
         }
         case "update": {
             const {

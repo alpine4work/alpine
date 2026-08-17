@@ -107,6 +107,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Write spec",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -132,6 +133,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Child task",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: parentReference,
                 assignee: null,
                 collections: [],
@@ -148,6 +150,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 # Lowercase fields
 
 - status: open (active)
+- layout: project
 - parent: [Parent task](/task/parent-task)
 - assignee: [Alice](/human/alice)
 - collections: [Engineering](/task-collection/engineering)
@@ -165,6 +168,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 # Lowercase fields
 
 - Status: Open (active)
+- Layout: Project
 - Parent: [Parent task](/task/parent-task)
 - Assignee: [Alice](/human/alice)
 - Collections: [Engineering](/task-collection/engineering)
@@ -175,6 +179,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Lowercase fields",
                 status: {type: "Open", isActive: true},
+                layout: {type: "Project"},
                 parent: parentReference,
                 assignee: aliceReference,
                 collections: [engineeringReference],
@@ -211,6 +216,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Ship task page",
                 status: {type: "Open", isActive: true},
+                layout: null,
                 parent: null,
                 assignee: aliceReference,
                 collections: [engineeringReference, roadmapReference],
@@ -232,6 +238,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Closed task",
                 status: {type: "Closed"},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -254,6 +261,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Low priority",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -276,6 +284,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Medium priority",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -298,6 +307,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "High priority",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -314,6 +324,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
 # Blank optional fields
 
 - Status: Open
+- Layout:
 - Assignee:
 - Collections:
 - Priority:
@@ -328,6 +339,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Blank optional fields",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -352,6 +364,7 @@ runAgentWebPageTests<TaskId, AgentWebTaskPage>({
                 type: "Task",
                 title: "Only title",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -377,6 +390,7 @@ Remember to check the API shape.
                 type: "Task",
                 title: "Notes task",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -416,6 +430,7 @@ Remember to check the API shape.
                 type: "Task",
                 title: "Notes only",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -450,6 +465,7 @@ Bring logs.
                 type: "Task",
                 title: "Notes heading task",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -552,8 +568,8 @@ where the field name is followed by the field value with a colon in between (e.g
 `,
             parseError: markdown`
 Error: Unknown task field \u201COwner\u201D on line 3. Try again with one of \u201CStatus\u201D,
-\u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or
-\u201CDue date\u201D.
+\u201CLayout\u201D, \u201CParent\u201D, \u201CAssignee\u201D, \u201CCollections\u201D,
+\u201CPriority\u201D, or \u201CDue date\u201D.
             `,
         },
         {
@@ -672,6 +688,7 @@ colon in between (e.g. \`- Priority: Medium\`).
                 type: "Task",
                 title: "Out of order",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: aliceReference,
                 collections: [],
@@ -692,6 +709,20 @@ colon in between (e.g. \`- Priority: Medium\`).
             parseError: markdown`
 Error: Unexpected task status \u201CPending\u201D on line 3. Try again with \u201COpen\u201D,
 \u201COpen (Active)\u201D, or \u201CClosed\u201D.
+            `,
+        },
+        {
+            name: "task page with invalid layout",
+            pageLink: taskId,
+            markdown: `\
+# Invalid layout
+
+- Status: Open
+- Layout: Board
+`,
+            parseError: markdown`
+Error: Unexpected task layout \u201CBoard\u201D on line 4. Try again with \u201CProject\u201D or
+omit the layout field entirely.
             `,
         },
         {
@@ -721,6 +752,7 @@ Error: Unexpected task priority \u201CImmediate\u201D on line 4. Try again with 
                 type: "Task",
                 title: "Unvalidated due date",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -817,6 +849,7 @@ to a human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`) and
                 type: "Task",
                 title: "Inline collections",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [engineeringReference, roadmapReference],
@@ -850,6 +883,7 @@ to a human or bot you\u2019ve seen before (e.g. \`[John](/human/john-doe)\`) and
                 type: "Task",
                 title: "Singular fields",
                 status: {type: "Open", isActive: true},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [engineeringReference],
@@ -980,6 +1014,7 @@ list of collection links and nothing else after that (e.g.
                 type: "Task",
                 title: "Inline collections no comma",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [engineeringReference, roadmapReference],
@@ -1014,6 +1049,7 @@ list of collection links and nothing else after that (e.g.
                 type: "Task",
                 title: "Inline collections and",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [engineeringReference, roadmapReference],
@@ -1048,6 +1084,7 @@ list of collection links and nothing else after that (e.g.
                 type: "Task",
                 title: "Adjacent inline collections",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [engineeringReference, roadmapReference],
@@ -1116,6 +1153,7 @@ Remember to check the API shape.
                 type: "Task",
                 title: "Task with notes and subtasks",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],
@@ -1192,6 +1230,7 @@ subtasks).
                 type: "Task",
                 title: "Task with subtasks",
                 status: {type: "Open", isActive: false},
+                layout: null,
                 parent: null,
                 assignee: null,
                 collections: [],

@@ -14,6 +14,7 @@ import {
     ApiTaskResponse,
     ApiTaskWithNotesResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -23,7 +24,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 async function callAgentWebUpdateTool(
@@ -234,7 +237,7 @@ test("rejects a Parent field on an existing task without writing", async () => {
     }).toEqual({
         result:
             "Error: Couldn\u2019t update `/task/my-task/subtasks`. " +
-            "Unknown task field \u201CParent\u201D on line 4. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+            "Task field \u201CParent\u201D on line 4 isn\u2019t supported in this context. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
         writeRequests: [],
     });
 });
@@ -267,7 +270,7 @@ End of tasks.`,
     }).toEqual({
         result:
             "Error: Couldn\u2019t update `/task/my-task/subtasks`. " +
-            "Unknown task field \u201CParent\u201D on line 4. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
+            "Task field \u201CParent\u201D on line 4 isn\u2019t supported in this context. Try again with one of \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, \u201CPriority\u201D, or \u201CDue date\u201D.",
         writeRequests: [],
     });
 });

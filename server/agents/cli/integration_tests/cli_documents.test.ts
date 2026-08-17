@@ -855,6 +855,36 @@ Error: Couldn’t create document comment thread. An unexpected error occurred, 
 `);
 });
 
+test("read a document with a comment thread mark", async () => {
+    const title = "YouTube comment mark";
+    const body = "Review the launch date.";
+    const commentedText = "launch date";
+    const document = await TestDocument.create(cli.session, {
+        title,
+        body,
+        access: "Public",
+    });
+    const commentStart = title.length + 3 + body.indexOf(commentedText);
+    await document.createCommentThread(
+        cli.session,
+        {from: commentStart, to: commentStart + commentedText.length},
+        "Can we verify this date?",
+    );
+
+    expect(await cli.run(`alpine read '${cli.services.getBaseUrl()}/doc/${document.id}'`))
+        .toEqual(`\
+Found path for URL: \`/document/youtube-comment-mark\`.
+
+Call the \`read\` tool again with that path to see the document’s content.
+`);
+
+    expect(await cli.run("alpine read /document/youtube-comment-mark")).toEqual(`\
+# YouTube comment mark
+
+Review the <comment id="1">launch date</comment>.
+`);
+});
+
 test("search for and read a comment at the start of an unresolved document comment thread", async () => {
     const aliceSession = await cli.session.space.createSession({name: "Alice"});
 

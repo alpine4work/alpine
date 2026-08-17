@@ -12,6 +12,7 @@ import {
     ApiContentResponse,
     ApiPostReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {
     TimeZone,
@@ -31,7 +32,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 async function callAgentWebScrollTool(
@@ -267,7 +270,7 @@ test.each([
         createMessage: index => createApiMessageMock({index, author}),
     });
 
-    const {response} = await actuallyCallAgentWebReadTool(context, {
+    const response = await callAgentWebReadTool(context, {
         path: `/post/launch?after=post&before=5&from=${options.from}`,
         limit: "20kb",
     });
@@ -297,14 +300,12 @@ test("reads a post comment in a bounded range from the end", async () => {
         createMessage: index => createApiMessageMock({index, author}),
     });
 
-    const {isError, response} = await actuallyCallAgentWebReadTool(context, {
+    const response = await callAgentWebReadTool(context, {
         path: "/post/launch?from=end&before=2&after=0",
         limit: "20kb",
     });
 
-    expect({isError, response}).toEqual({
-        isError: false,
-        response: `\
+    expect(response).toEqual(`\
 Comments on [post](/post/launch).
 
 <time>May 14th at 11:05am EDT</time>
@@ -313,8 +314,7 @@ Comments on [post](/post/launch).
 
 Test message 1
 
-</comment>`,
-    });
+</comment>`);
 });
 
 test("reads a post with no comments", async () => {

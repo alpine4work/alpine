@@ -16,7 +16,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 const spaceId = generateId<SpaceId>();
@@ -302,7 +304,7 @@ test.each([
         createMessage: index => createApiMessageMock({index, author}),
     });
 
-    const {response} = await actuallyCallAgentWebReadTool(context, {
+    const response = await callAgentWebReadTool(context, {
         path: `${taskCommentsPath}?after=39&before=45&from=${options.from}`,
         limit: "20kb",
     });

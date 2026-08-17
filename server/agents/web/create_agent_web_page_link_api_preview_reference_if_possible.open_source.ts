@@ -23,8 +23,10 @@ export function createAgentWebPageLinkApiPreviewReferenceIfPossible(
         case "DocumentMessage":
         case "PostMessage":
         case "TaskMessage":
+        case "TaskView":
         case "File":
         case "Inbox":
+        case "Space":
         case "Skill":
         case "MyAccount":
             return null;

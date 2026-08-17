@@ -3,7 +3,7 @@
 To create something in Alpine, pass one of the listed `type`s below to the `create` tool along with the markdown content for the new page. Read the link to learn more about the markdown format for each type.
 
 - [`document`](documents.md)
-- [`document-comment-thread`](documents.md)
+- [`document-comment-thread`](document-comments.md)
 - [`chat`](chat.md)
 - [`channel`](forum.md)
 - [`post`](forum.md)

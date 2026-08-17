@@ -109,6 +109,56 @@ test("can read space information", async () => {
     });
 });
 
+test("can list active, invited, removed, and bot accounts in a space", async () => {
+    const space = await TestSpace.create(context, {name: "Test Space"});
+    const adminSession = await space.createSession({name: "Active Admin", role: "Admin"});
+    const removedSession = await space.createSession({name: "Removed Member", role: "Member"});
+    await adminSession.inviteEmailAddress("invited-member@example.com");
+    await space.removeAccount(removedSession);
+
+    const botAccount = await TestBot.createAndInstantiate(adminSession, {name: "Space Bot"});
+    const apiKey = await botAccount.createApiKey(adminSession);
+
+    const response = await server.GET(`/spaces/${space.id}/accounts`, {
+        headers: {authorization: `bearer ${apiKey}`},
+    });
+
+    expect(response).toEqual({
+        status: 200,
+        headers: expect.objectContaining({"content-type": "application/json"}),
+        body: {
+            space: {id: space.id, name: "Test Space"},
+            accounts: [
+                expect.objectContaining({
+                    id: adminSession.account.id,
+                    name: "Active Admin",
+                    space: expect.objectContaining({role: "Admin"}),
+                }),
+                expect.objectContaining({
+                    id: botAccount.id,
+                    name: "Space Bot",
+                    bot: {id: botAccount.bot.id},
+                }),
+                expect.objectContaining({
+                    name: "invited-member@example.com",
+                    space: expect.objectContaining({
+                        role: "Member",
+                        inactive: {type: "InvitePending"},
+                    }),
+                }),
+                expect.objectContaining({
+                    id: removedSession.account.id,
+                    name: "Removed Member",
+                    space: expect.objectContaining({
+                        role: "Member",
+                        inactive: expect.objectContaining({type: "Removed"}),
+                    }),
+                }),
+            ],
+        },
+    });
+});
+
 test("can\u2019t read space information for non-existent space", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({role: "Admin"});

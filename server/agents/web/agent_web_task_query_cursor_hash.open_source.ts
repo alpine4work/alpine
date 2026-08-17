@@ -4,7 +4,10 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.open_source.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
-export type AgentWebTaskQueryId = `TaskCollection:${TaskCollectionId}` | `Task:${TaskId}`;
+export type AgentWebTaskQueryId =
+    | `TaskCollection:${TaskCollectionId}`
+    | `Task:${TaskId}`
+    | "TaskView";
 
 /**
  * The number of base16 characters in a task query cursor hash.

@@ -12,8 +12,8 @@ import {
 } from "~/server/agents/web/pages/messaging/agent_web_messaging_page.open_source.js";
 import {isAgentWebMessagingPageEndOfMessagesParagraph} from "~/server/agents/web/pages/messaging/parse_agent_web_messaging_page.open_source.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {

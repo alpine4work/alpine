@@ -28,7 +28,9 @@ async function callAgentWebCreateTool(
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 const {span} = testTracer.startSpan("call_agent_web_create_tool_for_document_thread.test.ts");

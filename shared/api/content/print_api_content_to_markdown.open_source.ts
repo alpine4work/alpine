@@ -8,6 +8,7 @@ import {
     PhrasingContent,
     Root,
     RootContent,
+    Table,
     TableCell,
     TableRow,
 } from "mdast";
@@ -18,6 +19,10 @@ import {gfmTaskListItemToMarkdown} from "mdast-util-gfm-task-list-item";
 import {mathToMarkdown} from "mdast-util-math";
 import {toMarkdown} from "mdast-util-to-markdown";
 import {assertApiCheckListBlockElementItem} from "~/shared/api/content/assert_api_check_list_block_element_item.open_source.js";
+import {
+    ApiContentGfmTableLayout,
+    computeApiContentGfmTableLayout,
+} from "~/shared/api/content/compute_api_content_gfm_table_layout.open_source.js";
 import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.open_source.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {
@@ -891,35 +896,69 @@ function printApiContentCodeBlockElementToMarkdown(
     return {type: "html", value: html};
 }
 
-export function isSimpleApiContentTableBlockElementForTest(
+export function computeApiContentTableBlockElementGfmTableLayoutForTest(
     element: ApiContentTableBlockElement,
-): boolean {
+): ApiContentGfmTableLayout | null {
     assert(import.meta.jest);
 
-    return printSimpleApiContentTableBlockElementToMarkdownIfPossible(element, {}) !== null;
+    const table = createApiContentTableBlockElementAsGfmTableMarkdownIfPossibleWithoutLayout(
+        element,
+        {},
+    );
+
+    return table === null ? null : computeApiContentGfmTableLayout(table);
 }
 
-function printSimpleApiContentTableBlockElementToMarkdownIfPossible(
+function printApiContentTableBlockElementToGfmTableMarkdownIfPossible(
     element: ApiContentTableBlockElement,
     options: ApiContentMarkdownPrinterOptions,
 ): BlockContent | null {
+    const table = createApiContentTableBlockElementAsGfmTableMarkdownIfPossibleWithoutLayout(
+        element,
+        options,
+    );
+    if (table === null) return null;
+
+    // We can't configure table or column width for simple GFM tables. So instead we
+    // compute reasonable table/column widths based on the content in the table. Then
+    // we expect the `ApiContentTableBlockElement` to have the exact same table/column
+    // widths we computed. If it doesn't then we unfortunately fall back to HTML
+    // `<table>`s. This is quite a bummer but the alternatives are difficult for agents
+    // and developers to work with. (e.g. Including a `<span hidden>` in the table or a
+    // wrapper `<div>` that carries `data-column-widths` is inconsistent with how we
+    // handle column widths for `<table>`s.)
+    //
+    // Also, as we add more customizations to tables we'll just see more bail-out cases
+    // to HTML `<table>` so we may live in a future where most tables need to be HTML
+    // `<table>`s anyway.
+    //
+    // This decision optimizes for agents writing GFM tables. If an agent writes a GFM
+    // table then the default widths we compute means the agent's table will render
+    // nicely in Alpine. However, this is at the cost of just about any table built by
+    // a human rendering as GFM. But an agent will be able to create/update a GFM table
+    // and it will appear nice for a human.
+
+    const tableLayout = computeApiContentGfmTableLayout(table);
+    if (element.width !== tableLayout.tableWidth) return null;
+
+    for (let columnIndex = 0; columnIndex < tableLayout.columnWidths.length; columnIndex++) {
+        if ((element.columns[columnIndex]?.width ?? 1) !== tableLayout.columnWidths[columnIndex]) {
+            return null;
+        }
+    }
+
+    return table;
+}
+
+function createApiContentTableBlockElementAsGfmTableMarkdownIfPossibleWithoutLayout(
+    element: ApiContentTableBlockElement,
+    options: ApiContentMarkdownPrinterOptions,
+): Table | null {
     // Simple GFM tables must have a header row.
     if (!element.hasHeaderRow) return null;
 
     // Simple GFM tables don't support a header column.
     if (element.hasHeaderColumn) return null;
-
-    // We can't configure table or column width for simple GFM tables. So unfortunately
-    // we fall back to HTML `<table>`s. This is quite a bummer but the alternatives are
-    // difficult for agents and developers to work with. (e.g. Including a
-    // `<span hidden>` in the table or a wrapper `<div>` that carries
-    // `data-column-widths` is inconsistent with how we handle column widths for
-    // `<table>`s.)
-    //
-    // Also, as we add more customizations to tables we'll just see more bail-out cases
-    // to HTML `<table>` so we may live in a future where most tables need to be HTML
-    // `<table>`s anyway.
-    if (element.width !== 1 || element.columns.some(column => column.width !== 1)) return null;
 
     let columnCount: number | null = null;
     const rows: Array<TableRow> = [];
@@ -1000,12 +1039,9 @@ function* printApiContentTableBlockElementToMarkdown(
     element: ApiContentTableBlockElement,
     options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<BlockContent> {
-    const simpleTable = printSimpleApiContentTableBlockElementToMarkdownIfPossible(
-        element,
-        options,
-    );
-    if (simpleTable !== null) {
-        yield simpleTable;
+    const gfmTable = printApiContentTableBlockElementToGfmTableMarkdownIfPossible(element, options);
+    if (gfmTable !== null) {
+        yield gfmTable;
         return;
     }
 

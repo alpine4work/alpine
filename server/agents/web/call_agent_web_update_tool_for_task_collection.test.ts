@@ -24,6 +24,7 @@ import {
     ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {ApiTaskQueryCursor} from "~/shared/id/types/api_task_query_cursor.open_source.js";
@@ -38,7 +39,9 @@ import {testTracer} from "~/shared/tracer/dev/test_tracer.js";
 async function callAgentWebReadTool(
     ...callArguments: Parameters<typeof actuallyCallAgentWebReadTool>
 ): Promise<string> {
-    return (await actuallyCallAgentWebReadTool(...callArguments)).response;
+    const result = await actuallyCallAgentWebReadTool(...callArguments);
+    assert(result.response.type === "String");
+    return result.response.string;
 }
 
 async function callAgentWebUpdateTool(
@@ -199,6 +202,48 @@ test("updates the task collection color", async () => {
     expect(getApiPatchTaskCollectionRequestHistory()).toEqual([
         {patches: [{type: "SetColor", color: "Blue"}]},
     ]);
+});
+
+test("rejects a Layout field when updating a task collection", async () => {
+    const {collection} = mockGetApiTaskCollectionTasks(api, {
+        spaceId,
+        totalTaskCount: 1,
+        limit: 31,
+        createTask: index => createApiTaskMock({index, layout: "Project"}),
+    });
+
+    await storeAgentWebPageLinkForTest(storage, collection);
+
+    await callAgentWebReadTool(context, {
+        path: "/task-collection/test-task-collection",
+        limit: "50kb",
+    });
+
+    await expect(
+        callAgentWebUpdateTool(context, {
+            path: "/task-collection/test-task-collection",
+            updates: [
+                {
+                    old: "- [Test Task 0 (Open)](/task/test-task-0)",
+                    new: "- [Test Task 0 (Open)](/task/test-task-0)\n  - Layout: Project",
+                    replaceAll: false,
+                },
+            ],
+        }),
+    ).resolves.toEqual(
+        "Error: Couldn\u2019t update `/task-collection/test-task-collection`. " +
+            ("Task field \u201CLayout\u201D on line 4 isn\u2019t supported in this context. Try again " +
+                "with one of \u201CParent\u201D, \u201CSubtasks\u201D, \u201CAssignee\u201D, \u201CCollections\u201D, " +
+                "\u201CPriority\u201D, or \u201CDue date\u201D."),
+    );
+
+    expect({
+        collectionPatches: getApiPatchTaskCollectionRequestHistory(),
+        taskPatches: getApiPatchTasksRequestHistory(),
+    }).toEqual({
+        collectionPatches: [],
+        taskPatches: [],
+    });
 });
 
 test("adds a task collection color", async () => {

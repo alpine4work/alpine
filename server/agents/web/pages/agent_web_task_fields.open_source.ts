@@ -4,13 +4,14 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.open_source.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.open_source.js";
-import {printMarkdownPhrasingContentText} from "~/server/agents/web/print_markdown_phrasing_content_text.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {printApiMentionReferenceToMentionLinkLabel} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
+import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
     ApiAccountReferenceResponse,
     ApiTaskCollectionReferenceResponse,
     ApiTaskDue,
+    ApiTaskLayout,
     ApiTaskPriority,
     ApiTaskReferenceResponse,
     ApiTaskStatus,
@@ -25,6 +26,7 @@ import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {defaultLocale} from "~/shared/helpers/intl/locale.open_source.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js";
 
 /**
@@ -38,6 +40,7 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js"
  */
 export type AgentWebTaskFields = {
     readonly status?: ApiTaskStatus | null;
+    readonly layout?: ApiTaskLayout | null;
     readonly parent?: ApiTaskReferenceResponse | null;
     readonly subtasks?: ApiTaskSubtasks | null;
     readonly assignee?: ApiAccountReferenceResponse | null;
@@ -60,6 +63,7 @@ type AgentWebTaskFieldNameWithLabel = Exclude<AgentWebTaskFieldName, "additional
 /** The canonical labels we print for each task field. */
 const agentWebTaskFieldLabels: {readonly [Name in AgentWebTaskFieldNameWithLabel]: string} = {
     status: "Status",
+    layout: "Layout",
     parent: "Parent",
     subtasks: "Subtasks",
     assignee: "Assignee",
@@ -90,6 +94,14 @@ export function printAgentWebTaskFieldListItems(
                     type: "text",
                     value: `Status: ${status.type === "Open" ? (status.isActive ? "Open (active)" : "Open") : "Closed"}`,
                 },
+            ]),
+        );
+    }
+
+    if (fields.layout) {
+        listItemPromises.push(
+            createAgentWebTaskFieldListItem([
+                {type: "text", value: `Layout: ${fields.layout.type}`},
             ]),
         );
     }
@@ -266,6 +278,7 @@ export async function parseAgentWebTaskFieldListItems(
     const seenFields = new Set<string>();
 
     let status: ApiTaskStatus | null = null;
+    let layout: ApiTaskLayout | null = null;
     let parentPromise: Promise<ApiTaskReferenceResponse | null> | null = null;
     let subtasks: ApiTaskSubtasks = {openTaskCount: 0, closedTaskCount: 0};
     let assigneePromise: Promise<ApiAccountReferenceResponse | null> | null = null;
@@ -293,9 +306,15 @@ export async function parseAgentWebTaskFieldListItems(
         const fieldName = parseAgentWebTaskFieldName(labelKey);
 
         if (fieldName === null || !allowedFieldNames.has(fieldName)) {
-            throw new InvalidArgumentError("Unknown task field", {
-                displayMessage: errorDisplayMessage`Unknown task field ${curlyQuote(label)} on line ${item.position?.start.line ?? "unknown"}. Try again with one of ${printAgentWebTaskFieldLabelList(fieldNames)}.`,
-            });
+            if (hasOwnProperty(agentWebTaskFieldLabels, fieldName as any)) {
+                throw new InvalidArgumentError("Unsupported task field in this context", {
+                    displayMessage: errorDisplayMessage`Task field ${curlyQuote(label)} on line ${item.position?.start.line ?? "unknown"} isn\u2019t supported in this context. Try again with one of ${printAgentWebTaskFieldLabelList(fieldNames)}.`,
+                });
+            } else {
+                throw new InvalidArgumentError("Unknown task field", {
+                    displayMessage: errorDisplayMessage`Unknown task field ${curlyQuote(label)} on line ${item.position?.start.line ?? "unknown"}. Try again with one of ${printAgentWebTaskFieldLabelList(fieldNames)}.`,
+                });
+            }
         }
 
         // All fields, except collections, should only have a single paragraph and
@@ -309,6 +328,10 @@ export async function parseAgentWebTaskFieldListItems(
         switch (fieldName) {
             case "status": {
                 status = parseAgentWebTaskStatusField(item.position, value);
+                break;
+            }
+            case "layout": {
+                layout = parseAgentWebTaskLayoutField(item.position, value);
                 break;
             }
             case "parent": {
@@ -353,6 +376,7 @@ export async function parseAgentWebTaskFieldListItems(
 
     return {
         status,
+        layout,
         parent,
         subtasks,
         assignee,
@@ -369,6 +393,8 @@ function parseAgentWebTaskFieldName(labelKey: string): AgentWebTaskFieldNameWith
     switch (labelKey) {
         case "statu":
             return "status";
+        case "layout":
+            return "layout";
         case "parent":
             return "parent";
         case "subtask":
@@ -383,6 +409,25 @@ function parseAgentWebTaskFieldName(labelKey: string): AgentWebTaskFieldNameWith
             return "dueDateString";
         default:
             return null;
+    }
+}
+
+function parseAgentWebTaskLayoutField(
+    itemPosition: Node["position"],
+    value: ReadonlyArray<PhrasingContent>,
+): ApiTaskLayout | null {
+    switch (printMarkdownPhrasingContentText(value).trim().toLowerCase()) {
+        case "":
+            return null;
+        case "project":
+            return {type: "Project"};
+        default: {
+            const quotedValue = curlyQuote(value);
+
+            throw new InvalidArgumentError("Invalid task layout", {
+                displayMessage: errorDisplayMessage`Unexpected task layout ${quotedValue} on line ${value[0]?.position?.start.line ?? itemPosition?.start.line ?? "unknown"}. Try again with \u201CProject\u201D or omit the layout field entirely.`,
+            });
+        }
     }
 }
 

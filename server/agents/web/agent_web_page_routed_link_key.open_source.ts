@@ -21,7 +21,9 @@ export type AgentWebPageRoutedLinkKey =
     | `DocumentThread:${DocumentId}-${DocumentCommentThreadId}`
     | `TaskMessageList:${TaskId}`
     | `TaskSubtasks:${TaskId}`
+    | "TaskView"
     | `Inbox:${AccountId}`
+    | "Space"
     | "MyAccount";
 
 export type AgentWebPageRoutedLinkKeyObject =
@@ -43,8 +45,14 @@ export type AgentWebPageRoutedLinkKeyObject =
           readonly task: ApiTaskReference;
       }
     | {
+          readonly type: "TaskView";
+      }
+    | {
           readonly type: "Inbox";
           readonly account: ApiAccountReference;
+      }
+    | {
+          readonly type: "Space";
       }
     | {
           readonly type: "MyAccount";
@@ -62,8 +70,12 @@ export function printAgentWebPageRoutedLinkKey(
             return `TaskMessageList:${key.task.id}`;
         case "TaskSubtasks":
             return `TaskSubtasks:${key.task.id}`;
+        case "TaskView":
+            return "TaskView";
         case "Inbox":
             return `Inbox:${key.account.id}`;
+        case "Space":
+            return "Space";
         case "MyAccount":
             return "MyAccount";
         default:
@@ -111,11 +123,19 @@ export function parseAgentWebPageRoutedLinkKey(
             };
         }
 
+        case "TaskView": {
+            return {type: "TaskView"};
+        }
+
         case "Inbox": {
             return {
                 type: "Inbox",
                 account: {type: "Account", id: assertId<AccountId>(data)},
             };
+        }
+
+        case "Space": {
+            return {type: "Space"};
         }
 
         case "MyAccount": {

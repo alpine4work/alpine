@@ -24,6 +24,14 @@ export async function routeAgentWebPageLinkPathname(
     const pathnameParts = pathname.slice(1).split("/");
 
     switch (pathnameParts[0]) {
+        case "space": {
+            if (pathnameParts.length !== 1) break;
+
+            return {
+                pageLink: {type: "Space"},
+                latestPathname: "/space",
+            };
+        }
         case "skill": {
             // When reading simply `/skill` we give you the main skill file.
             if (pathnameParts.length === 1) {
@@ -99,6 +107,14 @@ export async function routeAgentWebPageLinkPathname(
                         ? {type: "TaskMessageList", task: result.pageLink}
                         : {type: "TaskSubtasks", task: result.pageLink},
                 latestPathname,
+            };
+        }
+        case "task-view": {
+            if (pathnameParts.length !== 1) break;
+
+            return {
+                pageLink: {type: "TaskView"},
+                latestPathname: "/task-view",
             };
         }
         case "human": {
