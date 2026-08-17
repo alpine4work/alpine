@@ -631,44 +631,6 @@ load(
 xcodeproj_rules_dependencies()
 
 # =========================================================================== #
-#                                     Zig                                     #
-# =========================================================================== #
-
-# We use `zig` as a hermetic C compiler.
-
-http_archive(
-    name = "zig_macos_x86_64",
-    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-aFgWFm8h8LjW/Hqmo26ROW3NgsplVt++PjKd7/wB/sM=",
-    strip_prefix = "zig-macos-x86_64-0.14.0",
-    url = "https://ziglang.org/download/0.14.0/zig-macos-x86_64-0.14.0.tar.xz",
-)
-
-http_archive(
-    name = "zig_macos_aarch64",
-    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-tx5LfEtL6ZU2V4d/f55vfuiRFMcW2nwHD0ojgiDpXX4=",
-    strip_prefix = "zig-macos-aarch64-0.14.0",
-    url = "https://ziglang.org/download/0.14.0/zig-macos-aarch64-0.14.0.tar.xz",
-)
-
-http_archive(
-    name = "zig_linux_x86_64",
-    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-Rz7CaAYTPPTRkYyvGkEPhAOhPZeXJqkEW0IbaFAxqYI=",
-    strip_prefix = "zig-linux-x86_64-0.14.0",
-    url = "https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz",
-)
-
-http_archive(
-    name = "zig_linux_aarch64",
-    build_file = "@//admin/bazel:third_party/BUILD.zig.bazel",
-    integrity = "sha256-q2Tj6id/b8Xz1yPc2V2c4asoLI7Q9DG03ogNMN+JHk8=",
-    strip_prefix = "zig-linux-aarch64-0.14.0",
-    url = "https://ziglang.org/download/0.14.0/zig-linux-aarch64-0.14.0.tar.xz",
-)
-
-# =========================================================================== #
 #                                   FFmpeg                                    #
 # =========================================================================== #
 
