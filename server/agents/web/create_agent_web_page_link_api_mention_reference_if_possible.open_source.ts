@@ -7,16 +7,102 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
     link: AgentWebPageLink,
     spaceId: SpaceId,
 ): {type: "MentionReference"; reference: ApiMentionReferenceResponse} | {type: "Url"; url: string} {
+    // Build each reference explicitly instead of passing `link` through. Stored links
+    // may carry extra hydrated data beyond their declared reference type (e.g. the
+    // search tool stores post links with the search result's `author`), and the API
+    // rejects request bodies with unexpected properties
+    // (`additionalProperties: false`).
     switch (link.type) {
-        case "Account":
-        case "Channel":
-        case "Chat":
-        case "Document":
-        case "Post":
-        case "Task":
-        case "TaskCollection":
+        case "Account": {
+            return {
+                type: "MentionReference",
+                reference: {
+                    type: "Account",
+                    id: link.id,
+                    title: link.title,
+                    shortName: link.shortName,
+                    bot: link.bot === undefined ? undefined : {id: link.bot.id},
+                },
+            };
+        }
+        case "Channel": {
+            return {
+                type: "MentionReference",
+                reference: {
+                    type: "Channel",
+                    id: link.id,
+                    title: link.title,
+                    deleted: link.deleted,
+                    private: link.private,
+                },
+            };
+        }
+        case "Chat": {
+            return {
+                type: "MentionReference",
+                reference: {
+                    type: "Chat",
+                    id: link.id,
+                    title: link.title,
+                    deleted: link.deleted,
+                    private: link.private,
+                },
+            };
+        }
+        case "Document": {
+            return {
+                type: "MentionReference",
+                reference: {
+                    type: "Document",
+                    id: link.id,
+                    title: link.title,
+                    deleted: link.deleted,
+                    private: link.private,
+                },
+            };
+        }
+        case "Post": {
+            return {
+                type: "MentionReference",
+                reference: {
+                    type: "Post",
+                    id: link.id,
+                    title: link.title,
+                    deleted: link.deleted,
+                    private: link.private,
+                },
+            };
+        }
+        case "Task": {
+            return {
+                type: "MentionReference",
+                reference: {
+                    type: "Task",
+                    id: link.id,
+                    title: link.title,
+                    status: link.status,
+                    deleted: link.deleted,
+                    private: link.private,
+                },
+            };
+        }
+        case "TaskCollection": {
+            return {
+                type: "MentionReference",
+                reference: {type: "TaskCollection", id: link.id, title: link.title},
+            };
+        }
         case "Site": {
-            return {type: "MentionReference", reference: link};
+            return {
+                type: "MentionReference",
+                reference: {
+                    type: "Site",
+                    id: link.id,
+                    title: link.title,
+                    deleted: link.deleted,
+                    private: link.private,
+                },
+            };
         }
         case "ChatMessage": {
             return {
@@ -56,7 +142,17 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
         }
         case "TaskMessageList":
         case "TaskSubtasks": {
-            return {type: "MentionReference", reference: link.task};
+            return {
+                type: "MentionReference",
+                reference: {
+                    type: "Task",
+                    id: link.task.id,
+                    title: link.task.title,
+                    status: link.task.status,
+                    deleted: link.task.deleted,
+                    private: link.task.private,
+                },
+            };
         }
         case "Inbox": {
             return {
