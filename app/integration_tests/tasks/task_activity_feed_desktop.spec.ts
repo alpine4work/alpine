@@ -26,6 +26,7 @@ test("interleaves activity with comments chronologically", async ({
     await task.createComment(session, "Comment between updates");
     await task.updatePriority(session, "High");
     await ProcessContextModule.waitForTestTasks();
+    await context.waitForSqsProcessJobs();
 
     await services.signIn(browserContext, session);
     await page.goto(`/task/${task.id}`);
