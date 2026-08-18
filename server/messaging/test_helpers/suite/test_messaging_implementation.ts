@@ -35,6 +35,7 @@ import {
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {agentToolAnnotations} from "~/shared/agents/agent_tool_annotations.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
@@ -14814,7 +14815,12 @@ export function testMessagingImplementation<RoomKey extends string>(
                             partIndex: 0,
                             payload: {
                                 type: "ToolCall",
-                                call: {type: "Search", query: "test query"},
+                                call: {
+                                    content: createSimpleMessageContent(
+                                        "Searching \u201ctest query\u201d",
+                                    ),
+                                    annotations: agentToolAnnotations.search,
+                                },
                             },
                         });
 
@@ -14974,7 +14980,12 @@ export function testMessagingImplementation<RoomKey extends string>(
                             partIndex: 0,
                             payload: {
                                 type: "ToolCall",
-                                call: {type: "Search", query: "test query"},
+                                call: {
+                                    content: createSimpleMessageContent(
+                                        "Searching \u201ctest query\u201d",
+                                    ),
+                                    annotations: agentToolAnnotations.search,
+                                },
                             },
                         });
 
@@ -15209,7 +15220,12 @@ export function testMessagingImplementation<RoomKey extends string>(
                             partIndex: "Create",
                             payload: {
                                 type: "ToolCall",
-                                call: {type: "Search", query: "test query"},
+                                call: {
+                                    content: createSimpleMessageContent(
+                                        "Searching \u201ctest query\u201d",
+                                    ),
+                                    annotations: agentToolAnnotations.search,
+                                },
                             },
                             isTimeoutErrorCompletion: true,
                         });

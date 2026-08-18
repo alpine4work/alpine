@@ -1,13 +1,11 @@
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
-import {printApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
+import {fromApiLabelContent} from "~/shared/api/content/closed_source/from_api_label_content.js";
 import {
-    ApiLabelContent,
     ApiMessageExperimentalApproval,
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageStreamPartPayload,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
-    MessageContent,
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
@@ -30,37 +28,13 @@ export function fromApiMessageStreamPartPayload(
             return {type: "Content", content};
         }
         case "ToolCall": {
-            switch (payload.call.type) {
-                case "Read": {
-                    return {
-                        type: "ToolCall",
-                        call: {
-                            type: "Read",
-                            targetPath: printApiMentionReference(payload.call.reference),
-                        },
-                    };
-                }
-                case "Search": {
-                    return {
-                        type: "ToolCall",
-                        call: {
-                            type: "Search",
-                            query: payload.call.query,
-                        },
-                    };
-                }
-                case "Create": {
-                    return {
-                        type: "ToolCall",
-                        call: {
-                            type: "Create",
-                            target: payload.call.reference,
-                        },
-                    };
-                }
-                default:
-                    throw exhaustive(payload.call);
-            }
+            return {
+                type: "ToolCall",
+                call: {
+                    content: fromApiLabelContent(payload.call.content),
+                    annotations: payload.call.annotations,
+                },
+            };
         }
         case "Reasoning": {
             return {
@@ -86,7 +60,7 @@ function fromApiMessageExperimentalApproval(
 ): MessageExperimentalApproval {
     assert(approval.decision.schema.options.length >= 1);
     return {
-        summary: fromApiMessageExperimentalApprovalSummary(approval.summary),
+        summary: fromApiLabelContent(approval.summary),
         decision: {
             schema: {
                 options: approval.decision.schema.options.map(
@@ -100,14 +74,6 @@ function fromApiMessageExperimentalApproval(
     };
 }
 
-function fromApiMessageExperimentalApprovalSummary(summary: ApiLabelContent): MessageContent {
-    return assertMessageContent(
-        fromApiContent(MessageContentProsemirrorSchema, {
-            elements: [{type: "Paragraph", elements: summary.elements}],
-        }),
-    );
-}
-
 function fromApiMessageExperimentalApprovalDecisionOption(
     option: ApiMessageExperimentalApprovalDecisionOption,
 ): MessageExperimentalApprovalDecisionOption {
@@ -119,9 +85,7 @@ function fromApiMessageExperimentalApprovalDecisionOption(
             return {
                 ...option,
                 summary:
-                    option.summary === undefined
-                        ? undefined
-                        : fromApiMessageExperimentalApprovalSummary(option.summary),
+                    option.summary === undefined ? undefined : fromApiLabelContent(option.summary),
             };
         default:
             throw exhaustive(option);

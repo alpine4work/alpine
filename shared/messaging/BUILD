@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "messaging",
-    test_deps = ["//shared/documents"],
+    test_deps = [
+        "//shared/api/content/closed_source",
+        "//shared/documents",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//shared/accounts",

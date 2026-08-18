@@ -23,6 +23,7 @@ import {
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {AgentUsageDatabaseInterface} from "~/server/agents/bots/internal/d1/agent_usage_database.js";
 import {OpenAiClientInterface} from "~/server/agents/bots/internal/open_ai_client.js";
+import {agentToolAnnotations} from "~/shared/agents/agent_tool_annotations.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {InternalError, NotFoundError} from "~/shared/error/error.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -1245,7 +1246,14 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 body: {
                     payload: {
                         type: "ToolCall",
-                        call: {type: "Search", query: "AI document"},
+                        call: {
+                            content: {
+                                elements: [
+                                    {type: "Text", text: "Searching \u201cAI document\u201d"},
+                                ],
+                            },
+                            annotations: agentToolAnnotations.search,
+                        },
                     },
                 },
             }),
@@ -1268,7 +1276,18 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                 body: {
                     payload: {
                         type: "ToolCall",
-                        call: {type: "Read", reference: {type: "Document", id: documentId}},
+                        call: {
+                            content: {
+                                elements: [
+                                    {type: "Text", text: "Reading "},
+                                    {
+                                        type: "Mention",
+                                        reference: {type: "Document", id: documentId},
+                                    },
+                                ],
+                            },
+                            annotations: agentToolAnnotations.read,
+                        },
                     },
                 },
             }),
@@ -2281,7 +2300,14 @@ describe("ChatGptAgentDurableObject.webhook", () => {
                     body: {
                         payload: {
                             type: "ToolCall",
-                            call: {type: "Search", query: "AI document"},
+                            call: {
+                                content: {
+                                    elements: [
+                                        {type: "Text", text: "Searching \u201cAI document\u201d"},
+                                    ],
+                                },
+                                annotations: agentToolAnnotations.search,
+                            },
                         },
                     },
                 }),

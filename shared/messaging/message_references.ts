@@ -1,5 +1,3 @@
-import {parseApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
-import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     ContentReferencedIds,
     ContentReferencedIdsSchema,
@@ -24,7 +22,6 @@ import {
 } from "~/shared/messaging/message_schema.js";
 import {visitProsemirrorNode} from "~/shared/prosemirror/prosemirror_visitor.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
 export type MessageReferencedIds = SchemaType<typeof MessageReferencedIdsSchema>;
@@ -140,32 +137,9 @@ function collectContentReferencesForToolCall(
     referencedIds: MutableContentReferencedIds,
     toolCall: MessageStreamToolCallPartPayloadCall,
 ) {
-    switch (toolCall.type) {
-        case "Read": {
-            const targetObject = parseApiMentionReference(toolCall.targetPath);
-            if (targetObject.type === "Account") {
-                referencedIds.accountIds.add(targetObject.id);
-            } else {
-                referencedIds.searchEntityIds.add(
-                    intoSearchEntityIdFromApiMentionReference(targetObject),
-                );
-            }
-            return;
-        }
-        case "Create": {
-            referencedIds.searchEntityIds.add(
-                intoSearchEntityIdFromApiMentionReference(toolCall.target),
-            );
-            return;
-        }
-        case "Search": {
-            // Search tool calls are plain text for now.
-            return;
-        }
-        default: {
-            throw exhaustive(toolCall);
-        }
-    }
+    collectContentReferencedIdsInto(referencedIds, visitor => {
+        visitProsemirrorNode(toolCall.content, visitor);
+    });
 }
 
 function collectContentReferencesForApprovals(
@@ -204,28 +178,5 @@ function collectContentReferencesForApprovals(
                 }
             }
         }
-    }
-}
-
-function intoSearchEntityIdFromApiMentionReference(
-    target: Exclude<ApiMentionReference, {readonly type: "Account"}>,
-): SearchMentionEntityId {
-    switch (target.type) {
-        case "Channel":
-            return `Channel:${target.id}`;
-        case "Chat":
-            return `Chat:${target.id}`;
-        case "Document":
-            return `Document:${target.id}`;
-        case "Post":
-            return `Post:${target.id}`;
-        case "Task":
-            return `Task:${target.id}`;
-        case "TaskCollection":
-            return `TaskCollection:${target.id}`;
-        case "Site":
-            return `Site:${target.id}`;
-        default:
-            throw exhaustive(target);
     }
 }

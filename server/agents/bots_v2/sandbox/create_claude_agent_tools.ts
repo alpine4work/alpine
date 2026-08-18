@@ -22,9 +22,10 @@ import {
     agentWebBytesFindDefaultLimit,
     agentWebBytesFindDefaultMatchLimit,
 } from "~/server/agents/web/default_agent_web_bytes_limit.open_source.js";
+import {intoApiMessageStreamToolCallPart} from "~/server/agents/web/into_api_message_stream_tool_call_part.js";
+import {agentToolAnnotations} from "~/shared/agents/agent_tool_annotations.js";
 import {isFileCodeContentType} from "~/shared/files/file_content_type.open_source.js";
 import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function createClaudeAgentMcpServer(
     getContext: () => AgentWebContext,
@@ -41,48 +42,9 @@ export function createClaudeAgentMcpServer(
         if (lastReadWebPageLinkKey === pageLinkKey) return;
         lastReadWebPageLinkKey = pageLinkKey;
 
-        switch (pageLink.type) {
-            case "Account":
-            case "Channel":
-            case "Chat":
-            case "Document":
-            case "Post":
-            case "Task":
-            case "TaskCollection":
-            case "Site": {
-                messageRef.current.pushToolCall(getContext().span, {
-                    type: "Read",
-                    reference: pageLink,
-                });
-                break;
-            }
-            case "ChatMessage":
-                pushReadPageLinkToolCall({...pageLink, type: "Chat"});
-                break;
-            case "DocumentThread":
-            case "DocumentMessage":
-                pushReadPageLinkToolCall(pageLink.document);
-                break;
-            case "PostMessage":
-                pushReadPageLinkToolCall({...pageLink, type: "Post"});
-                break;
-            case "TaskMessage":
-                pushReadPageLinkToolCall({...pageLink, type: "Task"});
-                break;
-            case "TaskMessageList":
-            case "TaskSubtasks":
-                pushReadPageLinkToolCall(pageLink.task);
-                break;
-            case "File":
-            case "Skill":
-            case "Inbox":
-            case "Space":
-            case "MyAccount":
-            case "TaskView":
-                // TODO: Tool call for everything you can read!
-                break;
-            default:
-                throw exhaustive(pageLink);
+        const toolCall = intoApiMessageStreamToolCallPart({type: "Read", pageLink});
+        if (toolCall !== null) {
+            messageRef.current.pushToolCall(getContext().span, toolCall);
         }
     };
 
@@ -184,14 +146,7 @@ export function createClaudeAgentMcpServer(
                 }
             }
         },
-        {
-            annotations: {
-                readOnlyHint: true,
-                destructiveHint: false,
-                idempotentHint: true,
-                openWorldHint: false,
-            },
-        },
+        {annotations: agentToolAnnotations.read},
     );
 
     const updateTool = tool(
@@ -211,18 +166,23 @@ export function createClaudeAgentMcpServer(
             ),
         },
         async args => {
-            const {isError, response} = await callAgentWebUpdateTool(getContext(), args);
+            const context = getContext();
+            const result = await callAgentWebUpdateTool(context, args);
 
-            return {isError, content: [{type: "text", text: response}]};
+            if (!result.isError) {
+                const toolCall = intoApiMessageStreamToolCallPart({
+                    type: "Update",
+                    pageLink: result.pageLink,
+                });
+                if (toolCall !== null) messageRef.current?.pushToolCall(context.span, toolCall);
+            }
+
+            return {
+                isError: result.isError,
+                content: [{type: "text", text: result.response}],
+            };
         },
-        {
-            annotations: {
-                readOnlyHint: false,
-                destructiveHint: true,
-                idempotentHint: false,
-                openWorldHint: false,
-            },
-        },
+        {annotations: agentToolAnnotations.update},
     );
 
     const createTool = tool(
@@ -237,30 +197,17 @@ export function createClaudeAgentMcpServer(
 
             const result = await callAgentWebCreateTool(context, args);
 
-            // TODO: Tool call for everything you can create!
-            if (
-                !result.isError &&
-                (result.pageLink.type === "Document" ||
-                    result.pageLink.type === "Post" ||
-                    result.pageLink.type === "Task" ||
-                    result.pageLink.type === "TaskCollection")
-            ) {
-                messageRef.current?.pushToolCall(context.span, {
+            if (!result.isError) {
+                const toolCall = intoApiMessageStreamToolCallPart({
                     type: "Create",
-                    reference: result.pageLink,
+                    pageLink: result.pageLink,
                 });
+                if (toolCall !== null) messageRef.current?.pushToolCall(context.span, toolCall);
             }
 
             return {isError: result.isError, content: [{type: "text", text: result.response}]};
         },
-        {
-            annotations: {
-                readOnlyHint: false,
-                destructiveHint: false,
-                idempotentHint: false,
-                openWorldHint: false,
-            },
-        },
+        {annotations: agentToolAnnotations.create},
     );
 
     const deleteTool = tool(
@@ -274,14 +221,7 @@ export function createClaudeAgentMcpServer(
 
             return {isError, content: [{type: "text", text: response}]};
         },
-        {
-            annotations: {
-                readOnlyHint: false,
-                destructiveHint: true,
-                idempotentHint: false,
-                openWorldHint: false,
-            },
-        },
+        {annotations: agentToolAnnotations.delete},
     );
 
     const searchTool = tool(
@@ -297,23 +237,14 @@ export function createClaudeAgentMcpServer(
         async args => {
             const context = getContext();
 
-            messageRef.current?.pushToolCall(context.span, {
-                type: "Search",
-                query: args.query,
-            });
+            const toolCall = intoApiMessageStreamToolCallPart({type: "Search", query: args.query});
+            if (toolCall !== null) messageRef.current?.pushToolCall(context.span, toolCall);
 
             const {isError, response} = await callAgentWebSearchTool(context, args);
 
             return {isError, content: [{type: "text", text: response}]};
         },
-        {
-            annotations: {
-                readOnlyHint: true,
-                destructiveHint: false,
-                idempotentHint: true,
-                openWorldHint: false,
-            },
-        },
+        {annotations: agentToolAnnotations.search},
     );
 
     const scrollTool = tool(
@@ -332,14 +263,7 @@ export function createClaudeAgentMcpServer(
 
             return {isError, content: [{type: "text", text: response}]};
         },
-        {
-            annotations: {
-                readOnlyHint: true,
-                destructiveHint: false,
-                idempotentHint: true,
-                openWorldHint: false,
-            },
-        },
+        {annotations: agentToolAnnotations.scroll},
     );
 
     const findTool = tool(
@@ -365,14 +289,7 @@ export function createClaudeAgentMcpServer(
 
             return {isError, content: [{type: "text", text: response}]};
         },
-        {
-            annotations: {
-                readOnlyHint: true,
-                destructiveHint: false,
-                idempotentHint: true,
-                openWorldHint: false,
-            },
-        },
+        {annotations: agentToolAnnotations.find},
     );
 
     return createSdkMcpServer({

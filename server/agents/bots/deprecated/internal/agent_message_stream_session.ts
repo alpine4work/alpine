@@ -73,6 +73,13 @@ interface AgentMessageStreamSessionInterface {
      *   reasoning update. When the next `_update()` runs, content will be persisted
      *   then reasoning, preserving the original ordering.
      */
+    // TODO(#agent-thinking-summary): Now that our tool calls accept generic content,
+    // we should consider introducing logic that updates the tool call streamn part as
+    // the tool call state changes.
+    //
+    // E.g.
+    //
+    // "Reading @Cool doc..." -> "Read @Cool doc."
     pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall): void;
 
     /**

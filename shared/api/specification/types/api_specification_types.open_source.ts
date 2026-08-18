@@ -4192,7 +4192,8 @@ export namespace ApiSpecification {
                 | components["schemas"]["LabelContentMentionInlineElement"];
             readonly LabelContentInlineElementMark:
                 | components["schemas"]["ContentItalicMark"]
-                | components["schemas"]["ContentCodeMark"];
+                | components["schemas"]["ContentCodeMark"]
+                | components["schemas"]["ContentLinkMark"];
             readonly LabelContentTextInlineElement: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -5890,39 +5891,27 @@ export namespace ApiSpecification {
                 readonly type: "ToolCall";
                 readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall"];
             };
-            readonly MessageStreamToolCallPartPayloadCall:
-                | components["schemas"]["MessageStreamToolCallPartPayloadReadCall"]
-                | components["schemas"]["MessageStreamToolCallPartPayloadSearchCall"]
-                | components["schemas"]["MessageStreamToolCallPartPayloadCreateCall"];
-            readonly MessageStreamToolCallPartPayloadReadCall: {
+            readonly MessageStreamToolCallPartPayloadCall: {
+                readonly content: components["schemas"]["LabelContent"];
                 /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
+                 * @description Annotations that desribe the nature of the tool call as defined by
+                 * the
+                 * [Model Context Protocol schema](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
+                 * For a deeper dive into the topic, see the
+                 * [corresponding blog post](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
                  */
-                readonly type: "Read";
-                readonly reference: components["schemas"]["MentionReference"];
+                readonly annotations?: {
+                    readonly title?: string;
+                    /** @default false */
+                    readonly readOnlyHint: boolean;
+                    /** @default true */
+                    readonly destructiveHint: boolean;
+                    /** @default false */
+                    readonly idempotentHint: boolean;
+                    /** @default true */
+                    readonly openWorldHint: boolean;
+                };
             };
-            readonly MessageStreamToolCallPartPayloadSearchCall: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Search";
-                readonly query: string;
-            };
-            readonly MessageStreamToolCallPartPayloadCreateCall: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Create";
-                readonly reference: components["schemas"]["MessageStreamToolCallPartCreateCallReference"];
-            };
-            readonly MessageStreamToolCallPartCreateCallReference:
-                | components["schemas"]["DocumentReference"]
-                | components["schemas"]["PostReference"]
-                | components["schemas"]["TaskReference"]
-                | components["schemas"]["TaskCollectionReference"];
             readonly BotWebhookEvent:
                 | components["schemas"]["BotWebhookCreatedMessageEvent"]
                 | components["schemas"]["BotWebhookCreatedPostEvent"]
@@ -6807,11 +6796,6 @@ export namespace ApiSpecification {
                 readonly document: components["schemas"]["DocumentReference_Response"];
                 readonly id: components["schemas"]["DocumentThreadId"];
             };
-            readonly MessageStreamToolCallPartCreateCallReference_Response:
-                | components["schemas"]["DocumentReference_Response"]
-                | components["schemas"]["PostReference_Response"]
-                | components["schemas"]["TaskReference_Response"]
-                | components["schemas"]["TaskCollectionReference_Response"];
             readonly ContentTableBlockElementCellBlockElement_Response:
                 | components["schemas"]["ContentParagraphBlockElement_Response"]
                 | components["schemas"]["ContentUnorderedListBlockElement_Response"]
@@ -7097,22 +7081,6 @@ export namespace ApiSpecification {
                 | components["schemas"]["TaskQueryCollectionsFilterIncludesAllOfOperation_Response"]
                 | components["schemas"]["TaskQueryCollectionsFilterExcludesAllOfOperation_Response"]
                 | components["schemas"]["TaskQueryCollectionsFilterIsEmptyOperation"];
-            readonly MessageStreamToolCallPartPayloadReadCall_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Read";
-                readonly reference: components["schemas"]["MentionReference_Response"];
-            };
-            readonly MessageStreamToolCallPartPayloadCreateCall_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "Create";
-                readonly reference: components["schemas"]["MessageStreamToolCallPartCreateCallReference_Response"];
-            };
             readonly LabelContentMentionInlineElement_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -7263,10 +7231,6 @@ export namespace ApiSpecification {
                 readonly type: "Reasoning";
                 readonly content: components["schemas"]["Content_Response"];
             };
-            readonly MessageStreamToolCallPartPayloadCall_Response:
-                | components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"]
-                | components["schemas"]["MessageStreamToolCallPartPayloadSearchCall"]
-                | components["schemas"]["MessageStreamToolCallPartPayloadCreateCall_Response"];
             readonly LabelContentInlineElement_Response:
                 | components["schemas"]["LabelContentTextInlineElement"]
                 | components["schemas"]["LabelContentMentionInlineElement_Response"];
@@ -7351,14 +7315,6 @@ export namespace ApiSpecification {
                 | components["schemas"]["MessageStreamToolCallPartPayload_Response"]
                 | components["schemas"]["MessageStreamReasoningPartPayload_Response"]
                 | components["schemas"]["MessageStreamExperimentalApprovalsPartPayload_Response"];
-            readonly MessageStreamToolCallPartPayload_Response: {
-                /**
-                 * @description discriminator enum property added by openapi-typescript @enum
-                 * {string}
-                 */
-                readonly type: "ToolCall";
-                readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
-            };
             readonly MessageStreamExperimentalApprovalsPartPayload_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -7428,6 +7384,27 @@ export namespace ApiSpecification {
                 readonly type: "Assigner";
                 readonly operation: components["schemas"]["TaskQueryAccountFilterOperation_Response"];
             };
+            readonly MessageStreamToolCallPartPayloadCall_Response: {
+                readonly content: components["schemas"]["LabelContent_Response"];
+                /**
+                 * @description Annotations that desribe the nature of the tool call as defined by
+                 * the
+                 * [Model Context Protocol schema](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
+                 * For a deeper dive into the topic, see the
+                 * [corresponding blog post](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
+                 */
+                readonly annotations?: {
+                    readonly title?: string;
+                    /** @default false */
+                    readonly readOnlyHint: boolean;
+                    /** @default true */
+                    readonly destructiveHint: boolean;
+                    /** @default false */
+                    readonly idempotentHint: boolean;
+                    /** @default true */
+                    readonly openWorldHint: boolean;
+                };
+            };
             readonly MessageExperimentalApprovalDecisionApprovedForSessionOption_Response: {
                 /**
                  * @description discriminator enum property added by openapi-typescript @enum
@@ -7437,6 +7414,14 @@ export namespace ApiSpecification {
                 readonly scope: components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValueScope"];
                 readonly summary?: components["schemas"]["LabelContent_Response"];
                 readonly durationMinutes: number | null;
+            };
+            readonly MessageStreamToolCallPartPayload_Response: {
+                /**
+                 * @description discriminator enum property added by openapi-typescript @enum
+                 * {string}
+                 */
+                readonly type: "ToolCall";
+                readonly call: components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
             };
             readonly MessageExperimentalApprovalDecisionOption_Response:
                 | components["schemas"]["MessageExperimentalApprovalDecisionApprovedOption"]

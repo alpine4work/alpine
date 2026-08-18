@@ -1,6 +1,7 @@
 import {Root} from "mdast";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.open_source.js";
+import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.open_source.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.open_source.js";
 import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
 import {
@@ -67,6 +68,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.open_sou
 import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.open_source.js";
@@ -82,18 +84,19 @@ export async function callAgentWebUpdateTool(
             replaceAll: boolean;
         }>;
     },
-): Promise<{isError: boolean; response: string}> {
+): Promise<
+    | {isError: false; response: string; pageLink: AgentWebPageLinkKeyObject}
+    | {isError: true; response: string}
+> {
     return await context.span.withSpan("Call agent web update tool", async span => {
         return await withInstrumentedAgentWebSessionStorage(
             span,
             context.storage,
             async storage => {
-                let isError: boolean;
-                let response: string;
                 const additionalOutput: Array<string> = [];
 
                 try {
-                    response = await actuallyCallAgentWebUpdateTool(
+                    const result = await actuallyCallAgentWebUpdateTool(
                         {...context, span, storage},
                         options,
                         {
@@ -101,23 +104,27 @@ export async function callAgentWebUpdateTool(
                         },
                     );
 
-                    isError = false;
+                    let {response} = result;
+
+                    if (additionalOutput.length > 0) {
+                        response += `\n\n${additionalOutput.join("\n\n")}`;
+                    }
+
+                    return {isError: false, response, pageLink: result.pageLink};
                 } catch (error) {
                     span.addException(error);
 
-                    response = printAgentWebError(
+                    let response = printAgentWebError(
                         `Couldn\u2019t update ${quote(options.path)}`,
                         error,
                     );
 
-                    isError = true;
-                }
+                    if (additionalOutput.length > 0) {
+                        response += `\n\n${additionalOutput.join("\n\n")}`;
+                    }
 
-                if (additionalOutput.length > 0) {
-                    response += `\n\n${additionalOutput.join("\n\n")}`;
+                    return {isError: true, response};
                 }
-
-                return {isError, response};
             },
         );
     });
@@ -141,10 +148,12 @@ async function actuallyCallAgentWebUpdateTool(
     }: {
         addAdditionalOutput: (output: string) => void;
     },
-): Promise<string> {
+): Promise<{response: string; pageLink: AgentWebPageLinkKeyObject}> {
     assert(updates.length > 0);
 
     const {path, pathname} = normalizeAgentWebPath(originalPath);
+
+    let pageLink: AgentWebPageLinkKeyObject | null = null;
 
     await getOrSetDefaultMapValue(
         context.storage.readResponseMutexByPath,
@@ -305,6 +314,10 @@ async function actuallyCallAgentWebUpdateTool(
             throw error;
         }
 
+        // A skill update always throws before this point.
+        assert(newPageMetadata.type !== "Skill");
+        pageLink = intoAgentWebPageLinkKeyObject(newPageMetadata);
+
         // Allow future `scroll` calls and future `update` calls to operate on the updated
         // response we just wrote to the database.
         await context.storage.readResponseByPath.put(path, {
@@ -315,7 +328,11 @@ async function actuallyCallAgentWebUpdateTool(
         });
     });
 
-    return "Update was successful.";
+    return {
+        response: "Update was successful.",
+        // @ts-expect-error: pageLink is never null here, TS just doesn't know
+        pageLink: assertExists(pageLink),
+    };
 }
 
 async function updateAgentWebPageLink(
@@ -529,5 +546,69 @@ async function updateAgentWebPageLink(
         }
         default:
             throw exhaustive(oldPageMetadata);
+    }
+}
+
+function intoAgentWebPageLinkKeyObject(
+    pageMetadata: Exclude<AgentWebPageMetadata, {type: "Skill"}>,
+): AgentWebPageLinkKeyObject {
+    switch (pageMetadata.type) {
+        case "Account": {
+            return {type: "Account", id: pageMetadata.id};
+        }
+        case "Inbox": {
+            return {
+                type: "Inbox",
+                account: {type: "Account", id: pageMetadata.id},
+            };
+        }
+        case "Document": {
+            return {type: "Document", id: pageMetadata.id};
+        }
+        case "DocumentThread": {
+            return {
+                type: "DocumentThread",
+                document: {type: "Document", id: pageMetadata.id},
+                id: pageMetadata.threadId,
+            };
+        }
+        case "Channel": {
+            return {type: "Channel", id: pageMetadata.id};
+        }
+        case "Chat": {
+            return {type: "Chat", id: pageMetadata.id};
+        }
+        case "TaskMessageList": {
+            return {type: "TaskMessageList", task: {type: "Task", id: pageMetadata.id}};
+        }
+        case "Task": {
+            return {type: "Task", id: pageMetadata.id};
+        }
+        case "TaskCollection": {
+            return {type: "TaskCollection", id: pageMetadata.id};
+        }
+        case "TaskSubtasks": {
+            return {
+                type: "TaskSubtasks",
+                task: {
+                    type: "Task",
+                    id: pageMetadata.id,
+                },
+            };
+        }
+        case "Post": {
+            return {type: "Post", id: pageMetadata.id};
+        }
+        case "MyAccount": {
+            return {type: "MyAccount"};
+        }
+        case "Space": {
+            return {type: "Space"};
+        }
+        case "TaskView": {
+            return {type: "TaskView"};
+        }
+        default:
+            throw exhaustive(pageMetadata);
     }
 }

@@ -15,7 +15,6 @@ import {
     ApiMessageExperimentalApprovalDecisionOption,
     ApiMessageExperimentalApprovalDecisionValue,
     ApiMessageRoomReference,
-    ApiMessageStreamToolCallPartCreateCallReference,
     ApiSearchResult,
     ApiSearchResultMatch,
     ApiSearchResultParsedFilter,
@@ -70,10 +69,6 @@ test("all mention references are assignable to `ApiReference`", () => {
 
 test("all message room references are assignable to `ApiReference`", () => {
     assertAssignableTypes<ApiMessageRoomReference, ApiReference>();
-});
-
-test("create tool call target is assignable to ApiMentionReference", () => {
-    assertAssignableTypes<ApiMessageStreamToolCallPartCreateCallReference, ApiMentionReference>();
 });
 
 test("`/reference` paths are assignable to `ApiReferenceResponse`", () => {

@@ -1,3 +1,4 @@
+import {agentToolAnnotations} from "~/shared/agents/agent_tool_annotations.js";
 import {
     MockAgentRecording,
     MockAgentRecordingAction,
@@ -125,24 +126,43 @@ export function createMockAgentKingKongRecording(
         });
     }
 
+    function putSearchToolCallPart(time: number, index: number, query: string) {
+        put(time, index, {
+            type: "ToolCall",
+            call: {
+                content: {elements: [{type: "Text", text: `Searching \u201c${query}\u201d`}]},
+                annotations: agentToolAnnotations.search,
+            },
+        });
+    }
+
+    function putReadToolCallPart(time: number, index: number, reference: ApiMentionReference) {
+        put(time, index, {
+            type: "ToolCall",
+            call: {
+                content: {
+                    elements: [
+                        {type: "Text", text: "Reading "},
+                        {type: "Mention", reference},
+                    ],
+                },
+                annotations: agentToolAnnotations.read,
+            },
+        });
+    }
+
     ping(698361);
 
-    put(702360, 0, {type: "ToolCall", call: {type: "Search", query: "King Kong legal case"}});
+    putSearchToolCallPart(702360, 0, "King Kong legal case");
 
-    put(703812, 1, {
-        type: "ToolCall",
-        call: {
-            type: "Read",
-            reference: {type: "Document", id: documentIds.universalVsNintendo},
-        },
+    putReadToolCallPart(703812, 1, {
+        type: "Document",
+        id: documentIds.universalVsNintendo,
     });
 
-    put(705989, 2, {
-        type: "ToolCall",
-        call: {
-            type: "Read",
-            reference: {type: "Document", id: documentIds.universalVsNintendo},
-        },
+    putReadToolCallPart(705989, 2, {
+        type: "Document",
+        id: documentIds.universalVsNintendo,
     });
 
     ping(709060);
@@ -165,15 +185,9 @@ export function createMockAgentKingKongRecording(
         ),
     );
 
-    put(718989, 5, {
-        type: "ToolCall",
-        call: {type: "Search", query: "Universal City Studios v. RKO General King Kong"},
-    });
+    putSearchToolCallPart(718989, 5, "Universal City Studios v. RKO General King Kong");
 
-    put(720483, 6, {
-        type: "ToolCall",
-        call: {type: "Search", query: "Merian C. Cooper King Kong rights lawsuit RKO"},
-    });
+    putSearchToolCallPart(720483, 6, "Merian C. Cooper King Kong rights lawsuit RKO");
 
     ping(724374);
 
@@ -186,43 +200,28 @@ export function createMockAgentKingKongRecording(
         ),
     );
 
-    put(729785, 8, {
-        type: "ToolCall",
-        call: {
-            type: "Read",
-            reference: {type: "Document", id: documentIds.kingKongVsGodzilla},
-        },
+    putReadToolCallPart(729785, 8, {
+        type: "Document",
+        id: documentIds.kingKongVsGodzilla,
     });
 
-    put(731006, 9, {
-        type: "ToolCall",
-        call: {
-            type: "Read",
-            reference: {type: "Document", id: documentIds.kingKongVsGodzilla},
-        },
+    putReadToolCallPart(731006, 9, {
+        type: "Document",
+        id: documentIds.kingKongVsGodzilla,
     });
 
-    put(734583, 10, {
-        type: "ToolCall",
-        call: {
-            type: "Read",
-            reference: {type: "Document", id: documentIds.kingKong2005Film},
-        },
+    putReadToolCallPart(734583, 10, {
+        type: "Document",
+        id: documentIds.kingKong2005Film,
     });
 
     ping(736444);
 
-    put(741169, 11, {
-        type: "ToolCall",
-        call: {type: "Search", query: "King Kong public domain rights lawsuit"},
-    });
+    putSearchToolCallPart(741169, 11, "King Kong public domain rights lawsuit");
 
     ping(742236);
 
-    put(747490, 12, {
-        type: "ToolCall",
-        call: {type: "Search", query: "King Kong (1933 film) legal rights RKO lawsuit"},
-    });
+    putSearchToolCallPart(747490, 12, "King Kong (1933 film) legal rights RKO lawsuit");
 
     ping(751825);
 

@@ -32,6 +32,7 @@ ts_project(
         "//:node_modules/pretty-bytes",
         "//:node_modules/stemmer",
         "//server/agents/api",
+        "//shared/agents",
         "//shared/api/content",
         "//shared/api/content/closed_source",
         "//shared/api/specification",

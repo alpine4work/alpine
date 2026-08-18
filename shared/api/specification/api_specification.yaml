@@ -3909,11 +3909,13 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/ContentItalicMark"
                 - $ref: "#/components/schemas/ContentCodeMark"
+                - $ref: "#/components/schemas/ContentLinkMark"
             discriminator:
                 propertyName: type
                 mapping:
                     Italic: "#/components/schemas/ContentItalicMark"
                     Code: "#/components/schemas/ContentCodeMark"
+                    Link: "#/components/schemas/ContentLinkMark"
 
         LabelContentTextInlineElement:
             type: object
@@ -6709,66 +6711,37 @@ components:
                 call:
                     $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall"
 
-        # TODO(#public-api): We should consider removing this discriminator entirely and ask
-        # the agent to generate the string that we show in the thinking summary. The only
-        # disadvantage would be that we can't easily produce the icon associated with the tool
-        # call. The reason for removing the discriminated union is that it exposes the way we
-        # built *our* agents, but other agents may use totally different tool call types.
         MessageStreamToolCallPartPayloadCall:
-            oneOf:
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
-                    Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
-                    Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
-
-        MessageStreamToolCallPartPayloadReadCall:
             type: object
-            required: [type, reference]
+            required: [content]
             additionalProperties: false
             properties:
-                type:
-                    const: Read
-                reference:
-                    $ref: "#/components/schemas/MentionReference"
-
-        MessageStreamToolCallPartPayloadSearchCall:
-            type: object
-            required: [type, query]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Search
-                query:
-                    type: string
-
-        MessageStreamToolCallPartPayloadCreateCall:
-            type: object
-            required: [type, reference]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Create
-                reference:
-                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallReference"
-
-        MessageStreamToolCallPartCreateCallReference:
-            oneOf:
-                - $ref: "#/components/schemas/DocumentReference"
-                - $ref: "#/components/schemas/PostReference"
-                - $ref: "#/components/schemas/TaskReference"
-                - $ref: "#/components/schemas/TaskCollectionReference"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Document: "#/components/schemas/DocumentReference"
-                    Post: "#/components/schemas/PostReference"
-                    Task: "#/components/schemas/TaskReference"
-                    TaskCollection: "#/components/schemas/TaskCollectionReference"
+                content:
+                    $ref: "#/components/schemas/LabelContent"
+                annotations:
+                    description: >
+                        Annotations that desribe the nature of the tool call as defined by the
+                        [Model Context Protocol
+                        schema](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
+                        For a deeper dive into the topic, see the [corresponding blog
+                        post](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
+                    type: object
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
+                        readOnlyHint:
+                            type: boolean
+                            default: false
+                        destructiveHint:
+                            type: boolean
+                            default: true
+                        idempotentHint:
+                            type: boolean
+                            default: false
+                        openWorldHint:
+                            type: boolean
+                            default: true
 
         # =========================================================================== #
         #                                  Webhooks                                   #

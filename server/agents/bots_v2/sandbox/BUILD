@@ -49,6 +49,7 @@ ts_project(
         "//server/tracer",
         "//server/helpers",
         "//shared/api/content",
+        "//shared/agents",
         "//shared/error",
         "//shared/helpers",
     ],

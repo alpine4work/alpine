@@ -57,13 +57,17 @@ export function MessageStreamViewThinkingSummary({
             // If the previous part is a `Read` tool call for the same path then combine them
             // into one part. This will happen if the agent is reading multiple pages from an
             // entity.
+            //
+            // NOTE(ifitzsimmons, 2026-08-13): This is legacy code to support the way tool
+            // calls were written historically. Now that the agent has a "scroll" tool call, it
+            // shouldn't need to keep performing "Read" tool calls to paginate.
             if (
                 previousPart &&
                 part.type === "ToolCall" &&
                 previousPart.type === "ToolCall" &&
-                part.call.type === "Read" &&
-                previousPart.call.type === "Read" &&
-                part.call.targetPath === previousPart.call.targetPath
+                part.call.annotations?.readOnlyHint &&
+                previousPart.call.annotations?.readOnlyHint &&
+                part.call.content.eq(previousPart.call.content)
             ) {
                 continue;
             }

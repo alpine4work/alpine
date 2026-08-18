@@ -23,6 +23,7 @@ import {
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {agentToolAnnotations} from "~/shared/agents/agent_tool_annotations.js";
 import {MockAgentRecordingAction} from "~/shared/agents/mock_agent_recording.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
@@ -564,8 +565,16 @@ field when they receive them. Comment on ideas you like!
                 payload: {
                     type: "ToolCall",
                     call: {
-                        type: "Read",
-                        reference: {type: "Document", id: brainstormDocument.id},
+                        content: {
+                            elements: [
+                                {type: "Text", text: "Reading "},
+                                {
+                                    type: "Mention",
+                                    reference: {type: "Document", id: brainstormDocument.id},
+                                },
+                            ],
+                        },
+                        annotations: agentToolAnnotations.read,
                     },
                 },
             });

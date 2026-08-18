@@ -3472,8 +3472,66 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                         "optional": false
                                                                                     }
                                                                                 }
+                                                                            },
+                                                                            "Generic": {
+                                                                                "type": "Object",
+                                                                                "propertySchemaByKey": {
+                                                                                    "type": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Value",
+                                                                                            "value": "Generic"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    },
+                                                                                    "content": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Reference",
+                                                                                            "reuseReferenceId": "05d7837f"
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    },
+                                                                                    "annotations": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Object",
+                                                                                            "propertySchemaByKey": {
+                                                                                                "title": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "String"
+                                                                                                    },
+                                                                                                    "optional": true
+                                                                                                },
+                                                                                                "readOnlyHint": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Boolean"
+                                                                                                    },
+                                                                                                    "optional": true
+                                                                                                },
+                                                                                                "destructiveHint": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Boolean"
+                                                                                                    },
+                                                                                                    "optional": true
+                                                                                                },
+                                                                                                "idempotentHint": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Boolean"
+                                                                                                    },
+                                                                                                    "optional": true
+                                                                                                },
+                                                                                                "openWorldHint": {
+                                                                                                    "valueSchema": {
+                                                                                                        "type": "Boolean"
+                                                                                                    },
+                                                                                                    "optional": true
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "optional": true
+                                                                                    }
+                                                                                }
                                                                             }
-                                                                        }
+                                                                        },
+                                                                        "defaultTypeValue": "Generic"
                                                                     },
                                                                     "optional": false
                                                                 }

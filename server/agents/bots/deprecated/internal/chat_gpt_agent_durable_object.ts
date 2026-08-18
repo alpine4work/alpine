@@ -79,6 +79,7 @@ import {
     SupportedAgentModels,
     agentMillicentsPerToken,
 } from "~/server/agents/bots/internal/supported_agent_models.js";
+import {agentToolAnnotations} from "~/shared/agents/agent_tool_annotations.js";
 import {defaultAgentErrorDisplayMessage} from "~/shared/agents/default_agent_error_text.js";
 import {
     getApiMentionReferencePathIfExists,
@@ -1273,8 +1274,16 @@ async function callChatGptAgentFunction({
             // stream Chat, ChatMessage, And ChatMessages reads back to the client at all.
             if (mentionApiPath) {
                 session.pushToolCall(span, {
-                    type: "Read",
-                    reference: parseApiMentionReference(mentionApiPath),
+                    content: {
+                        elements: [
+                            {type: "Text", text: "Reading "},
+                            {
+                                type: "Mention",
+                                reference: parseApiMentionReference(mentionApiPath),
+                            },
+                        ],
+                    },
+                    annotations: agentToolAnnotations.read,
                 });
             }
 
@@ -1307,8 +1316,15 @@ async function callChatGptAgentFunction({
             }
 
             session.pushToolCall(span, {
-                type: "Search",
-                query: functionCallArguments.query,
+                content: {
+                    elements: [
+                        {
+                            type: "Text",
+                            text: `Searching \u201C${functionCallArguments.query}\u201D`,
+                        },
+                    ],
+                },
+                annotations: agentToolAnnotations.search,
             });
 
             const output = await searchAlpineForAgent(
@@ -1631,11 +1647,19 @@ async function handleCreateDocumentFunctionCall(
     });
 
     session.pushToolCall(span, {
-        type: "Create",
-        reference: {
-            type: "Document",
-            id: document.id,
+        content: {
+            elements: [
+                {type: "Text", text: "Created "},
+                {
+                    type: "Mention",
+                    reference: {
+                        type: "Document",
+                        id: document.id,
+                    },
+                },
+            ],
         },
+        annotations: agentToolAnnotations.create,
     });
 
     const link = await createAgentLink(request.storage, {

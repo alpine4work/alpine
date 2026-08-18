@@ -1,6 +1,14 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import nlp from "compromise";
-import {BookOpen, CheckCircle, IconProps, MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {
+    BookOpen,
+    CheckCircle,
+    Globe,
+    IconProps,
+    MagnifyingGlass,
+    Pencil,
+    SpinnerGap,
+} from "phosphor-react";
 import {Node} from "prosemirror-model";
 import {ComponentType, Ref, useMemo} from "react";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
@@ -26,7 +34,10 @@ import {MessageContentWithReferences} from "~/shared/content/message_content_sch
 import {listItemIndentationVar} from "~/shared/design/core/constant_class_names.js";
 import {fontSizesBySpacingScale} from "~/shared/design/core/fonts.js";
 import {convertRemLengthToPx, spacing, subtractRemLengths} from "~/shared/design/core/spacing.js";
-import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
+import {
+    MessageStreamPartPayload,
+    MessageStreamToolCallPartPayloadCall,
+} from "~/shared/messaging/message_schema.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -117,16 +128,7 @@ function MessageStreamViewThinkingExpandedItem({
             break;
         }
         case "ToolCall": {
-            switch (part.call.type) {
-                case "Search": {
-                    IconComponent = MagnifyingGlass;
-                    break;
-                }
-                case "Read": {
-                    IconComponent = BookOpen;
-                    break;
-                }
-            }
+            IconComponent = getIconComponentForToolCallAnnotations(part.call.annotations);
             break;
         }
     }
@@ -336,4 +338,23 @@ function MessageStreamSectionThinkingExpandedItemReasoningContent({
             {remainingContentSnippetText}
         </div>
     );
+}
+
+function getIconComponentForToolCallAnnotations(
+    annotations: MessageStreamToolCallPartPayloadCall["annotations"],
+): ComponentType<IconProps> | null {
+    if (!annotations) return null;
+
+    // Read icons!
+    if (annotations.readOnlyHint) {
+        if (annotations.openWorldHint) return Globe;
+
+        if (annotations.title?.match(RegExp(/^Search/i))) return MagnifyingGlass;
+
+        // Default to the read icon.
+        return BookOpen;
+    }
+
+    // Readonly is false, so it mutated data in some way.
+    return Pencil;
 }

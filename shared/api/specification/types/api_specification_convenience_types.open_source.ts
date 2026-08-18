@@ -830,18 +830,6 @@ export type ApiMessageStreamToolCallPartPayload =
 export type ApiMessageStreamToolCallPartPayloadCall =
     ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
 
-export type ApiMessageStreamToolCallPartPayloadReadCall =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadReadCall"];
-
-export type ApiMessageStreamToolCallPartPayloadSearchCall =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadSearchCall"];
-
-export type ApiMessageStreamToolCallPartPayloadCreateCall =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCreateCall"];
-
-export type ApiMessageStreamToolCallPartCreateCallReference =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallReference"];
-
 export type ApiBotWebhookEvent = ApiSpecification.components["schemas"]["BotWebhookEvent"];
 
 export type ApiBotWebhookCreatedMessageEvent =
@@ -1056,9 +1044,6 @@ export type ApiTaskQueryCollectionsFilterExcludesAllOfOperationResponse =
 export type ApiDocumentThreadReferenceResponse =
     ApiSpecification.components["schemas"]["DocumentThreadReference_Response"];
 
-export type ApiMessageStreamToolCallPartCreateCallReferenceResponse =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartCreateCallReference_Response"];
-
 export type ApiContentTableBlockElementCellBlockElementResponse =
     ApiSpecification.components["schemas"]["ContentTableBlockElementCellBlockElement_Response"];
 
@@ -1153,12 +1138,6 @@ export type ApiContentFileGalleryBlockElementResponse =
 export type ApiTaskQueryCollectionsFilterOperationResponse =
     ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterOperation_Response"];
 
-export type ApiMessageStreamToolCallPartPayloadReadCallResponse =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadReadCall_Response"];
-
-export type ApiMessageStreamToolCallPartPayloadCreateCallResponse =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCreateCall_Response"];
-
 export type ApiLabelContentMentionInlineElementResponse =
     ApiSpecification.components["schemas"]["LabelContentMentionInlineElement_Response"];
 
@@ -1228,9 +1207,6 @@ export type ApiMessageStreamContentPartPayloadResponse =
 export type ApiMessageStreamReasoningPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamReasoningPartPayload_Response"];
 
-export type ApiMessageStreamToolCallPartPayloadCallResponse =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
-
 export type ApiLabelContentInlineElementResponse =
     ApiSpecification.components["schemas"]["LabelContentInlineElement_Response"];
 
@@ -1276,9 +1252,6 @@ export type ApiTaskNotesPatchResponse =
 export type ApiMessageStreamPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
 
-export type ApiMessageStreamToolCallPartPayloadResponse =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayload_Response"];
-
 export type ApiMessageStreamExperimentalApprovalsPartPayloadResponse =
     ApiSpecification.components["schemas"]["MessageStreamExperimentalApprovalsPartPayload_Response"];
 
@@ -1306,8 +1279,14 @@ export type ApiTaskQueryCreatorFilterResponse =
 export type ApiTaskQueryAssignerFilterResponse =
     ApiSpecification.components["schemas"]["TaskQueryAssignerFilter_Response"];
 
+export type ApiMessageStreamToolCallPartPayloadCallResponse =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
+
 export type ApiMessageExperimentalApprovalDecisionApprovedForSessionOptionResponse =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionOption_Response"];
+
+export type ApiMessageStreamToolCallPartPayloadResponse =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayload_Response"];
 
 export type ApiMessageExperimentalApprovalDecisionOptionResponse =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionOption_Response"];

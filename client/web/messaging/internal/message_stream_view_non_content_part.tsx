@@ -17,12 +17,6 @@ import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_regis
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
-import {
-    ApiMentionReferencePath,
-    parseApiMentionReference,
-} from "~/shared/api/specification/parse_api_path.js";
-import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
-import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {getContentSnippetPos} from "~/shared/content/get_content_snippet.js";
@@ -33,6 +27,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
+import {serializeProsemirrorFragmentToHtmlGenerator} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -109,124 +104,37 @@ function renderMessageStreamNonContentPart(
             return html;
         }
         case "ToolCall": {
-            switch (part.call.type) {
-                case "Read": {
-                    const html = new HtmlElementGenerator("span");
+            const html = new HtmlElementGenerator("span");
+            const paragraph = assertExists(part.call.content.firstChild);
 
-                    html.appendChild(new HtmlTextGenerator("Reading "));
-
-                    html.appendChild(
-                        renderContentMentionToHtml(get, {
-                            accountRegistry,
-                            searchEntityRegistry,
-                            spacingScale,
-                            routeLayout,
-                            spaceId,
-                            currentAccount,
-                            references,
-                            mention: getApiMentionPathContentMention(part.call.targetPath),
-                            isInert: false,
+            html.appendChild(
+                // TODO(#agent-web): Now that tool calls are more generic, and label content can
+                // include links, we should change this logic to show links without blue font
+                // styling.
+                serializeProsemirrorFragmentToHtmlGenerator(paragraph.content, {
+                    nodeRenderers: {
+                        mention: node => ({
+                            html: renderContentMentionToHtml(get, {
+                                accountRegistry,
+                                searchEntityRegistry,
+                                spacingScale,
+                                routeLayout,
+                                spaceId,
+                                currentAccount,
+                                references,
+                                mention: node.attrs.mention,
+                                isInert: false,
+                            }),
                         }),
-                    );
+                    },
+                }),
+            );
 
-                    return html;
-                }
-                case "Search": {
-                    const html = new HtmlElementGenerator("span");
-                    html.appendChild(
-                        new HtmlTextGenerator(`Searching \u201C${part.call.query}\u201D`),
-                    );
-                    return html;
-                }
-                case "Create": {
-                    const html = new HtmlElementGenerator("span");
-
-                    html.appendChild(new HtmlTextGenerator("Created "));
-
-                    html.appendChild(
-                        renderContentMentionToHtml(get, {
-                            accountRegistry,
-                            searchEntityRegistry,
-                            spacingScale,
-                            routeLayout,
-                            spaceId,
-                            currentAccount,
-                            references,
-                            mention: getApiMentionContentMention(part.call.target),
-                            isInert: false,
-                        }),
-                    );
-
-                    return html;
-                }
-                default:
-                    throw exhaustive(part.call);
-            }
+            return html;
         }
         default: {
             throw exhaustive(part);
         }
-    }
-}
-
-function getApiMentionPathContentMention(targetPath: ApiMentionReferencePath): ContentMention {
-    const mentionTarget = parseApiMentionReference(targetPath);
-    return getApiMentionContentMention(mentionTarget);
-}
-
-function getApiMentionContentMention(target: ApiMentionReference): ContentMention {
-    switch (target.type) {
-        case "Account": {
-            return {
-                type: "Account",
-                accountId: target.id,
-                isShort: false,
-            };
-        }
-        case "Channel": {
-            return {
-                type: "SearchEntity",
-                entityId: `Channel:${target.id}`,
-            };
-        }
-        case "Chat": {
-            return {
-                type: "SearchEntity",
-                entityId: `Chat:${target.id}`,
-            };
-        }
-        case "Document": {
-            return {
-                type: "SearchEntity",
-                entityId: `Document:${target.id}`,
-            };
-        }
-        case "Post": {
-            return {
-                type: "SearchEntity",
-                entityId: `Post:${target.id}`,
-            };
-        }
-        case "Task": {
-            return {
-                type: "SearchEntity",
-                entityId: `Task:${target.id}`,
-            };
-        }
-        case "TaskCollection": {
-            return {
-                type: "SearchEntity",
-                entityId: `TaskCollection:${target.id}`,
-            };
-        }
-        case "Site": {
-            return {
-                type: "SearchEntity",
-                entityId: `Site:${target.id}`,
-            };
-        }
-        default:
-            throw exhaustive(target);
     }
 }
 

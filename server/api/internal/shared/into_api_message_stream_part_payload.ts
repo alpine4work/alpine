@@ -4,7 +4,6 @@ import {
 } from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
-import {parseApiMentionReference} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiContentBlockElementResponseWithoutKeys,
     ApiContentInlineElementMark,
@@ -12,11 +11,9 @@ import {
     ApiLabelContentInlineElementMark,
     ApiLabelContentInlineElementResponse,
     ApiLabelContentResponse,
-    ApiMentionReferenceResponse,
     ApiMessageExperimentalApprovalDecisionOptionResponse,
     ApiMessageExperimentalApprovalResponse,
     ApiMessageStreamPartPayloadResponse,
-    ApiMessageStreamToolCallPartCreateCallReferenceResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
@@ -47,49 +44,16 @@ export async function intoApiMessageStreamPartPayload(
 ): Promise<ApiMessageStreamPartPayloadResponse> {
     switch (payload.type) {
         case "ToolCall": {
-            switch (payload.call.type) {
-                case "Read": {
-                    return {
-                        type: "ToolCall",
-                        call: {
-                            type: "Read",
-                            // TODO(ifitzsimmons, 2026-01-26): This is what we were doing before, just within
-                            // `printApiMentionReferenceResponse`. This is not type safe and I'm not really
-                            // sure how this working before. For example, tasks require the task status in the
-                            // response, but that's not available on the `targetPath`. I would expect this to
-                            // break any time we try to return this response via the API.
-                            reference: parseApiMentionReference(
-                                payload.call.targetPath,
-                            ) as ApiMentionReferenceResponse,
-                        },
-                    };
-                }
-                case "Search": {
-                    return {
-                        type: "ToolCall",
-                        call: {
-                            type: "Search",
-                            query: payload.call.query,
-                        },
-                    };
-                }
-                case "Create": {
-                    return {
-                        type: "ToolCall",
-                        call: {
-                            type: "Create",
-                            // TODO(ifitzsimmons, 2026-01-26): This is not type safe. For example, tasks
-                            // require the task status in the response, but that's not available on the target
-                            // I would expect this to break any time we try to return this response via the
-                            // API.
-                            reference: payload.call
-                                .target as ApiMessageStreamToolCallPartCreateCallReferenceResponse,
-                        },
-                    };
-                }
-                default:
-                    throw exhaustive(payload.call);
-            }
+            return {
+                type: "ToolCall",
+                call: {
+                    content: await intoApiLabelContentResponse(context, {
+                        spaceId,
+                        content: payload.call.content,
+                    }),
+                    annotations: payload.call.annotations,
+                },
+            };
         }
         case "Content": {
             const content = await intoApiMessageContentWithReferences(context, {
@@ -138,7 +102,7 @@ export async function intoApiMessageExperimentalApproval(
     },
 ): Promise<ApiMessageExperimentalApprovalResponse> {
     return {
-        summary: await intoApiMessageExperimentalApprovalSummary(context, {
+        summary: await intoApiLabelContentResponse(context, {
             spaceId,
             content: approval.summary,
         }),
@@ -176,7 +140,7 @@ async function intoApiMessageExperimentalApprovalDecisionOption(
             return {
                 ...option,
                 summary: option.summary
-                    ? await intoApiMessageExperimentalApprovalSummary(context, {
+                    ? await intoApiLabelContentResponse(context, {
                           spaceId,
                           content: option.summary,
                       })
@@ -187,7 +151,7 @@ async function intoApiMessageExperimentalApprovalDecisionOption(
     }
 }
 
-async function intoApiMessageExperimentalApprovalSummary(
+async function intoApiLabelContentResponse(
     context: ServerAccountActionContext,
     {
         spaceId,
@@ -281,10 +245,10 @@ function intoApiLabelContentInlineElementMarks(
         switch (mark.type) {
             case "Italic":
             case "Code":
+            case "Link":
                 return true;
             case "Bold":
             case "Strike":
-            case "Link":
             case "Highlight":
             case "Comment":
                 throw new InvalidArgumentError(

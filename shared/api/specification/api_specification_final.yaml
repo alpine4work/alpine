@@ -4295,11 +4295,13 @@ components:
             oneOf:
                 - $ref: "#/components/schemas/ContentItalicMark"
                 - $ref: "#/components/schemas/ContentCodeMark"
+                - $ref: "#/components/schemas/ContentLinkMark"
             discriminator:
                 propertyName: type
                 mapping:
                     Italic: "#/components/schemas/ContentItalicMark"
                     Code: "#/components/schemas/ContentCodeMark"
+                    Link: "#/components/schemas/ContentLinkMark"
         LabelContentTextInlineElement:
             type: object
             required:
@@ -7575,62 +7577,38 @@ components:
                 call:
                     $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall"
         MessageStreamToolCallPartPayloadCall:
-            oneOf:
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall"
-                    Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
-                    Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall"
-        MessageStreamToolCallPartPayloadReadCall:
             type: object
             required:
-                - type
-                - reference
+                - content
             additionalProperties: false
             properties:
-                type:
-                    const: Read
-                reference:
-                    $ref: "#/components/schemas/MentionReference"
-        MessageStreamToolCallPartPayloadSearchCall:
-            type: object
-            required:
-                - type
-                - query
-            additionalProperties: false
-            properties:
-                type:
-                    const: Search
-                query:
-                    type: string
-        MessageStreamToolCallPartPayloadCreateCall:
-            type: object
-            required:
-                - type
-                - reference
-            additionalProperties: false
-            properties:
-                type:
-                    const: Create
-                reference:
-                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallReference"
-        MessageStreamToolCallPartCreateCallReference:
-            oneOf:
-                - $ref: "#/components/schemas/DocumentReference"
-                - $ref: "#/components/schemas/PostReference"
-                - $ref: "#/components/schemas/TaskReference"
-                - $ref: "#/components/schemas/TaskCollectionReference"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Document: "#/components/schemas/DocumentReference"
-                    Post: "#/components/schemas/PostReference"
-                    Task: "#/components/schemas/TaskReference"
-                    TaskCollection: "#/components/schemas/TaskCollectionReference"
+                content:
+                    $ref: "#/components/schemas/LabelContent"
+                annotations:
+                    description: >
+                        Annotations that desribe the nature of the tool call as
+                        defined by the [Model Context Protocol
+                        schema](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
+                        For a deeper dive into the topic, see the [corresponding
+                        blog
+                        post](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
+                    type: object
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
+                        readOnlyHint:
+                            type: boolean
+                            default: false
+                        destructiveHint:
+                            type: boolean
+                            default: true
+                        idempotentHint:
+                            type: boolean
+                            default: false
+                        openWorldHint:
+                            type: boolean
+                            default: true
         BotWebhookEvent:
             oneOf:
                 - $ref: "#/components/schemas/BotWebhookCreatedMessageEvent"
@@ -9606,19 +9584,6 @@ components:
                     $ref: "#/components/schemas/DocumentReference_Response"
                 id:
                     $ref: "#/components/schemas/DocumentThreadId"
-        MessageStreamToolCallPartCreateCallReference_Response:
-            oneOf:
-                - $ref: "#/components/schemas/DocumentReference_Response"
-                - $ref: "#/components/schemas/PostReference_Response"
-                - $ref: "#/components/schemas/TaskReference_Response"
-                - $ref: "#/components/schemas/TaskCollectionReference_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Document: "#/components/schemas/DocumentReference_Response"
-                    Post: "#/components/schemas/PostReference_Response"
-                    Task: "#/components/schemas/TaskReference_Response"
-                    TaskCollection: "#/components/schemas/TaskCollectionReference_Response"
         ContentTableBlockElementCellBlockElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/ContentParagraphBlockElement_Response"
@@ -10235,29 +10200,6 @@ components:
                     ExcludesAllOf: "#/components/schemas/TaskQueryCollectionsFilterExcludesAllOfOpe\
                         ration_Response"
                     IsEmpty: "#/components/schemas/TaskQueryCollectionsFilterIsEmptyOperation"
-        MessageStreamToolCallPartPayloadReadCall_Response:
-            type: object
-            required:
-                - type
-                - reference
-            additionalProperties: false
-            properties:
-                type:
-                    const: Read
-                reference:
-                    $ref: "#/components/schemas/MentionReference_Response"
-        MessageStreamToolCallPartPayloadCreateCall_Response:
-            type: object
-            required:
-                - type
-                - reference
-            additionalProperties: false
-            properties:
-                type:
-                    const: Create
-                reference:
-                    $ref: "#/components/schemas/MessageStreamToolCallPartCreateCallReference_Respon\
-                        se"
         LabelContentMentionInlineElement_Response:
             type: object
             required:
@@ -10576,18 +10518,6 @@ components:
                     const: Reasoning
                 content:
                     $ref: "#/components/schemas/Content_Response"
-        MessageStreamToolCallPartPayloadCall_Response:
-            oneOf:
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
-                - $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall_Response"
-            discriminator:
-                propertyName: type
-                mapping:
-                    Read: "#/components/schemas/MessageStreamToolCallPartPayloadReadCall_Response"
-                    Search: "#/components/schemas/MessageStreamToolCallPartPayloadSearchCall"
-                    Create: "#/components/schemas/MessageStreamToolCallPartPayloadCreateCall_Respon\
-                        se"
         LabelContentInlineElement_Response:
             oneOf:
                 - $ref: "#/components/schemas/LabelContentTextInlineElement"
@@ -10787,17 +10717,6 @@ components:
                     Reasoning: "#/components/schemas/MessageStreamReasoningPartPayload_Response"
                     ExperimentalApprovals: "#/components/schemas/MessageStreamExperimentalApprovals\
                         PartPayload_Response"
-        MessageStreamToolCallPartPayload_Response:
-            type: object
-            required:
-                - type
-                - call
-            additionalProperties: false
-            properties:
-                type:
-                    const: ToolCall
-                call:
-                    $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
         MessageStreamExperimentalApprovalsPartPayload_Response:
             type: object
             required:
@@ -10938,6 +10857,39 @@ components:
                     const: Assigner
                 operation:
                     $ref: "#/components/schemas/TaskQueryAccountFilterOperation_Response"
+        MessageStreamToolCallPartPayloadCall_Response:
+            type: object
+            required:
+                - content
+            additionalProperties: false
+            properties:
+                content:
+                    $ref: "#/components/schemas/LabelContent_Response"
+                annotations:
+                    description: >
+                        Annotations that desribe the nature of the tool call as
+                        defined by the [Model Context Protocol
+                        schema](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
+                        For a deeper dive into the topic, see the [corresponding
+                        blog
+                        post](https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/).
+                    type: object
+                    additionalProperties: false
+                    properties:
+                        title:
+                            type: string
+                        readOnlyHint:
+                            type: boolean
+                            default: false
+                        destructiveHint:
+                            type: boolean
+                            default: true
+                        idempotentHint:
+                            type: boolean
+                            default: false
+                        openWorldHint:
+                            type: boolean
+                            default: true
         MessageExperimentalApprovalDecisionApprovedForSessionOption_Response:
             type: object
             required:
@@ -10958,6 +10910,17 @@ components:
                         - type: integer
                           minimum: 1
                         - type: "null"
+        MessageStreamToolCallPartPayload_Response:
+            type: object
+            required:
+                - type
+                - call
+            additionalProperties: false
+            properties:
+                type:
+                    const: ToolCall
+                call:
+                    $ref: "#/components/schemas/MessageStreamToolCallPartPayloadCall_Response"
         MessageExperimentalApprovalDecisionOption_Response:
             oneOf:
                 - $ref: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedOption"
