@@ -31,25 +31,18 @@ test("interleaves activity with comments chronologically", async ({
     await services.signIn(browserContext, session);
     await page.goto(`/task/${task.id}`);
 
-    const createdRow = page.getByText("created the task");
-    const commentRow = page
-        .getByTestId(`MessageView:${task.id}:0`)
-        .getByText("Comment between updates");
-    const priorityRow = page.getByText("set the priority to high");
+    const taskDetailScrollView = page.getByTestId("TaskDetailScrollView");
 
     // Leading activity spacing can push the comment section below the fold. Scroll the
-    // comment into view first so the virtualized list keeps the surrounding activity
-    // mounted for measurement.
-    await commentRow.scrollIntoViewIfNeeded();
-    await expect(createdRow).toBeVisible();
-    await expect(commentRow).toBeVisible();
-    await expect(priorityRow).toBeVisible();
-
-    const createdBox = assertExists(await createdRow.boundingBox());
-    const commentBox = assertExists(await commentRow.boundingBox());
-    const priorityBox = assertExists(await priorityRow.boundingBox());
-    expect(createdBox.y).toBeLessThan(commentBox.y);
-    expect(commentBox.y).toBeLessThan(priorityBox.y);
+    // timeline to the bottom so its virtualized rows are mounted. Retry the scroll and
+    // assert the text order in one DOM snapshot because layout updates can replace
+    // virtualized rows between separate locator operations.
+    await expect(async () => {
+        await taskDetailScrollView.evaluate(element => element.scrollTo(0, element.scrollHeight));
+        expect(await taskDetailScrollView.innerText()).toMatch(
+            /created the task[\s\S]*Comment between updates[\s\S]*set the priority to high/,
+        );
+    }).toPass({timeout: 5000});
 });
 
 test("weaves activity between surrounding comments in time order", async ({

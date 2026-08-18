@@ -3055,7 +3055,6 @@ components:
             required:
                 - type
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: Account
@@ -3103,7 +3102,6 @@ components:
             required:
                 - type
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: Channel
@@ -3138,7 +3136,6 @@ components:
             required:
                 - type
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: Chat
@@ -3173,7 +3170,6 @@ components:
             required:
                 - type
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: Document
@@ -3209,7 +3205,6 @@ components:
                 - type
                 - document
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: DocumentThread
@@ -3222,7 +3217,6 @@ components:
             required:
                 - type
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: Post
@@ -3257,7 +3251,6 @@ components:
             required:
                 - type
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: Task
@@ -3297,7 +3290,6 @@ components:
             required:
                 - type
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: TaskCollection
@@ -3324,7 +3316,6 @@ components:
             required:
                 - type
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: Site
@@ -9608,7 +9599,6 @@ components:
                 - type
                 - document
                 - id
-            additionalProperties: false
             properties:
                 type:
                     const: DocumentThread

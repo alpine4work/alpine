@@ -318,6 +318,16 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
                 },
             },
         })) {
+            // Stop consuming model output after a terminal stream error. Returning aborts the
+            // Claude Agent SDK query and runs the `finally` block below, which completes the
+            // stream with an error part.
+            //
+            // Breaking also returns from `runClaudeAgent()`, which closes the socket server
+            // and exits the process. Any event still sitting in the queue is never
+            // acknowledged, so the webhook rejects and Alpine redelivers the event to a fresh
+            // process.
+            if (messageRef.current?.hasStreamError) return;
+
             switch (message.type) {
                 case "system": {
                     if (message.subtype === "init") {

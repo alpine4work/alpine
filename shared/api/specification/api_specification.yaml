@@ -2797,10 +2797,23 @@ components:
         #                                 References                                  #
         # =========================================================================== #
 
+        # TODO(#public-api-not-blocking): There are many API types that should be
+        # assignable to our entity "References". For example, `PostReference_Response`,
+        # `SearchPostResult`, `Post`, `PostPreview`, etc. should all be assignable to
+        # `PostReference`. However, there's nothing in our API spec that clearly explains
+        # this fact.
+        #
+        # For now (and maybe forever ?), we'll lift the `additionalProperties: false`
+        # constraint on our "References" types. In the future, we should build a declarative
+        # way to express this fact (e.g. an `x-alpine` extension field naming the subtypes),
+        # and make sure that our reference types accept additional properties from all of its
+        # "subtypes". We'll need this to generate correct client libraries for languages
+        # without structural typing (e.g. Rust, Java), where a `SearchPostResult` won't be
+        # assignable to a `PostReference` unless the relationship is spelled out.
+
         AccountReference:
             type: object
             required: [type, id]
-            additionalProperties: false
             properties:
                 type:
                     const: Account
@@ -2831,7 +2844,6 @@ components:
         ChannelReference:
             type: object
             required: [type, id]
-            additionalProperties: false
             properties:
                 type:
                     const: Channel
@@ -2857,7 +2869,6 @@ components:
         ChatReference:
             type: object
             required: [type, id]
-            additionalProperties: false
             properties:
                 type:
                     const: Chat
@@ -2883,7 +2894,6 @@ components:
         DocumentReference:
             type: object
             required: [type, id]
-            additionalProperties: false
             properties:
                 type:
                     const: Document
@@ -2909,7 +2919,6 @@ components:
         DocumentThreadReference:
             type: object
             required: [type, document, id]
-            additionalProperties: false
             properties:
                 type:
                     const: DocumentThread
@@ -2921,7 +2930,6 @@ components:
         PostReference:
             type: object
             required: [type, id]
-            additionalProperties: false
             properties:
                 type:
                     const: Post
@@ -2947,7 +2955,6 @@ components:
         TaskReference:
             type: object
             required: [type, id]
-            additionalProperties: false
             properties:
                 type:
                     const: Task
@@ -2975,7 +2982,6 @@ components:
         TaskCollectionReference:
             type: object
             required: [type, id]
-            additionalProperties: false
             properties:
                 type:
                     const: TaskCollection
@@ -3007,7 +3013,6 @@ components:
         SiteReference:
             type: object
             required: [type, id]
-            additionalProperties: false
             properties:
                 type:
                     const: Site

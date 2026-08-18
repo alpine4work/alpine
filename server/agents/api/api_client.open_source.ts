@@ -136,10 +136,9 @@ export function createApiClient({
                                 // every failed attempt logs its request body — including attempts the retry loop
                                 // swallows when a later attempt succeeds.
                                 //
-                                // Logged to both channels: the console is visible in development (where sandbox
-                                // stdout/stderr is forwarded to worker logs), and the span event is visible in
-                                // production (where sandbox console output isn't collected, but tracer events
-                                // reach Honeycomb attached to this request's fetch span).
+                                // Logged to both channels: the console is visible wherever the sandbox's
+                                // stdout/stderr is forwarded to worker logs, and the span event reaches Honeycomb
+                                // attached to this request's fetch span.
                                 const requestBodyText =
                                     requestBody === null
                                         ? null

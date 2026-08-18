@@ -48,8 +48,15 @@ ts_project(
         "//server/agents/web",
         "//server/tracer",
         "//server/helpers",
+        "//shared/api/content",
         "//shared/error",
         "//shared/helpers",
+    ],
+    test_deps = [
+        "//server/agents/api/test_helpers",
+        "//server/agents/web/test_helpers",
+        "//shared/id",
+        "//shared/tracer/dev",
     ],
 )
 

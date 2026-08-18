@@ -66,17 +66,15 @@ export class ClaudeAgentSandbox extends Sandbox<AgentV2ServiceEnv> {
         options?: ProcessOptions,
         sessionId?: string,
     ): Promise<Process> {
-        if (process.env.NODE_ENV === "production") {
-            return await super.startProcess(command, options, sessionId);
-        }
-
         return await super.startProcess(
             command,
             {
                 ...options,
                 onOutput: (stream, data) => {
-                    // Simply forward all stdout/stderr in development from the sandbox to worker logs.
-                    // The logs are printed plainly in development.
+                    // Simply forward all stdout/stderr from the sandbox to worker logs. The logs are
+                    // printed plainly. We forward in production too since otherwise the sandbox's
+                    // `console.log()`/`console.error()` output isn't collected anywhere, which makes
+                    // debugging agent behavior in production very difficult.
 
                     // eslint-disable-next-line no-console
                     console.log(data.trimEnd());

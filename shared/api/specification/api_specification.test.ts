@@ -21,6 +21,29 @@ const apiSpecificationPath = joinPath(
 const apiSpecificationString = fs.readFileSync(apiSpecificationPath, "utf8");
 const apiSpecification: OpenAPIV3.Document = Yaml.parse(apiSpecificationString);
 
+/**
+ * Schemas exempt from the `additionalProperties: false` rule because they must
+ * accept the additional fields of their structural subtypes. See the
+ * `TODO(#public-api-not-blocking)` comment above the references in the
+ * specification.
+ *
+ * `DocumentThreadReference` is the only reference without a hand-written
+ * `_Response` schema, so the generator derives one from the (now open) base
+ * schema. Every other `*Reference_Response` is hand-written and still closed.
+ */
+const openReferenceSchemaNames = new Set([
+    "AccountReference",
+    "ChannelReference",
+    "ChatReference",
+    "DocumentReference",
+    "DocumentThreadReference",
+    "DocumentThreadReference_Response",
+    "PostReference",
+    "TaskReference",
+    "TaskCollectionReference",
+    "SiteReference",
+]);
+
 function validate(specification: JsonValue) {
     const path: Array<string> = [];
     const errors: Array<string> = [];
@@ -81,11 +104,25 @@ function validate(specification: JsonValue) {
             }
 
             if (value.type === "object") {
+                // Entity reference schemas intentionally accept the additional fields of their
+                // structural subtypes. For example, a `Post` or `SearchPostResult` must be
+                // assignable to `PostReference`. See the `TODO(#public-api-not-blocking)` comment
+                // above the references in the specification for more.
+                //
+                // This only exempts the reference schemas themselves. Objects nested inside them
+                // (e.g. `AccountReference`'s `bot`) still need `additionalProperties: false`.
+                const isOpenReferenceSchema =
+                    path.length === 3 &&
+                    path[0] === "components" &&
+                    path[1] === "schemas" &&
+                    openReferenceSchemaNames.has(path[2]!);
+
                 // Rule: Require `additionalProperties: false` (or a schema is fine too) to be set
                 // on all object schemas.
                 const isAdditionalPropertiesOk =
                     value.additionalProperties === false ||
                     isObject(value.additionalProperties) ||
+                    isOpenReferenceSchema ||
                     // `additionalProperties: true` may be set if `properties` is not set. For JSON
                     // objects with unknown schemas.
                     (value.additionalProperties === true && !hasOwnProperty(value, "properties"));

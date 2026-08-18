@@ -1,6 +1,7 @@
 import {
     ApiClient,
     completeApiMessageStream,
+    createApiMessageStreamPart,
     pingApiMessageStream,
     putApiMessageStreamPart,
 } from "~/server/agents/api/api_client.open_source.js";
@@ -8,17 +9,24 @@ import {AgentWebMarkdownStreamParser} from "~/server/agents/web/agent_web_markdo
 import {messageStreamPingIntervalMs} from "~/shared/agents/message_stream_ping_interval_ms.js";
 import {convertApiContentToProperQuotes} from "~/shared/api/content/convert_api_content_to_proper_quotes.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {printErrorDisplayMessageToApiContent} from "~/shared/api/content/print_error_display_message_to_api_content.js";
 import {
+    ApiContent,
     ApiMessageRoomReference,
     ApiMessageStreamExperimentalApprovalsPartPayload,
     ApiMessageStreamPartPayload,
     ApiMessageStreamToolCallPartPayloadCall,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
+import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
+
+const agentWebMessageStreamTerminalErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred.`;
 
 interface AgentWebMessageStreamSessionInterface {
     /**
@@ -156,6 +164,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     #pingInterval: Interval | null = null;
     #mutex = new Mutex();
     #updateThrottleMs = 100;
+    #streamError: {error: unknown} | null = null;
 
     #updateTextState: {
         text: string;
@@ -187,8 +196,17 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
         this.#startPingInterval();
     }
 
+    /**
+     * Whether the session hit a terminal error while streaming parts back to the API.
+     * Once set, all further pushes throw and `complete()` closes the stream with a
+     * user-facing error part instead of the agent's content.
+     */
+    get hasStreamError() {
+        return this.#streamError !== null;
+    }
+
     pushText(span: TracerSpan, text: string) {
-        assert(!this.#isCompleted);
+        this.#assertCanPush();
 
         // We throttle updates to once every 100ms instead of once every token OpenAI sends
         // us.
@@ -211,7 +229,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     }
 
     pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall) {
-        assert(!this.#isCompleted);
+        this.#assertCanPush();
         this.#flushUpdateTextState();
         void this.#update(span, [{type: "ToolCall", call}]);
     }
@@ -220,13 +238,13 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
         span: TracerSpan,
         payload: ApiMessageStreamExperimentalApprovalsPartPayload,
     ) {
-        assert(!this.#isCompleted);
+        this.#assertCanPush();
         this.#flushUpdateTextState();
         void this.#update(span, [payload]);
     }
 
     pushReasoningSummary(span: TracerSpan, summary: string) {
-        assert(!this.#isCompleted);
+        this.#assertCanPush();
 
         // If we have streamed text into the session, flush it to the API before pushing
         // the reasoning summary. Doing this here ensures proper ordering of events. For
@@ -308,6 +326,8 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
         newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>>,
     ) {
         return this.#mutex.withLock(async () => {
+            if (this.#streamError !== null) return;
+
             const putParts = await this.#parser.update(updateSpan, newPartPayloads);
             if (putParts.length === 0) return;
 
@@ -336,14 +356,19 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
                         }
                     }
 
-                    await putApiMessageStreamPart(
-                        span,
-                        this.#apiClient,
-                        this.#room,
-                        this.messageIndex,
-                        part.index,
-                        {payload: part.payload},
-                    );
+                    try {
+                        await putApiMessageStreamPart(
+                            span,
+                            this.#apiClient,
+                            this.#room,
+                            this.messageIndex,
+                            part.index,
+                            {payload: part.payload},
+                        );
+                    } catch (error) {
+                        this.#streamError ??= {error};
+                        return;
+                    }
                 }
             } finally {
                 // Start the ping timeout schedule again since we cleared the timeout earlier.
@@ -372,6 +397,35 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
         this.#clearPingInterval();
         await this.#mutex.waitForUnlock();
 
+        // If the stream encountered a terminal error while streaming content back to the
+        // API, we append a user-facing error part to the stream before completing it.
+        //
+        // This is best effort. If the API is unavailable then this request fails too, we
+        // never complete the stream, and the stream times out on its own.
+        if (this.#streamError !== null) {
+            const content: ApiContent = {
+                elements: [
+                    {
+                        type: "Paragraph",
+                        elements: [
+                            {type: "Text", text: "I couldn\u2019t generate a response. "},
+                            ...printErrorDisplayMessageToApiContent(
+                                getErrorDisplayMessage(this.#streamError.error),
+                            ),
+                        ],
+                    },
+                ],
+            };
+
+            await createApiMessageStreamPart(
+                this.#parentSpan,
+                this.#apiClient,
+                this.#room,
+                this.messageIndex,
+                {payload: {type: "Content", content}},
+            );
+        }
+
         await completeApiMessageStream(
             this.#parentSpan,
             this.#apiClient,
@@ -398,6 +452,20 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     #clearPingInterval() {
         this.#pingInterval?.clear();
         this.#pingInterval = null;
+    }
+
+    #assertCanPush() {
+        assert(!this.#isCompleted);
+
+        if (this.#streamError === null) return;
+
+        throw new FailedPreconditionError(
+            "Can\u2019t continue after a terminal message stream error",
+            {
+                cause: this.#streamError.error,
+                displayMessage: agentWebMessageStreamTerminalErrorDisplayMessage,
+            },
+        );
     }
 
     /**
