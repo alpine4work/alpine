@@ -1,4 +1,6 @@
+import {getClaudeAgentSessionStorePartNamesToLoad} from "~/server/agents/bots_v2/sandbox/get_claude_agent_session_store_part_names_to_load.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 
 export type ClaudeAgentConversationState = {
@@ -33,9 +35,10 @@ export type ClaudeAgentConversationState = {
  *
  * Keys mirror the sandbox's mount prefix `/sandbox/{sandboxId}/`: `state.json` at
  * the root, and transcript parts at
- * `sessions/{projectKey}/{sessionId}/part-*.jsonl` appended in fixed-width epoch
- * order, so a key sort is chronological. Deeper paths under `sessions/` are
- * subagent transcripts, which we skip.
+ * `sessions/{projectKey}/{sessionId}/{part,snapshot}-*.jsonl`. Ordering those is
+ * `getClaudeAgentSessionStorePartNamesToLoad()`'s job rather than a key sort — the
+ * two prefixes interleave in time but not lexically. Deeper paths under
+ * `sessions/` are subagent transcripts, which we skip.
  *
  * When a run errors, the sandbox archives `state.json` as `last-known-state.json`
  * before resetting the bucket (see the "nuclear option" in `run_claude_agent.ts`),
@@ -79,8 +82,13 @@ export async function readClaudeAgentConversationStateFromBucket(
     }
 
     const sessionsPrefix = `${prefix}sessions/`;
-    const partKeys: Array<string> = [];
 
+    // Keyed by part name so the ordering helper below can map its answer back to
+    // object keys. It works in names, the way the sandbox's own `load()` does, and a
+    // session lives under exactly one project key, so names can't collide here.
+    const partKeysByName = new Map<string, string>();
+
+    let projectKey: string | null = null;
     let cursor: string | undefined;
 
     do {
@@ -88,10 +96,11 @@ export async function readClaudeAgentConversationStateFromBucket(
 
         for (const object of listed.objects) {
             // Relative to `sessions/`, the main transcript is exactly
-            // `{projectKey}/{sessionId}/part-*.jsonl` — three segments for our session.
-            // Destructured rather than indexed so `noUncheckedIndexedAccess` is happy; `rest`
-            // being empty pins it to exactly three segments (skipping subagents).
-            const [, keySessionId, partName, ...rest] = object.key
+            // `{projectKey}/{sessionId}/{part,snapshot}-*.jsonl` — three segments for our
+            // session. Destructured rather than indexed so `noUncheckedIndexedAccess` is
+            // happy; `rest` being empty pins it to exactly three segments (skipping
+            // subagents).
+            const [keyProjectKey, keySessionId, partName, ...rest] = object.key
                 .slice(sessionsPrefix.length)
                 .split("/");
 
@@ -101,20 +110,25 @@ export async function readClaudeAgentConversationStateFromBucket(
                 partName !== undefined &&
                 partName.endsWith(".jsonl")
             ) {
-                partKeys.push(object.key);
+                // Part names are always unique within a session, so we can use them as the map
+                // key.
+                partKeysByName.set(partName, object.key);
+                projectKey ??= keyProjectKey ?? null;
             }
         }
 
         cursor = listed.truncated ? listed.cursor : undefined;
     } while (cursor !== undefined);
 
-    partKeys.sort();
-
-    const firstPartKey = partKeys[0];
-    const projectKey =
-        firstPartKey === undefined
-            ? null
-            : (firstPartKey.slice(sessionsPrefix.length).split("/")[0] ?? null);
+    // Chronological, and dropping any part a snapshot superseded. Both matter here:
+    // `part-` sorts before `snapshot-` lexically no matter how new the snapshot is, so
+    // sorting the keys put a resumed conversation's tail above its own history; and
+    // `replaceWithSnapshot()` tolerates a failed delete, so an obsolete part can
+    // outlive the snapshot that replaced it and would otherwise show up as duplicate
+    // pre-surgery history.
+    const partKeys = getClaudeAgentSessionStorePartNamesToLoad([...partKeysByName.keys()]).map(
+        name => assertExists(partKeysByName.get(name)),
+    );
 
     const items: Array<unknown> = [];
 
