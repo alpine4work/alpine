@@ -1,5 +1,6 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
 import {createAgentWebPageLinkUrl} from "~/server/agents/web/create_agent_web_page_link_url.open_source.js";
+import {getAgentWebAlpineUrl} from "~/server/agents/web/get_agent_web_alpine_url.js";
 import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -8,6 +9,8 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
     link: AgentWebPageLink,
     spaceId: SpaceId,
 ): {type: "MentionReference"; reference: ApiMentionReferenceResponse} | {type: "Url"; url: string} {
+    const productUrl = getAgentWebAlpineUrl();
+
     switch (link.type) {
         case "Account":
         case "Channel":
@@ -28,7 +31,7 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
         case "File": {
             return {
                 type: "Url",
-                url: `https://alpine.inc/file/${link.id}`,
+                url: `${productUrl}/file/${link.id}`,
             };
         }
         case "TaskMessageList":
@@ -38,19 +41,19 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
         case "Inbox": {
             return {
                 type: "Url",
-                url: `https://alpine.inc/inbox/${spaceId}`,
+                url: `${productUrl}/inbox/${spaceId}`,
             };
         }
         case "TaskView": {
             return {
                 type: "Url",
-                url: `https://alpine.inc/my-tasks/${spaceId}`,
+                url: `${productUrl}/my-tasks/${spaceId}`,
             };
         }
         case "Space": {
             return {
                 type: "Url",
-                url: `https://alpine.inc/settings/${spaceId}/general`,
+                url: `${productUrl}/settings/${spaceId}/general`,
             };
         }
         case "Skill": {
@@ -68,7 +71,7 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
             // think this is a rare case we accept the generic URL for now.
             return {
                 type: "Url",
-                url: `https://alpine.inc/settings/${spaceId}/bots`,
+                url: `${productUrl}/settings/${spaceId}/bots`,
             };
         }
         default:

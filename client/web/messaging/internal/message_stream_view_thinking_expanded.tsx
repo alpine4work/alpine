@@ -6,7 +6,7 @@ import {
     Globe,
     IconProps,
     MagnifyingGlass,
-    Pencil,
+    PencilSimple,
     SpinnerGap,
 } from "phosphor-react";
 import {Node} from "prosemirror-model";
@@ -266,7 +266,11 @@ function MessageStreamViewThinkingExpandedItem({
                     </div>
                 ) : (
                     <div style={{lineHeight}}>
-                        <MessageStreamViewNonContentPart references={references} part={part} />
+                        <MessageStreamViewNonContentPart
+                            references={references}
+                            part={part}
+                            areLinksInert={false}
+                        />
                     </div>
                 )}
                 {part.type === "Reasoning" && (
@@ -356,5 +360,5 @@ function getIconComponentForToolCallAnnotations(
     }
 
     // Readonly is false, so it mutated data in some way.
-    return Pencil;
+    return PencilSimple;
 }

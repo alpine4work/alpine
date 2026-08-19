@@ -782,48 +782,36 @@ function MessageStreamViewApprovalCardDecision({
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
     const {currentAccount} = useSpaceContext();
-    const decisionText = useStore(
+    const decisionNode = useStore(
         useMemo(
             () =>
                 computeStore(get =>
-                    getMessageApprovalDecisionValueText(
+                    getMessageApprovalDecisionValueNode({
                         approval,
                         decisionValue,
                         approvalSessionNoun,
-                        content =>
+                        currentAccount,
+                        references,
+                        getApprovalContentText: content =>
                             getMessageApprovalContentText(get, references, content, {
                                 accountRegistry,
                                 searchEntityRegistry,
                                 fileRegistry,
                             }),
-                    ),
+                    }),
                 ),
             [
                 accountRegistry,
                 approval,
+                approvalSessionNoun,
+                currentAccount,
                 decisionValue,
                 fileRegistry,
                 references,
                 searchEntityRegistry,
-                approvalSessionNoun,
             ],
         ),
     );
-
-    const deciderAccountId = decisionValue.decider.account.id;
-    const deciderAccount = references.accountById.get(deciderAccountId);
-
-    let deciderNode: ReactNode = null;
-    if (currentAccount !== null && currentAccount.id === deciderAccountId) {
-        deciderNode = <> by you</>;
-    } else if (deciderAccount) {
-        deciderNode = (
-            <>
-                {" by "}
-                <AccountShortName account={deciderAccount} />
-            </>
-        );
-    }
 
     return (
         <div
@@ -848,10 +836,7 @@ function MessageStreamViewApprovalCardDecision({
             ) : (
                 <Check size={spacing["3"]} className={sprinkles({flexShrink: "0"})} />
             )}
-            <span>
-                {decisionText}
-                {deciderNode}
-            </span>
+            <span>{decisionNode}</span>
         </div>
     );
 }
@@ -926,29 +911,95 @@ function getMessageApprovalDecisionOptionLabel(
     }
 }
 
-function getMessageApprovalDecisionValueText(
-    approval: MessageExperimentalApproval,
-    decisionValue: MessageExperimentalApprovalDecisionValue,
-    approvalSessionNoun: MessageStreamApprovalSessionNoun,
-    getApprovalContentText: (content: MessageContent) => string,
-): string {
+/**
+ * The status line for a decided approval. Usually the decision followed by whoever
+ * made it: "Allowed by Cass", "Canceled by you". An approval allowed for the
+ * session whose option carries a summary instead reads as a sentence about the
+ * decider — "Cass allowed all writes for this chat" — because a trailing "by Cass"
+ * on a sentence that long reads as part of the thing that was allowed.
+ */
+function getMessageApprovalDecisionValueNode({
+    approval,
+    decisionValue,
+    approvalSessionNoun,
+    currentAccount,
+    references,
+    getApprovalContentText,
+}: {
+    approval: MessageExperimentalApproval;
+    decisionValue: MessageExperimentalApprovalDecisionValue;
+    approvalSessionNoun: MessageStreamApprovalSessionNoun;
+    currentAccount: AccountModel | null;
+    references: ContentReferences;
+    getApprovalContentText: (content: MessageContent) => string;
+}): ReactNode {
+    const deciderAccountId = decisionValue.decider.account.id;
+    const deciderAccount = references.accountById.get(deciderAccountId);
+
+    // The decider reads differently at the end of the sentence than at the start, so
+    // build both. Both stay null when the decider isn't someone we can name, in which
+    // case the sentence goes out unattributed.
+    let deciderSuffixNode: ReactNode = null;
+    let deciderPrefixNode: ReactNode = null;
+    if (currentAccount !== null && currentAccount.id === deciderAccountId) {
+        deciderSuffixNode = <> by you</>;
+        deciderPrefixNode = "You";
+    } else if (deciderAccount) {
+        deciderSuffixNode = (
+            <>
+                {" by "}
+                <AccountShortName account={deciderAccount} />
+            </>
+        );
+        deciderPrefixNode = <AccountShortName account={deciderAccount} />;
+    }
+
     switch (decisionValue.type) {
         case "Approved":
-            return "Allowed";
+            return <>Allowed{deciderSuffixNode}</>;
         case "Rejected":
-            return "Canceled";
+            return <>Canceled{deciderSuffixNode}</>;
         case "ApprovedForSession": {
+            // The decision value doesn't carry the option's summary, so recover it from the
+            // schema. It's missing if the option that was picked is no longer offered.
             const selectedOption = approval.decision.schema.options.find(option =>
                 isMessageApprovalDecisionValueForOption(option, decisionValue),
             );
 
-            if (selectedOption?.type === "ApprovedForSession" && selectedOption.summary) {
-                return getApprovalContentText(selectedOption.summary);
+            // Phrased like the option button that was pressed, see
+            // `getMessageApprovalDecisionOptionLabel()`. A duration reads "in this chat for
+            // 4h" rather than "for this chat for 4h" so we don't repeat "for".
+            const scope =
+                decisionValue.durationMinutes === null
+                    ? `for this ${approvalSessionNoun}`
+                    : `in this ${approvalSessionNoun} for ${prettyMs(
+                          decisionValue.durationMinutes * 60_000,
+                      )}`;
+
+            if (selectedOption?.type !== "ApprovedForSession" || !selectedOption.summary) {
+                // e.g. "Allowed for this chat" or "Allowed in this chat for 4h"
+                return (
+                    <>
+                        Allowed {scope}
+                        {deciderSuffixNode}
+                    </>
+                );
             }
 
-            return decisionValue.durationMinutes === null
-                ? `Allowed for this ${approvalSessionNoun}`
-                : `Allowed for ${prettyMs(decisionValue.durationMinutes * 60_000)}`;
+            // e.g. "all writes" or "all web access"
+            const summary = getApprovalContentText(selectedOption.summary);
+
+            // e.g. "Cass allowed all writes for this chat" or "You allowed all writes for this
+            // chat"
+            return deciderPrefixNode === null ? (
+                <>
+                    Allowed {summary} {scope}
+                </>
+            ) : (
+                <>
+                    {deciderPrefixNode} allowed {summary} {scope}
+                </>
+            );
         }
         default:
             throw exhaustive(decisionValue);

@@ -14,8 +14,17 @@ import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {
     MessageExperimentalApproval,
+    MessageExperimentalApprovalDecisionOption,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+
+// The duration the Claude agent puts on every session scoped option it offers, see
+// `buildClaudeAgentApprovalDecisionOptions()`.
+const sessionDurationMinutes = 4 * 60;
+
+// The decision text screenshots show six approval cards at once which doesn't fit
+// in the default 1024px tall viewport.
+const decisionTextViewport = {width: 1366, height: 1200};
 
 export async function run(context: TestActualContext, runner: ScreenshotTestRunner) {
     const {accounts} = await runner.createDemoSpace(context);
@@ -399,6 +408,271 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
             fixedTime,
         });
     }
+
+    // A decided approval that picked a session scoped option. `optionSummary` is the
+    // summary on the option that was picked (e.g. "all writes"), which is what makes
+    // the decided text name the decider up front instead of trailing "by Cass".
+    //
+    // `scope`, `optionSummary`, and `sessionDurationMinutes` mirror what the Claude
+    // agent offers today, see `buildClaudeAgentApprovalDecisionOptions()`: a `Write`
+    // scope summarized as "all writes" or a `Web` scope summarized as "all web
+    // access", always time boxed to four hours. Rows that leave `optionSummary` out or
+    // pass a null duration cover shapes the schema allows and this card renders but
+    // that the agent doesn't currently produce.
+    function decidedSessionApproval({
+        summary,
+        optionSummary,
+        durationMinutes,
+        scope,
+        decider,
+    }: {
+        summary: string;
+        optionSummary?: string;
+        durationMinutes: number | null;
+        scope: string;
+        decider: TestSpaceSession;
+    }): MessageExperimentalApproval {
+        const sessionOption: MessageExperimentalApprovalDecisionOption =
+            optionSummary === undefined
+                ? {type: "ApprovedForSession", scope: {value: scope}, durationMinutes}
+                : {
+                      type: "ApprovedForSession",
+                      scope: {value: scope},
+                      summary: createSimpleMessageContent(optionSummary),
+                      durationMinutes,
+                  };
+
+        return {
+            summary: createSimpleMessageContent(summary),
+            decision: {
+                schema: {
+                    options: [{type: "Approved"}, sessionOption, {type: "Rejected"}],
+                },
+                value: {
+                    type: "ApprovedForSession",
+                    scope: {value: scope},
+                    durationMinutes,
+                    decider: {account: {id: decider.account.id}},
+                },
+            },
+        };
+    }
+
+    // Every shape the decided approval text can take, one approval per message so each
+    // one gets its own card. The text varies with the decision type, whether the
+    // option that was picked carries a summary, and whether it was time boxed. Cass
+    // decides all six here so they read "by you" — the next chat covers deciding as
+    // someone else, which is where the wording differs beyond swapping the name.
+    {
+        const chat = await TestChat.get(accounts.cassCade, botAccount);
+
+        await chat.sendMessage(
+            accounts.cassCade,
+            "heading into the retro — work through the rest of the punch list and i\u2019ll sign off as you go",
+            {overrideCreatedTime: nextMessageTime()},
+        );
+
+        await sendBotApprovalMessage(chat, {
+            content: "The changelog entry is drafted and ready to publish.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent("Publish the Tables changelog entry"),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                        value: {
+                            type: "Approved",
+                            decider: {account: {id: accounts.cassCade.account.id}},
+                        },
+                    },
+                },
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content: "I can let the beta cohort know about the new keyboard shortcuts too.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent("Email the 12 beta customers about tables"),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                        value: {
+                            type: "Rejected",
+                            decider: {account: {id: accounts.cassCade.account.id}},
+                        },
+                    },
+                },
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content: "The sprint collection still reads as in progress.",
+            approvals: [
+                decidedSessionApproval({
+                    summary: "Rename the Tables sprint to \u201CTables (shipped)\u201D",
+                    durationMinutes: null,
+                    scope: "Write",
+                    decider: accounts.cassCade,
+                }),
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content: "Six tasks from the tables sprint never got closed out.",
+            approvals: [
+                decidedSessionApproval({
+                    summary: "Move 6 stale tables tasks to the backlog",
+                    durationMinutes: sessionDurationMinutes,
+                    scope: "Write",
+                    decider: accounts.cassCade,
+                }),
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content:
+                "There\u2019s a long tail of small cleanups left on the board — descriptions " +
+                "that still describe tables as in flight, a few duplicate tasks from the " +
+                "sprint, and some assignees who have rolled off.",
+            approvals: [
+                decidedSessionApproval({
+                    summary: "Close the remaining tables tasks",
+                    optionSummary: "all writes",
+                    durationMinutes: null,
+                    scope: "Write",
+                    decider: accounts.cassCade,
+                }),
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content: "Matt\u2019s audit follow-ups should move to next sprint.",
+            approvals: [
+                decidedSessionApproval({
+                    summary: "Reassign Matt\u2019s audit follow-ups to next sprint",
+                    optionSummary: "all writes",
+                    durationMinutes: sessionDurationMinutes,
+                    scope: "Write",
+                    decider: accounts.cassCade,
+                }),
+            ],
+        });
+
+        await screenshotMessages(accounts.cassCade, runner, "decided-text-by-you", {
+            path: `/chat/${chat.id}`,
+            orderKey: "a8",
+            fixedTime,
+            // Taller than the default viewport so all six cards fit in one image.
+            viewport: decisionTextViewport,
+        });
+    }
+
+    // The same six shapes decided by Holly instead of Cass. Worth its own screenshot
+    // because the decider isn't just a different name: the rows whose option carries a
+    // summary put the decider at the start of the sentence, so this is where we see
+    // someone else's name lead the sentence rather than a capitalized "You".
+    {
+        const chat = await TestChat.get(accounts.cassCade, accounts.hollyEvergreen, botAccount);
+
+        await chat.sendMessage(
+            accounts.hollyEvergreen,
+            "Having ChatGPT check our references while I finish the announcement",
+            {overrideCreatedTime: nextMessageTime()},
+        );
+
+        await sendBotApprovalMessage(chat, {
+            content: "The help doc is formatted and ready.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent("Publish the tables help doc"),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                        value: {
+                            type: "Approved",
+                            decider: {account: {id: accounts.hollyEvergreen.account.id}},
+                        },
+                    },
+                },
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content: "I can push the announcement to the customer newsletter as well.",
+            approvals: [
+                {
+                    summary: createSimpleMessageContent(
+                        "Send the tables announcement to the newsletter list",
+                    ),
+                    decision: {
+                        schema: {options: [{type: "Approved"}, {type: "Rejected"}]},
+                        value: {
+                            type: "Rejected",
+                            decider: {account: {id: accounts.hollyEvergreen.account.id}},
+                        },
+                    },
+                },
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content: "The announcement draft links out to four external references.",
+            approvals: [
+                decidedSessionApproval({
+                    summary: "Read the four links cited in the announcement draft",
+                    durationMinutes: null,
+                    scope: "Web",
+                    decider: accounts.hollyEvergreen,
+                }),
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content: "Some of the docs we link to may have moved since we wrote them.",
+            approvals: [
+                decidedSessionApproval({
+                    summary: "Check every outbound link in the tables help doc",
+                    durationMinutes: sessionDurationMinutes,
+                    scope: "Web",
+                    decider: accounts.hollyEvergreen,
+                }),
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content:
+                "The case study quotes two customers and cites their public pricing pages, " +
+                "and I\u2019d like to confirm all of it still reads the way we wrote it " +
+                "before this goes out.",
+            approvals: [
+                decidedSessionApproval({
+                    summary: "Verify the sources the case study cites",
+                    optionSummary: "all web access",
+                    durationMinutes: null,
+                    scope: "Web",
+                    decider: accounts.hollyEvergreen,
+                }),
+            ],
+        });
+
+        await sendBotApprovalMessage(chat, {
+            content: "The announcement mentions integrations I should double check.",
+            approvals: [
+                decidedSessionApproval({
+                    summary: "Look up the integrations the announcement mentions",
+                    optionSummary: "all web access",
+                    durationMinutes: sessionDurationMinutes,
+                    scope: "Web",
+                    decider: accounts.hollyEvergreen,
+                }),
+            ],
+        });
+
+        await screenshotMessages(accounts.cassCade, runner, "decided-text-by-other-account", {
+            path: `/chat/${chat.id}`,
+            orderKey: "a9",
+            fixedTime,
+            viewport: decisionTextViewport,
+        });
+    }
 }
 
 async function screenshotMessages(
@@ -409,16 +683,18 @@ async function screenshotMessages(
         path,
         orderKey,
         fixedTime,
+        viewport,
     }: {
         path?: string;
         orderKey: string;
         fixedTime: Date;
+        viewport?: "wide" | {width: number; height: number};
     },
 ) {
     await clearAccountInbox(session, runner);
 
     if (path) {
-        await runner.goto(session, path, {fixedTime});
+        await runner.goto(session, path, {fixedTime, viewport});
     }
     await runner.screenshot(orderKey, name);
 }

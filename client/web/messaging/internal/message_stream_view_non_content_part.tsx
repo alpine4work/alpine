@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import nlp from "compromise";
 import {useMemo, useRef} from "react";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
@@ -20,14 +21,19 @@ import {contentStyles} from "~/client/web/styles/styles.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {cutContent} from "~/shared/content/cut_content.js";
 import {getContentSnippetPos} from "~/shared/content/get_content_snippet.js";
+import {linkClassName} from "~/shared/design/core/constant_class_names.js";
 import {RouteLayout} from "~/shared/design/core/route_layout.js";
 import {SpacingScale} from "~/shared/design/core/spacing_scale.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {MessageStreamPartPayload} from "~/shared/messaging/message_schema.js";
-import {serializeProsemirrorFragmentToHtmlGenerator} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {
+    renderProsemirrorDomOutputSpec,
+    serializeProsemirrorFragmentToHtmlGenerator,
+} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 import {computeStore} from "~/shared/store/compute_store.js";
 import {Store} from "~/shared/store/store.js";
@@ -58,6 +64,7 @@ function renderMessageStreamNonContentPart(
         routeLayout,
         spaceId,
         currentAccount,
+        areLinksInert,
     }: {
         accountRegistry: AccountRegistry;
         searchEntityRegistry: SearchEntityRegistry;
@@ -66,6 +73,7 @@ function renderMessageStreamNonContentPart(
         routeLayout: RouteLayout;
         spaceId: SpaceId | null;
         currentAccount: AccountModel | null;
+        areLinksInert: boolean;
     },
 ): HtmlElementGenerator {
     switch (part.type) {
@@ -108,9 +116,6 @@ function renderMessageStreamNonContentPart(
             const paragraph = assertExists(part.call.content.firstChild);
 
             html.appendChild(
-                // TODO(#agent-web): Now that tool calls are more generic, and label content can
-                // include links, we should change this logic to show links without blue font
-                // styling.
                 serializeProsemirrorFragmentToHtmlGenerator(paragraph.content, {
                     nodeRenderers: {
                         mention: node => ({
@@ -127,6 +132,30 @@ function renderMessageStreamNonContentPart(
                             }),
                         }),
                     },
+                    markRenderers: {
+                        // A tool call label is muted interface text rather than body content, so a link
+                        // colored `theme-60` stands out against everything around it. Inert links drop the
+                        // anchor entirely, leaving one uniform run of text. Live links keep the anchor but
+                        // inherit the color of the text around them.
+                        link: (mark, inline) => {
+                            if (areLinksInert) return {html: new HtmlElementGenerator("span")};
+
+                            const {html, contentHtml} = renderProsemirrorDomOutputSpec(
+                                mark.type.spec.toDOM!(mark, inline),
+                            );
+                            assert(html instanceof HtmlElementGenerator);
+
+                            html.setAttribute(
+                                "class",
+                                classNames(
+                                    html.getAttribute("class"),
+                                    contentStyles.linkInheritColorClassName,
+                                ),
+                            );
+
+                            return {html, contentHtml};
+                        },
+                    },
                 }),
             );
 
@@ -141,9 +170,16 @@ function renderMessageStreamNonContentPart(
 export function MessageStreamViewNonContentPart({
     references,
     part,
+    areLinksInert,
 }: {
     references: ContentReferences;
     part: Exclude<MessageStreamPartPayload, {type: "Content" | "ExperimentalApprovals"}>;
+    /**
+     * Render links in the part label as plain text instead of interactive anchors. Set
+     * this when the label sits inside a press target, like the collapsed thinking
+     * summary, where a link would compete with that press target.
+     */
+    areLinksInert: boolean;
 }) {
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
@@ -167,10 +203,12 @@ export function MessageStreamViewNonContentPart({
                         routeLayout,
                         spaceId: space.id,
                         currentAccount,
+                        areLinksInert,
                     }),
                 ),
             [
                 accountRegistry,
+                areLinksInert,
                 currentAccount,
                 fileRegistry,
                 part,
@@ -183,9 +221,13 @@ export function MessageStreamViewNonContentPart({
         ),
     );
 
+    // We render label content as generated HTML instead of React elements (see the
+    // `<Box>` note above) so there's no JSX node to put an `onClick` on. Instead we
+    // reach into the DOM after render and attach native event listeners to the anchors
+    // ourselves.
     useLayoutEffectWithoutServerSideWarning(() => {
         // Run this effect whenever `htmlGenerator` changes since we may have new
-        // mentions we need to attach behavior to.
+        // mentions or links we need to attach behavior to.
         //
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         htmlGenerator;
@@ -194,17 +236,19 @@ export function MessageStreamViewNonContentPart({
 
         const cleanupFunctions: Array<() => void> = [];
 
+        // Mentions and links both need `addContentViewLinkBehavior()` to navigate within
+        // the app. Left alone an anchor keeps its native click, and the content schema
+        // renders links with `target="_blank"`, so a link to a page in this space would
+        // open a new browser tab instead of navigating client side.
         for (const element of containerElement.querySelectorAll(
-            `.${contentStyles.mentionContainerClassName}`,
+            `.${linkClassName}, .${contentStyles.mentionContainerClassName}`,
         )) {
-            if (!(element instanceof HTMLElement)) continue;
+            // Only anchors qualify since the behavior reads `href` off the element. Inert
+            // links render as a `<span>` with no class so they never match the selector to
+            // begin with.
+            if (!(element instanceof HTMLAnchorElement)) continue;
 
-            if (
-                element.classList.contains(contentStyles.mentionContainerClassName) &&
-                element instanceof HTMLAnchorElement
-            ) {
-                cleanupFunctions.push(addContentViewLinkBehavior(element, navigate));
-            }
+            cleanupFunctions.push(addContentViewLinkBehavior(element, navigate));
         }
 
         return () => {

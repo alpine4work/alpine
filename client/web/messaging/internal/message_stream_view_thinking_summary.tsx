@@ -330,6 +330,9 @@ function MessageStreamSectionThinkingProgressSummary({
             <MessageStreamViewNonContentPart
                 references={references}
                 part={nonContentParts[progress.index]!}
+                // The summary line is a press target for expanding the thinking summary. Keep
+                // links inert here so they don't compete with that press target.
+                areLinksInert={true}
             />
         );
     }

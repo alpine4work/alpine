@@ -1,4 +1,5 @@
 import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.open_source.js";
+import {getAgentWebAlpineUrl} from "~/server/agents/web/get_agent_web_alpine_url.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
@@ -19,20 +20,21 @@ export function createAgentWebPageLinkUrl(
         }
     >,
 ): string {
-    // TODO(#agent-web): Make these links compatible with dev
+    const alpineUrl = getAgentWebAlpineUrl();
+
     switch (pageLink.type) {
         case "ChatMessage":
-            return `https://alpine.inc/chat/${pageLink.id}?message=${pageLink.index}`;
+            return `${alpineUrl}/chat/${pageLink.id}?message=${pageLink.index}`;
         case "DocumentThread":
-            return `https://alpine.inc/doc/${pageLink.document.id}?thread=${pageLink.id}`;
+            return `${alpineUrl}/doc/${pageLink.document.id}?thread=${pageLink.id}`;
         case "DocumentMessage":
-            return `https://alpine.inc/doc/${pageLink.document.id}?thread=${pageLink.id}&comment=${pageLink.index}`;
+            return `${alpineUrl}/doc/${pageLink.document.id}?thread=${pageLink.id}&comment=${pageLink.index}`;
         case "PostMessage":
-            return `https://alpine.inc/post/${pageLink.id}?comment=${pageLink.index}`;
+            return `${alpineUrl}/post/${pageLink.id}?comment=${pageLink.index}`;
         case "TaskMessage":
-            return `https://alpine.inc/task/${pageLink.id}?comment=${pageLink.index}`;
+            return `${alpineUrl}/task/${pageLink.id}?comment=${pageLink.index}`;
         case "TaskSubtasks":
-            return `https://alpine.inc/task/${pageLink.task.id}/subtasks`;
+            return `${alpineUrl}/task/${pageLink.task.id}/subtasks`;
         default:
             throw exhaustive(pageLink);
     }
