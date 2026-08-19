@@ -40,7 +40,11 @@ import {
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {independentlyCallAgentWebReadToolWithoutTruncation} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
+import {
+    ErrorBase,
+    FailedPreconditionError,
+    InternalError,
+} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -155,48 +159,60 @@ export async function runClaudeAgent(parentSpan: TracerSpan, options: RunClaudeA
                 await promiseWaiter.wait();
             }
         } catch (error) {
-            // **The nuclear option.**
-            //
-            // If an error was thrown, then remove ALL our stored data in the bucket so the
-            // next attempt starts from a clean slate. The reason being it seems like Claude
-            // won't use the session store to persist the session if an error is thrown. So we
-            // get into a bad state if we have a `sessionId` in `ClaudeAgentSessionStore` but
-            // that session doesn't exist in the R2 bucket because an error was thrown.
-            await parentSpan.withSpan("Delete all Claude agent storage after error", async span => {
-                await fs
-                    .copyFile(
-                        "/workspace/bucket/state.json",
-                        "/workspace/bucket/last-known-state.json",
-                    )
-                    .then(
-                        () => {},
-                        // Archiving is best-effort. Recording the exception on the span must never block
-                        // the reset below.
-                        copyError => {
-                            // No `state.json` means there's nothing new to archive. Keep the previous archive,
-                            // if any.
-                            if (isObject(copyError) && copyError.code === "ENOENT") return;
-                            span.addException(copyError);
-                        },
-                    );
+            try {
+                // **The nuclear option.**
+                //
+                // If an error was thrown, then remove ALL our stored data in the bucket so the
+                // next attempt starts from a clean slate. The reason being it seems like Claude
+                // won't use the session store to persist the session if an error is thrown. So we
+                // get into a bad state if we have a `sessionId` in `ClaudeAgentSessionStore` but
+                // that session doesn't exist in the R2 bucket because an error was thrown.
+                await parentSpan.withSpan(
+                    "Delete all Claude agent storage after error",
+                    async span => {
+                        await fs
+                            .copyFile(
+                                "/workspace/bucket/state.json",
+                                "/workspace/bucket/last-known-state.json",
+                            )
+                            .then(
+                                () => {},
+                                // Archiving is best-effort. Recording the exception on the span must never block
+                                // the reset below.
+                                copyError => {
+                                    // No `state.json` means there's nothing new to archive. Keep the previous archive,
+                                    // if any.
+                                    if (isObject(copyError) && copyError.code === "ENOENT") return;
+                                    span.addException(copyError);
+                                },
+                            );
 
-                await sessionStore.deleteSessionsExcept(stateStore.get().sessionId);
+                        await sessionStore.deleteSessionsExcept(stateStore.get().sessionId);
 
-                await runAllPromises(
-                    (await fs.readdir("/workspace/bucket"))
-                        // We do keep two things for debugging. Neither is visible to the next attempt,
-                        // which only reads `state.json`:
-                        //
-                        // - `state.json` is archived as `last-known-state.json` (overwriting any previous
-                        //   archive) so the conversation state debugger can show what happened right
-                        //   before the error (see `read_claude_agent_conversation_state_from_bucket.ts`).
-                        // - The one `sessions/` transcript the archived `sessionId` points at. Older
-                        //   abandoned sessions were deleted above, and the next run starts fresh because
-                        //   `state.json` itself is removed here.
-                        .filter(name => name !== "last-known-state.json" && name !== "sessions")
-                        .map(name => fs.rm(`/workspace/bucket/${name}`, {recursive: true})),
+                        await runAllPromises(
+                            (await fs.readdir("/workspace/bucket"))
+                                // We do keep two things for debugging. Neither is visible to the next attempt,
+                                // which only reads `state.json`:
+                                //
+                                // - `state.json` is archived as `last-known-state.json` (overwriting any previous
+                                //   archive) so the conversation state debugger can show what happened right
+                                //   before the error (see `read_claude_agent_conversation_state_from_bucket.ts`).
+                                // - The one `sessions/` transcript the archived `sessionId` points at. Older
+                                //   abandoned sessions were deleted above, and the next run starts fresh because
+                                //   `state.json` itself is removed here.
+                                .filter(
+                                    name => name !== "last-known-state.json" && name !== "sessions",
+                                )
+                                .map(name => fs.rm(`/workspace/bucket/${name}`, {recursive: true})),
+                        );
+                    },
                 );
-            });
+            } catch (deleteStateError) {
+                throw new AggregateError(
+                    [deleteStateError, error],
+                    "Failed to clean up after error",
+                );
+            }
 
             throw error;
         }
