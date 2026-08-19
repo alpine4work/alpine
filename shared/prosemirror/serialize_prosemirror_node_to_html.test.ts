@@ -6,6 +6,7 @@ import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {HtmlElementGenerator} from "~/shared/helpers/html/html_generator.js";
 import {
     ProsemirrorHtmlSerializationInlineDecoration,
+    ProsemirrorHtmlSerializationNodeDecoration,
     ProsemirrorHtmlSerializationWidgetDecoration,
     serializeProsemirrorFragmentToHtml,
     serializeProsemirrorNodeToHtml,
@@ -21,6 +22,22 @@ const text = schema.text.bind(schema);
 const mark = schema.mark.bind(schema);
 
 const serializer = DOMSerializer.fromSchema(schema);
+
+test("applies node decorations without replacing existing node classes", () => {
+    const doc = node("doc", {}, [node("paragraph", {}, [text("x")])]);
+    const decorations: ReadonlyArray<ProsemirrorHtmlSerializationNodeDecoration> = [
+        {
+            type: "Node",
+            from: 0,
+            to: 3,
+            attrs: {class: "document-history-deleted"},
+        },
+    ];
+
+    expect(serializeProsemirrorNodeToHtml(doc, {decorations})).toBe(
+        '<div><p class="document-history-deleted">x</p></div>',
+    );
+});
 
 const testCases: Array<{
     name: string;

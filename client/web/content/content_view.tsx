@@ -90,7 +90,10 @@ import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {Id, generateId, isId} from "~/shared/id/id.open_source.js";
 import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.open_source.js";
 import {areProsemirrorNodesEqualExceptText} from "~/shared/prosemirror/are_prosemirror_nodes_equal_except_text.js";
-import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
+import {
+    ProsemirrorHtmlSerializationDecoration,
+    RecursiveReadonlyArray,
+} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {getDynamicSearchEntityPathForFileEntity} from "~/shared/search/path/get_search_entity_path.js";
 import {parseSearchDynamicEntityId} from "~/shared/search/search_entity_id.js";
@@ -121,6 +124,9 @@ const ContentViewCodeBlockDecorationsSchema = Schema.array(
     }),
 );
 
+const emptyContentViewDecorations: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration> =
+    [];
+
 declare global {
     // eslint-disable-next-line no-var
     var __contentViewCodeBlockDecorationsById: {[key: string]: SchemaSerializedValue} | undefined;
@@ -143,6 +149,9 @@ export type ContentViewProps<Content extends ContentWithReferences> = {
 
     /** An extra CSS class to add to the content view. */
     className?: string;
+
+    /** Extra inline and widget decorations to render over the content. */
+    decorations?: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>;
 
     /** Extra CSS inline styles we'll add to the content view. */
     style?: CSSProperties;
@@ -272,6 +281,7 @@ export function ContentView<Content extends ContentWithReferences>({
     contentUpdatedTime,
     placeholder,
     className,
+    decorations: providedDecorations = emptyContentViewDecorations,
     style,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
@@ -385,7 +395,10 @@ export function ContentView<Content extends ContentWithReferences>({
     }
 
     const {isTitleEmpty, isBodyEmpty, htmlGeneratorStore} = useMemo(() => {
-        const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
+        const decorations: Array<
+            | ProsemirrorHtmlSerializationDecoration
+            | RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>
+        > = [providedDecorations];
 
         if (contentUpdatedTime) {
             const result = getContentViewLastParagraphChild(content.doc);
@@ -565,6 +578,7 @@ export function ContentView<Content extends ContentWithReferences>({
         };
     }, [
         contentUpdatedTime,
+        providedDecorations,
         shouldShowSeeMoreContentButton,
         shouldShowSeeLessContentButton,
         content,

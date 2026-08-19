@@ -101,6 +101,7 @@ APP_CLIENT_OPTIMIZE_DEPS = [
     "prettier/plugins/markdown",
     "pretty-bytes",
     "pretty-ms",
+    "prosemirror-changeset",
     "prosemirror-collab",
     "prosemirror-commands",
     "prosemirror-history",

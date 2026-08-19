@@ -70,6 +70,9 @@ const metadataByRouteId: Record<
     "routes/_space.doc.$documentId._index": {
         errorTitle: "Couldn\u2019t open document",
     },
+    "routes/_space.doc.$documentId.history": {
+        errorTitle: "Couldn\u2019t open version history",
+    },
     "routes/_space.doc.$documentId.thread.$commentThreadId._index": {
         errorTitle: "Couldn\u2019t open comment thread",
     },

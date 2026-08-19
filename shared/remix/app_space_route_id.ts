@@ -18,6 +18,7 @@ export type AppSpaceRouteId =
     | "routes/_space.dev.feed.$spaceId"
     | "routes/_space.doc.$documentId._index"
     | "routes/_space.doc.$documentId.duplicate"
+    | "routes/_space.doc.$documentId.history"
     | "routes/_space.doc.$documentId.thread.$commentThreadId._index"
     | "routes/_space.doc.$documentId.thread.$commentThreadId.comment.$index.reactions"
     | "routes/_space.favorites.$spaceId"

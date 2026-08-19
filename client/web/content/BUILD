@@ -34,6 +34,7 @@ ts_project(
         "//:node_modules/motion",
         "//:node_modules/phosphor-react",
         "//:node_modules/pretty-bytes",
+        "//:node_modules/prosemirror-changeset",
         "//:node_modules/prosemirror-history",
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-state",

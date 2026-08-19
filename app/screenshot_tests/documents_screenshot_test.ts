@@ -768,4 +768,222 @@ All times in UTC. Stick to facts. Interpretation goes lower in the doc.
         await peekSite.removeEntity(accounts.cassCade, `Document:${document.id}`);
         await document.access.set(accounts.cassCade, oldDocumentAccessPolicy);
     }
+
+    {
+        const historyDocument = await TestDocument.create(accounts.cassCade, {
+            title: "Tables launch checklist",
+            access: "Public",
+            body: "Status: tables rollout checklist",
+        });
+        const historyEdits = [
+            {
+                session: accounts.cassCade,
+                text: "; owners confirmed",
+                createdTime: new Date("2025-10-13T09:04:00-04:00"),
+            },
+            {
+                session: accounts.cassCade,
+                text: "; rollout stages set",
+                createdTime: new Date("2025-10-13T09:04:35-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; migration check passed",
+                createdTime: new Date("2025-10-13T09:05:20-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; paste cases covered",
+                createdTime: new Date("2025-10-13T09:05:50-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; selection spec linked",
+                createdTime: new Date("2025-10-13T09:06:10-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; resize notes linked",
+                createdTime: new Date("2025-10-13T09:06:40-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; empty states reviewed",
+                createdTime: new Date("2025-10-13T14:20:00-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; toolbar spacing tuned",
+                createdTime: new Date("2025-10-13T14:20:40-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; focus order fixed",
+                createdTime: new Date("2025-10-13T14:21:10-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; shortcut hints added",
+                createdTime: new Date("2025-10-13T14:21:40-04:00"),
+            },
+            {
+                session: accounts.cassCade,
+                text: "; launch scope locked",
+                createdTime: new Date("2025-10-13T14:22:05-04:00"),
+            },
+            {
+                session: accounts.cassCade,
+                text: "; support handoff booked",
+                createdTime: new Date("2025-10-14T09:10:00-04:00"),
+            },
+            {
+                session: accounts.cassCade,
+                text: "; pilot list verified",
+                createdTime: new Date("2025-10-14T09:10:30-04:00"),
+            },
+            {
+                session: accounts.hollyEvergreen,
+                text: "; help draft started",
+                createdTime: new Date("2025-10-14T09:11:00-04:00"),
+            },
+            {
+                session: accounts.hollyEvergreen,
+                text: "; screenshots queued",
+                createdTime: new Date("2025-10-14T09:11:40-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; cell paste retested",
+                createdTime: new Date("2025-10-14T09:12:00-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; undo path verified",
+                createdTime: new Date("2025-10-14T09:12:30-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; Firefox pass complete",
+                createdTime: new Date("2025-10-14T16:35:00-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; Safari pass complete",
+                createdTime: new Date("2025-10-14T16:35:40-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; dark theme checked",
+                createdTime: new Date("2025-10-14T16:36:10-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; compact layout checked",
+                createdTime: new Date("2025-10-14T16:36:50-04:00"),
+            },
+            {
+                session: accounts.cassCade,
+                text: "; release owner online",
+                createdTime: new Date("2025-10-15T10:05:00-04:00"),
+            },
+            {
+                session: accounts.cassCade,
+                text: "; metrics board open",
+                createdTime: new Date("2025-10-15T10:05:30-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; keyboard nav verified",
+                createdTime: new Date("2025-10-15T10:06:00-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; paste telemetry checked",
+                createdTime: new Date("2025-10-15T10:06:40-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; final visual QA done",
+                createdTime: new Date("2025-10-15T10:07:10-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; selection color approved",
+                createdTime: new Date("2025-10-15T10:07:45-04:00"),
+            },
+            {
+                session: accounts.hollyEvergreen,
+                text: "; help article published",
+                createdTime: new Date("2025-10-15T15:30:00-04:00"),
+            },
+            {
+                session: accounts.hollyEvergreen,
+                text: "; announcement posted",
+                createdTime: new Date("2025-10-15T15:30:35-04:00"),
+            },
+            {
+                session: accounts.cassCade,
+                text: "; rollout at 25 percent",
+                createdTime: new Date("2025-10-15T15:31:05-04:00"),
+            },
+            {
+                session: accounts.cassCade,
+                text: "; support queue clear",
+                createdTime: new Date("2025-10-15T15:31:35-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; rollout at 100 percent",
+                createdTime: new Date("2025-10-15T15:32:00-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; error rate stable",
+                createdTime: new Date("2025-10-15T15:32:35-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; final spacing signed off",
+                createdTime: new Date("2025-10-15T15:33:10-04:00"),
+            },
+            {
+                session: accounts.mattRHorn,
+                text: "; mobile width checked",
+                createdTime: new Date("2025-10-15T15:33:40-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; release notes linked",
+                createdTime: new Date("2025-10-15T15:34:10-04:00"),
+            },
+            {
+                session: accounts.masonClay,
+                text: "; checklist complete",
+                createdTime: new Date("2025-10-15T15:34:40-04:00"),
+            },
+        ];
+        for (const {session, text, createdTime} of historyEdits) {
+            await historyDocument.type(session, text, {
+                overrideCreatedTimeForTest: createdTime,
+            });
+        }
+
+        await runner.goto(accounts.cassCade, `/doc/${historyDocument.id}`);
+        await runner.getByRole("button", {name: "More"}).click();
+        await runner.getByRole("menuitem", {name: "Version history"}).click();
+        await runner.getByRole("heading", {name: "Version history"}).waitFor();
+        await runner.getByRole("button", {name: "View version group"}).first().waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aF", "version-history");
+
+        await runner.getByRole("button", {name: "View version group"}).first().click();
+        const historicalDocument = runner.page.getByLabel(/Document at version \d+/);
+        await historicalDocument.waitFor();
+        await historicalDocument
+            .locator("ins")
+            .filter({hasText: "rollout at 100 percent; error rate stable"})
+            .waitFor();
+        await runner.mouse.move(0, 0);
+        await runner.screenshot("aG", "version-history-nested-diff");
+    }
 }

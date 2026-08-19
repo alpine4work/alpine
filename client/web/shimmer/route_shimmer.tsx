@@ -48,6 +48,8 @@ import {
     documentCommentThreadActionsHeight,
     documentCommentThreadHeaderPaddingY,
     documentCommentThreadPreviewHeight,
+    documentContentEditorSidebarMaxWidth,
+    documentContentEditorSidebarWidth,
 } from "~/client/web/styles/document_shared_styles.js";
 import {
     createWidgetPrimaryMenuBarItemBackgroundInsetY,
@@ -221,7 +223,10 @@ const shimmerOptionsByRouteId: Record<
     // Empty route...empty shimmer.
     "routes/_space.dev.empty.$spaceId": {component: () => null},
     "routes/_space.dev.feed.$spaceId": {component: FeedRouteShimmer},
-    "routes/_space.doc.$documentId._index": {component: DocumentRouteShimmer},
+    "routes/_space.doc.$documentId._index": {component: () => <DocumentRouteShimmer />},
+    "routes/_space.doc.$documentId.history": {
+        component: () => <DocumentRouteShimmer withVersionHistory={true} />,
+    },
     "routes/_space.doc.$documentId.thread.$commentThreadId._index": {
         inboxBannerMaxWidth: contentStyles.contentMaxWidth,
         component: DocumentCommentThreadRouteShimmer,
@@ -1508,14 +1513,68 @@ function CreateRouteShimmer({withBackButton}: {withBackButton?: boolean}) {
     );
 }
 
-function DocumentRouteShimmer() {
+function DocumentRouteShimmer({withVersionHistory = false}: {withVersionHistory?: boolean}) {
     const platform = usePlatform();
     const routeLayout = useRouteLayout();
 
     const titleFontSize = contentStyles.titleFontSize[routeLayout];
+    const withVersionHistoryPanel = withVersionHistory && routeLayout !== "narrow";
+    const documentShimmer = (
+        <Box
+            marginX="center"
+            width="full"
+            paddingRight={routeLayout === "narrow" ? "8" : "12"}
+            style={{maxWidth: contentStyles.blockMaxWidth[platform]}}
+        >
+            <Box height="safe-area-inset-top" />
+            <Box
+                style={{
+                    height: contentStyles.titlePaddingTop[
+                        getPlatformRouteLayout(platform, routeLayout)
+                    ],
+                }}
+            />
+            <TextShimmer width="96" ragRight="8" fontSize={titleFontSize} />
+            <Box height={contentStyles.paragraphMargin} />
+            <ContentParagraphShimmer1 />
+            <Box height={contentStyles.heading1TopMargin[routeLayout]} />
+            <TextShimmer width="48" fontSize={contentStyles.headingLevel1FontSize[routeLayout]} />
+            <Box height={contentStyles.paragraphMargin} />
+            <ContentParagraphShimmer2 />
+            <Box height={contentStyles.paragraphMargin} />
+            <ContentParagraphShimmer3 />
+            {routeLayout !== "narrow" && (
+                <>
+                    <Box height={contentStyles.heading1TopMargin[routeLayout]} />
+                    <TextShimmer
+                        width="64"
+                        fontSize={contentStyles.headingLevel1FontSize[routeLayout]}
+                    />
+                    <Box height={contentStyles.paragraphMargin} />
+                    <ContentParagraphShimmer1 />
+                    <Box height={contentStyles.heading2TopMargin[routeLayout]} />
+                    <TextShimmer
+                        width="96"
+                        fontSize={contentStyles.headingLevel2FontSize[routeLayout]}
+                    />
+                    <Box height={contentStyles.paragraphMargin} />
+                    <ContentParagraphShimmer3 />
+                    <Box height={contentStyles.paragraphMargin} />
+                    <ContentParagraphShimmer2 />
+                </>
+            )}
+        </Box>
+    );
 
     return (
-        <Box position="relative" paddingX={screenPaddingX}>
+        <Box
+            position="relative"
+            width="full"
+            height={withVersionHistoryPanel ? "full" : undefined}
+            paddingX={withVersionHistoryPanel ? undefined : screenPaddingX}
+            display={withVersionHistoryPanel ? "flex" : undefined}
+            backgroundColor={withVersionHistoryPanel ? "grey-0" : undefined}
+        >
             {platform === "mobile" && (
                 <Box position="absolute" top="0" left="0" right="0">
                     <Box height="safe-area-inset-top" />
@@ -1529,52 +1588,125 @@ function DocumentRouteShimmer() {
                     </Box>
                 </Box>
             )}
-            <Box
-                marginX="center"
-                width="full"
-                paddingRight={routeLayout === "narrow" ? "8" : "12"}
-                style={{maxWidth: contentStyles.blockMaxWidth[platform]}}
-            >
-                <Box height="safe-area-inset-top" />
+            {withVersionHistoryPanel ? (
                 <Box
+                    flexGrow="1"
+                    minWidth="0"
+                    height="full"
+                    overflow="hidden"
+                    paddingX={screenPaddingX}
+                >
+                    {documentShimmer}
+                </Box>
+            ) : (
+                documentShimmer
+            )}
+            {withVersionHistoryPanel && <DocumentHistoryListShimmer />}
+        </Box>
+    );
+}
+
+function DocumentHistoryListShimmer() {
+    return (
+        <Box
+            flexShrink="0"
+            height="full"
+            display="flex"
+            flexDirection="column"
+            borderLeft="grey-5"
+            backgroundColor="grey-0"
+            style={{
+                width: `min(${documentContentEditorSidebarWidth}, ${spacing[documentContentEditorSidebarMaxWidth]})`,
+            }}
+        >
+            <Box
+                height={navigationBarHeight}
+                flexShrink="0"
+                paddingLeft="3"
+                position="relative"
+                zIndex="0"
+                display="flex"
+                alignItems="center"
+            >
+                <TextShimmer fontSize="300" width="32" />
+                <Box flexGrow="1" />
+                <Box
+                    flexShrink="0"
+                    width="10"
+                    paddingRight="5"
+                    display="flex"
+                    justifyContent="flex-end"
+                >
+                    <Box
+                        className={pulseAnimationClassName}
+                        width="6"
+                        height="6"
+                        borderRadius="full"
+                        backgroundColor="grey-10"
+                    />
+                </Box>
+                <Box
+                    position="absolute"
+                    zIndex="-10"
+                    left="0"
+                    right="0"
+                    height="border"
+                    backgroundColor="grey-5-translucent"
+                    style={{bottom: -1}}
+                />
+            </Box>
+            <Box flexGrow="1" minHeight="0" overflow="hidden">
+                <DocumentHistoryGroupRowShimmer />
+                <DocumentHistoryGroupRowShimmer />
+                <DocumentHistoryGroupRowShimmer />
+                <DocumentHistoryGroupRowShimmer />
+                <DocumentHistoryGroupRowShimmer />
+                <DocumentHistoryGroupRowShimmer />
+            </Box>
+        </Box>
+    );
+}
+
+function DocumentHistoryGroupRowShimmer() {
+    return (
+        <Box paddingX="1" style={{marginTop: 1}}>
+            <Box position="relative" zIndex="0">
+                <Box
+                    position="absolute"
+                    top="0"
+                    bottom="0"
+                    left="2.5"
+                    right="2.5"
+                    zIndex="-10"
                     style={{
-                        height: contentStyles.titlePaddingTop[
-                            getPlatformRouteLayout(platform, routeLayout)
-                        ],
+                        boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, 0 1px 0 0 ${colorSchemeVars["grey-5"]}`,
                     }}
                 />
-                <TextShimmer width="96" ragRight="8" fontSize={titleFontSize} />
-                <Box height={contentStyles.paragraphMargin} />
-                <ContentParagraphShimmer1 />
-                <Box height={contentStyles.heading1TopMargin[routeLayout]} />
-                <TextShimmer
-                    width="48"
-                    fontSize={contentStyles.headingLevel1FontSize[routeLayout]}
-                />
-                <Box height={contentStyles.paragraphMargin} />
-                <ContentParagraphShimmer2 />
-                <Box height={contentStyles.paragraphMargin} />
-                <ContentParagraphShimmer3 />
-                {routeLayout !== "narrow" && (
-                    <>
-                        <Box height={contentStyles.heading1TopMargin[routeLayout]} />
-                        <TextShimmer
-                            width="64"
-                            fontSize={contentStyles.headingLevel1FontSize[routeLayout]}
-                        />
-                        <Box height={contentStyles.paragraphMargin} />
-                        <ContentParagraphShimmer1 />
-                        <Box height={contentStyles.heading2TopMargin[routeLayout]} />
-                        <TextShimmer
-                            width="96"
-                            fontSize={contentStyles.headingLevel2FontSize[routeLayout]}
-                        />
-                        <Box height={contentStyles.paragraphMargin} />
-                        <ContentParagraphShimmer3 />
-                        <Box height={contentStyles.paragraphMargin} />
-                        <ContentParagraphShimmer2 />
-                    </>
-                )}
+                <Box
+                    minWidth="0"
+                    display="flex"
+                    alignItems="flex-start"
+                    paddingRight="3"
+                    paddingTop="2"
+                    paddingBottom="1.5"
+                >
+                    <Box width="6" height="6" marginTop="0.5" marginLeft="1" marginRight="1" />
+                    <Box
+                        minWidth="0"
+                        flexGrow="1"
+                        display="flex"
+                        alignItems="center"
+                        gap="1.5"
+                        marginTop="0.5"
+                    >
+                        <Box flexShrink="0" width="24">
+                            <TextShimmer fontSize="100" width="full" />
+                        </Box>
+                        <Box flexGrow="1" minWidth="0">
+                            <TextShimmer fontSize="100" width="full" ragRight="random" />
+                        </Box>
+                    </Box>
+                </Box>
             </Box>
         </Box>
     );

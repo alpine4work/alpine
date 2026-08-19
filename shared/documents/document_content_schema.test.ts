@@ -1,8 +1,11 @@
+import {DocAttrStep} from "prosemirror-transform";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {assertContentTypeNamesCoverProsemirrorSchema} from "~/shared/content/content_node_type_name.js";
+import {DocumentContentCover} from "~/shared/documents/document_content_cover.js";
 import {
     DocumentContentProsemirrorSchema,
     DocumentContentSchema,
+    DocumentContentStepSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
@@ -11,6 +14,22 @@ import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 test("content type names cover schema", () => {
     assertContentTypeNamesCoverProsemirrorSchema(DocumentContentProsemirrorSchema);
+});
+
+test("cover document attribute steps survive schema serialization", () => {
+    const cover = {
+        type: "Blobs",
+        seed: "history-cover",
+        themeColor: "indigo",
+        hueSpread: 45,
+    } satisfies DocumentContentCover;
+    const step = new DocAttrStep("cover", cover);
+
+    const deserializedStep = DocumentContentStepSchema.deserialize(
+        DocumentContentStepSchema.serialize(step),
+    );
+
+    expect(deserializedStep.toJSON()).toEqual(step.toJSON());
 });
 
 test("mention with mark survives schema serialization/deserialization", () => {

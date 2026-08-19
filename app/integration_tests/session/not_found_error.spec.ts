@@ -120,6 +120,20 @@ const testCases: Record<AppSpaceDynamicRouteId, () => void> = {
             await expect(page.getByText("This document doesn\u2019t exist")).toBeVisible();
         });
     },
+    "doc.$documentId.history": () => {
+        test("not found error for route `doc.$documentId.history`", async ({
+            page,
+            context: browserContext,
+        }) => {
+            const space = await TestSpace.create(context);
+            const session = await space.createSession();
+
+            await services.signIn(browserContext, session);
+            await page.goto(`/doc/${generateId()}/history`);
+
+            await expect(page.getByText("This document doesn\u2019t exist")).toBeVisible();
+        });
+    },
     "doc.$documentId.thread.$commentThreadId._index": () => {
         test("not found error for route `doc.$documentId.thread.$commentThreadId`", async ({
             page,

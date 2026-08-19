@@ -6,6 +6,7 @@ import {
     CaretLeft,
     CaretRight,
     CaretUp,
+    ClockCounterClockwise,
     Link as LinkIcon,
     Play,
     Plus,
@@ -1860,6 +1861,21 @@ export function DocumentContentEditor({
                       ]
                     : emptyArray),
                 [
+                    // TODO(#narrow-document-history): Support version history on mobile and in
+                    // document peeks.
+                    ...(hasAccessLevel(accessLevel, "Comment") &&
+                    routeLayout !== "narrow" &&
+                    peekContext === null
+                        ? [
+                              cast<MenuAction>({
+                                  label: "Version history",
+                                  icon: <ClockCounterClockwise />,
+                                  iconPlacement: "end",
+                                  pressErrorTitle: "Couldn\u2019t open version history",
+                                  onPress: () => navigate(`/doc/${documentId}/history`),
+                              }),
+                          ]
+                        : []),
                     ...(hasAccessLevel(accessLevel, "Edit")
                         ? [
                               cast<MenuAction>({
@@ -2125,6 +2141,7 @@ export function DocumentContentEditor({
                 peekStackContext,
                 platform,
                 reporter,
+                routeLayout,
                 searchEntityRegistry,
                 spaceId,
                 waitForPersistedVersion,

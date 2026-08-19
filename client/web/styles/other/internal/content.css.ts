@@ -3299,6 +3299,25 @@ export const dateDecorationActiveClassName = style({
     textDecorationColor: colorSchemeVars["grey-60"],
 });
 
+export const contentChangesetDeletedClassName = style({
+    backgroundColor: colorSchemeVars["red-10"],
+    color: colorSchemeVars["red-80"],
+    textDecoration: "line-through",
+});
+
+export const contentChangesetInsertedClassName = style({
+    backgroundColor: colorSchemeVars["green-10"],
+    textDecoration: "none",
+});
+
+export const contentChangesetDeletedTableCellClassName = style({
+    backgroundColor: colorSchemeVars["red-10"],
+});
+
+export const contentChangesetInsertedTableCellClassName = style({
+    backgroundColor: colorSchemeVars["green-10"],
+});
+
 export const dateDecorationHintWrapperClassName = style({
     display: "inline-block",
     position: "relative",

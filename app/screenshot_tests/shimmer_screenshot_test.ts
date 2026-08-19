@@ -605,6 +605,16 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
 
             return {path: `/doc/${document.id}`};
         },
+        "routes/_space.doc.$documentId.history": async () => {
+            const document = await TestDocument.create(session, {
+                title: lorem.title,
+                access: "Public",
+                body: lorem.documentBody,
+            });
+            await document.updateContentPreview();
+
+            return {path: `/doc/${document.id}/history`};
+        },
         "routes/_space.doc.$documentId.thread.$commentThreadId.comment.$index.reactions":
             async () => {
                 const document = await TestDocument.create(session, {

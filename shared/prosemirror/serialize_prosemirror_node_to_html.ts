@@ -71,11 +71,13 @@ type ProsemirrorHtmlSerializationContext = {
     };
     readonly widgetDecorationQueue: Array<ProsemirrorHtmlSerializationWidgetDecoration>;
     readonly inlineDecorationQueue: Array<ProsemirrorHtmlSerializationInlineDecoration>;
+    readonly nodeDecorations: ReadonlyArray<ProsemirrorHtmlSerializationNodeDecoration>;
 };
 
 export type ProsemirrorHtmlSerializationDecoration =
     | ProsemirrorHtmlSerializationWidgetDecoration
-    | ProsemirrorHtmlSerializationInlineDecoration;
+    | ProsemirrorHtmlSerializationInlineDecoration
+    | ProsemirrorHtmlSerializationNodeDecoration;
 
 /**
  * Creates a widget decoration, which is a DOM node that's shown in the document at
@@ -120,6 +122,22 @@ export type ProsemirrorHtmlSerializationInlineDecoration = {
 };
 
 /**
+ * Adds attributes to one non-text node when its outer document range exactly
+ * matches `from` and `to`.
+ *
+ * Unlike inline decorations, node decorations augment the element produced by the
+ * node serializer without wrapping its content.
+ */
+export type ProsemirrorHtmlSerializationNodeDecoration = {
+    readonly type: "Node";
+    readonly from: number;
+    readonly to: number;
+    readonly attrs: {
+        readonly [key: string]: string;
+    };
+};
+
+/**
  * Serializes a ProseMirror node to an HTML string.
  *
  * ProseMirror only ships with a way to serialize nodes to DOM nodes. When
@@ -132,6 +150,7 @@ export function serializeProsemirrorNodeToHtml(
 ): string {
     const widgetDecorationQueue: Array<ProsemirrorHtmlSerializationWidgetDecoration> = [];
     const inlineDecorationQueue: Array<ProsemirrorHtmlSerializationInlineDecoration> = [];
+    const nodeDecorations: Array<ProsemirrorHtmlSerializationNodeDecoration> = [];
 
     const loop = (decorations: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>) => {
         for (const decoration of decorations) {
@@ -155,6 +174,12 @@ export function serializeProsemirrorNodeToHtml(
                     inlineDecorationQueue.push(decoration);
                     break;
                 }
+                case "Node": {
+                    assert(decoration.from < decoration.to);
+                    // Apply node decorations when their exact node is serialized.
+                    nodeDecorations.push(decoration);
+                    break;
+                }
                 default:
                     throw exhaustive(decoration);
             }
@@ -173,6 +198,7 @@ export function serializeProsemirrorNodeToHtml(
         markRenderers: options.markRenderers ?? {},
         widgetDecorationQueue,
         inlineDecorationQueue,
+        nodeDecorations,
     };
 
     return serializeProsemirrorRootNode(0, node, context).generateHtml();
@@ -198,6 +224,7 @@ export function serializeProsemirrorFragmentToHtmlGenerator(
 ): HtmlFragmentGenerator {
     const widgetDecorationQueue: Array<ProsemirrorHtmlSerializationWidgetDecoration> = [];
     const inlineDecorationQueue: Array<ProsemirrorHtmlSerializationInlineDecoration> = [];
+    const nodeDecorations: Array<ProsemirrorHtmlSerializationNodeDecoration> = [];
 
     const loop = (decorations: RecursiveReadonlyArray<ProsemirrorHtmlSerializationDecoration>) => {
         for (const decoration of decorations) {
@@ -221,6 +248,12 @@ export function serializeProsemirrorFragmentToHtmlGenerator(
                     inlineDecorationQueue.push(decoration);
                     break;
                 }
+                case "Node": {
+                    assert(decoration.from < decoration.to);
+                    // Apply node decorations when their exact node is serialized.
+                    nodeDecorations.push(decoration);
+                    break;
+                }
                 default:
                     throw exhaustive(decoration);
             }
@@ -239,6 +272,7 @@ export function serializeProsemirrorFragmentToHtmlGenerator(
         markRenderers: options.markRenderers ?? {},
         widgetDecorationQueue,
         inlineDecorationQueue,
+        nodeDecorations,
     };
 
     const fragmentHtml = new HtmlFragmentGenerator();
@@ -322,6 +356,26 @@ function serializeProsemirrorNode(
         }
 
         assert(html instanceof HtmlElementGenerator);
+
+        for (const decoration of context.nodeDecorations) {
+            // `pos` starts inside the node, while node decoration bounds surround it.
+            if (decoration.from !== pos - 1 || decoration.to !== pos - 1 + node.nodeSize) continue;
+
+            for (const [attributeName, attributeValue] of Object.entries(decoration.attrs)) {
+                if (attributeName === "class") {
+                    const existingClassName = html.getAttribute("class");
+                    // Preserve classes supplied by the node's renderer.
+                    html.setAttribute(
+                        "class",
+                        existingClassName
+                            ? `${existingClassName} ${attributeValue}`
+                            : attributeValue,
+                    );
+                } else {
+                    html.setAttribute(attributeName, attributeValue);
+                }
+            }
+        }
 
         if (context.withPosAttribute && pos > 0) {
             // Mark the position of every node in the document. We use this so we can map the

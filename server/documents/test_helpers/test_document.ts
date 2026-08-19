@@ -254,9 +254,11 @@ export class TestDocument {
         text: string | Node | ReadonlyArray<Node> | Fragment,
         {
             cacheOverrideForTest,
+            overrideCreatedTimeForTest,
             secondText,
         }: {
             cacheOverrideForTest?: DocumentContentCacheForUpdate;
+            overrideCreatedTimeForTest?: Date;
             secondText?: string;
         } = {},
     ): Promise<
@@ -296,6 +298,7 @@ export class TestDocument {
                 ],
                 clientId: generateId(),
                 cacheOverrideForTest,
+                overrideCreatedTimeForTest,
             });
 
             stateRef.current.lastVersion += 1 + (secondText !== undefined ? 1 : 0);

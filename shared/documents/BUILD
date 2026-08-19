@@ -10,6 +10,7 @@ ts_project(
         "//shared/content",
         "//shared/error",
         "//shared/files",
+        "//shared/helpers",
         "//shared/id",
         "//shared/messaging",
         "//shared/schema",

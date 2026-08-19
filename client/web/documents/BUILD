@@ -7,6 +7,7 @@ ts_project(
         "//client/web:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@vanilla-extract/dynamic",
         "//:node_modules/@types/react",
         "//:node_modules/@types/scheduler",
         "//:node_modules/@types/prettier",
@@ -47,6 +48,7 @@ ts_project(
         "//shared/lezer",
         "//shared/messaging",
         "//shared/prosemirror",
+        "//shared/rpc",
         "//shared/spaces",
     ],
 )
