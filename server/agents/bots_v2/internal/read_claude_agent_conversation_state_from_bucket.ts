@@ -67,8 +67,7 @@ export async function readClaudeAgentConversationStateFromBucket(
     ]);
 
     // Try the object key both with and without the leading slash since the mount
-    // library's key mapping isn't documented (matches
-    // `check_claude_agent_approval_decision_event.ts`).
+    // library's key mapping isn't documented.
     const stateObject = defaultStateObject ?? lastKnownStateObject;
 
     const state = stateObject === null ? null : parseJsonOrNull(await stateObject.text());

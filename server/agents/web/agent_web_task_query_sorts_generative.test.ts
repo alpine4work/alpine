@@ -3,7 +3,7 @@ import {
     parseAgentWebTaskQuerySorts,
     printAgentWebTaskQuerySorts,
 } from "~/server/agents/web/agent_web_task_query_sorts.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {intoApiTaskQuerySort} from "~/shared/api/content/closed_source/into_api_task_query_sort.js";
 import {TaskQuerySortsArbitrary} from "~/shared/tasks/test_helpers/task_query_sort_arbitrary.js";
 

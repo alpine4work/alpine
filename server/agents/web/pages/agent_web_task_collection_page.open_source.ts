@@ -14,8 +14,8 @@ import {
 } from "~/server/agents/web/agent_web_task_query_sorts.open_source.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
 import {normalizeAgentWebStaticText} from "~/server/agents/web/internal/normalize_agent_web_static_text.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.open_source.js";
 import {
     AgentWebTaskQueryPageMetadata,

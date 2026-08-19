@@ -1,13 +1,15 @@
 import fs from "fs/promises";
 import {Socket, createConnection, createServer} from "net";
 import {createApiClient} from "~/server/agents/api/api_client.open_source.js";
+import {
+    ClaudeAgentServiceApprovalDecisionRequest,
+    ClaudeAgentServiceRequest,
+    ClaudeAgentServiceRoomRequest,
+} from "~/server/agents/bots_v2/sandbox/claude_agent_service_request.js";
 import {createClaudeAgentServiceTracer} from "~/server/agents/bots_v2/sandbox/create_claude_agent_service_tracer.js";
 import {runClaudeAgent} from "~/server/agents/bots_v2/sandbox/run_claude_agent.js";
 import {printErrorDisplayMessageToApiContent} from "~/shared/api/content/print_error_display_message_to_api_content.js";
-import {
-    ApiBotWebhookRequestBody,
-    ApiContent,
-} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
@@ -18,30 +20,35 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {EventQueue} from "~/shared/helpers/control/event_queue.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
-import {TracerSpan, TracerSpanPropagationContext} from "~/shared/tracer/tracer_span.open_source.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
-export type ClaudeAgentServiceRequest = {
-    readonly body: ApiBotWebhookRequestBody;
+type ClaudeAgentServiceMessageEvent = {
+    type: "MessageEvent";
+    span: TracerSpan | null;
+    request: ClaudeAgentServiceRoomRequest;
+    acknowledge: () => void;
+};
+
+export type ClaudeAgentServiceApprovalDecisionEvent = {
+    type: "ApprovalDecisionEvent";
+    span: TracerSpan | null;
+    request: ClaudeAgentServiceApprovalDecisionRequest;
+    acknowledge: () => void;
 
     /**
-     * The stream message created by `/claude/webhook` while waiting on the sandbox to
-     * initialize.
+     * Report that we looked at this event and it isn't actionable, so no response is
+     * coming. The webhook waits for this or `acknowledge()` — without it a legitimate
+     * no-op would look like the process crashed.
+     *
+     * Only approval decisions can be ignored. Every room event gets a response, and
+     * its stream message already exists by the time we see it.
      */
-    readonly streamMessageIndex: number;
-
-    /**
-     * Allows us to continue tracing from the parent webhook call span.
-     */
-    readonly tracerContext: TracerSpanPropagationContext;
+    ignore: () => void;
 };
 
 export type ClaudeAgentServiceEvent =
-    | {
-          type: "Request";
-          span: TracerSpan | null;
-          request: ClaudeAgentServiceRequest;
-          acknowledge: () => void;
-      }
+    | ClaudeAgentServiceMessageEvent
+    | ClaudeAgentServiceApprovalDecisionEvent
     | {
           type: "Error";
           error: unknown;
@@ -155,6 +162,10 @@ async function actuallyMain(span: TracerSpan, request: ClaudeAgentServiceRequest
                 span.addData({common: {branch: "AddressInUse"}});
 
                 try {
+                    // Another process in this sandbox already owns the socket server and is running
+                    // the Claude loop. Forward our webhook request to it over the local socket — it'll
+                    // steer the running conversation — and wait for it to acknowledge before we report
+                    // success and exit.
                     await sendRequestToClaudeAgentSocketServer(span, request);
                 } catch (error) {
                     // If we failed to send the event, retry up to five times. This process may need to
@@ -178,17 +189,23 @@ async function actuallyMain(span: TracerSpan, request: ClaudeAgentServiceRequest
 
                 try {
                     // Enqueue the first event which will actually kick off the agent.
-                    result.eventQueue.enqueue({
-                        type: "Request",
-                        span: null,
-                        request,
-                        acknowledge: () => {
-                            // eslint-disable-next-line no-console
-                            console.log(
-                                `Acknowledged event ${request.body.eventId} (in own process)`,
-                            );
-                        },
-                    });
+                    result.eventQueue.enqueue(
+                        createClaudeAgentServiceRequestEvent(request, {
+                            span: null,
+                            acknowledge: () => {
+                                // eslint-disable-next-line no-console
+                                console.log(
+                                    `Acknowledged event ${request.body.eventId} (in own process)`,
+                                );
+                            },
+                            ignore: () => {
+                                // eslint-disable-next-line no-console
+                                console.log(
+                                    `Ignored event ${request.body.eventId} (in own process)`,
+                                );
+                            },
+                        }),
+                    );
 
                     await runClaudeAgent(span, {
                         apiClient,
@@ -206,6 +223,28 @@ async function actuallyMain(span: TracerSpan, request: ClaudeAgentServiceRequest
                 throw exhaustive(result);
         }
     });
+}
+
+/**
+ * Wraps a request in the queue event for its kind, so only an approval decision
+ * carries `ignore()` and only a room event carries a stream message index.
+ */
+function createClaudeAgentServiceRequestEvent(
+    request: ClaudeAgentServiceRequest,
+    {
+        span,
+        acknowledge,
+        ignore,
+    }: {span: TracerSpan | null; acknowledge: () => void; ignore: () => void},
+): ClaudeAgentServiceEvent {
+    switch (request.type) {
+        case "MessageRequest":
+            return {type: "MessageEvent", span, request, acknowledge};
+        case "ApprovalDecisionRequest":
+            return {type: "ApprovalDecisionEvent", span, request, acknowledge, ignore};
+        default:
+            throw exhaustive(request);
+    }
 }
 
 type TryStartingClaudeAgentSocketServerResult =
@@ -316,12 +355,20 @@ function tryStartingClaudeAgentSocketServer(tracer: TracerBase) {
                     socket.end(`${JSON.stringify({type: "Acknowledged"})}\n`);
                 };
 
-                eventQueue.enqueue({
-                    type: "Request",
-                    span: requestSpan.span,
-                    request,
-                    acknowledge,
-                });
+                // Whenever the leader receives a request, it enqueues an event to be processed by
+                // the agent. When the agent processes the event, it will call `acknowledge()` to
+                // signal that it has processed the request. That acknowledge is sent back to the
+                // "client" (the "trailer" process) over the socket.
+                eventQueue.enqueue(
+                    createClaudeAgentServiceRequestEvent(request, {
+                        span: requestSpan.span,
+                        acknowledge,
+                        // The forwarding process is waiting on the socket either way — from its point of
+                        // view the event was delivered and handled. It logs the acknowledgement the
+                        // webhook waits on, so we just close the socket the same way.
+                        ignore: acknowledge,
+                    }),
+                );
             });
         });
 
@@ -404,6 +451,14 @@ function tryStartingClaudeAgentSocketServer(tracer: TracerBase) {
     });
 }
 
+/**
+ * Sends the request to the "leader" process (the one running the server at
+ * 127.0.0.1:4321). As soon as we connect to the server, we send the request and
+ * wait for an acknowledgement.
+ *
+ * When the leader receives the request, it adds it to the queue of events that
+ * ultimately get streamed into the Claude agent loop.
+ */
 function sendRequestToClaudeAgentSocketServer(
     tracer: TracerBase,
     request: ClaudeAgentServiceRequest,
@@ -429,6 +484,7 @@ function sendRequestToClaudeAgentSocketServer(
                 "Waiting for Claude agent socket server acknowledgement",
             );
 
+            // Send the request to the leader process.
             socket.write(`${JSON.stringify(request)}\n`);
         });
 
@@ -440,6 +496,8 @@ function sendRequestToClaudeAgentSocketServer(
             const newlineIndex = data.indexOf("\n");
             if (newlineIndex === -1) return;
 
+            // The only data we ever expect to receive from the leader process is an
+            // acknowledgement.
             const response: {type: string} = JSON.parse(data.slice(0, newlineIndex));
             assert(response.type === "Acknowledged");
 

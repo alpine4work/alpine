@@ -32,6 +32,7 @@ import {encodeBase64} from "~/shared/helpers/binary/base64.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {unwrapResult} from "~/shared/helpers/control/capture_result.open_source.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
@@ -61,14 +62,6 @@ export async function runClaudeAgentWebhook(
     }
 
     const requestBody: ApiBotWebhookRequestBody = JSON.parse(requestBodyString);
-
-    // TODO(#claude-bot): Approvals
-    if (requestBody.event.type !== "CreatedMessage" && requestBody.event.type !== "CreatedPost") {
-        span.addData({common: {branch: "IgnoredEvent"}});
-
-        return createSimpleOkResponse();
-    }
-
     const {accessToken, botAccount, event} = requestBody;
 
     const apiClient = createApiClient({
@@ -77,17 +70,58 @@ export async function runClaudeAgentWebhook(
         accessToken,
     });
 
-    const shouldRespond = await shouldAgentRespondToApiBotWebhookRequest(
-        span,
-        apiClient,
-        botAccount.id,
-        event,
-    );
+    switch (event.type) {
+        case "CreatedMessage":
+        case "CreatedPost": {
+            const shouldRespond = await shouldAgentRespondToApiBotWebhookRequest(
+                span,
+                apiClient,
+                botAccount.id,
+                event,
+            );
 
-    if (!shouldRespond) {
-        span.addData({common: {branch: "NotResponding"}});
+            if (!shouldRespond) {
+                span.addData({common: {branch: "NotResponding"}});
 
-        return createSimpleOkResponse();
+                return createSimpleOkResponse();
+            }
+            break;
+        }
+        case "UpdatedMessageStreamExperimentalApprovalsPart":
+            // Naive check to see if it's worth starting the container. Ultimately, the
+            // container owns the business logic for deciding if it should respond to the event
+            // or not because it has the canonical approval state (which is used to compare the
+            // incoming event against the agent's understanding of the pending approvals).
+            //
+            // However, before we get there, we know we can ignore the event if either of the
+            // following are true:
+            //
+            // 1. **Approvals are partially decided.** Every decision a user makes triggers a
+            //    webhook, so a card with several approvals produces several deliveries. Only
+            //    the one where everything is decided needs the agent.
+            // 2. **The agent made a decision.** The agent will reject when a new message
+            //    superseded it, or the run errored and wiped its state. When the agent rejects
+            //    its own approvals, the server fires a decision webhook right back at us, and
+            //    acting on it would run the agent for a card we just retired.
+            for (const approval of event.approvals) {
+                // If any approval is undecided, ignore the event
+                if (approval.decision.value === undefined) return createSimpleOkResponse();
+
+                // If any approval is decided by this account, ignore the event. The bot only ever
+                // rejects approvals and only does so when something has gone wrong (e.g. a user
+                // asked the agent to do something else before the agent received the approval
+                // decisions.) So if the agent was waiting on three approvals and I accepted two,
+                // but before responding to the third, another user asked the agent to do something
+                // else, the agent will reject the third approval and start handling that users
+                // message.
+                if (approval.decision.value?.decider.account.id === botAccount.id) {
+                    return createSimpleOkResponse();
+                }
+            }
+
+            break;
+        default:
+            throw exhaustive(event);
     }
 
     span.addData({common: {branch: "Responding"}});
@@ -102,7 +136,7 @@ export async function runClaudeAgentWebhook(
             enableDefaultSession: false,
         });
 
-        const [initializeSandboxResult, {streamMessage, pingInterval}] = await runAllPromises([
+        const [initializeSandboxResult, {request, pingInterval}] = await runAllPromises([
             // Perform some initialization for the container. Like mounting a bucket and
             // setting up environment variables.
             captureResultPromise(
@@ -112,10 +146,26 @@ export async function runClaudeAgentWebhook(
                 }),
             ),
 
-            // We create the new stream message immediately. Even before the sandbox
-            // initializes. Since sandbox initialization can be expensive and we want to give
-            // the user some immediate feedback that we're working on their request.
             (async () => {
+                // We are intentionally using the parent span instead of the "Start sandbox
+                // process" span. We'll root the Claude agent execution in the parent span.
+                const tracerContext = span.getPropagationContext();
+                // We create the new stream message immediately. Even before the sandbox
+                // initializes. Since sandbox initialization can be expensive and we want to give
+                // the user some immediate feedback that we're working on their request.
+                //
+                // An approval decision gets no message here — the container creates one only if it
+                // decides to respond (see `ClaudeAgentServiceApprovalDecisionRequest`).
+                if (event.type === "UpdatedMessageStreamExperimentalApprovalsPart") {
+                    return {
+                        pingInterval: null,
+                        request: {
+                            type: "ApprovalDecisionRequest",
+                            body: {...requestBody, event},
+                            tracerContext,
+                        },
+                    } as const;
+                }
                 const {
                     data: {message: streamMessage},
                 } = await createApiMessage(span, apiClient, room, {
@@ -134,7 +184,15 @@ export async function runClaudeAgentWebhook(
                     void pingApiMessageStream(span, apiClient, room, streamMessage.index);
                 }, messageStreamPingIntervalMs);
 
-                return {streamMessage, pingInterval};
+                return {
+                    request: {
+                        type: "MessageRequest",
+                        body: {...requestBody, event},
+                        streamMessageIndex: assertExists(streamMessage).index,
+                        tracerContext,
+                    },
+                    pingInterval,
+                } as const;
             })(),
         ]);
 
@@ -147,17 +205,7 @@ export async function runClaudeAgentWebhook(
             // Being really safe and encoding the event to base64 before passing it as a shell
             // argument to the sandbox. This way we avoid the possibility of shell injection
             // attacks. I couldn't find a shell escaper module I was 100% confident in.
-            const requestArg = encodeBase64(
-                new TextEncoder().encode(
-                    JSON.stringify({
-                        body: requestBody,
-                        streamMessageIndex: streamMessage.index,
-                        // We are intentionally using the parent span instead of the "Start sandbox
-                        // process" span. We'll root the Claude agent execution in the parent span.
-                        tracerContext: span.getPropagationContext(),
-                    }),
-                ),
-            );
+            const requestArg = encodeBase64(new TextEncoder().encode(JSON.stringify(request)));
 
             const startProcessAndAcknowledgeEvent = async () => {
                 const sandboxProcess = await span.withSpan("Start sandbox process", async () => {
@@ -170,7 +218,12 @@ export async function runClaudeAgentWebhook(
                 // This function will reject if the process exits before the event is acknowledged.
                 try {
                     await span.withSpan("Wait for sandbox to acknowledge event", () =>
-                        sandboxProcess.waitForLog(`Acknowledged event ${requestBody.eventId}`),
+                        // Either signal ends the wait: the container took the event, or it read its state
+                        // and decided the event isn't actionable. Without the second case a legitimate
+                        // no-op looks exactly like a crashed process.
+                        sandboxProcess.waitForLog(
+                            new RegExp(`(Acknowledged|Ignored) event ${requestBody.eventId}`),
+                        ),
                     );
                 } catch (error) {
                     // If we exited with code 3, that's a signal that the sandbox wrote the error
@@ -217,7 +270,7 @@ export async function runClaudeAgentWebhook(
 
             // Now it's the sandbox's responsibility to keep the message stream alive. The
             // sandbox should start a ping interval itself with
-            pingInterval.clear();
+            pingInterval?.clear();
         } catch (error) {
             if (!span.isFinished()) {
                 span.addException(error);
@@ -226,7 +279,7 @@ export async function runClaudeAgentWebhook(
             }
 
             // We're completing the message now with an error!
-            pingInterval.clear();
+            pingInterval?.clear();
 
             // If there was an error before the sandbox acknowledged our event then it's our
             // responsibility to complete the stream with an error message. There may have been
@@ -245,11 +298,30 @@ export async function runClaudeAgentWebhook(
                 ],
             };
 
-            await createApiMessageStreamPart(span, apiClient, room, streamMessage.index, {
+            const messageIndex =
+                request.type === "MessageRequest"
+                    ? request.streamMessageIndex
+                    : // NOTE(ifitzsimmons, 2026-08-18): Approval decisions don't get new messages from
+                      // AgentV2Service. Instead,the container creates one, but only after it
+                      // acknowledges. Reaching here means we never _saw_ an acknowledgement, which isn't
+                      // the same as none happening. The 10s timeout above kills the sandbox's processes,
+                      // and one may have acknowledged and created its message just before we did.
+                      //
+                      // So the worst case here is that, very rarely, we'll create two messages for the
+                      // same approval decision event, and at least one of them (this one) will report an
+                      // error.
+                      (
+                          await createApiMessage(span, apiClient, room, {
+                              isStream: true,
+                              content: {elements: []},
+                          })
+                      ).data.message.index;
+
+            await createApiMessageStreamPart(span, apiClient, room, messageIndex, {
                 payload: {type: "Content", content},
             });
 
-            await completeApiMessageStream(span, apiClient, room, streamMessage.index);
+            await completeApiMessageStream(span, apiClient, room, messageIndex);
         }
     })();
 

@@ -30,6 +30,10 @@ copy_to_bin(
 
 ts_project(
     name = "sandbox",
+    # The `AgentV2Service` worker imports the sandbox's approvals state types and
+    # decision merging so it can filter approval decision webhooks against the
+    # sandbox's persisted state.
+    visibility = ["//server/agents/bots_v2:__pkg__"],
     # IMPORTANT: We try to keep the first-party dependency list for our agent
     # service family pretty small. Since long term, we want an ecosystem of
     # agent developers. So we should be ready to open source the code in

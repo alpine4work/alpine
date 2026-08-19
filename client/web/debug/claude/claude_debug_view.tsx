@@ -4,6 +4,7 @@ import {AgentConversationDebugView} from "~/client/web/debug/shared/agent_conver
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
 import {
+    ClaudeAgentDebugDecidedApprovalBatch,
     ClaudeAgentDebugState,
     ClaudeConversationDebugData,
     ClaudeConversationItem,
@@ -110,7 +111,10 @@ export function ClaudeDebugView({data}: {data: ClaudeConversationDebugData}) {
                             then reload this page to see the Claude Agent SDK transcript.
                         </Box>
                     ) : view === "annotated" ? (
-                        <ClaudeAnnotatedItems items={data.items} />
+                        <ClaudeAnnotatedItems
+                            items={data.items}
+                            decidedBatches={data.state?.approvals?.decidedBatches ?? []}
+                        />
                     ) : (
                         <ClaudeRawItems items={data.items} />
                     ))}
@@ -271,6 +275,10 @@ function ClaudeStatePanel({data}: {data: ClaudeConversationDebugData}) {
 
 function ClaudeStateBody({state}: {state: ClaudeAgentDebugState}) {
     const room = state.room ?? null;
+    const approvals = state.approvals ?? null;
+    const allowedScopes = approvals?.allowedScopes ?? {};
+    const allowedScopeEntries = Object.entries(allowedScopes);
+    const pendingBatch = approvals?.pendingBatch ?? null;
 
     return (
         <Box display="flex" flexDirection="column" gap="3">
@@ -288,6 +296,91 @@ function ClaudeStateBody({state}: {state: ClaudeAgentDebugState}) {
                     />
                 </Box>
             )}
+
+            {approvals !== null && (
+                <Box display="flex" flexDirection="column" gap="2">
+                    <ClaudeStateSectionLabel>Allowed scopes</ClaudeStateSectionLabel>
+                    {allowedScopeEntries.length === 0 ? (
+                        <Box color="grey-40" fontStyle="code" fontSize="50">
+                            none granted
+                        </Box>
+                    ) : (
+                        allowedScopeEntries.map(([scope, grant]) => (
+                            <Box key={scope} fontStyle="code" fontSize="50" display="flex" gap="2">
+                                <Box
+                                    color={claudeGateColors.approve.fg}
+                                    backgroundColor={claudeGateColors.approve.bg}
+                                    borderRadius="1"
+                                    paddingX="2"
+                                    flexShrink="0"
+                                >
+                                    {scope}
+                                </Box>
+                                <Box color="grey-50">expires {grant.expiresTime ?? "never"}</Box>
+                            </Box>
+                        ))
+                    )}
+
+                    <ClaudeStateSectionLabel>Pending approval batch</ClaudeStateSectionLabel>
+                    {pendingBatch === null ? (
+                        <Box color="grey-40" fontStyle="code" fontSize="50">
+                            nothing awaiting a decision
+                        </Box>
+                    ) : (
+                        <Box
+                            display="flex"
+                            flexDirection="column"
+                            gap="2"
+                            border={claudeGateColors.park.fg}
+                            backgroundColor={claudeGateColors.park.bg}
+                            borderRadius="2"
+                            paddingX="3"
+                            paddingY="2"
+                        >
+                            <Box fontStyle="code" fontSize="50" color="grey-50">
+                                message {pendingBatch.messageIndex ?? "—"}
+                            </Box>
+                            {(pendingBatch.approvals ?? []).map((approval, index) => (
+                                <Box
+                                    key={index}
+                                    display="flex"
+                                    flexDirection="column"
+                                    gap="1"
+                                    paddingY="1"
+                                    borderTop={index === 0 ? undefined : "grey-10"}
+                                >
+                                    <Box
+                                        fontStyle="code-semi-bold"
+                                        fontSize="50"
+                                        display="flex"
+                                        gap="2"
+                                        flexWrap="wrap"
+                                    >
+                                        <Box color="grey-90">
+                                            {prettyClaudeToolName(approval.toolName ?? "—")}
+                                        </Box>
+                                        <Box color={claudeGateColors.park.fg}>
+                                            {approval.scope ?? "—"}
+                                        </Box>
+                                    </Box>
+                                    {approval.input === undefined ? (
+                                        <Box fontStyle="code" fontSize="50" color="grey-50">
+                                            {(approval.toolUseIds ?? [])
+                                                .map(toolUseId => `#${toolUseId.slice(-4)}`)
+                                                .join(", ") || "no tool calls"}
+                                        </Box>
+                                    ) : (
+                                        <ClaudeScrollableContent
+                                            text={formatClaudeJson(approval.input)}
+                                            maxLines={6}
+                                        />
+                                    )}
+                                </Box>
+                            ))}
+                        </Box>
+                    )}
+                </Box>
+            )}
         </Box>
     );
 }
@@ -301,6 +394,20 @@ function ClaudeStateRow({label, value}: {label: string; value: string}) {
             <Box fontStyle="code" color="grey-90" style={{wordBreak: "break-all"}}>
                 {value}
             </Box>
+        </Box>
+    );
+}
+
+function ClaudeStateSectionLabel({children}: {children: ReactNode}) {
+    return (
+        <Box
+            fontStyle="code-semi-bold"
+            fontSize="50"
+            color="grey-50"
+            marginTop="1"
+            style={{letterSpacing: "0.06em", textTransform: "uppercase"}}
+        >
+            {children}
         </Box>
     );
 }
@@ -339,7 +446,13 @@ function ClaudeRawItems({items}: {items: ReadonlyArray<ClaudeConversationItem>})
     );
 }
 
-function ClaudeAnnotatedItems({items}: {items: ReadonlyArray<ClaudeConversationItem>}) {
+function ClaudeAnnotatedItems({
+    items,
+    decidedBatches,
+}: {
+    items: ReadonlyArray<ClaudeConversationItem>;
+    decidedBatches: ReadonlyArray<ClaudeAgentDebugDecidedApprovalBatch>;
+}) {
     // A couple of transcript-wide passes drive the tool-call annotations: which
     // `tool_use` calls got a result, and which web calls repeat an earlier input (a
     // re-drive).
@@ -386,6 +499,49 @@ function ClaudeAnnotatedItems({items}: {items: ReadonlyArray<ClaudeConversationI
         return {resolvedToolUseIds, redriveToolUseIds, skillToolUseIds};
     }, [items]);
 
+    // Interleave each fully-decided approval batch into the timeline right after the
+    // parked call it resolves. We anchor by `toolUseId` (the parked call's id,
+    // preserved through the approval surgery): a batch renders after the last
+    // transcript item that mentions any of its calls, so a decision lands where the
+    // turn was parked, just before the resume.
+    const decidedBatchesByAnchorIndex = useMemo(() => {
+        const lastIndexByToolUseId = new Map<string, number>();
+
+        items.forEach((item, index) => {
+            for (const block of getClaudeContentBlocks(item.message)) {
+                if (block.type === "tool_use" && typeof block.id === "string") {
+                    lastIndexByToolUseId.set(block.id, index);
+                }
+                if (block.type === "tool_result" && typeof block.tool_use_id === "string") {
+                    lastIndexByToolUseId.set(block.tool_use_id, index);
+                }
+            }
+        });
+
+        const byAnchorIndex = new Map<number, Array<ClaudeAgentDebugDecidedApprovalBatch>>();
+
+        for (const batch of decidedBatches) {
+            let anchorIndex = -1;
+            for (const approval of batch.approvals ?? []) {
+                for (const toolUseId of approval.toolUseIds ?? []) {
+                    const index = lastIndexByToolUseId.get(toolUseId);
+                    if (index !== undefined && index > anchorIndex) anchorIndex = index;
+                }
+            }
+
+            // No matching call in the transcript (shouldn't happen) — append at the end.
+            const key = anchorIndex === -1 ? items.length - 1 : anchorIndex;
+            const existing = byAnchorIndex.get(key);
+            if (existing === undefined) {
+                byAnchorIndex.set(key, [batch]);
+            } else {
+                existing.push(batch);
+            }
+        }
+
+        return byAnchorIndex;
+    }, [items, decidedBatches]);
+
     return (
         <Box display="flex" flexDirection="column" gap="2">
             {items.map((item, index) => {
@@ -395,6 +551,7 @@ function ClaudeAnnotatedItems({items}: {items: ReadonlyArray<ClaudeConversationI
                 // result is hidden, and the instructions become a one-line note (the Raw view
                 // still has the full text).
                 const skillDisplay = getClaudeSkillItemDisplay(item, skillToolUseIds);
+                const decidedBatchesHere = decidedBatchesByAnchorIndex.get(index);
 
                 const itemNode =
                     skillDisplay === "hidden" ? null : skillDisplay === "instructions" ? (
@@ -407,9 +564,16 @@ function ClaudeAnnotatedItems({items}: {items: ReadonlyArray<ClaudeConversationI
                         />
                     );
 
-                if (itemNode === null) return null;
+                if (itemNode === null && decidedBatchesHere === undefined) return null;
 
-                return <Fragment key={index}>{itemNode}</Fragment>;
+                return (
+                    <Fragment key={index}>
+                        {itemNode}
+                        {decidedBatchesHere?.map((batch, batchIndex) => (
+                            <ClaudeDecisionMarker key={`decision-${batchIndex}`} batch={batch} />
+                        ))}
+                    </Fragment>
+                );
             })}
         </Box>
     );
@@ -675,6 +839,74 @@ function ClaudeToolResultBlock({
     );
 }
 
+function ClaudeDecisionMarker({batch}: {batch: ClaudeAgentDebugDecidedApprovalBatch}) {
+    const approvals = batch.approvals ?? [];
+
+    return (
+        <Box
+            display="flex"
+            flexDirection="column"
+            gap="1"
+            border="grey-10"
+            borderRadius="2"
+            backgroundColor="grey-0"
+            paddingX="3"
+            paddingY="2"
+            marginY="1"
+        >
+            <Box display="flex" gap="2" flexWrap="wrap" alignItems="baseline" fontSize="50">
+                <Box
+                    fontStyle="code-semi-bold"
+                    color="grey-50"
+                    style={{letterSpacing: "0.06em", textTransform: "uppercase"}}
+                >
+                    approval decided
+                </Box>
+                {batch.decidedTime !== undefined && (
+                    <Box fontStyle="code" color="grey-40">
+                        {formatClaudeDecidedTime(batch.decidedTime)}
+                    </Box>
+                )}
+            </Box>
+            {approvals.map((approval, index) => {
+                const tone = getClaudeDecisionTone(approval.decision);
+
+                return (
+                    <Box
+                        key={index}
+                        display="flex"
+                        gap="2"
+                        flexWrap="wrap"
+                        alignItems="baseline"
+                        fontSize="50"
+                    >
+                        <Box
+                            fontStyle="code-semi-bold"
+                            color={tone.fg}
+                            backgroundColor={tone.bg}
+                            borderRadius="1"
+                            paddingX="2"
+                            flexShrink="0"
+                        >
+                            {tone.label}
+                        </Box>
+                        <Box fontStyle="code" color="grey-90">
+                            {prettyClaudeToolName(approval.toolName ?? "—")}
+                        </Box>
+                        {(approval.toolUseIds?.length ?? 0) > 0 && (
+                            <Box fontStyle="code" color="grey-40">
+                                {approval.toolUseIds
+                                    ?.map(toolUseId => `#${toolUseId.slice(-4)}`)
+                                    .join(", ")}
+                            </Box>
+                        )}
+                    </Box>
+                );
+            })}
+        </Box>
+    );
+}
+
 function ClaudeMetaRow({label, value}: {label: string; value: string}) {
     return (
         <Box
@@ -897,6 +1129,32 @@ function getClaudeToolResultText(content: ClaudeConversationItemContentBlock["co
     return content
         .map(block => (typeof block.text === "string" ? block.text : formatClaudeJson(block)))
         .join("\n");
+}
+
+function getClaudeDecisionTone(decision: string | undefined): {
+    label: string;
+    fg: Color;
+    bg: Color;
+} {
+    switch (decision) {
+        case "Approved":
+            return {label: "approved", ...claudeGateColors.approve};
+        case "ApprovedForSession":
+            return {label: "approved · session", ...claudeGateColors.approve};
+        case "Rejected":
+            return {label: "rejected", ...claudeGateColors.reject};
+        default:
+            return {label: decision ?? "decided", fg: "grey-50" as Color, bg: "grey-5" as Color};
+    }
+}
+
+// The decided time as a compact, hydration-safe label (no `Date` parsing, so the
+// server and client render the same string): "2026-08-13 18:22:04 UTC".
+function formatClaudeDecidedTime(decidedTime: string): string {
+    return decidedTime
+        .replace("T", " ")
+        .replace(/\.\d+Z$/, " UTC")
+        .replace(/Z$/, " UTC");
 }
 
 function prettyClaudeToolName(name: string): string {

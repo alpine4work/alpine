@@ -1,4 +1,5 @@
 import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.open_source.js";
+import {createAgentWebPageLinkUrl} from "~/server/agents/web/create_agent_web_page_link_url.open_source.js";
 import {agentToolAnnotations} from "~/shared/agents/agent_tool_annotations.js";
 import {
     ApiLabelContent,
@@ -96,7 +97,7 @@ function intoReadContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent |
                 reference: {type: "Chat", id: pageLink.id},
                 label: "chat message",
                 preposition: "in",
-                url: intoAgentWebToolCallContentUrl(pageLink),
+                url: createAgentWebPageLinkUrl(pageLink),
             });
         }
         case "DocumentMessage": {
@@ -104,7 +105,7 @@ function intoReadContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent |
                 reference: pageLink.document,
                 label: "comment",
                 preposition: "on",
-                url: intoAgentWebToolCallContentUrl(pageLink),
+                url: createAgentWebPageLinkUrl(pageLink),
             });
         }
         case "DocumentThread": {
@@ -112,7 +113,7 @@ function intoReadContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent |
                 reference: pageLink.document,
                 label: "comment thread",
                 preposition: "on",
-                url: intoAgentWebToolCallContentUrl(pageLink),
+                url: createAgentWebPageLinkUrl(pageLink),
             });
         }
         case "PostMessage": {
@@ -120,7 +121,7 @@ function intoReadContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent |
                 reference: {type: "Post", id: pageLink.id},
                 label: "comment",
                 preposition: "on",
-                url: intoAgentWebToolCallContentUrl(pageLink),
+                url: createAgentWebPageLinkUrl(pageLink),
             });
         }
         case "TaskMessage": {
@@ -128,7 +129,7 @@ function intoReadContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent |
                 reference: {type: "Task", id: pageLink.id},
                 label: "comment",
                 preposition: "on",
-                url: intoAgentWebToolCallContentUrl(pageLink),
+                url: createAgentWebPageLinkUrl(pageLink),
             });
         }
         case "Inbox": {
@@ -197,7 +198,7 @@ function intoCreateContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent
             };
         }
         case "DocumentThread": {
-            const url = intoAgentWebToolCallContentUrl(pageLink);
+            const url = createAgentWebPageLinkUrl(pageLink);
             return {
                 elements: [
                     {type: "Text", text: "Added "},
@@ -265,42 +266,42 @@ function intoUpdateContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent
             return intoLinkedUpdateContent(
                 pageLink.document,
                 "comment thread",
-                intoAgentWebToolCallContentUrl(pageLink),
+                createAgentWebPageLinkUrl(pageLink),
             );
         }
         case "TaskSubtasks": {
             return intoLinkedUpdateContent(
                 pageLink.task,
                 "subtasks",
-                intoAgentWebToolCallContentUrl(pageLink),
+                createAgentWebPageLinkUrl(pageLink),
             );
         }
         case "ChatMessage": {
             return intoLinkedUpdateContent(
                 {type: "Chat", id: pageLink.id},
                 "chat message",
-                intoAgentWebToolCallContentUrl(pageLink),
+                createAgentWebPageLinkUrl(pageLink),
             );
         }
         case "DocumentMessage": {
             return intoLinkedUpdateContent(
                 pageLink.document,
                 "document message",
-                intoAgentWebToolCallContentUrl(pageLink),
+                createAgentWebPageLinkUrl(pageLink),
             );
         }
         case "PostMessage": {
             return intoLinkedUpdateContent(
                 {type: "Post", id: pageLink.id},
                 "post message",
-                intoAgentWebToolCallContentUrl(pageLink),
+                createAgentWebPageLinkUrl(pageLink),
             );
         }
         case "TaskMessage": {
             return intoLinkedUpdateContent(
                 {type: "Task", id: pageLink.id},
                 "task message",
-                intoAgentWebToolCallContentUrl(pageLink),
+                createAgentWebPageLinkUrl(pageLink),
             );
         }
         case "Account":
@@ -330,37 +331,4 @@ function intoLinkedUpdateContent(
             {type: "Text", text: "."},
         ],
     };
-}
-
-function intoAgentWebToolCallContentUrl(
-    pageLink: Extract<
-        AgentWebPageLinkKeyObject,
-        {
-            readonly type:
-                | "ChatMessage"
-                | "DocumentThread"
-                | "DocumentMessage"
-                | "PostMessage"
-                | "TaskMessage"
-                | "TaskSubtasks";
-        }
-    >,
-): string {
-    // TODO(#agent-web): Make these links compatible with dev
-    switch (pageLink.type) {
-        case "ChatMessage":
-            return `https://alpine.inc/chat/${pageLink.id}?message=${pageLink.index}`;
-        case "DocumentThread":
-            return `https://alpine.inc/doc/${pageLink.document.id}?thread=${pageLink.id}`;
-        case "DocumentMessage":
-            return `https://alpine.inc/doc/${pageLink.document.id}?thread=${pageLink.id}&comment=${pageLink.index}`;
-        case "PostMessage":
-            return `https://alpine.inc/post/${pageLink.id}?comment=${pageLink.index}`;
-        case "TaskMessage":
-            return `https://alpine.inc/task/${pageLink.id}?comment=${pageLink.index}`;
-        case "TaskSubtasks":
-            return `https://alpine.inc/task/${pageLink.task.id}/subtasks`;
-        default:
-            throw exhaustive(pageLink);
-    }
 }

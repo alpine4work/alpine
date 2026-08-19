@@ -3,7 +3,7 @@ import {
     parseAgentWebTaskQueryFilters,
     printAgentWebTaskQueryFilters,
 } from "~/server/agents/web/agent_web_task_query_filters.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
     fromApiTaskQueryFilter,

@@ -1,4 +1,5 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
+import {createAgentWebPageLinkUrl} from "~/server/agents/web/create_agent_web_page_link_url.open_source.js";
 import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -18,36 +19,12 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
         case "Site": {
             return {type: "MentionReference", reference: link};
         }
-        case "ChatMessage": {
-            return {
-                type: "Url",
-                url: `https://alpine.inc/chat/${link.id}?message=${link.index}`,
-            };
-        }
-        case "DocumentThread": {
-            return {
-                type: "Url",
-                url: `https://alpine.inc/doc/${link.document.id}?thread=${link.id}`,
-            };
-        }
-        case "DocumentMessage": {
-            return {
-                type: "Url",
-                url: `https://alpine.inc/doc/${link.document.id}?thread=${link.id}&comment=${link.index}`,
-            };
-        }
-        case "PostMessage": {
-            return {
-                type: "Url",
-                url: `https://alpine.inc/post/${link.id}?comment=${link.index}`,
-            };
-        }
-        case "TaskMessage": {
-            return {
-                type: "Url",
-                url: `https://alpine.inc/task/${link.id}?comment=${link.index}`,
-            };
-        }
+        case "ChatMessage":
+        case "DocumentThread":
+        case "DocumentMessage":
+        case "PostMessage":
+        case "TaskMessage":
+            return {type: "Url", url: createAgentWebPageLinkUrl(link)};
         case "File": {
             return {
                 type: "Url",

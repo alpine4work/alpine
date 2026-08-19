@@ -1,4 +1,4 @@
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 
 test("adds a leading slash when one is missing", () => {
     expect(normalizeAgentWebPath("messages/inbox").path).toBe("/messages/inbox");

@@ -4,7 +4,7 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {parseAgentWebTaskQueryFilters} from "~/server/agents/web/agent_web_task_query_filters.open_source.js";
 import {parseAgentWebTaskQuerySorts} from "~/server/agents/web/agent_web_task_query_sorts.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.open_source.js";
 import {
     AgentWebTaskQueryPage,

@@ -4,7 +4,7 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {createAgentWebPageLinkPathname} from "~/server/agents/web/create_agent_web_page_link_pathname.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {

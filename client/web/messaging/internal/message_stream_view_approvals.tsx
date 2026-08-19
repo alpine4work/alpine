@@ -1,4 +1,5 @@
-import {CaretDown, CaretLeft, CaretRight, Check, ShieldCheck, X} from "phosphor-react";
+import {CaretDown, CaretLeft, CaretRight, Check, ShieldCheck, SpinnerGap, X} from "phosphor-react";
+import prettyMs from "pretty-ms";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountRegistry} from "~/client/web/accounts/account_registry.js";
 import {useAccountRegistry} from "~/client/web/accounts/account_registry_context.js";
@@ -11,24 +12,29 @@ import {Checkbox} from "~/client/web/design/checkbox.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {MenuButton} from "~/client/web/design/menu_button.js";
 import {Tooltip} from "~/client/web/design/tooltip.js";
+import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_indicator.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/web/helpers/use_resize_observer.js";
 import {useStore} from "~/client/web/helpers/use_store.js";
-import {useClientInfo} from "~/client/web/remix/client_info_context.js";
 import {SearchEntityRegistry} from "~/client/web/search/core/search_entity_registry.js";
 import {useSearchEntityRegistry} from "~/client/web/search/core/search_entity_registry_context.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
-import {colorSchemeVars, contentStyles, sprinkles} from "~/client/web/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentStyles,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/client/web/styles/styles.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.open_source.js";
+import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {Locale} from "~/shared/helpers/intl/locale.open_source.js";
-import {printPrettyNumber} from "~/shared/helpers/number/print_pretty_number.open_source.js";
 import {
     MessageExperimentalApproval,
     MessageExperimentalApprovalDecisionOption,
@@ -78,6 +84,35 @@ export type PutMessageStreamApprovalDecisionsFunction = (
 ) => Promise<void>;
 
 /**
+ * How long we keep showing a loading indicator on a fully decided approvals card
+ * while we wait for the agent's response to appear.
+ *
+ * The agent isn't running when a decision lands — deciding wakes it, and it
+ * sometimes has to start a container before it can create its response message
+ * (see `run_claude_agent_webhook.ts`). So there's a real gap between the last
+ * click and the first sign of the agent thinking, and without this the card would
+ * just sit there looking finished.
+ *
+ * This is sort of an arbitrary value. The longest observed time to start a
+ * container has been about 6 seconds, but let's call it 10 conservatively.
+ *
+ * If the agent still hasn't responded after 30 seconds, there's likely a bug in
+ * the system somewhere - we shouldn't show loading state forever.
+ */
+const messageStreamApprovalsResponseTimeoutMs = 30 * 1000;
+
+/**
+ * How long the waiting card sits under the overlay before the spinner joins it.
+ *
+ * Short on purpose. The overlay has to land on the click that settles the batch —
+ * anything later reads as the card changing its mind — but a spinner appearing in
+ * the same frame would flash for the rare decision the agent answers instantly. So
+ * the overlay is immediate and only the spinner is delayed, which is also why this
+ * is well under the design system's default loading delay.
+ */
+const messageStreamApprovalsLoadingIndicatorDelayMs = 200;
+
+/**
  * Renders a message stream's approval requests at the bottom of the message, one
  * card at a time. Each card asks the reader to allow the message author (an agent)
  * to take the action the approval summarizes: "Allow ChatGPT to: {summary}". The
@@ -99,13 +134,103 @@ export function MessageStreamViewApprovals({
     author,
     approvalSessionNoun,
     putApprovalDecisions,
+    isLastMessage,
 }: {
     part: MessageStreamExperimentalApprovalsPartPayload;
     references: ContentReferences;
     author: AccountModel;
     approvalSessionNoun: MessageStreamApprovalSessionNoun;
     putApprovalDecisions: PutMessageStreamApprovalDecisionsFunction | null;
+    isLastMessage: boolean;
 }) {
+    const isFullyDecided =
+        part.approvals.length > 0 &&
+        part.approvals.every(approval => approval.decision.value !== undefined);
+
+    // TODO(ifitzsimmons, 2026-08-18): We don't persist when an approval was decided,
+    // so only the client that submits the final decision can know to render this
+    // loading state. We should probably persist something like a `decidedTime` for
+    // each approval decision and then use the last decided time to determine if we
+    // should show the loading state.
+    //
+    // For now, we'll use `shouldShowLoadingStateAfterApprovalCompletion` to gate the
+    // loading state to the current client - it's only ever set to true when the client
+    // calls `putApprovalDecisions` with the last decision option.
+    const [
+        shouldShowLoadingStateAfterApprovalCompletion,
+        setShouldShowLoadingStateAfterApprovalCompletion,
+    ] = useState(false);
+    const isAwaitingResponse =
+        shouldShowLoadingStateAfterApprovalCompletion &&
+        isFullyDecided &&
+        // NOTE(ifitzsimmons, 2026-08-18): We use `isLastMessage` as a deliberate
+        // approximation. What the card actually wants to know is "has the agent started
+        // its response to the approval decision?", and instead this answers "has anyone
+        // sent any message since the approval stream part?". So in a room with other
+        // people, someone else posting between the decision and the agent's reply clears
+        // the waiting state early. The card settles into its decided form a few seconds
+        // sooner than it should.
+        //
+        // The accurate version isn't reachable from here once any message follows this
+        // one, this row stops re-rendering, so it can't observe a later message from the
+        // author. It would have to come from the message list, which would have to track
+        // "latest message by author" or something like that and thread it down.
+        isLastMessage;
+    const isLoadingIndicatorVisible = useDelayLoadingIndicator(
+        isAwaitingResponse,
+        messageStreamApprovalsLoadingIndicatorDelayMs,
+    );
+
+    useEffect(() => {
+        // `didClientCompleteApprovalDecisions` starts as false, so this `useEffect`
+        // returns early after mount.
+        if (!shouldShowLoadingStateAfterApprovalCompletion || !isFullyDecided) return;
+
+        if (!isLastMessage) {
+            setShouldShowLoadingStateAfterApprovalCompletion(false);
+            return;
+        }
+
+        const timeout = createTimeout(
+            () => setShouldShowLoadingStateAfterApprovalCompletion(false),
+            messageStreamApprovalsResponseTimeoutMs,
+        );
+        return () => timeout.clear();
+    }, [isFullyDecided, isLastMessage, shouldShowLoadingStateAfterApprovalCompletion]);
+
+    async function putApprovalDecisionsAndTrackAwaitingResponse(
+        decisions: ReadonlyArray<{
+            readonly index: number;
+            readonly value: MessageExperimentalApprovalDecisionValueWithoutDecider;
+        }>,
+    ) {
+        assert(putApprovalDecisions !== null);
+
+        const willFullyDecideApprovals =
+            part.approvals.length > 0 &&
+            part.approvals.every(
+                (approval, approvalIndex) =>
+                    approval.decision.value !== undefined ||
+                    decisions.some(decision => decision.index === approvalIndex),
+            );
+
+        if (willFullyDecideApprovals) {
+            setShouldShowLoadingStateAfterApprovalCompletion(true);
+        }
+
+        try {
+            await putApprovalDecisions(decisions);
+        } catch (error) {
+            if (willFullyDecideApprovals) {
+                setShouldShowLoadingStateAfterApprovalCompletion(false);
+            }
+            throw error;
+        }
+    }
+
+    const trackedPutApprovalDecisions =
+        putApprovalDecisions === null ? null : putApprovalDecisionsAndTrackAwaitingResponse;
+
     if (part.approvals.length === 0) return null;
 
     return (
@@ -124,7 +249,9 @@ export function MessageStreamViewApprovals({
                     references={references}
                     author={author}
                     approvalSessionNoun={approvalSessionNoun}
-                    putApprovalDecisions={putApprovalDecisions}
+                    putApprovalDecisions={trackedPutApprovalDecisions}
+                    isAwaitingResponse={isAwaitingResponse}
+                    isLoadingIndicatorVisible={isLoadingIndicatorVisible}
                 />
             ) : (
                 <MessageStreamViewApprovalsPagination
@@ -132,7 +259,9 @@ export function MessageStreamViewApprovals({
                     references={references}
                     author={author}
                     approvalSessionNoun={approvalSessionNoun}
-                    putApprovalDecisions={putApprovalDecisions}
+                    putApprovalDecisions={trackedPutApprovalDecisions}
+                    isAwaitingResponse={isAwaitingResponse}
+                    isLoadingIndicatorVisible={isLoadingIndicatorVisible}
                 />
             )}
         </div>
@@ -155,12 +284,16 @@ function MessageStreamViewApprovalsPagination({
     author,
     approvalSessionNoun,
     putApprovalDecisions,
+    isAwaitingResponse,
+    isLoadingIndicatorVisible,
 }: {
     approvals: ReadonlyArray<MessageExperimentalApproval>;
     references: ContentReferences;
     author: AccountModel;
     approvalSessionNoun: MessageStreamApprovalSessionNoun;
     putApprovalDecisions: PutMessageStreamApprovalDecisionsFunction | null;
+    isAwaitingResponse: boolean;
+    isLoadingIndicatorVisible: boolean;
 }) {
     const [viewedApprovalIndex, setViewedApprovalIndex] = useState(
         () => findNextUndecidedApprovalIndex(approvals, -1) ?? 0,
@@ -199,6 +332,8 @@ function MessageStreamViewApprovalsPagination({
             author={author}
             approvalSessionNoun={approvalSessionNoun}
             putApprovalDecisions={putApprovalDecisions}
+            isAwaitingResponse={isAwaitingResponse}
+            isLoadingIndicatorVisible={isLoadingIndicatorVisible}
             paginationNode={
                 <div
                     className={sprinkles({
@@ -213,7 +348,7 @@ function MessageStreamViewApprovalsPagination({
                         description="Previous approval"
                         variant="quietest"
                         size="xs"
-                        isDisabled={approvalIndex === 0}
+                        isDisabled={approvalIndex === 0 || isAwaitingResponse}
                         onPress={() => setViewedApprovalIndex(approvalIndex - 1)}
                     >
                         <CaretLeft />
@@ -225,7 +360,7 @@ function MessageStreamViewApprovalsPagination({
                         description="Next approval"
                         variant="quietest"
                         size="xs"
-                        isDisabled={approvalIndex === approvals.length - 1}
+                        isDisabled={approvalIndex === approvals.length - 1 || isAwaitingResponse}
                         onPress={() => setViewedApprovalIndex(approvalIndex + 1)}
                     >
                         <CaretRight />
@@ -243,6 +378,8 @@ function MessageStreamViewApprovalCard({
     author,
     approvalSessionNoun,
     putApprovalDecisions,
+    isAwaitingResponse,
+    isLoadingIndicatorVisible,
     paginationNode,
 }: {
     approval: MessageExperimentalApproval;
@@ -251,6 +388,8 @@ function MessageStreamViewApprovalCard({
     author: AccountModel;
     approvalSessionNoun: MessageStreamApprovalSessionNoun;
     putApprovalDecisions: PutMessageStreamApprovalDecisionsFunction | null;
+    isAwaitingResponse: boolean;
+    isLoadingIndicatorVisible: boolean;
     paginationNode?: ReactNode;
 }) {
     const accountRegistry = useAccountRegistry();
@@ -302,6 +441,7 @@ function MessageStreamViewApprovalCard({
     return (
         <div
             className={sprinkles({
+                position: "relative",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "stretch",
@@ -413,6 +553,46 @@ function MessageStreamViewApprovalCard({
                     </div>
                 )}
             </div>
+            {/*
+             * Everything is decided and we're waiting on the agent (see
+             * the response wait in `MessageStreamViewApprovals`). Wash the card out rather than
+             * swapping anything for a spinner, so the decision stays readable underneath —
+             * the user sees both what they chose and that we're still working. Covering
+             * the card also intercepts clicks, which is what we want: there's nothing left
+             * to act on until the agent responds.
+             *
+             * The overlay lands on the click that settled the batch; the spinner follows
+             * only once the wait is long enough to be worth reporting. Showing both at once
+             * would make the card visibly change twice for one click.
+             */}
+            {isAwaitingResponse && (
+                <div
+                    className={sprinkles({
+                        position: "absolute",
+                        inset: "0",
+                        backgroundColor: "grey-0",
+                        borderRadius: "1.5",
+                        opacity: "60",
+                    })}
+                />
+            )}
+            {isLoadingIndicatorVisible && (
+                <div
+                    className={sprinkles({
+                        position: "absolute",
+                        inset: "0",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    })}
+                >
+                    <SpinnerGap
+                        className={spinAnimationClassName}
+                        size={spacing["5"]}
+                        color={colorSchemeVars["grey-50"]}
+                    />
+                </div>
+            )}
         </div>
     );
 }
@@ -440,8 +620,6 @@ function MessageStreamViewApprovalCardOptions({
     const accountRegistry = useAccountRegistry();
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
-    const {locale} = useClientInfo();
-
     const [pendingButton, setPendingButton] = useState<"Allow" | "Cancel" | null>(null);
     const [isSessionScopeChecked, setIsSessionScopeChecked] = useState(false);
     const [sessionOptionIndex, setSessionOptionIndex] = useState(0);
@@ -458,7 +636,6 @@ function MessageStreamViewApprovalCardOptions({
                     sessionOptions.map(option =>
                         getMessageApprovalDecisionOptionLabel(
                             option,
-                            locale,
                             approvalSessionNoun,
                             content =>
                                 getMessageApprovalContentText(get, references, content, {
@@ -472,7 +649,6 @@ function MessageStreamViewApprovalCardOptions({
             [
                 accountRegistry,
                 fileRegistry,
-                locale,
                 references,
                 searchEntityRegistry,
                 sessionOptions,
@@ -606,8 +782,6 @@ function MessageStreamViewApprovalCardDecision({
     const searchEntityRegistry = useSearchEntityRegistry();
     const fileRegistry = useFileRegistry();
     const {currentAccount} = useSpaceContext();
-    const {locale} = useClientInfo();
-
     const decisionText = useStore(
         useMemo(
             () =>
@@ -615,7 +789,6 @@ function MessageStreamViewApprovalCardDecision({
                     getMessageApprovalDecisionValueText(
                         approval,
                         decisionValue,
-                        locale,
                         approvalSessionNoun,
                         content =>
                             getMessageApprovalContentText(get, references, content, {
@@ -630,7 +803,6 @@ function MessageStreamViewApprovalCardDecision({
                 approval,
                 decisionValue,
                 fileRegistry,
-                locale,
                 references,
                 searchEntityRegistry,
                 approvalSessionNoun,
@@ -725,7 +897,6 @@ function getMessageApprovalDecisionValueForOption(
 
 function getMessageApprovalDecisionOptionLabel(
     option: MessageExperimentalApprovalDecisionOption,
-    locale: Locale,
     approvalSessionNoun: MessageStreamApprovalSessionNoun,
     getApprovalContentText: (content: MessageContent) => string,
 ): string {
@@ -741,7 +912,9 @@ function getMessageApprovalDecisionOptionLabel(
             const duration =
                 option.durationMinutes === null
                     ? `for this ${approvalSessionNoun}`
-                    : `in this ${approvalSessionNoun} for ${printPrettyNumber(locale, option.durationMinutes, "minute")}`;
+                    : `in this ${approvalSessionNoun} for ${prettyMs(
+                          option.durationMinutes * 60_000,
+                      )}`;
 
             // Based on the duration, this might read
             //
@@ -756,7 +929,6 @@ function getMessageApprovalDecisionOptionLabel(
 function getMessageApprovalDecisionValueText(
     approval: MessageExperimentalApproval,
     decisionValue: MessageExperimentalApprovalDecisionValue,
-    locale: Locale,
     approvalSessionNoun: MessageStreamApprovalSessionNoun,
     getApprovalContentText: (content: MessageContent) => string,
 ): string {
@@ -776,7 +948,7 @@ function getMessageApprovalDecisionValueText(
 
             return decisionValue.durationMinutes === null
                 ? `Allowed for this ${approvalSessionNoun}`
-                : `Allowed for ${printPrettyNumber(locale, decisionValue.durationMinutes, "minute")}`;
+                : `Allowed for ${prettyMs(decisionValue.durationMinutes * 60_000)}`;
         }
         default:
             throw exhaustive(decisionValue);

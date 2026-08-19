@@ -161,6 +161,17 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     #room: ApiMessageRoomReference;
     #parser: AgentWebMarkdownStreamParser<TracerSpan>;
     #isCompleted = false;
+
+    /**
+     * Whether the stream is closed to new parts. `complete()` closes it, and so does
+     * `pushApprovalRequest()` — writing an `ExperimentalApprovals` part sets
+     * `completedTime` server-side, so nothing can follow it. Every `push*` asserts on
+     * this rather than trusting callers to know the rule.
+     *
+     * Importantly, the `complete()` call will succeed (noop) if called after the
+     * approval part completes the stream!
+     */
+    #isClosedToNewParts = false;
     #pingInterval: Interval | null = null;
     #mutex = new Mutex();
     #updateThrottleMs = 100;
@@ -241,6 +252,13 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
         this.#assertCanPush();
         this.#flushUpdateTextState();
         void this.#update(span, [payload]);
+
+        // Writing an `ExperimentalApprovals` part sets `completedTime` server-side, so the
+        // stream is over the moment that update lands. Trying to send another part or ping
+        // the stream will throw. We mark it as closed now and stop pinging the stream.
+        this.#isClosedToNewParts = true;
+        this.#shouldRestartIntervalAfterUpdate = false;
+        this.#clearPingInterval();
     }
 
     pushReasoningSummary(span: TracerSpan, summary: string) {
@@ -382,6 +400,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     async complete(span: TracerSpan) {
         assert(!this.#isCompleted);
         this.#isCompleted = true;
+        this.#isClosedToNewParts = true;
 
         // Let's say a stream part comes in a T0 and the stream is completed at T50 (ms)
         // the `update()` call won't run for another 50ms. When that update call runs we
@@ -455,7 +474,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     }
 
     #assertCanPush() {
-        assert(!this.#isCompleted);
+        assert(!this.#isClosedToNewParts);
 
         if (this.#streamError === null) return;
 

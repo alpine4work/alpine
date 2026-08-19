@@ -5,6 +5,15 @@ import {
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+// Every type in this file describes data we don't own: raw Claude Agent SDK
+// transcript entries, and the Claude agent's `state.json` as written by whatever
+// version of the container last ran. So every field is optional with an index
+// signature passthrough, and unions are documented rather than declared. That is
+// deliberate, not laziness — the `AgentV2Service` worker, the container image, and
+// this debug client all deploy on their own cadence, so narrowing a field here
+// turns a routine version skew into a broken debugger. Add fields; don't tighten
+// them.
+
 /**
  * A single line from the Claude Agent SDK session transcript (one JSONL entry).
  *
@@ -112,6 +121,7 @@ export type ClaudeConversationItemToolResultBlock = {
 export type ClaudeAgentDebugState = {
     readonly sessionId?: string | null;
     readonly room?: ClaudeAgentDebugRoomState | null;
+    readonly approvals?: ClaudeAgentDebugApprovalsState | null;
     readonly [key: string]: unknown;
 };
 
@@ -119,6 +129,51 @@ export type ClaudeAgentDebugRoomState = {
     readonly timeZone?: string;
     readonly pageLinkKey?: string;
     readonly lastMessageIndex?: number | string;
+    readonly [key: string]: unknown;
+};
+
+export type ClaudeAgentDebugApprovalsState = {
+    readonly allowedScopes?: {
+        readonly [scope: string]: {readonly expiresTime?: string | null};
+    };
+    readonly pendingBatch?: ClaudeAgentDebugPendingApprovalBatch | null;
+    /**
+     * Fully-decided approval batches (each with the user's per-option decision and a
+     * `decidedTime`), for interleaving decisions into the transcript timeline.
+     */
+    readonly decidedBatches?: ReadonlyArray<ClaudeAgentDebugDecidedApprovalBatch>;
+    readonly [key: string]: unknown;
+};
+
+export type ClaudeAgentDebugPendingApprovalBatch = {
+    readonly messageIndex?: number;
+    readonly approvals?: ReadonlyArray<ClaudeAgentDebugPendingApproval>;
+    readonly [key: string]: unknown;
+};
+
+export type ClaudeAgentDebugPendingApproval = {
+    readonly toolUseIds?: ReadonlyArray<string>;
+    readonly toolName?: string;
+    readonly scope?: string;
+    readonly input?: unknown;
+    readonly summaryContent?: unknown;
+    readonly [key: string]: unknown;
+};
+
+export type ClaudeAgentDebugDecidedApprovalBatch = {
+    readonly messageIndex?: number;
+    /** ISO 8601 time the batch became fully decided. */
+    readonly decidedTime?: string;
+    readonly approvals?: ReadonlyArray<ClaudeAgentDebugDecidedApproval>;
+    readonly [key: string]: unknown;
+};
+
+export type ClaudeAgentDebugDecidedApproval = {
+    readonly toolUseIds?: ReadonlyArray<string>;
+    readonly toolName?: string;
+    readonly scope?: string;
+    /** `Approved`, `ApprovedForSession`, or `Rejected`. */
+    readonly decision?: string;
     readonly [key: string]: unknown;
 };
 

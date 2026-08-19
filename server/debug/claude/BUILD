@@ -20,5 +20,6 @@ ts_project(
         "//shared/debug/shared",
         "//shared/helpers",
         "//shared/id",
+        "//shared/tracer",
     ],
 )

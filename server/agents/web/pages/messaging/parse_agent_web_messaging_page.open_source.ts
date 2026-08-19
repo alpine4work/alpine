@@ -2,7 +2,7 @@ import {Tokenizer as HtmlTokenizer} from "htmlparser2";
 import {Html, Link, Node, Root, RootContent} from "mdast";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {
     AgentWebMessagingPage,
     AgentWebMessagingPageBlock,

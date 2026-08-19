@@ -5,7 +5,7 @@ import {
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {agentWebBytesDefaultLimit} from "~/server/agents/web/default_agent_web_bytes_limit.open_source.js";
 import {binarySearchLessThanOrEqual} from "~/server/agents/web/internal/binary_search_less_than_or_equal.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
 import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {FailedPreconditionError, NotFoundError} from "~/shared/error/error.open_source.js";

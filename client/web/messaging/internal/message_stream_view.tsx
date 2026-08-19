@@ -448,6 +448,7 @@ export function MessageStreamView({
                     author={message.author}
                     approvalSessionNoun={approvalSessionNoun}
                     putApprovalDecisions={putApprovalDecisions}
+                    isLastMessage={isLastMessage}
                 />
             )}
         </div>

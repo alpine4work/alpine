@@ -1,6 +1,7 @@
 import {createSdkMcpServer, tool} from "@anthropic-ai/claude-agent-sdk";
 import {z} from "zod";
 import {AgentWebMessageStreamSession} from "~/server/agents/bots_v2/sandbox/agent_web_message_stream_session.js";
+import {claudeAgentWriteToolInputShapes} from "~/server/agents/bots_v2/sandbox/claude_agent_write_tool_input_shapes.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {
     AgentWebPageLinkKey,
@@ -152,19 +153,7 @@ export function createClaudeAgentMcpServer(
     const updateTool = tool(
         "update",
         "Update any page",
-        {
-            path: z.string().describe("Path to something in Alpine (e.g. `/doc/hello-world`)"),
-            updates: z.array(
-                z.object({
-                    old: z.string().describe("Old content to remove"),
-                    new: z.string().describe("New content to insert"),
-                    replaceAll: z
-                        .boolean()
-                        .default(false)
-                        .describe("Should be false 99.9% of the time"),
-                }),
-            ),
-        },
+        claudeAgentWriteToolInputShapes.update,
         async args => {
             const context = getContext();
             const result = await callAgentWebUpdateTool(context, args);
@@ -188,10 +177,7 @@ export function createClaudeAgentMcpServer(
     const createTool = tool(
         "create",
         "Create a new page",
-        {
-            type: z.string().describe("Type of thing are we creating (e.g. `document`)"),
-            content: z.string().describe("Contents of the new page"),
-        },
+        claudeAgentWriteToolInputShapes.create,
         async args => {
             const context = getContext();
 
@@ -213,9 +199,7 @@ export function createClaudeAgentMcpServer(
     const deleteTool = tool(
         "delete",
         "Delete a page",
-        {
-            path: z.string().describe("Path to something in Alpine (e.g. `/doc/hello-world`)"),
-        },
+        claudeAgentWriteToolInputShapes.delete,
         async args => {
             const {isError, response} = await callAgentWebDeleteTool(getContext(), args);
 
@@ -297,13 +281,9 @@ export function createClaudeAgentMcpServer(
         version: "1.0.0",
         instructions:
             "Tools for reading/writing content in Alpine. Use the `alpine` skill to learn more about these tools and Alpine markdown formats.",
-        // We only enable write tools in development. In production we need the user to
-        // approve the write.
-        //
-        // TODO(#claude-bot): Implement approvals
-        tools:
-            process.env.NODE_ENV !== "production"
-                ? [readTool, updateTool, createTool, deleteTool, searchTool, scrollTool, findTool]
-                : [readTool, searchTool, scrollTool, findTool],
+        // All tools are always registered. In production, calls to the write tools are
+        // gated behind user approvals by the `canUseTool` gate (see
+        // `create_claude_agent_can_use_tool.ts`).
+        tools: [readTool, updateTool, createTool, deleteTool, searchTool, scrollTool, findTool],
     });
 }

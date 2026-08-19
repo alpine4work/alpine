@@ -3,7 +3,7 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source
 import {AgentWebPageMetadata} from "~/server/agents/web/agent_web_page.open_source.js";
 import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.open_source.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {
     parseAgentWebAccountPage,
     updateAgentWebAccountPage,
@@ -83,6 +83,16 @@ export async function callAgentWebUpdateTool(
             new: string;
             replaceAll: boolean;
         }>;
+
+        /**
+         * Accept a read response that has expired, instead of refusing the update.
+         *
+         * We make sure the tool call is not using stale data before creating the approval.
+         * After that, the user may take hours to decide. Skipping the check lets the
+         * approved writes run, and the server will reject the update if it can't be
+         * applied.
+         */
+        withoutStaleReadCheck?: boolean;
     },
 ): Promise<
     | {isError: false; response: string; pageLink: AgentWebPageLinkKeyObject}
@@ -135,6 +145,7 @@ async function actuallyCallAgentWebUpdateTool(
     {
         path: originalPath,
         updates,
+        withoutStaleReadCheck = false,
     }: {
         path: string;
         updates: ReadonlyArray<{
@@ -142,6 +153,7 @@ async function actuallyCallAgentWebUpdateTool(
             new: string;
             replaceAll: boolean;
         }>;
+        withoutStaleReadCheck?: boolean;
     },
     {
         addAdditionalOutput,
@@ -162,7 +174,7 @@ async function actuallyCallAgentWebUpdateTool(
     ).withLock(async () => {
         const readResponse = await context.storage.readResponseByPath.get(path);
 
-        if (!readResponse || readResponse.expirationTime < Date.now()) {
+        if (!readResponse || (!withoutStaleReadCheck && readResponse.expirationTime < Date.now())) {
             throw new NotFoundError("Read response not found or expired", {
                 displayMessage: errorDisplayMessage`Can\u2019t call the \`update\` tool for a path that hasn\u2019t been read recently. Call the \`read\` tool with the path ${quote(originalPath)} then call the \`update\` tool again.`,
             });

@@ -17,7 +17,7 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {truncateAgentWebReadResponse} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import {agentWebBytesDefaultLimit} from "~/server/agents/web/default_agent_web_bytes_limit.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {
     normalizeAgentWebAccountPage,
     parseAgentWebAccountPage,

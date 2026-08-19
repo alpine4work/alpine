@@ -9,8 +9,8 @@ export type AgentV2ServiceEnv = {
      * its durable state — including the approvals state in `state.json`, written by
      * `ClaudeAgentStateStore`. The binding was already declared in `wrangler.toml` for
      * the mount; it's typed here so the worker can read a sandbox's `state.json`
-     * directly and filter approval decision webhooks without cold-starting a container
-     * (see `check_claude_agent_approval_decision_event.ts`).
+     * directly without cold-starting a container (see
+     * `read_claude_agent_conversation_state_from_bucket.ts`).
      */
     ClaudeAgentBucket: R2Bucket;
 

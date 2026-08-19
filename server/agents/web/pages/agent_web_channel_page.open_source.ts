@@ -11,7 +11,7 @@ import {AgentWebPageStoredLink} from "~/server/agents/web/agent_web_page_stored_
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import {curlyQuote} from "~/server/agents/web/internal/curly_quote.open_source.js";
-import {normalizeAgentWebPath} from "~/server/agents/web/internal/normalize_agent_web_path.open_source.js";
+import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/normalize_api_content_for_agent_web_markdown.open_source.js";
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
