@@ -18,3 +18,6 @@
 
 # Formatted for agents
 /skills/*/*.open_source.md
+
+# Generated from the public repository by //:write_open_source_package_lock
+/package-lock.open_source.json

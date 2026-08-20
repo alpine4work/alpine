@@ -1,5 +1,5 @@
 import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link_key.open_source.js";
-import {getAgentWebAlpineUrl} from "~/server/agents/web/get_agent_web_alpine_url.js";
+import {getAgentWebAlpineUrl} from "~/server/agents/web/get_agent_web_alpine_url.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**

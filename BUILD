@@ -1,5 +1,6 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@rules_python//python:pip.bzl", "compile_pip_requirements")
 load("@rules_python//python/entry_points:py_console_script_binary.bzl", "py_console_script_binary")
@@ -47,16 +48,60 @@ ROOT_LINT_AND_FORMAT_EXTENSIONS = [
 
 ROOT_LINT_AND_FORMAT_FOLDERS = [
     ".vscode",
-    ".open_source.github",
+    ".github",
 ]
 
 ts_lint_and_format_test(
     name = "root",
     srcs = glob(
-        ["*.open_source.{}".format(extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS] +
-        ["{}/*.open_source*.open_source/*.open_source.{}".format(folder, extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS for folder in ROOT_LINT_AND_FORMAT_FOLDERS],
+        ["*.{}".format(extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS] +
+        ["{}/**/*.{}".format(folder, extension) for extension in ROOT_LINT_AND_FORMAT_EXTENSIONS for folder in ROOT_LINT_AND_FORMAT_FOLDERS],
+        # npm owns the canonical formatting of this generated source file. Formatting it separately
+        # would make the write-source diff test report a false stale-lockfile failure.
+        exclude = ["package-lock.open_source.json"],
         allow_empty = True,
     ),
+)
+
+# Public files live beside their private counterparts. The archive rule strips `.open_source` from
+# every tagged path component. This root filegroup supplies repository metadata; TypeScript package
+# sources are supplied independently by the package-aware public-source aspect.
+filegroup(
+    name = "open_source_tagged_repository_files",
+    srcs = glob(
+        [
+            ".open_source.github/**",
+            ".gitignore.open_source",
+            ".github/**/*.open_source",
+            ".github/**/*.open_source.*",
+            "*.open_source",
+            "*.open_source.*",
+            "packages/**/*.open_source",
+            "packages/**/*.open_source.*",
+            "scripts/**/*.open_source",
+            "scripts/**/*.open_source.*",
+        ],
+        allow_empty = True,
+    ),
+    visibility = ["//admin/open_source:__pkg__"],
+)
+
+# The public-repository CI asks Bazel for this target before deciding whether to schedule archive
+# work. A root BUILD change can alter the tagged repository metadata selected above even when no
+# tagged file changes, so expose it as a declared source input.
+filegroup(
+    name = "open_source_repository_configuration_inputs",
+    srcs = ["BUILD"],
+    visibility = ["//admin/open_source:__pkg__"],
+)
+
+# The generated lock is checked automatically whenever the public repository changes. Running the
+# update target only writes the checked-in source file after the generated result has been reviewed.
+write_source_files(
+    name = "write_open_source_package_lock",
+    files = {
+        "package-lock.open_source.json": "//admin/open_source:open_source_package_lock_generated",
+    },
 )
 
 alias(

@@ -246,6 +246,45 @@ test("empty HTML <p> tag", () => {
     });
 });
 
+test("does not turn an ordered list start marker into an empty paragraph", () => {
+    const markdown = `- 1. <span data-start=”1”></span>
+
+     <p></p>
+
+     1
+`;
+
+    expect(parseApiContentFromMarkdown(markdown)).toEqual({
+        elements: [
+            {
+                type: "UnorderedList",
+                items: [
+                    {
+                        elements: [],
+                        nestedListElements: [
+                            {
+                                type: "OrderedList",
+                                orderStart: 1,
+                                items: [
+                                    {
+                                        elements: [
+                                            {type: "Paragraph", elements: []},
+                                            {
+                                                type: "Paragraph",
+                                                elements: [{type: "Text", text: "1"}],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
 test("HTML <br> tag", () => {
     expect(parseApiContentFromMarkdown("Line 1<br>Line 2")).toEqual({
         elements: [

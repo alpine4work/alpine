@@ -1,0 +1,48 @@
+name: Test
+description: Install and verify the repository
+inputs:
+    working-directory:
+        description: Directory containing the repository
+        required: false
+        default: .
+runs:
+    using: composite
+    steps:
+        - name: Set up Node.js
+          uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+          with:
+              cache: npm
+              cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+              node-version: 22
+              registry-url: https://registry.npmjs.org
+
+        - name: Install dependencies
+          shell: bash
+          working-directory: ${{ inputs.working-directory }}
+          run: npm ci
+
+        # npm versions must be valid SemVer, so calendar components do not use leading zeroes.
+        - name: Set calendar version
+          shell: bash
+          working-directory: ${{ inputs.working-directory }}
+          run: npm version "$(date -u +'%Y.%-m.%-d')" --workspace @alpine/cli --no-git-tag-version
+
+        - name: Type-check repository
+          shell: bash
+          working-directory: ${{ inputs.working-directory }}
+          run: npm run typecheck
+
+        - name: Test repository
+          shell: bash
+          working-directory: ${{ inputs.working-directory }}
+          run: npm test
+
+        - name: Build CLI
+          shell: bash
+          working-directory: ${{ inputs.working-directory }}
+          run: npm run build
+
+        - name: Test CLI
+          shell: bash
+          working-directory: ${{ inputs.working-directory }}
+          run: npm run test:cli

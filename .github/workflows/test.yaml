@@ -198,6 +198,11 @@ jobs:
     unit-tests:
         name: Unit tests (${{ matrix.bucket }}/${{ matrix.bucketCount }})
         needs: [prepare-ci]
+        # Matrix job outputs are collected only after every unit-test runner finishes. Bucket one
+        # is the sole writer of this value, so the archive job below gets an unambiguous result
+        # from a runner that has already restored the Bazel cache.
+        outputs:
+            open_source_changed: ${{ steps.open_source_changes.outputs.changed }}
         runs-on: [self-hosted, "${{ matrix.runnerJobLabel }}"]
         strategy:
             fail-fast: false # Allows all jobs to complete
@@ -215,6 +220,123 @@ jobs:
 
             - name: Initialize Bazel cache
               uses: ./.github/actions/initialize-bazel-cache
+
+            # The first bucket determines whether a changed public source needs archive and test jobs.
+            # TODO(#open-source): Run this check in its own container once AWS burst capacity allows it.
+            - if: matrix.bucket == 1
+              id: open_source_changes
+              name: Detect open-source changes
+              shell: bash
+              env:
+                  # A PR must compare against its base, not the previous push. A follow-up CI-only
+                  # commit may otherwise skip publication even though the PR still changes the
+                  # public repository and has never successfully published it.
+                  OPEN_SOURCE_CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+              run: |
+                  set -euo pipefail
+
+                  # This only decides whether to schedule the public-repository jobs. Ask Bazel for
+                  # the source inputs to the archive and its TypeScript validation rather than
+                  # duplicating the publication rules with a filename pattern. On an event without
+                  # a comparable PR base or previous commit, run conservatively.
+                  open_source_changed=true
+
+                  function collect_open_source_ci_inputs() {
+                      local workspace_path="$1"
+                      local output_path="$2"
+
+                      (
+                          cd "$workspace_path"
+                          admin/bin/bazel cquery \
+                              --noshow_progress \
+                              --output=files \
+                              //admin/open_source:open_source_repository_ci_inputs \
+                              > "$output_path"
+                      )
+                  }
+
+                  function validate_open_source_ci_inputs() {
+                      local workspace_path="$1"
+                      local input_path="$2"
+                      local open_source_ci_input
+
+                      # CQuery must return workspace source paths. Generated artifacts cannot be
+                      # compared with Git and would mean the Bazel target no longer represents the
+                      # source-level publication boundary.
+                      while IFS= read -r open_source_ci_input; do
+                          if [[ "$open_source_ci_input" == bazel-out/* ]] || \
+                              [[ ! -f "$workspace_path/$open_source_ci_input" ]]
+                          then
+                              echo "Expected a workspace source input from Bazel, got: $open_source_ci_input" >&2
+                              exit 1
+                          fi
+                      done < "$input_path"
+                  }
+
+                  if [[ "$OPEN_SOURCE_CHANGE_BASE" =~ ^[0-9a-f]{40}$ ]] && \
+                      [[ "$OPEN_SOURCE_CHANGE_BASE" != 0000000000000000000000000000000000000000 ]]
+                  then
+                      if git fetch --no-tags --depth=1 origin "$OPEN_SOURCE_CHANGE_BASE"; then
+                          open_source_head_ci_inputs_path="$RUNNER_TEMP/open-source-head-ci-inputs.txt"
+                          open_source_base_ci_inputs_path="$RUNNER_TEMP/open-source-base-ci-inputs.txt"
+                          open_source_base_worktree_path="$RUNNER_TEMP/open-source-change-base"
+
+                          function cleanup_open_source_base_worktree() {
+                              if [ -e "$open_source_base_worktree_path/.git" ]; then
+                                  # Cleanup is best-effort: an already-removed temporary worktree
+                                  # must not turn a successful change decision into a failed job.
+                                  git worktree remove --force "$open_source_base_worktree_path" || true
+                              fi
+                          }
+                          trap cleanup_open_source_base_worktree EXIT
+
+                          # Comparing only the current input set misses a deleted public source:
+                          # it is absent from the HEAD CQuery result. Query the base worktree too,
+                          # then diff the union so additions, updates, and deletions all schedule
+                          # the archive/test/publish chain.
+                          if collect_open_source_ci_inputs \
+                              "$GITHUB_WORKSPACE" \
+                              "$open_source_head_ci_inputs_path" && \
+                              git worktree add \
+                                  --detach \
+                                  "$open_source_base_worktree_path" \
+                                  "$OPEN_SOURCE_CHANGE_BASE" && \
+                              collect_open_source_ci_inputs \
+                                  "$open_source_base_worktree_path" \
+                                  "$open_source_base_ci_inputs_path"
+                          then
+                              validate_open_source_ci_inputs \
+                                  "$GITHUB_WORKSPACE" \
+                                  "$open_source_head_ci_inputs_path"
+                              validate_open_source_ci_inputs \
+                                  "$open_source_base_worktree_path" \
+                                  "$open_source_base_ci_inputs_path"
+                              mapfile -t open_source_ci_inputs < <(
+                                  cat "$open_source_base_ci_inputs_path" \
+                                      "$open_source_head_ci_inputs_path" | sort -u
+                              )
+                              if [ "${#open_source_ci_inputs[@]}" -eq 0 ]; then
+                                  echo "Bazel returned no source inputs for public-repository CI." >&2
+                                  exit 1
+                              fi
+
+                              if git diff --quiet \
+                                  "$OPEN_SOURCE_CHANGE_BASE" \
+                                  "$GITHUB_SHA" \
+                                  -- "${open_source_ci_inputs[@]}"
+                              then
+                                  open_source_changed=false
+                              fi
+                          else
+                              echo "Could not query both Bazel public-repository input sets; running public CI conservatively."
+                          fi
+                      else
+                          echo "Could not fetch the previous commit; running public CI conservatively."
+                      fi
+                  fi
+
+                  echo "changed=$open_source_changed" >> "$GITHUB_OUTPUT"
+                  echo "Public-repository CI scheduled: $open_source_changed"
 
             # Run TypeScript, ESLint, Prettier, and unit tests. These tests are fast and
             # easily cacheable. Running these tests first gives the developer fast feedback
@@ -675,6 +797,217 @@ jobs:
               with:
                   test-type: screenshot
                   test-result: ${{ needs.screenshot-tests.result }}
+
+    package-open-source:
+        name: Open source archive
+        if: >-
+            needs.unit-tests.outputs.open_source_changed == 'true' &&
+            needs.unit-tests.result == 'success' &&
+            needs.prepare-ci.result == 'success'
+        needs: [prepare-ci, unit-tests]
+        # Use a unique ASG runner for the private checkout and Bazel work. The dynamic label is
+        # required to trigger the project test-runner provider and avoid sharing a warm workspace.
+        # The public-repository test and publish jobs below intentionally remain on hosted runners.
+        runs-on:
+            - self-hosted
+            - aws-test-asg-job-${{ github.run_id }}-${{ github.run_attempt }}-open-source-1
+        steps:
+            - name: Checkout git SHA
+              uses: ./.github/actions/checkout_github_sha
+              with:
+                  github-token: ${{ github.token }}
+
+            - name: Initialize Bazel cache
+              uses: ./.github/actions/initialize-bazel-cache
+
+            - name: Build validated open-source repository archive
+              run: |
+                  # The write-source diff test regenerates the public lockfile from the same
+                  # archive inputs and fails with the update command if it is stale.
+                  admin/bin/bazel \
+                      --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc \
+                      test //:write_open_source_package_lock_tests \
+                      --config=github-runner \
+                      --remote_cache=
+
+                  admin/bin/bazel \
+                      --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc \
+                      build //admin/open_source:open_source_repository \
+                      --config=github-runner \
+                      --remote_cache=
+
+            - name: Package open-source repository
+              env:
+                  OPEN_SOURCE_ARCHIVE: ${{ runner.temp }}/open-source-repository.zip
+              run: |
+                  set -euo pipefail
+                  # The archive is itself Bazel's validated output. Do not rebuild a worktree here:
+                  # copying this file preserves the exact input set and cache key that Bazel tested.
+                  cp bazel-bin/admin/open_source/open_source_repository.zip "$OPEN_SOURCE_ARCHIVE"
+
+            - name: Upload open-source repository artifact
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: open-source-repository
+                  path: ${{ runner.temp }}/open-source-repository.zip
+                  if-no-files-found: error
+                  retention-days: 7
+
+    test-open-source:
+        name: Open source test
+        if: >-
+            needs.package-open-source.result == 'success'
+        needs: [package-open-source]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Download validated open-source repository
+              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v7.0.0
+              with:
+                  name: open-source-repository
+                  path: ${{ runner.temp }}/open-source-artifact
+
+            - name: Extract open-source CI worktree
+              env:
+                  OPEN_SOURCE_ARCHIVE: ${{ runner.temp }}/open-source-artifact/open-source-repository.zip
+                  OPEN_SOURCE_WORKTREE: ${{ github.workspace }}/open-source-repository
+              run: |
+                  set -euo pipefail
+                  rm -rf "$OPEN_SOURCE_WORKTREE"
+                  mkdir -p "$OPEN_SOURCE_WORKTREE"
+                  unzip -q "$OPEN_SOURCE_ARCHIVE" -d "$OPEN_SOURCE_WORKTREE"
+
+            # Do not check out cyberworlds in this job. The artifact is the complete public
+            # repository, and checking out the private source would test the wrong files.
+            - name: Run public repository CI
+              uses: ./open-source-repository/.github/actions/test
+              with:
+                  working-directory: ${{ github.workspace }}/open-source-repository
+              env:
+                  CLI_TEST_ALPINE_API_KEY: ${{ secrets.CLI_TEST_ALPINE_API_KEY }}
+
+    publish-open-source:
+        name: Open source publish
+        # Publishing is intentionally blocked until both the generated repository CI and all
+        # private unit, integration, and screenshot aggregate checks pass. Public validation above
+        # runs for any branch with public changes; only `main` may update the target mirror.
+        if: >-
+            always() &&
+            github.ref_name == 'main' &&
+            needs.test-open-source.result == 'success' &&
+            needs.unit-tests-check.result == 'success' &&
+            needs.integration-tests-check.result == 'success' &&
+            needs.screenshot-tests-check.result == 'success'
+        needs:
+            [
+                test-open-source,
+                unit-tests-check,
+                integration-tests-check,
+                screenshot-tests-check,
+            ]
+        concurrency:
+            cancel-in-progress: true
+            group: publish-open-source-${{ github.ref }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: Download validated open-source repository
+              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v7.0.0
+              with:
+                  name: open-source-repository
+                  path: ${{ runner.temp }}/open-source-artifact
+
+            - name: Extract clean publication tree
+              env:
+                  OPEN_SOURCE_ARCHIVE: ${{ runner.temp }}/open-source-artifact/open-source-repository.zip
+                  OPEN_SOURCE_PUBLISH_TREE: ${{ runner.temp }}/alpine-open-source-publication
+              run: |
+                  set -euo pipefail
+                  rm -rf "$OPEN_SOURCE_PUBLISH_TREE"
+                  mkdir -p "$OPEN_SOURCE_PUBLISH_TREE"
+                  # Public CI uses its own worktree in the preceding job. Publish the original
+                  # validated artifact so generated dependencies and build output never enter git.
+                  unzip -q "$OPEN_SOURCE_ARCHIVE" -d "$OPEN_SOURCE_PUBLISH_TREE"
+
+            - name: Clone open-source repository
+              env:
+                  OPEN_SOURCE_REPOSITORY:
+                      # TODO(#open-source): Move the public mirror to alpine4work/alpine.
+                      cyberworlds/alpine-open-source-test
+                  OPEN_SOURCE_CHECKOUT: ${{ runner.temp }}/alpine-open-source
+                  # TODO(#open-source): Replace this temporary test-repository deploy key when the
+                  # hard-coded destination repository changes.
+                  OPEN_SOURCE_REPOSITORY_SSH_KEY: ${{ secrets.OPEN_SOURCE_REPOSITORY_SSH_KEY }}
+              run: |
+                  set -euo pipefail
+
+                  # Validate the configurable repository boundary before using it in Git or SSH.
+                  if [ -z "${OPEN_SOURCE_REPOSITORY_SSH_KEY:-}" ]; then
+                      echo "OPEN_SOURCE_REPOSITORY_SSH_KEY is required to publish open source." >&2
+                      exit 1
+                  fi
+                  if [[ ! "$OPEN_SOURCE_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+                      echo "OPEN_SOURCE_REPOSITORY must use the owner/repository format." >&2
+                      exit 1
+                  fi
+
+                  open_source_remote="git@github.com:${OPEN_SOURCE_REPOSITORY}.git"
+                  open_source_ssh_directory="$RUNNER_TEMP/open-source-ssh"
+                  open_source_ssh_key="$open_source_ssh_directory/id_ed25519"
+                  open_source_known_hosts="$open_source_ssh_directory/known_hosts"
+
+                  # Use the target repository's write-scoped deploy key without adding it to the
+                  # source checkout or the runner's global SSH configuration.
+                  install -m 700 -d "$open_source_ssh_directory"
+                  printf '%s\n' "$OPEN_SOURCE_REPOSITORY_SSH_KEY" > "$open_source_ssh_key"
+                  chmod 600 "$open_source_ssh_key"
+                  # GitHub's published Ed25519 host key:
+                  # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
+                  printf '%s\n' \
+                      'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
+                      > "$open_source_known_hosts"
+                  open_source_git_ssh_command="ssh -i $open_source_ssh_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$open_source_known_hosts"
+
+                  # Clone after the public CI succeeds so a failed validation can never change the
+                  # destination repository.
+                  rm -rf "$OPEN_SOURCE_CHECKOUT"
+                  GIT_SSH_COMMAND="$open_source_git_ssh_command" \
+                      git clone "$open_source_remote" "$OPEN_SOURCE_CHECKOUT"
+
+            - name: Publish generated open-source repository
+              env:
+                  OPEN_SOURCE_CHECKOUT: ${{ runner.temp }}/alpine-open-source
+                  OPEN_SOURCE_PUBLISH_TREE: ${{ runner.temp }}/alpine-open-source-publication
+              run: |
+                  set -euo pipefail
+
+                  open_source_ssh_directory="$RUNNER_TEMP/open-source-ssh"
+                  open_source_ssh_key="$open_source_ssh_directory/id_ed25519"
+                  open_source_known_hosts="$open_source_ssh_directory/known_hosts"
+                  open_source_git_ssh_command="ssh -i $open_source_ssh_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$open_source_known_hosts"
+
+                  # Replace only the cloned worktree. Keep .git so the mirror retains its history,
+                  # and omit npm's installation directory because it is a CI cache, not source.
+                  find "$OPEN_SOURCE_CHECKOUT" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf -- {} +
+                  rsync --archive \
+                      --exclude='.git' \
+                      --exclude='node_modules' \
+                      "$OPEN_SOURCE_PUBLISH_TREE/" \
+                      "$OPEN_SOURCE_CHECKOUT/"
+
+                  # Idempotent runs do not create empty publication commits.
+                  git -C "$OPEN_SOURCE_CHECKOUT" add --all
+                  if git -C "$OPEN_SOURCE_CHECKOUT" diff --cached --quiet; then
+                      echo "Open-source repository is already current."
+                      exit 0
+                  fi
+
+                  commit_message="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+                  git -C "$OPEN_SOURCE_CHECKOUT" \
+                      -c user.name="github-actions[bot]" \
+                      -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                      commit -m "$commit_message"
+
+                  GIT_SSH_COMMAND="$open_source_git_ssh_command" \
+                      git -C "$OPEN_SOURCE_CHECKOUT" push origin HEAD:main
 
     schedule-deploy:
         name: Schedule deploy

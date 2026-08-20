@@ -3,7 +3,7 @@ import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.js";
+import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.open_source.js";
 import {assertId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,

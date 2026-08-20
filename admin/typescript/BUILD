@@ -1,6 +1,11 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//admin/typescript:typescript_swc_config.bzl", "typescript_swc_config")
 
+exports_files(
+    ["typescript.bzl"],
+    visibility = ["//visibility:public"],
+)
+
 copy_to_bin(
     name = "base",
     srcs = ["base/README.md"],

@@ -34,6 +34,9 @@ js_binary(
         # Ansi codes when appropriate.
         "FORCE_COLOR": "1",
     },
+    # A full TypeScript Program plus type-aware ESLint exceeds Node's 4 GB default heap for the
+    # current workspace. This test intentionally checks every source file in one process.
+    node_options = ["--max-old-space-size=8192"],
 )
 
 # Every `ts_project()` rule in our codebase is in the transitive dependency

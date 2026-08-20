@@ -23,6 +23,9 @@ yarn-error.log*
 /admin/analysis/html
 /admin/analysis/landing-html
 
+# Generated locally for testing our open-source output
+/admin/open_source/result/
+
 # TypeScript
 *.tsbuildinfo
 

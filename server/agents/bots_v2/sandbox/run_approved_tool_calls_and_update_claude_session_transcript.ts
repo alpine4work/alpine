@@ -18,7 +18,7 @@ import {
 } from "~/server/agents/bots_v2/sandbox/merge_claude_agent_approval_decisions.js";
 import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
-import {callAgentWebDeleteTool} from "~/server/agents/web/call_agent_web_delete_tool.js";
+import {callAgentWebDeleteTool} from "~/server/agents/web/call_agent_web_delete_tool.open_source.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {intoApiMessageStreamToolCallPart} from "~/server/agents/web/into_api_message_stream_tool_call_part.js";
 import {ApiMessageStreamToolCallPartPayloadCallRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";

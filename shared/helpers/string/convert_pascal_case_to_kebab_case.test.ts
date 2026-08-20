@@ -1,4 +1,4 @@
-import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.js";
+import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.open_source.js";
 
 const cases = [
     {input: "AccountTaskId", output: "account-task-id"},

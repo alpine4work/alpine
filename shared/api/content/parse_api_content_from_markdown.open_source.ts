@@ -398,11 +398,16 @@ function* parseApiContentBlockElementFromMarkdown(
             // items.
             if (content.ordered) {
                 const orderStart = getOrderStartIfExists(content);
+                const listItems =
+                    orderStart === 1
+                        ? removeOrderedListStartMarkerFromFirstItem(content)
+                        : content.children;
+
                 yield {
                     type: "OrderedList",
                     ...(orderStart !== undefined ? {orderStart} : {}),
                     items: parseContentListBlockElementItems(
-                        content.children,
+                        listItems,
                         options,
                         definitions,
                         intoApiContentListBlockElementItem,
@@ -3369,4 +3374,44 @@ function getOrderStartIfExists(content: List): number | undefined {
     ): boolean {
         return element.type === "html" && element.value.includes(`span data-start=\u201D1\u201D`);
     }
+}
+
+/**
+ * Remove the HTML marker used to preserve an explicit ordered-list start of 1. It
+ * is metadata for the parser, not a paragraph in the document.
+ */
+function removeOrderedListStartMarkerFromFirstItem(content: List): ReadonlyArray<ListItem> {
+    const firstListItem = content.children[0];
+
+    if (firstListItem === undefined) {
+        return content.children;
+    }
+
+    const firstListItemChildren = [...firstListItem.children];
+    const firstListItemContent = firstListItemChildren[0];
+
+    if (firstListItemContent === undefined) return content.children;
+
+    if (firstListItemContent.type === "html") {
+        firstListItemChildren.shift();
+    } else if (firstListItemContent.type === "paragraph") {
+        const secondParagraphChild = firstListItemContent.children[1];
+        const markerChildCount =
+            secondParagraphChild?.type === "html" && secondParagraphChild.value === "</span>"
+                ? 2
+                : 1;
+        const paragraphChildrenWithoutMarker =
+            firstListItemContent.children.slice(markerChildCount);
+
+        if (paragraphChildrenWithoutMarker.length === 0) {
+            firstListItemChildren.shift();
+        } else {
+            firstListItemChildren[0] = {
+                ...firstListItemContent,
+                children: paragraphChildrenWithoutMarker,
+            };
+        }
+    } else return content.children;
+
+    return [{...firstListItem, children: firstListItemChildren}, ...content.children.slice(1)];
 }

@@ -1646,8 +1646,8 @@ export function printApiPreviewReferenceToPreviewUrl(
  * Web safe image content types that can be rendered in an `<img>` tag across all
  * major browsers. Based on MDN's "[Common image file types][1]."
  *
- * Duplicated from `shared/files/file_content_type.open_source.ts` to avoid a
- * dependency on `//shared/files` (we intend to open source this package).
+ * Duplicated from `shared/files/file_content_type.open_source.ts` to keep this
+ * Markdown printer self-contained.
  *
  * [1]:
  *     https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types#common_image_file_types
@@ -1668,8 +1668,8 @@ function isWebSafeImageContentType(contentType: string): boolean {
  * Web safe audio content types that can be rendered in an `<audio>` tag across all
  * major browsers.
  *
- * Duplicated from `shared/files/file_content_type.open_source.ts` to avoid a
- * dependency on `//shared/files` (we intend to open source this package).
+ * Duplicated from `shared/files/file_content_type.open_source.ts` to keep this
+ * Markdown printer self-contained.
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/audio
  */
@@ -1683,8 +1683,8 @@ function isWebSafeAudioContentType(contentType: string): boolean {
  * Web safe video content types that can be rendered in a `<video>` tag across all
  * major browsers.
  *
- * Duplicated from `shared/files/file_content_type.open_source.ts` to avoid a
- * dependency on `//shared/files` (we intend to open source this package).
+ * Duplicated from `shared/files/file_content_type.open_source.ts` to keep this
+ * Markdown printer self-contained.
  *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
  */

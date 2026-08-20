@@ -1,6 +1,11 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+exports_files(
+    ["micromark_parse_options.open_source.d.ts"],
+    visibility = ["//admin/open_source:__pkg__"],
+)
+
 ts_project(
     name = "cli_lib",
     visibility = ["//server/agents:__subpackages__"],
@@ -42,5 +47,8 @@ js_binary(
     data = [":cli_lib"],
     entry_point = "cli_main.open_source.js",
     env = {"NODE_ENV": "development"},
-    visibility = ["//server/agents/cli:__subpackages__"],
+    visibility = [
+        "//admin/open_source:__pkg__",
+        "//server/agents/cli:__subpackages__",
+    ],
 )

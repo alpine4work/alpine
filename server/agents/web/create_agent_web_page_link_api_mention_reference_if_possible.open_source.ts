@@ -1,6 +1,6 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
 import {createAgentWebPageLinkUrl} from "~/server/agents/web/create_agent_web_page_link_url.open_source.js";
-import {getAgentWebAlpineUrl} from "~/server/agents/web/get_agent_web_alpine_url.js";
+import {getAgentWebAlpineUrl} from "~/server/agents/web/get_agent_web_alpine_url.open_source.js";
 import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -57,9 +57,7 @@ export function createAgentWebPageLinkApiMentionReferenceIfPossible(
             };
         }
         case "Skill": {
-            // If the agent writes a skill link then output that as a URL to the skill file in
-            // our open source mirror so the user can go open that file and see what the agent
-            // was talking about.
+            // If an agent writes a skill link, output its source URL for reference.
             return {
                 type: "Url",
                 url: `https://github.com/alpine4work/alpine/blob/main/skills/alpine/${link.path}.md`,

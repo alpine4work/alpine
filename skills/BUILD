@@ -6,6 +6,18 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 INTERNAL_MARKDOWN_FILES = glob(["*/*.internal.md"])
 OPEN_SOURCE_MARKDOWN_FILES = glob(["*/*.open_source.md"])
 
+# This is not a publication filegroup. It lists the private source files that generate a tagged
+# JavaScript map consumed by the public CLI. The archive configuration uses it only to decide when
+# the public-repository CI must rebuild that generated output.
+filegroup(
+    name = "open_source_generated_source_inputs",
+    srcs = [
+        "BUILD",
+        "generate_skills_main.ts",
+    ] + INTERNAL_MARKDOWN_FILES,
+    visibility = ["//admin/open_source:__pkg__"],
+)
+
 pkg_files(
     name = "skills",
     srcs = OPEN_SOURCE_MARKDOWN_FILES,
@@ -13,7 +25,10 @@ pkg_files(
         file: file.replace(".open_source.", ".")
         for file in OPEN_SOURCE_MARKDOWN_FILES
     },
-    visibility = ["//server/agents/bots_v2/sandbox:__pkg__"],
+    visibility = [
+        "//admin/open_source:__pkg__",
+        "//server/agents/bots_v2/sandbox:__pkg__",
+    ],
 )
 
 ts_project(

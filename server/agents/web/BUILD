@@ -2,6 +2,11 @@ load("@aspect_bazel_lib//lib:copy_file.bzl", "copy_file")
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+exports_files(
+    ["agent_web_skill_content_by_path.open_source.d.ts"],
+    visibility = ["//admin/open_source:__pkg__"],
+)
+
 ts_project(
     name = "web",
     visibility = ["//server/agents:__subpackages__"],
@@ -47,6 +52,7 @@ copy_file(
     name = "copy_agent_web_skill_content_by_path",
     src = "//skills:agent_web_skill_content_by_path.open_source.js",
     out = "agent_web_skill_content_by_path.open_source.js",
+    visibility = ["//admin/open_source:__pkg__"],
 )
 
 js_library(

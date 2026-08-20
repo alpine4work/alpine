@@ -84,6 +84,13 @@ package with a `package.json` file.
 - `cyberworlds/no-commit-blockers` failures mark issues with code in the current branch to fix
   before merging. Leave these comments alone unless the user explicitly asks you to remove one.
 
+- Public npm manifests and `package-lock.open_source.json` are tagged source files. The
+  `//:write_open_source_package_lock_tests` diff test automatically regenerates and checks the
+  lockfile whenever its public repository inputs change. If it reports a stale lockfile, run
+  `bazel run //:write_open_source_package_lock`; it resolves from the exact public ZIP before
+  writing the source file. Add any new package to `open_source_repository_npm_packages` in
+  `admin/open_source/BUILD` as well so the Bazel public-repository verifier has its pinned package.
+
 ## Code style
 
 The full code style ruleset can be found in `admin/docs/code_style.md`, if needed.

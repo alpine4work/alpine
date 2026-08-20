@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "isolatedModules": true,
+        "lib": ["DOM", "DOM.Iterable", "ES2023"],
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "noEmit": true,
+        "paths": {
+            "~/server/agents/web/agent_web_skill_content_by_path.js": [
+                "server/agents/web/agent_web_skill_content_by_path.open_source.d.ts"
+            ],
+            "~/*": ["*"]
+        },
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "target": "ES2022"
+    },
+    "include": ["**/*.ts", "**/*.tsx"],
+    "exclude": ["node_modules", "packages/cli/dist"]
+}

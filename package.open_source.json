@@ -1,0 +1,22 @@
+{
+    "name": "alpine",
+    "private": true,
+    "type": "module",
+    "workspaces": ["packages/cli"],
+    "scripts": {
+        "build": "npm run build --workspace @alpine/cli",
+        "start": "npm run start --workspace @alpine/cli --",
+        "test": "node scripts/test.mjs",
+        "test:cli": "node scripts/test_cli.mjs",
+        "typecheck": "tsc --project tsconfig.json"
+    },
+    "devDependencies": {
+        "@types/jest": "29.4.0",
+        "@types/node": "^24.0.0",
+        "jest": "29.4.0",
+        "typescript": "5.9.2"
+    },
+    "engines": {
+        "node": ">=22"
+    }
+}

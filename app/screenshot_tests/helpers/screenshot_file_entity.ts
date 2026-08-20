@@ -12,7 +12,7 @@ import {
     initialOrderKey,
     isOrderKey,
 } from "~/shared/helpers/sort/order_key.open_source.js";
-import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.js";
+import {convertPascalCaseToKebabCase} from "~/shared/helpers/string/convert_pascal_case_to_kebab_case.open_source.js";
 import {assertSiteItemSearchEntityId} from "~/shared/search/site_item_search_entity_id.js";
 
 const schema = DocumentContentProsemirrorSchema;

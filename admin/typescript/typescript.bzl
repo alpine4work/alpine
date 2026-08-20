@@ -12,6 +12,7 @@ load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@npm//:typescript/package_json.bzl", typescript_bin = "bin")
 load("@npm//:jest/package_json.bzl", jest_bin = "bin")
+load("//admin/open_source:open_source_configuration.bzl", "OPEN_SOURCE_ALLOWED_BAZEL_PACKAGES")
 
 def ts_project(
         name,
@@ -68,6 +69,36 @@ def ts_project(
     if module != "es6" and module != "commonjs":
         fail("unrecognized module format `{}`".format(module))
 
+    # Keep the publication boundary enforceable during normal Bazel development. This is separate
+    # from the archive rule: it fails immediately when a TypeScript package adds a tagged file
+    # without first being reviewed and added to the central public-package allowlist.
+    open_source_source_paths = native.glob(
+        [
+            "**/*.open_source",
+            "**/*.open_source.*",
+            ".open_source/**",
+            "**/.open_source/**",
+        ],
+        allow_empty = True,
+    )
+    package_label = "//{}".format(native.package_name())
+    if len(open_source_source_paths) > 0 and not package_label in OPEN_SOURCE_ALLOWED_BAZEL_PACKAGES:
+        fail(
+            "Open-source files are not permitted in Bazel package `{}`. ".format(package_label) +
+            "Add this package to OPEN_SOURCE_ALLOWED_BAZEL_PACKAGES in " +
+            "//admin/open_source:open_source_configuration after it has been reviewed for publication.",
+        )
+
+    # The open-source archive aspect reaches this group through the project data edge. Keeping the
+    # group beside its owning package lets Bazel track tagged source and test files without a
+    # workspace-wide filesystem scan, which would bypass action caching.
+    open_source_files_target = "{}_open_source_files".format(name)
+    native.filegroup(
+        name = open_source_files_target,
+        srcs = open_source_source_paths,
+        visibility = ["//admin/open_source:__pkg__"],
+    )
+
     _ts_project(
         name = name,
         # Our global type definition files need to be available to all `ts_project()`s so type checking
@@ -78,7 +109,7 @@ def ts_project(
         # is `package.json` in the build tree). We need this runtime dependency since
         # it has `{"type": "module"}` which is necessary for Node.js to interpret
         # transpiled `.js` files as ES Modules.
-        data = ["//:package_light_json_file"] + data,
+        data = ["//:package_light_json_file", ":{}".format(open_source_files_target)] + data,
         tsconfig = "//:tsconfig",
         transpiler = partial.make(swc, module = module),
         declaration = True,
@@ -93,8 +124,14 @@ def ts_project(
         # `ts_project()`s are all visible to the `//admin/typescript/workspace` package
         # which runs tests against all TypeScript files in the repository.
         visibility =
-            (["//admin/typescript/workspace:__pkg__"] if not ("//visibility:public" in visibility) else []) +
-            visibility,
+            (
+                [
+                    "//admin/open_source:__pkg__",
+                    "//admin/typescript/workspace:__pkg__",
+                ]
+                if not ("//visibility:public" in visibility)
+                else []
+            ) + visibility,
         **kwargs
     )
 
@@ -172,6 +209,10 @@ def ts_project(
                     # Use our custom Jest config.
                     "--config",
                     "jest.config.cjs",
+                    # Each Bazel target owns exactly one test file. Running its exact path avoids
+                    # crawling the symlinked runfiles tree, which also lets fixture tests opt out
+                    # of rules_js's filesystem symlink guard when necessary.
+                    "--runTestsByPath",
                     # Each test run is only for a single file.
                     "{}/{}".format(native.package_name(), test_src_js),
                 ],

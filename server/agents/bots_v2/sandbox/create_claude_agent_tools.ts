@@ -9,7 +9,7 @@ import {
     printAgentWebPageLinkKey,
 } from "~/server/agents/web/agent_web_page_link_key.open_source.js";
 import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_tool.open_source.js";
-import {callAgentWebDeleteTool} from "~/server/agents/web/call_agent_web_delete_tool.js";
+import {callAgentWebDeleteTool} from "~/server/agents/web/call_agent_web_delete_tool.open_source.js";
 import {callAgentWebFindTool} from "~/server/agents/web/call_agent_web_find_tool.open_source.js";
 import {callAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {callAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
