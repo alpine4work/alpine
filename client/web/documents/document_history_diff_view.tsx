@@ -35,11 +35,15 @@ export function DocumentHistoryDiffView({
                 startDoc: selection.diff.startContent,
                 steps: selection.diff.steps,
             }),
-        [selection],
+        [selection.diff],
     );
     const endContent = useMemo(
         () => assertDocumentContent(renderedDiff.endDoc),
         [renderedDiff.endDoc],
+    );
+    const content = useMemo(
+        () => ({doc: renderedDiff.renderedDoc, references: selection.diff.contentReferences}),
+        [renderedDiff.renderedDoc, selection.diff.contentReferences],
     );
     const blobsSettings = useMemo(() => {
         const cover = endContent.attrs.cover;
@@ -139,10 +143,7 @@ export function DocumentHistoryDiffView({
                 {coverArt}
                 <Box ref={documentContentRef}>
                     <ContentView
-                        content={{
-                            doc: renderedDiff.renderedDoc,
-                            references: selection.diff.contentReferences,
-                        }}
+                        content={content}
                         className={documentContentStyles.contentClassName}
                         decorations={renderedDiff.decorations}
                         fileAttachmentTarget={fileAttachmentTarget}

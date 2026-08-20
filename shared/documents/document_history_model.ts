@@ -65,3 +65,12 @@ export const DocumentHistoryDiffSchema = Schema.object({
 });
 
 export type DocumentHistoryDiff = SchemaType<typeof DocumentHistoryDiffSchema>;
+
+/** A reconstructed historical diff and the version range it represents. */
+export const DocumentHistoryDiffForRangeSchema = Schema.object({
+    range: DocumentHistoryVersionRangeSchema,
+    showInitialContentAsAdditions: Schema.boolean,
+    diff: DocumentHistoryDiffSchema,
+});
+
+export type DocumentHistoryDiffForRange = SchemaType<typeof DocumentHistoryDiffForRangeSchema>;

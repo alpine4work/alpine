@@ -1,12 +1,19 @@
 import {X} from "phosphor-react";
-import {useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {Box} from "~/client/web/design/box.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {DocumentHistoryEntryRow} from "~/client/web/documents/internal/document_history_entry_row.js";
 import {DocumentHistoryGroupRow} from "~/client/web/documents/internal/document_history_group_row.js";
-import {addRemLengths} from "~/shared/design/core/spacing.js";
+import {
+    VirtualizedScrollView,
+    VirtualizedScrollViewItem,
+    VirtualizedScrollViewRenderItem,
+} from "~/client/web/virtualized/virtualized_scroll_view.js";
+import {RemLength, addRemLengths, spacing} from "~/shared/design/core/spacing.js";
 import {DocumentHistoryGroup} from "~/shared/documents/document_history_model.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -18,6 +25,17 @@ export type DocumentHistoryListViewSelection =
           readonly endVersion: number;
           readonly parentGroupEndVersion: number;
       };
+
+type DocumentHistoryListItem =
+    | {readonly type: "Group"; readonly group: DocumentHistoryGroup}
+    | {
+          readonly type: "Entry";
+          readonly entry: DocumentHistoryGroup["entries"][number];
+          readonly isFirstEntryInGroup: boolean;
+      };
+
+const documentHistoryGroupRowMinHeight: RemLength = spacing["10"];
+const documentHistoryEntryRowMinHeight: RemLength = spacing["9"];
 
 export function DocumentHistoryListView({
     groups,
@@ -36,6 +54,98 @@ export function DocumentHistoryListView({
 }) {
     const [expandedGroupEndVersions, setExpandedGroupEndVersions] = useState<Set<number>>(() =>
         selection.type === "Entry" ? new Set([selection.parentGroupEndVersion]) : new Set(),
+    );
+
+    useEffect(() => {
+        if (selection.type !== "Entry") return;
+
+        setExpandedGroupEndVersions(previous => {
+            if (previous.has(selection.parentGroupEndVersion)) return previous;
+            return new Set([...previous, selection.parentGroupEndVersion]);
+        });
+    }, [selection]);
+
+    const items = useMemo((): ReadonlyArray<DocumentHistoryListItem> => {
+        const items: Array<DocumentHistoryListItem> = [];
+
+        for (const group of groups) {
+            items.push({type: "Group", group});
+            if (!expandedGroupEndVersions.has(group.endVersion)) continue;
+
+            for (const [entryIndex, entry] of group.entries.entries()) {
+                items.push({type: "Entry", entry, isFirstEntryInGroup: entryIndex === 0});
+            }
+        }
+
+        return items;
+    }, [expandedGroupEndVersions, groups]);
+
+    const renderItem: VirtualizedScrollViewRenderItem = useCallback(
+        (index: number): VirtualizedScrollViewItem => {
+            const item = assertExists(items[index], "Document history item index is out of bounds");
+
+            switch (item.type) {
+                case "Group": {
+                    const isExpandable = item.group.entries.length > 1;
+                    const isExpanded =
+                        isExpandable && expandedGroupEndVersions.has(item.group.endVersion);
+                    const isSelected =
+                        selection.type === "Group" &&
+                        selection.endVersion === item.group.endVersion;
+
+                    return {
+                        key: `Group:${item.group.endVersion}`,
+                        minHeight: documentHistoryGroupRowMinHeight,
+                        node: (
+                            <DocumentHistoryGroupRow
+                                group={item.group}
+                                accountById={accountById}
+                                isExpandable={isExpandable}
+                                isExpanded={isExpanded}
+                                isSelected={isSelected}
+                                onSelect={() => onSelectGroup(item.group)}
+                                onToggleExpanded={() => {
+                                    setExpandedGroupEndVersions(previous => {
+                                        const next = new Set(previous);
+                                        if (next.has(item.group.endVersion)) {
+                                            next.delete(item.group.endVersion);
+                                        } else {
+                                            next.add(item.group.endVersion);
+                                        }
+                                        return next;
+                                    });
+                                }}
+                            />
+                        ),
+                    };
+                }
+                case "Entry":
+                    return {
+                        key: `Entry:${item.entry.startVersion}:${item.entry.endVersion}`,
+                        minHeight: documentHistoryEntryRowMinHeight,
+                        node: (
+                            <Box
+                                marginTop={item.isFirstEntryInGroup ? "0.5" : undefined}
+                                paddingLeft="1.5"
+                                style={{marginLeft: addRemLengths("1", "2.5")}}
+                            >
+                                <DocumentHistoryEntryRow
+                                    entry={item.entry}
+                                    accountById={accountById}
+                                    isSelected={
+                                        selection.type === "Entry" &&
+                                        selection.endVersion === item.entry.endVersion
+                                    }
+                                    onPress={() => onSelectEntry(item.entry)}
+                                />
+                            </Box>
+                        ),
+                    };
+                default:
+                    throw exhaustive(item);
+            }
+        },
+        [accountById, expandedGroupEndVersions, items, onSelectEntry, onSelectGroup, selection],
     );
 
     return (
@@ -88,63 +198,17 @@ export function DocumentHistoryListView({
                 />
             </Box>
 
-            <Box flexGrow="1" minHeight="0" overflowY="auto">
+            <Box flexGrow="1" minHeight="0">
                 {groups.length === 0 ? (
                     <Box padding="4" color="grey-60" textAlign="center">
                         No saved versions yet.
                     </Box>
                 ) : (
-                    groups.map(group => {
-                        const isExpandable = group.entries.length > 1;
-                        const isExpanded =
-                            isExpandable && expandedGroupEndVersions.has(group.endVersion);
-                        const isSelected =
-                            selection.type === "Group" && selection.endVersion === group.endVersion;
-
-                        return (
-                            <Box key={group.endVersion}>
-                                <DocumentHistoryGroupRow
-                                    group={group}
-                                    accountById={accountById}
-                                    isExpandable={isExpandable}
-                                    isExpanded={isExpanded}
-                                    isSelected={isSelected}
-                                    onSelect={() => onSelectGroup(group)}
-                                    onToggleExpanded={() => {
-                                        setExpandedGroupEndVersions(previous => {
-                                            const next = new Set(previous);
-                                            if (next.has(group.endVersion)) {
-                                                next.delete(group.endVersion);
-                                            } else {
-                                                next.add(group.endVersion);
-                                            }
-                                            return next;
-                                        });
-                                    }}
-                                />
-                                {isExpanded && (
-                                    <Box
-                                        marginTop="0.5"
-                                        paddingLeft="1.5"
-                                        style={{marginLeft: addRemLengths("1", "2.5")}}
-                                    >
-                                        {group.entries.map(entry => (
-                                            <DocumentHistoryEntryRow
-                                                key={`${entry.startVersion}:${entry.endVersion}`}
-                                                entry={entry}
-                                                accountById={accountById}
-                                                isSelected={
-                                                    selection.type === "Entry" &&
-                                                    selection.endVersion === entry.endVersion
-                                                }
-                                                onPress={() => onSelectEntry(entry)}
-                                            />
-                                        ))}
-                                    </Box>
-                                )}
-                            </Box>
-                        );
-                    })
+                    <VirtualizedScrollView
+                        itemCount={items.length}
+                        bufferedItemHeight={documentHistoryGroupRowMinHeight}
+                        renderItem={renderItem}
+                    />
                 )}
             </Box>
         </Box>
