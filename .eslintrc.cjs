@@ -163,6 +163,7 @@ module.exports = {
         "cyberworlds/no-global-fetch": "error",
         "cyberworlds/sort-imports-by-source": "warn",
         "cyberworlds/no-internal-imports": "error",
+        "cyberworlds/no-private-imports-in-open-source": "error",
         "cyberworlds/no-commit-blockers": "warn",
         "cyberworlds/string-quotes": "warn",
 

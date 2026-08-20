@@ -221,8 +221,9 @@ jobs:
             - name: Initialize Bazel cache
               uses: ./.github/actions/initialize-bazel-cache
 
-            # The first bucket determines whether a changed public source needs archive and test jobs.
-            # TODO(#open-source): Run this check in its own container once AWS burst capacity allows it.
+            # The first bucket always determines whether a changed public source needs archive and test jobs.
+            # TODO(#open-source): Move this check to its own container when AWS burst capacity permits;
+            # it currently runs here because the AWS runners are at their burst limit.
             - if: matrix.bucket == 1
               id: open_source_changes
               name: Detect open-source changes

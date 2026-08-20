@@ -4,10 +4,14 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "eslint",
+    data = ["//admin/eslint/rules:pkg"],
     deps = [
+        "//admin/eslint/rules:pkg",
         "//client/web/content",
+        "//:node_modules/eslint",
         "//shared/helpers",
         "//shared/id",
+        "//shared/tracer",
     ],
 )
 
