@@ -1,6 +1,10 @@
+import {useSearchParams} from "@remix-run/react";
 import {useEffect, useMemo} from "react";
 import {createHeadMetaForDocument} from "~/app/helpers/create_head_meta.js";
-import {deserializeDocumentIdForLoader} from "~/app/helpers/deserialize_id_for_loader.js";
+import {
+    deserializeDocumentIdForLoader,
+    deserializeSpaceIdForLoader,
+} from "~/app/helpers/deserialize_id_for_loader.js";
 import {loadWithSpaceAndSiteDiscovery} from "~/app/helpers/load_with_space_and_site_discovery.js";
 import {ContentBlockWidthContextProvider} from "~/client/web/content/content_block_width.js";
 import {Box} from "~/client/web/design/box.js";
@@ -21,19 +25,26 @@ import {
     documentContentEditorSidebarMaxWidth,
     documentContentEditorSidebarWidth,
 } from "~/client/web/styles/document_shared_styles.js";
+import {getDocumentWithOptionalCommentsIfExists} from "~/server/documents/data/documents_actions.js";
 import {expensivelyGetDocumentHistory} from "~/server/documents/data/expensively_get_document_history.js";
 import {getDocumentHistoryDiff} from "~/server/documents/data/get_document_history_diff.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getAccount} from "~/server/spaces/get_account.js";
 import {spacing} from "~/shared/design/core/spacing.js";
+import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
+import {createEmptyDocumentContent} from "~/shared/documents/document_content_schema.js";
+import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
 import {groupDocumentHistoryTransactions} from "~/shared/documents/document_history_grouping.js";
 import {
+    DocumentHistoryAuthor,
     DocumentHistoryDiffSchema,
     DocumentHistoryGroup,
     DocumentHistoryGroupSchema,
     DocumentHistoryVersionRange,
     DocumentHistoryVersionRangeSchema,
 } from "~/shared/documents/document_history_model.js";
+import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {NotFoundError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {FileAttachmentTarget} from "~/shared/files/file_attachment_target.js";
@@ -48,6 +59,7 @@ const DocumentHistoryRouteSelectionSchema = Schema.union({
         type: Schema.value("Group"),
         endVersion: Schema.integer,
         range: DocumentHistoryVersionRangeSchema,
+        showInitialContentAsAdditions: Schema.boolean,
         diff: DocumentHistoryDiffSchema,
     }),
     Entry: Schema.object({
@@ -55,6 +67,7 @@ const DocumentHistoryRouteSelectionSchema = Schema.union({
         endVersion: Schema.integer,
         parentGroupEndVersion: Schema.integer,
         range: DocumentHistoryVersionRangeSchema,
+        showInitialContentAsAdditions: Schema.boolean,
         diff: DocumentHistoryDiffSchema,
     }),
 });
@@ -80,15 +93,79 @@ export async function loader({params, context: unauthenticatedContext, request}:
         request,
         entityId: `Document:${documentId}`,
         load1: async ({onSiteId}) => {
+            const document = await getDocumentWithOptionalCommentsIfExists(context, documentId, {
+                onSiteId,
+            });
+
+            if (!document) {
+                const createSearchParam = url.searchParams.get("create");
+                if (createSearchParam === null) throw createDocumentNotFoundError(documentId);
+
+                const spaceId = deserializeSpaceIdForLoader(createSearchParam);
+                context.discovery.discoverSpaceId(spaceId, "CreateSearchParam");
+                const sessionContext = context.actor.authorizeSession();
+                const accountId = sessionContext.actor.getAccountId();
+                const content = createEmptyDocumentContent(accountId);
+                const initialVersionCreatedTime = new Date();
+
+                const groups = [
+                    createInitialDocumentHistoryGroup({
+                        createdTime: initialVersionCreatedTime,
+                        author: {id: accountId, from: null},
+                    }),
+                ];
+
+                const selectedRange = getDocumentHistorySelectedRange({
+                    groups,
+                    version,
+                    isGroupSelection,
+                    initialVersionCreatedTime,
+                });
+
+                const selection: DocumentHistoryRouteSelection =
+                    selectedRange === null
+                        ? {type: "None"}
+                        : {
+                              ...selectedRange,
+                              diff: {
+                                  startContent: content,
+                                  steps: [],
+                                  contentReferences: emptyDocumentContentReferences,
+                              },
+                          };
+
+                return {
+                    documentTitle: getDocumentContentTitle(content),
+                    groups,
+                    accounts: [await getAccount(sessionContext, spaceId, accountId)],
+                    selection,
+                };
+            }
+
             const history = await expensivelyGetDocumentHistory(context, {
                 id: documentId,
                 onSiteId,
             });
-            const groups = groupDocumentHistoryTransactions(history.transactions);
+
+            const groups = groupDocumentHistoryTransactions([
+                ...(history.initialVersion
+                    ? [
+                          {
+                              startVersion: 0,
+                              endVersion: 0,
+                              createdTime: history.initialVersion.createdTime,
+                              author: history.initialVersion.author,
+                          },
+                      ]
+                    : []),
+                ...history.transactions,
+            ]);
+
             const selectedRange = getDocumentHistorySelectedRange({
                 groups,
                 version,
                 isGroupSelection,
+                initialVersionCreatedTime: history.initialVersion?.createdTime ?? null,
             });
 
             // TODO(#optimize-document-history): Let the paged history list render before
@@ -101,6 +178,8 @@ export async function loader({params, context: unauthenticatedContext, request}:
                           diff: await getDocumentHistoryDiff(context, {
                               id: documentId,
                               ...selectedRange.range,
+                              showInitialContentAsAdditions:
+                                  selectedRange.showInitialContentAsAdditions,
                           }),
                       };
 
@@ -131,16 +210,21 @@ export default function DocumentHistoryRoute() {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
     const navigate = useRootNavigate();
     const routeLayout = useRouteLayout();
+    const [searchParams] = useSearchParams();
+    const createSearchParam = searchParams.get("create");
 
     useEffect(() => {
         if (routeLayout !== "narrow") return;
         // TODO(#narrow-document-history): Support version history on narrow layouts.
-        void navigate(`/doc/${loaderData.documentId}`, {replace: true});
-    }, [loaderData.documentId, navigate, routeLayout]);
+        void navigate(
+            appendDocumentCreateSearchParam(`/doc/${loaderData.documentId}`, createSearchParam),
+            {replace: true},
+        );
+    }, [createSearchParam, loaderData.documentId, navigate, routeLayout]);
 
     if (routeLayout === "narrow") return null;
 
-    return <DocumentHistoryRouteWide {...loaderData} />;
+    return <DocumentHistoryRouteWide {...loaderData} createSearchParam={createSearchParam} />;
 }
 
 function DocumentHistoryRouteWide({
@@ -148,7 +232,8 @@ function DocumentHistoryRouteWide({
     groups,
     accounts,
     selection,
-}: SchemaType<typeof LoaderSchema>) {
+    createSearchParam,
+}: SchemaType<typeof LoaderSchema> & {readonly createSearchParam: string | null}) {
     const navigate = useRootNavigate();
     const accountById = useMemo(
         () => new Map(accounts.map(account => [account.id, account])),
@@ -158,7 +243,10 @@ function DocumentHistoryRouteWide({
     const selectedHistory: DocumentHistorySelection | null =
         selection.type === "None" ? null : selection;
     const noSelectionNavigationBar = useNavigationBar({
-        defaultPreviousRoute: `/doc/${documentId}`,
+        defaultPreviousRoute: appendDocumentCreateSearchParam(
+            `/doc/${documentId}`,
+            createSearchParam,
+        ),
     });
     const noSelectionScrollViewRef = useMergedRefs(
         noSelectionNavigationBar.scrollViewRef,
@@ -212,19 +300,37 @@ function DocumentHistoryRouteWide({
                     selection={listSelection}
                     onSelectGroup={group => {
                         void navigate(
-                            `/doc/${documentId}/history?version=${group.endVersion}&group`,
+                            appendDocumentCreateSearchParam(
+                                `/doc/${documentId}/history?version=${group.endVersion}&group`,
+                                createSearchParam,
+                            ),
                         );
                     }}
                     onSelectEntry={entry => {
-                        void navigate(`/doc/${documentId}/history?version=${entry.endVersion}`);
+                        void navigate(
+                            appendDocumentCreateSearchParam(
+                                `/doc/${documentId}/history?version=${entry.endVersion}`,
+                                createSearchParam,
+                            ),
+                        );
                     }}
                     onClose={() => {
-                        void navigate(`/doc/${documentId}`);
+                        void navigate(
+                            appendDocumentCreateSearchParam(
+                                `/doc/${documentId}`,
+                                createSearchParam,
+                            ),
+                        );
                     }}
                 />
             </Box>
         </Box>
     );
+}
+
+function appendDocumentCreateSearchParam(url: string, createSearchParam: string | null) {
+    if (createSearchParam === null) return url;
+    return `${url}${url.includes("?") ? "&" : "?"}${new URLSearchParams({create: createSearchParam})}`;
 }
 
 function parseDocumentHistoryVersionSearchParam(version: string | null): number | null {
@@ -240,25 +346,54 @@ function parseDocumentHistoryVersionSearchParam(version: string | null): number 
     return parsedVersion;
 }
 
+function createInitialDocumentHistoryGroup({
+    createdTime,
+    author,
+}: {
+    createdTime: Date;
+    author: DocumentHistoryAuthor;
+}): DocumentHistoryGroup {
+    return {
+        startVersion: 0,
+        endVersion: 0,
+        startTime: createdTime,
+        endTime: createdTime,
+        contributors: [author],
+        entries: [
+            {
+                startVersion: 0,
+                endVersion: 0,
+                startTime: createdTime,
+                endTime: createdTime,
+                contributors: [author],
+            },
+        ],
+    };
+}
+
 function getDocumentHistorySelectedRange({
     groups,
     version,
     isGroupSelection,
+    initialVersionCreatedTime,
 }: {
     groups: ReadonlyArray<DocumentHistoryGroup>;
     version: number | null;
     isGroupSelection: boolean;
+    initialVersionCreatedTime: Date | null;
 }):
     | {
           readonly type: "Group";
           readonly endVersion: number;
           readonly range: DocumentHistoryVersionRange;
+          readonly showInitialContentAsAdditions: boolean;
       }
     | {
           readonly type: "Entry";
           readonly endVersion: number;
           readonly parentGroupEndVersion: number;
           readonly range: DocumentHistoryVersionRange;
+          readonly showInitialContentAsAdditions: boolean;
       }
     | null {
     if (version === null) {
@@ -272,6 +407,10 @@ function getDocumentHistorySelectedRange({
                 startVersion: firstGroup.startVersion,
                 endVersion: firstGroup.endVersion,
             },
+            showInitialContentAsAdditions: documentHistoryItemIncludesInitialVersion(
+                firstGroup,
+                initialVersionCreatedTime,
+            ),
         };
     }
 
@@ -282,6 +421,10 @@ function getDocumentHistorySelectedRange({
             type: "Group",
             endVersion: group.endVersion,
             range: {startVersion: group.startVersion, endVersion: group.endVersion},
+            showInitialContentAsAdditions: documentHistoryItemIncludesInitialVersion(
+                group,
+                initialVersionCreatedTime,
+            ),
         };
     }
 
@@ -292,10 +435,25 @@ function getDocumentHistorySelectedRange({
             endVersion: entry.endVersion,
             parentGroupEndVersion: entry.parentGroupEndVersion,
             range: {startVersion: entry.startVersion, endVersion: entry.endVersion},
+            showInitialContentAsAdditions: documentHistoryItemIncludesInitialVersion(
+                entry,
+                initialVersionCreatedTime,
+            ),
         };
     }
 
     throw createDocumentHistoryVersionNotFoundError();
+}
+
+function documentHistoryItemIncludesInitialVersion(
+    item: {startVersion: number; startTime: Date},
+    initialVersionCreatedTime: Date | null,
+): boolean {
+    return (
+        initialVersionCreatedTime !== null &&
+        item.startVersion === 0 &&
+        item.startTime.getTime() === initialVersionCreatedTime.getTime()
+    );
 }
 
 function createDocumentHistoryVersionNotFoundError() {

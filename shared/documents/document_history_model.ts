@@ -9,12 +9,7 @@ import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /** The most ProseMirror steps a single history comparison may return. */
-export const documentHistoryDiffMaxStepCount = 500;
-
-/**
- * The farthest a history comparison may reconstruct from the current snapshot.
- */
-export const documentHistoryDiffMaxReconstructionStepCount = 10_000;
+export const documentHistoryDiffMaxStepCount = 1000;
 
 export const DocumentHistoryAuthorSchema = Schema.object({
     id: Schema.id<AccountId>().nullable(),

@@ -5,6 +5,7 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {documentHistoryDiffMaxStepCount} from "~/shared/documents/document_history_model.js";
 
 const context = createTestContext();
 
@@ -50,13 +51,13 @@ test("loads references for deleted document-history content", async () => {
     expect(diff.contentReferences.fileById?.has(file.id)).toBe(true);
 });
 
-test("rejects history comparisons larger than 500 steps", async () => {
+test("rejects history comparisons larger than the configured maximum", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
     const document = await TestDocument.create(session);
     const startVersion = await document.getVersion();
     const steps = Array.from(
-        {length: 501},
+        {length: documentHistoryDiffMaxStepCount + 1},
         (_, index) => new DocAttrStep("hasPresentShortcut", index % 2 === 0),
     );
 
@@ -69,5 +70,7 @@ test("rejects history comparisons larger than 500 steps", async () => {
             startVersion,
             endVersion,
         }),
-    ).rejects.toThrow("Document history comparisons may contain at most 500 steps");
+    ).rejects.toThrow(
+        `Document history comparisons may contain at most ${documentHistoryDiffMaxStepCount} steps`,
+    );
 });

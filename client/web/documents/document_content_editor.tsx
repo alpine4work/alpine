@@ -1872,7 +1872,12 @@ export function DocumentContentEditor({
                                   icon: <ClockCounterClockwise />,
                                   iconPlacement: "end",
                                   pressErrorTitle: "Couldn\u2019t open version history",
-                                  onPress: () => navigate(`/doc/${documentId}/history`),
+                                  onPress: () =>
+                                      navigate(
+                                          isGhostDocument
+                                              ? `/doc/${documentId}/history?create=${spaceId}`
+                                              : `/doc/${documentId}/history`,
+                                      ),
                               }),
                           ]
                         : []),
@@ -2132,6 +2137,7 @@ export function DocumentContentEditor({
                 favoriteMenuAction,
                 getEditorState,
                 getIsGhostDocument,
+                isGhostDocument,
                 isRedoDisabled,
                 isUndoDisabled,
                 navigate,

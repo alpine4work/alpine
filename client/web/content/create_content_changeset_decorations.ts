@@ -7,12 +7,15 @@ import {
     Mapping,
     RemoveMarkStep,
     RemoveNodeMarkStep,
+    ReplaceStep,
     Step,
     StepMap,
 } from "prosemirror-transform";
 import {contentStyles} from "~/client/web/styles/styles.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
+import {diff} from "~/shared/helpers/diff/diff.js";
 import {ProsemirrorHtmlSerializationDecoration} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 
 /**
@@ -74,37 +77,45 @@ export function createContentChangesetDecorations({
     }
 
     const changeSet = ChangeSet.create<null>(startDoc).addSteps(endDoc, stepMaps, null);
+    const semanticTopLevelInsertionRanges = getSemanticTopLevelInsertionRanges({
+        startDoc,
+        endDoc,
+        steps,
+    });
+
     const decorations: Array<ProsemirrorHtmlSerializationDecoration> = [];
-    const unexpandedChangeRanges = mergeContentChangesetRanges([
-        ...changeSet.changes.map(
-            (change): ContentChangesetRange => ({
-                fromA: change.fromA,
-                toA: change.toA,
-                fromB: change.fromB,
-                toB: change.toB,
-            }),
-        ),
-        // A formatting step uses the coordinate space immediately before it. Map that
-        // range back to the start document and forward to the end document.
-        ...formattingRanges.map(
-            (formattingRange): ContentChangesetRange => ({
-                fromA: new Mapping(stepMaps.slice(0, formattingRange.stepMapIndex))
-                    .invert()
-                    .map(formattingRange.from, 1),
-                toA: new Mapping(stepMaps.slice(0, formattingRange.stepMapIndex))
-                    .invert()
-                    .map(formattingRange.to, -1),
-                fromB: new Mapping(stepMaps.slice(formattingRange.stepMapIndex + 1)).map(
-                    formattingRange.from,
-                    1,
-                ),
-                toB: new Mapping(stepMaps.slice(formattingRange.stepMapIndex + 1)).map(
-                    formattingRange.to,
-                    -1,
-                ),
-            }),
-        ),
-    ]);
+    const unexpandedChangeRanges =
+        semanticTopLevelInsertionRanges ??
+        mergeContentChangesetRanges([
+            ...changeSet.changes.map(
+                (change): ContentChangesetRange => ({
+                    fromA: change.fromA,
+                    toA: change.toA,
+                    fromB: change.fromB,
+                    toB: change.toB,
+                }),
+            ),
+            // A formatting step uses the coordinate space immediately before it. Map that
+            // range back to the start document and forward to the end document.
+            ...formattingRanges.map(
+                (formattingRange): ContentChangesetRange => ({
+                    fromA: new Mapping(stepMaps.slice(0, formattingRange.stepMapIndex))
+                        .invert()
+                        .map(formattingRange.from, 1),
+                    toA: new Mapping(stepMaps.slice(0, formattingRange.stepMapIndex))
+                        .invert()
+                        .map(formattingRange.to, -1),
+                    fromB: new Mapping(stepMaps.slice(formattingRange.stepMapIndex + 1)).map(
+                        formattingRange.from,
+                        1,
+                    ),
+                    toB: new Mapping(stepMaps.slice(formattingRange.stepMapIndex + 1)).map(
+                        formattingRange.to,
+                        -1,
+                    ),
+                }),
+            ),
+        ]);
     // Render a complete text block replacement as separate old and new blocks.
     const changeRanges = unexpandedChangeRanges.map(range =>
         expandContentChangesetRangeToWholeTextBlocks({range, startDoc, endDoc}),
@@ -141,13 +152,29 @@ export function createContentChangesetDecorations({
 
             renderedDoc = renderedDoc.replace(from, from, deletedSlice);
             endDocToRenderedDocMapping.appendMap(new StepMap([from, 0, deletedSlice.size]));
-            const tableCellDecorations = getContentChangesetTableCellDecorations({
+
+            const tableCellDecorations = getContentChangesetNodeDecorations({
                 doc: renderedDoc,
                 from,
                 to,
                 className: contentStyles.contentChangesetDeletedTableCellClassName,
+                nodeTypeName: "tableCell",
             });
+
             decorations.push(...tableCellDecorations);
+
+            if (renderedDoc.textBetween(from, to, "") !== "") {
+                decorations.push(
+                    ...getContentChangesetNodeDecorations({
+                        doc: renderedDoc,
+                        from,
+                        to,
+                        className: contentStyles.contentChangesetDeletedClassName,
+                        nodeTypeName: "mention",
+                    }),
+                );
+            }
+
             if (tableCellDecorations.length === 0) {
                 // Empty blocks have no inline content to wrap in a `<del>` element.
                 if (startDoc.textBetween(changeRange.fromA, changeRange.toA, "") === "") {
@@ -169,6 +196,7 @@ export function createContentChangesetDecorations({
                     });
                 }
             }
+
             renderedChangeRange = changeRange;
             break;
         }
@@ -181,13 +209,28 @@ export function createContentChangesetDecorations({
 
         const from = endDocToRenderedDocMapping.map(changeRange.fromB, 1);
         const to = endDocToRenderedDocMapping.map(changeRange.toB, 1);
-        const tableCellDecorations = getContentChangesetTableCellDecorations({
+        const tableCellDecorations = getContentChangesetNodeDecorations({
             doc: renderedDoc,
             from,
             to,
             className: contentStyles.contentChangesetInsertedTableCellClassName,
+            nodeTypeName: "tableCell",
         });
+
         decorations.push(...tableCellDecorations);
+
+        if (endDoc.textBetween(changeRange.fromB, changeRange.toB, "") !== "") {
+            decorations.push(
+                ...getContentChangesetNodeDecorations({
+                    doc: renderedDoc,
+                    from,
+                    to,
+                    className: contentStyles.contentChangesetInsertedClassName,
+                    nodeTypeName: "mention",
+                }),
+            );
+        }
+
         if (tableCellDecorations.length === 0) {
             // Empty blocks likewise need a node decoration instead of an `<ins>` element.
             if (endDoc.textBetween(changeRange.fromB, changeRange.toB, "") === "") {
@@ -221,22 +264,108 @@ export function createContentChangesetDecorations({
     };
 }
 
-function getContentChangesetTableCellDecorations({
+/**
+ * Detects a pure top-level block insertion that an automated editor persisted by
+ * shifting a list one item at a time.
+ *
+ * Let's say we have a list of dates, one paragraph each, top down. If we insert
+ * `Aug 18` to the top of the list, the steps become:
+ *
+ * 1. Replace the `Aug 17` paragraph with `Aug 18`.
+ * 2. Replace `Aug 14` with `Aug 17`, and `Aug 13` with `Aug 14`.
+ * 3. Append a new `Aug 13` paragraph.
+ *
+ * The first two operations are same-sized replacements.
+ *
+ * Their step maps show no insertion; only the final append has an insertion map.
+ * `ChangeSet` follows those maps, so it marks the trailing `Aug 3` as new rather
+ * than the actual `Aug 18` insertion.
+ *
+ * For this specific shape, align the document's direct child nodes by semantic
+ * equality instead.
+ *
+ * If every old child remains unchanged and the only difference is added children,
+ * the resulting ranges identify the actual inserted blocks.
+ *
+ * This is intentionally a strict fallback rather than a general document diff: it
+ * requires a same-sized replacement, at least one addition, and no removals. A
+ * real edit, deletion, or other ambiguous update returns `null` so callers use the
+ * normal step-map-based `ChangeSet` ranges instead.
+ */
+function getSemanticTopLevelInsertionRanges({
+    startDoc,
+    endDoc,
+    steps,
+}: {
+    startDoc: Node;
+    endDoc: Node;
+    steps: ReadonlyArray<Step>;
+}): Array<ContentChangesetRange> | null {
+    if (
+        !steps.some(
+            step =>
+                step instanceof ReplaceStep &&
+                step.from < step.to &&
+                step.to - step.from === step.slice.size,
+        )
+    ) {
+        return null;
+    }
+
+    const changes = diff(startDoc.content.content, endDoc.content.content, {
+        equals: (node1, node2) => node1.eq(node2),
+    });
+
+    if (!changes.some(change => change.type === "Added")) return null;
+    if (changes.some(change => change.type === "Removed")) return null;
+
+    const ranges: Array<ContentChangesetRange> = [];
+    let startPosition = 0;
+    let endPosition = 0;
+
+    for (const change of changes) {
+        switch (change.type) {
+            case "Added":
+                ranges.push({
+                    fromA: startPosition,
+                    toA: startPosition,
+                    fromB: endPosition,
+                    toB: endPosition + change.newToken.nodeSize,
+                });
+                endPosition += change.newToken.nodeSize;
+                break;
+            case "Equal":
+                startPosition += change.oldToken.nodeSize;
+                endPosition += change.newToken.nodeSize;
+                break;
+            case "Removed":
+                return null;
+            default:
+                throw exhaustive(change);
+        }
+    }
+
+    return ranges;
+}
+
+function getContentChangesetNodeDecorations({
     doc,
     from,
     to,
     className,
+    nodeTypeName,
 }: {
     doc: Node;
     from: number;
     to: number;
     className: string;
+    nodeTypeName: string;
 }): Array<ContentChangesetNodeDecoration> {
-    const tableCellDecorations: Array<ContentChangesetNodeDecoration> = [];
+    const nodeDecorations: Array<ContentChangesetNodeDecoration> = [];
 
     doc.nodesBetween(from, to, (node, pos) => {
-        if (node.type.name === "tableCell" && from <= pos && pos + node.nodeSize <= to) {
-            tableCellDecorations.push({
+        if (node.type.name === nodeTypeName && from <= pos && pos + node.nodeSize <= to) {
+            nodeDecorations.push({
                 type: "Node",
                 from: pos,
                 to: pos + node.nodeSize,
@@ -245,7 +374,7 @@ function getContentChangesetTableCellDecorations({
         }
     });
 
-    return tableCellDecorations;
+    return nodeDecorations;
 }
 
 /**

@@ -1,11 +1,12 @@
-import {Node} from "prosemirror-model";
-import {Step} from "prosemirror-transform";
+import {Node, Slice} from "prosemirror-model";
+import {ReplaceStep, Step} from "prosemirror-transform";
 import {getContentReferencesAssumingViewAccessWithOptionalSpaceAccess} from "~/server/content/get_content_references_assuming_view_access_with_optional_space_access.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {
     FileDocumentAuthorizer,
     batchGetDocumentCommentThreadReferencesIfExists,
 } from "~/server/documents/data/documents_actions.js";
+import {getDocumentContentAtVersion} from "~/server/documents/data/get_document_content_at_version.js";
 import {applyHistoricalDocumentStep} from "~/server/documents/data/internal/apply_historical_document_step.js";
 import {authorizeDocumentItemAccess} from "~/server/documents/data/internal/authorize_document_item_access.js";
 import {DocumentsTable} from "~/server/documents/data/internal/documents_table.js";
@@ -18,6 +19,7 @@ import {
 } from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
+    DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {createDocumentNotFoundError} from "~/shared/documents/document_error_messages.js";
@@ -40,10 +42,12 @@ export async function getDocumentHistoryDiff(
         id,
         startVersion,
         endVersion,
+        showInitialContentAsAdditions = false,
     }: {
         id: DocumentId;
         startVersion: number;
         endVersion: number;
+        showInitialContentAsAdditions?: boolean;
     },
 ): Promise<{
     startContent: DocumentContent;
@@ -63,9 +67,9 @@ export async function getDocumentHistoryDiff(
         throw new InvalidArgumentError(
             "Document history end version must be a non-negative integer",
         );
-    if (startVersion >= endVersion)
+    if (startVersion > endVersion)
         throw new InvalidArgumentError(
-            "Document history start version must be less than end version",
+            "Document history start version must not be greater than end version",
         );
     if (endVersion > documentItem.version)
         throw new FailedPreconditionError(
@@ -75,18 +79,50 @@ export async function getDocumentHistoryDiff(
         throw new InvalidArgumentError(
             `Document history comparisons may contain at most ${documentHistoryDiffMaxStepCount} steps`,
         );
+    if (startVersion === endVersion && startVersion !== 0)
+        throw new InvalidArgumentError(
+            "Document history comparisons without changes require version 0",
+        );
+
+    const shouldShowInitialContentAsAdditions =
+        showInitialContentAsAdditions || startVersion === endVersion;
+    const initialContent = shouldShowInitialContentAsAdditions
+        ? await getDocumentContentAtVersion(context, {id, version: 0})
+        : null;
+
+    if (startVersion === endVersion) {
+        if (!initialContent) throw new DataLossError("Missing initial document content");
+        const startContent = createEmptyDocumentContentForInitialDocumentHistory(initialContent);
+        return {
+            startContent,
+            steps: [
+                new ReplaceStep(
+                    0,
+                    startContent.content.size,
+                    new Slice(initialContent.content, 0, 0),
+                ),
+            ],
+            contentReferences: await getDocumentHistoryContentReferences(context, {
+                documentId: id,
+                spaceId: documentItem.spaceId,
+                content: initialContent,
+            }),
+        };
+    }
 
     const snapshot = await DocumentsTable.getItemIfExists(context, {
         partitionType: "Document",
         documentId: id,
         sortRangeType: "Snapshot",
     });
+
     if (!snapshot) throw new DataLossError("Missing document snapshot");
 
     // TODO(#optimize-document-history): Enforce a maximum number of steps to
     // reconstruct for a history comparison.
     const rangeStartVersion = Math.min(startVersion, snapshot.version);
     const rangeEndVersion = Math.max(endVersion, snapshot.version);
+
     // Load one continuous range around the snapshot so the selected start and end
     // versions use the same persisted step sequence.
     const stepsAroundSnapshot = await getDocumentContentStepsBetweenValidatedVersionRange(context, {
@@ -94,6 +130,7 @@ export async function getDocumentHistoryDiff(
         startVersion: rangeStartVersion,
         endVersion: rangeEndVersion,
     });
+
     const startStepOffset = startVersion - rangeStartVersion;
     const endStepOffset = endVersion - rangeStartVersion;
     const snapshotStepOffset = snapshot.version - rangeStartVersion;
@@ -113,13 +150,18 @@ export async function getDocumentHistoryDiff(
             startContent = applyHistoricalDocumentStep(startContent, step);
         }
     }
+
     const reconstructedStartContent = assertDocumentContent(startContent);
+    const initialStartContent = initialContent
+        ? createEmptyDocumentContentForInitialDocumentHistory(initialContent)
+        : null;
 
     // The selected comparison steps now move from the reconstructed start to end.
     let endContent: Node = reconstructedStartContent;
     for (const {step} of comparisonSteps) {
         endContent = applyHistoricalDocumentStep(endContent, step);
     }
+
     const reconstructedEndContent = assertDocumentContent(endContent);
 
     // Deleted entities can exist only in the starting version, so load renderer
@@ -154,13 +196,39 @@ export async function getDocumentHistoryDiff(
             : startContentReferences;
 
     return {
-        startContent: reconstructedStartContent,
-        steps: comparisonSteps.map(({step}) => step),
+        startContent: initialStartContent ?? reconstructedStartContent,
+        steps: [
+            ...(initialContent && initialStartContent
+                ? [
+                      new ReplaceStep(
+                          0,
+                          initialStartContent.content.size,
+                          new Slice(initialContent.content, 0, 0),
+                      ),
+                  ]
+                : []),
+            ...comparisonSteps.map(({step}) => step),
+        ],
         contentReferences: mergeDocumentContentReferences(
             startContentReferencesWithUniqueFiles,
             endContentReferences,
         ),
     };
+}
+
+function createEmptyDocumentContentForInitialDocumentHistory(
+    initialContent: DocumentContent,
+): DocumentContent {
+    return assertDocumentContent(
+        DocumentContentProsemirrorSchema.node(
+            "doc",
+            {accessPolicy: initialContent.attrs.accessPolicy},
+            [
+                DocumentContentProsemirrorSchema.node("title"),
+                DocumentContentProsemirrorSchema.node("paragraph"),
+            ],
+        ),
+    );
 }
 
 /**

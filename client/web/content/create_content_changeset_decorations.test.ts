@@ -14,7 +14,11 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {DocumentCommentThreadId, FileId} from "~/shared/id/types/id_types.open_source.js";
+import {
+    DocumentCommentThreadId,
+    DocumentId,
+    FileId,
+} from "~/shared/id/types/id_types.open_source.js";
 
 function getContentChangesetDecorationTestValues(
     decorations: ReturnType<typeof createContentChangesetDecorations>["decorations"],
@@ -76,6 +80,23 @@ function createContentChangesetTestTable(rows: ReadonlyArray<ReadonlyArray<strin
             ),
         ),
     );
+}
+
+function createContentChangesetTestDocumentMention() {
+    const documentId = generateId<DocumentId>();
+    return schema.node("mention", {
+        mention: {type: "SearchEntity", entityId: `Document:${documentId}`},
+    });
+}
+
+function getContentChangesetMentionRanges(doc: Node): Array<{from: number; to: number}> {
+    const mentionRanges: Array<{from: number; to: number}> = [];
+
+    doc.descendants((node, pos) => {
+        if (node.type.name === "mention") mentionRanges.push({from: pos, to: pos + node.nodeSize});
+    });
+
+    return mentionRanges;
 }
 
 function expectContentChangesetTableCellDecorations({
@@ -178,6 +199,111 @@ test("renders a whole paragraph replacement after preceding blocks", () => {
     expect(renderedDoc.childCount).toBe(4);
     expect(renderedDoc.child(2).textBetween(0, renderedDoc.child(2).content.size)).toBe("old");
     expect(renderedDoc.child(3).textBetween(0, renderedDoc.child(3).content.size)).toBe("new");
+});
+
+test("highlights inserted mentions with additions", () => {
+    const firstMention = createContentChangesetTestDocumentMention();
+    const secondMention = createContentChangesetTestDocumentMention();
+    const insertedContent = Fragment.fromArray([
+        schema.text("This is a mention of "),
+        firstMention,
+        schema.text(" and "),
+        secondMention,
+    ]);
+    const startDoc = schema.node("doc", undefined, [
+        schema.node("title"),
+        schema.node("paragraph", undefined, [schema.text("Before ")]),
+    ]);
+
+    const {endDoc, decorations} = createContentChangesetDecorations({
+        startDoc,
+        steps: [new ReplaceStep(10, 10, new Slice(insertedContent, 0, 0))],
+    });
+
+    expect(getContentChangesetDecorationTestValues(decorations)).toEqual(
+        expect.arrayContaining(
+            getContentChangesetMentionRanges(endDoc).map(({from, to}) => ({
+                type: "Node",
+                from,
+                to,
+                class: contentStyles.contentChangesetInsertedClassName,
+            })),
+        ),
+    );
+});
+
+test("highlights removed mentions with deletions", () => {
+    const firstMention = createContentChangesetTestDocumentMention();
+    const secondMention = createContentChangesetTestDocumentMention();
+    const removedContent = Fragment.fromArray([
+        schema.text("This is a mention of "),
+        firstMention,
+        schema.text(" and "),
+        secondMention,
+    ]);
+    const startDoc = schema.node("doc", undefined, [
+        schema.node("title"),
+        schema.node("paragraph", undefined, [schema.text("Before "), ...removedContent.content]),
+    ]);
+
+    const {renderedDoc, decorations} = createContentChangesetDecorations({
+        startDoc,
+        steps: [new ReplaceStep(10, 10 + removedContent.size, Slice.empty)],
+    });
+
+    expect(getContentChangesetDecorationTestValues(decorations)).toEqual(
+        expect.arrayContaining(
+            getContentChangesetMentionRanges(renderedDoc).map(({from, to}) => ({
+                type: "Node",
+                from,
+                to,
+                class: contentStyles.contentChangesetDeletedClassName,
+            })),
+        ),
+    );
+});
+
+test("renders a shifted mention list as an insertion at the newest meeting", () => {
+    const august17Mention = createContentChangesetTestDocumentMention();
+    const august14Mention = createContentChangesetTestDocumentMention();
+    const august3Mention = createContentChangesetTestDocumentMention();
+    const august18Mention = createContentChangesetTestDocumentMention();
+    const startDoc = schema.node("doc", undefined, [
+        schema.node("title"),
+        schema.node("paragraph", undefined, [august17Mention]),
+        schema.node("paragraph", undefined, [august14Mention]),
+        schema.node("paragraph", undefined, [august3Mention]),
+    ]);
+    const steps = [
+        new ReplaceStep(3, 4, new Slice(Fragment.from(august18Mention), 0, 0)),
+        new ReplaceStep(6, 7, new Slice(Fragment.from(august17Mention), 0, 0)),
+        new ReplaceStep(9, 10, new Slice(Fragment.from(august14Mention), 0, 0)),
+        new ReplaceStep(
+            11,
+            11,
+            new Slice(Fragment.from(schema.node("paragraph", undefined, [august3Mention])), 0, 0),
+        ),
+    ];
+
+    const {endDoc, decorations} = createContentChangesetDecorations({startDoc, steps});
+
+    expect(endDoc).toEqual(
+        schema.node("doc", undefined, [
+            schema.node("title"),
+            schema.node("paragraph", undefined, [august18Mention]),
+            schema.node("paragraph", undefined, [august17Mention]),
+            schema.node("paragraph", undefined, [august14Mention]),
+            schema.node("paragraph", undefined, [august3Mention]),
+        ]),
+    );
+    expect(getContentChangesetDecorationTestValues(decorations)).toEqual([
+        {
+            type: "Node",
+            from: 2,
+            to: 5,
+            class: contentStyles.contentChangesetInsertedClassName,
+        },
+    ]);
 });
 
 test("renders formatting-only changes as deletion and insertion", () => {

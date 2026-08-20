@@ -5,6 +5,7 @@ import {DocumentsTable} from "~/server/documents/data/internal/documents_table.j
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {documentHistoryDiffMaxStepCount} from "~/shared/documents/document_history_model.js";
 
 const context = createTestContext();
 
@@ -123,7 +124,10 @@ test("records bots as the source of the human author", async () => {
             from: {type: "Bot", accountId: botSession.account.id},
         },
     ]);
-    expect(history.accounts.map(account => account.id)).toEqual([botSession.account.id]);
+    expect(history.accounts.map(account => account.id)).toEqual([
+        botSession.account.id,
+        session.account.id,
+    ]);
 });
 
 test("splits large history transactions into bounded comparison chunks", async () => {
@@ -132,7 +136,7 @@ test("splits large history transactions into bounded comparison chunks", async (
     const document = await TestDocument.create(session);
     const startVersion = await document.getVersion();
     const steps = Array.from(
-        {length: 501},
+        {length: documentHistoryDiffMaxStepCount + 1},
         (_, index) => new DocAttrStep("hasPresentShortcut", index % 2 === 0),
     );
 

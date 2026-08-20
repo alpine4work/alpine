@@ -118,3 +118,19 @@ test("normalizes accumulated newest-first pages before grouping", () => {
     expect(groups[0]?.startVersion).toBe(0);
     expect(groups[0]?.endVersion).toBe(3);
 });
+
+test("groups the initial version with a nearby transaction", () => {
+    const groups = groupDocumentHistoryTransactions([
+        {
+            startVersion: 0,
+            endVersion: 0,
+            createdTime: new Date(Date.UTC(2026, 1, 17, 13, 0)),
+            author: account1Author,
+        },
+        createTransaction({minute: 1, startVersion: 0}),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({startVersion: 0, endVersion: 1});
+    expect(groups[0]?.entries).toHaveLength(1);
+});

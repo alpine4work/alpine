@@ -32,15 +32,22 @@ type MutableDocumentHistoryGroup = MutableDocumentHistoryContributors & {
     entries: Array<MutableDocumentHistorySubEntry>;
 };
 
+type DocumentHistoryGroupableTransaction = Pick<
+    DocumentHistoryTransactionMetadata,
+    "startVersion" | "endVersion" | "createdTime" | "author"
+>;
+
 /**
  * Groups transaction metadata into newest-first history groups and time bursts.
  * Input may contain accumulated newest-first pages or already sorted transactions.
  */
 export function groupDocumentHistoryTransactions(
-    transactions: ReadonlyArray<DocumentHistoryTransactionMetadata>,
+    transactions: ReadonlyArray<DocumentHistoryGroupableTransaction>,
 ): ReadonlyArray<DocumentHistoryGroup> {
     const orderedTransactions = [...transactions].sort(
-        (transaction1, transaction2) => transaction1.startVersion - transaction2.startVersion,
+        (transaction1, transaction2) =>
+            transaction1.startVersion - transaction2.startVersion ||
+            transaction1.endVersion - transaction2.endVersion,
     );
     const groups: Array<MutableDocumentHistoryGroup> = [];
 
@@ -102,7 +109,7 @@ export function groupDocumentHistoryTransactions(
 }
 
 function createGroup(
-    transaction: DocumentHistoryTransactionMetadata,
+    transaction: DocumentHistoryGroupableTransaction,
     previousGroupEndVersion: number | undefined,
 ): MutableDocumentHistoryGroup {
     const group: MutableDocumentHistoryGroup = {
@@ -119,7 +126,7 @@ function createGroup(
 }
 
 function createEntry(
-    transaction: DocumentHistoryTransactionMetadata,
+    transaction: DocumentHistoryGroupableTransaction,
 ): MutableDocumentHistorySubEntry {
     return {
         startVersion: transaction.startVersion,

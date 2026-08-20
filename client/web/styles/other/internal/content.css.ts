@@ -3303,11 +3303,23 @@ export const contentChangesetDeletedClassName = style({
     backgroundColor: colorSchemeVars["red-10"],
     color: colorSchemeVars["red-80"],
     textDecoration: "line-through",
+    selectors: {
+        [`&${mentionContainerClassName}`]: {
+            paddingTop: 0,
+            paddingBottom: 0,
+        },
+    },
 });
 
 export const contentChangesetInsertedClassName = style({
     backgroundColor: colorSchemeVars["green-10"],
     textDecoration: "none",
+    selectors: {
+        [`&${mentionContainerClassName}`]: {
+            paddingTop: 0,
+            paddingBottom: 0,
+        },
+    },
 });
 
 export const contentChangesetDeletedTableCellClassName = style({

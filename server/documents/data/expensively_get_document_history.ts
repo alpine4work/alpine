@@ -46,6 +46,7 @@ export async function expensivelyGetDocumentHistory(
     accounts: Array<AccountModel>;
     spaceId: SpaceId;
     version: number;
+    initialVersion: {createdTime: Date; author: DocumentHistoryAuthor} | null;
 }> {
     const documentItem = await getDocumentItemForAuthorizationIfExists(context, id);
     if (!documentItem) throw createDocumentNotFoundError(id);
@@ -53,17 +54,30 @@ export async function expensivelyGetDocumentHistory(
     await authorizeDocumentItemAccess(context, documentItem, "Comment");
     const siteId = getSiteIdFromAccessPolicyIfExists(documentItem.accessPolicy);
     if (siteId) onSiteId?.(siteId);
+
     // Attributes retain the current title, so the route does not need to read a
     // snapshot.
     const title = addFallbackToDocumentTitle(documentItem.titleWithoutFallback);
+    const initialVersion = {
+        createdTime: documentItem.createdTime,
+        author: documentItem.creator,
+    };
+
+    const initialVersionAccountId =
+        initialVersion.author.from?.type === "Bot"
+            ? initialVersion.author.from.accountId
+            : initialVersion.author.id;
 
     if (documentItem.version === 0) {
         return {
             title,
             transactions: [],
-            accounts: [],
+            accounts: initialVersionAccountId
+                ? [await getAccount(context, documentItem.spaceId, initialVersionAccountId)]
+                : [],
             spaceId: documentItem.spaceId,
             version: documentItem.version,
+            initialVersion,
         };
     }
 
@@ -108,19 +122,24 @@ export async function expensivelyGetDocumentHistory(
     const allTransactions = Array.from(transactionByStartVersion.values()).sort(
         (transaction1, transaction2) => transaction2.startVersion - transaction1.startVersion,
     );
+
     const transactions = allTransactions.flatMap(transaction =>
         getDocumentHistoryTransactionChunks({
             transaction,
         }),
     );
-    const accountIds = new Set(
-        transactions.flatMap(transaction => {
-            if (transaction.author.from?.type === "Bot") {
-                return [transaction.author.from.accountId];
-            }
-            return transaction.author.id ? [transaction.author.id] : [];
+
+    const accountIds = new Set([
+        ...transactions.flatMap(transaction => {
+            const accountId =
+                transaction.author.from?.type === "Bot"
+                    ? transaction.author.from.accountId
+                    : transaction.author.id;
+            return accountId ? [accountId] : [];
         }),
-    );
+        ...(initialVersionAccountId ? [initialVersionAccountId] : []),
+    ]);
+
     // TODO(#optimize-document-history): Load accounts only for the current history
     // page.
     const accounts = await runAllPromises(
@@ -133,6 +152,7 @@ export async function expensivelyGetDocumentHistory(
         accounts,
         spaceId: documentItem.spaceId,
         version: documentItem.version,
+        initialVersion,
     };
 }
 
@@ -154,6 +174,7 @@ function getDocumentHistoryTransactionChunks({
         }),
         clientId: transaction.clientId,
     };
+
     const chunks: Array<DocumentHistoryTransactionMetadata> = [];
 
     // Emit the newest chunk first to preserve the reverse chronological history order.
