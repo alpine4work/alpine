@@ -13,6 +13,7 @@ import {
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {
     TaskNotesCollaborationUpdateContentWithDiffRequestBodySchema,
@@ -50,7 +51,7 @@ export async function updateTaskNotesFromApi(
     fileIds.delete(unknownFileId);
 
     await runAllPromises(
-        [...fileIds].map(fileId =>
+        mapIterable(fileIds, fileId =>
             attachFileToTargetAsBot(
                 context,
                 fileId,

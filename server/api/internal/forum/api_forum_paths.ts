@@ -50,6 +50,7 @@ import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
 } from "~/shared/content/message_content_schema.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {createPostSearchEntityTitle} from "~/shared/forum/create_post_search_entity_title.js";
 import {getPostContentSnippet} from "~/shared/forum/get_post_content_snippet.js";
 import {
@@ -63,6 +64,7 @@ import {
     serializeDateString,
 } from "~/shared/helpers/date/date_string.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {generateId, isId} from "~/shared/id/id.open_source.js";
 import {ChannelId, FileId, PostId} from "~/shared/id/types/id_types.open_source.js";
@@ -307,45 +309,49 @@ export const apiForumPaths: Pick<
             // there's no race where a reader sees the post before its files are attached.
             const fileIds = extractFileIdsFromApiContent(requestBody.post.content);
             fileIds.delete(unknownFileId);
-            if (fileIds.size > 0) {
+
+            const filesByIdFromApiContent = new Map(
                 await runAllPromises(
-                    [...fileIds].map(fileId =>
-                        attachFileToTargetAsBot(
+                    mapIterable(fileIds, async (fileId): Promise<[FileId, FileModel]> => {
+                        const file = await attachFileToTargetAsBot(
                             context,
                             fileId,
                             FilePostAuthorizer.bind({type: "Post", postId}),
-                        ),
-                    ),
-                );
-            }
+                        );
+                        return [fileId, file];
+                    }),
+                ),
+            );
 
             const referencesContext = context.dynamo.unexpectStrongReadConsistency();
             const creatorId =
                 requestBody.post.creator?.account.id ?? referencesContext.actor.getBotAccountId();
-            const [post, author] = await runAllPromises([
-                createPost(context, {
-                    id: postId,
-                    channelId,
-                    creatorId,
-                    createdTimeZone: requestBody.post.createdTimeZone ?? defaultTimeZone,
-                    content,
-                    consistency: "StrongWithinCache",
-                }),
-                getApiAccount(referencesContext, referencesContext.actor.getSpaceId(), creatorId),
-            ]);
-
-            // Resolve content references after creating the post so the file authorizer can
-            // find the post attachment target.
-            const {content: contentWithReferences, references} =
-                await intoApiContentWithReferencesAndReturnReferences(referencesContext, {
-                    spaceId: referencesContext.actor.getSpaceId(),
-                    fileAuthorizer: FilePostAuthorizer.bind({type: "Post", postId}),
-                    content,
-                    contentKeyEncoder: new ApiContentKeyEncoder({
-                        entityId: `Post:${postId}`,
-                        version: 0,
+            const [post, author, {content: contentWithReferences, references}] =
+                await runAllPromises([
+                    createPost(context, {
+                        id: postId,
+                        channelId,
+                        creatorId,
+                        createdTimeZone: requestBody.post.createdTimeZone ?? defaultTimeZone,
+                        content,
+                        consistency: "StrongWithinCache",
                     }),
-                });
+                    getApiAccount(
+                        referencesContext,
+                        referencesContext.actor.getSpaceId(),
+                        creatorId,
+                    ),
+                    intoApiContentWithReferencesAndReturnReferences(referencesContext, {
+                        spaceId: referencesContext.actor.getSpaceId(),
+                        fileAuthorizer: FilePostAuthorizer.bind({type: "Post", postId}),
+                        content,
+                        dangerousFilesByIdWithoutAuthorization: filesByIdFromApiContent,
+                        contentKeyEncoder: new ApiContentKeyEncoder({
+                            entityId: `Post:${postId}`,
+                            version: 0,
+                        }),
+                    }),
+                ]);
 
             return {
                 content: {

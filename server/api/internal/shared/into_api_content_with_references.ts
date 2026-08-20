@@ -49,6 +49,15 @@ export async function intoApiContentWithReferences<
         content: Node;
         contentKeyEncoder: ContentKeyEncoder;
         posOffset?: number;
+        /**
+         * When creating content with files, there's no need to load the file again and
+         * authorize it against the target immediately after creation. Instead, we can pass
+         * the files directly to the API content creation function.
+         *
+         * This is dangerous because it assumes that the calling routine has already
+         * verified that the actor has access to the File.
+         */
+        dangerousFilesByIdWithoutAuthorization?: ReadonlyMap<FileId, FileModel>;
     },
 ): Promise<ContentKeyEncoder extends ApiContentKeyEncoder ? ApiContent : ApiContentWithoutKeys> {
     const {content} = await intoApiContentWithReferencesAndReturnReferences(context, options);
@@ -83,12 +92,22 @@ export async function intoApiContentWithReferencesAndReturnReferences<
         content,
         contentKeyEncoder,
         posOffset,
+        dangerousFilesByIdWithoutAuthorization,
     }: {
         spaceId: SpaceId;
         fileAuthorizer: FileAuthorizer | "AssertHasNoFiles";
         content: Node;
         contentKeyEncoder: ContentKeyEncoder;
         posOffset?: number;
+        /**
+         * When creating content with files, there's no need to load the file again and
+         * authorize it against the target immediately after creation. Instead, we can pass
+         * the files directly to the API content creation function.
+         *
+         * This is dangerous because it assumes that the calling routine has already
+         * verified that the actor has access to the File.
+         */
+        dangerousFilesByIdWithoutAuthorization?: ReadonlyMap<FileId, FileModel>;
     },
 ): Promise<{
     content: ContentKeyEncoder extends ApiContentKeyEncoder ? ApiContent : ApiContentWithoutKeys;
@@ -127,6 +146,11 @@ export async function intoApiContentWithReferencesAndReturnReferences<
                 if (fileAuthorizer === "AssertHasNoFiles") {
                     throw new InternalError("Expected content to not include any referenced files");
                 }
+
+                if (dangerousFilesByIdWithoutAuthorization?.has(fileId)) {
+                    return dangerousFilesByIdWithoutAuthorization.get(fileId);
+                }
+
                 return getContentFileReferenceWithoutSignedUrlSearch(
                     referencesContext,
                     fileId,

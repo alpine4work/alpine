@@ -64,11 +64,13 @@ import {
 import {getDocumentContentTitleWithoutFallback} from "~/shared/documents/document_model.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
+import {FileModel} from "~/shared/files/file_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {generateId, isId} from "~/shared/id/id.open_source.js";
 import {DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
@@ -100,22 +102,26 @@ export const apiDocumentsPaths: Pick<
                 content: apiContent,
             });
 
+            let filesByIdFromApiContent: ReadonlyMap<FileId, FileModel> = emptyMap;
             // Attach files referenced in the content to the document before creating the
             // document so there's no race where a reader sees the document before its files
             // are attached.
             if (apiContent) {
                 const fileIds = extractFileIdsFromApiContent(apiContent);
                 fileIds.delete(unknownFileId);
-                await runAllPromises(
-                    [...fileIds].map(fileId =>
-                        attachFileToTargetAsBot(
-                            context,
-                            fileId,
-                            FileDocumentAuthorizer.bind({
-                                type: "Document",
-                                documentId,
-                            }),
-                        ),
+                filesByIdFromApiContent = new Map(
+                    await runAllPromises(
+                        mapIterable(fileIds, async (fileId): Promise<[FileId, FileModel]> => {
+                            const file = await attachFileToTargetAsBot(
+                                context,
+                                fileId,
+                                FileDocumentAuthorizer.bind({
+                                    type: "Document",
+                                    documentId,
+                                }),
+                            );
+                            return [fileId, file];
+                        }),
                     ),
                 );
             }
@@ -135,6 +141,7 @@ export const apiDocumentsPaths: Pick<
                         documentId,
                     }),
                     content: documentContent,
+                    dangerousFilesByIdWithoutAuthorization: filesByIdFromApiContent,
                     contentKeyEncoder: new ApiContentKeyEncoder({
                         entityId: `Document:${documentId}`,
                         // All documents are created with version 0
@@ -253,7 +260,7 @@ export const apiDocumentsPaths: Pick<
                 const fileIds = extractFileIdsFromApiContent(contentPatch.content);
                 fileIds.delete(unknownFileId);
                 await runAllPromises(
-                    [...fileIds].map(fileId =>
+                    mapIterable(fileIds, fileId =>
                         attachFileToTargetAsBot(
                             context,
                             fileId,
