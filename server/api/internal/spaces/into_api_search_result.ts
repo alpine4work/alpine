@@ -1,7 +1,7 @@
 import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
-import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSearchResult} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {contentMentionTextTruncatedSuffix} from "~/shared/content/truncate_content_mention_text.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -17,7 +17,7 @@ import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 export function intoApiSearchResult(
     {model, bodyTextSnippet, parsedFilter: resultParsedFilter}: SearchEntityResultModel,
     queryText: string,
-): ApiSearchResultResponse | null {
+): ApiSearchResult | null {
     let bodySnippet: {
         text: string;
         matches: Array<{type: "BodySnippet"; index: number; length: number}>;

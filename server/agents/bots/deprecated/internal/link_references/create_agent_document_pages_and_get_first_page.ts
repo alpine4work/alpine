@@ -16,17 +16,17 @@ import {createAgentLinkNotFoundError} from "~/server/agents/bots/deprecated/inte
 import {printAgentLinkPath} from "~/server/agents/bots/deprecated/internal/link_references/print_agent_link_path.js";
 import {DurableObjectStorageInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {visitApiContent} from "~/shared/api/content/visit_api_content.open_source.js";
-import {ApiContentBlockElementResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentBlockElement} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
-// Estimate token count for `ApiContent`.
+// Estimate token count for `ApiContentRequest`.
 //
 // This is generally an under count of the actual tokens we'd get when printing to
 // markdown because we don't count markdown formatting tokens. Just the raw
 // underlying text. The order of magnitude should be correct, though.
-function estimateApiContentBlockElementTokenCount(element: ApiContentBlockElementResponse): number {
+function estimateApiContentBlockElementTokenCount(element: ApiContentBlockElement): number {
     let tokenCount = 0;
     visitApiContent(
         {elements: [element]},

@@ -5,7 +5,7 @@ import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/age
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
@@ -63,7 +63,7 @@ This is a _really cool_ document!
 - Item 2
 
 - Item 3
-        `) as ApiContentResponse,
+        `) as ApiContent,
     });
 
     expect(
@@ -105,7 +105,7 @@ This is a **_really cool_** document!
 - Item 2
 
 - Item 3
-        `) as ApiContentResponse,
+        `) as ApiContent,
     });
 
     expect(

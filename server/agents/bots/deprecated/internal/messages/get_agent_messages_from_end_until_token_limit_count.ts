@@ -2,7 +2,7 @@ import {ApiClient, getApiMessagesFromEnd} from "~/server/agents/api/api_client.o
 import {AgentMessage} from "~/server/agents/bots/deprecated/internal/messages/agent_message.js";
 import {loadApiMessagesForAgentBatchCount} from "~/server/agents/bots/deprecated/internal/messages/load_api_messages_for_agent_batch_count.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessageRoomReferenceRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
@@ -17,7 +17,7 @@ export async function getAgentMessagesFromEndUntilLimitTokenCount(
     transaction: DurableObjectTransactionInterface,
     apiClient: ApiClient,
     spaceId: SpaceId,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     {startingCursor, limitTokenCount}: {startingCursor: number | null; limitTokenCount: number},
 ): Promise<{
     messages: Array<AgentMessage>;

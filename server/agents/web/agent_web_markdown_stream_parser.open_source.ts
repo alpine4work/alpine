@@ -23,12 +23,12 @@ import {
 } from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
-    ApiContentBlockElement,
-    ApiContentFileBlockElementResponseWithoutKeys,
-    ApiContentPreviewBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
-    ApiMessageStreamContentPartPayloadResponse,
-    ApiMessageStreamPartPayload,
+    ApiContentBlockElementRequest,
+    ApiContentFileBlockElementWithoutKeys,
+    ApiContentPreviewBlockElementWithoutKeys,
+    ApiContentWithoutKeys,
+    ApiMessageStreamContentPartPayloadRequest,
+    ApiMessageStreamPartPayloadRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
@@ -46,11 +46,8 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 export type AgentWebMarkdownStreamPart = {
     readonly index: number;
     readonly payload:
-        | Exclude<ApiMessageStreamPartPayload, {type: "Content"}>
-        | Replace<
-              ApiMessageStreamContentPartPayloadResponse,
-              {content: ApiContentResponseWithoutKeys}
-          >;
+        | Exclude<ApiMessageStreamPartPayloadRequest, {type: "Content"}>
+        | Replace<ApiMessageStreamContentPartPayloadRequest, {content: ApiContentWithoutKeys}>;
 };
 
 /**
@@ -128,7 +125,7 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
      */
     public async update(
         updateSpan: Span,
-        newPartPayloads: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>> = [],
+        newPartPayloads: Array<Exclude<ApiMessageStreamPartPayloadRequest, {type: "Content"}>> = [],
     ): Promise<Array<{span: Span; part: AgentWebMarkdownStreamPart}>> {
         const putParts: Array<{span: Span; part: AgentWebMarkdownStreamPart}> = [];
 
@@ -154,9 +151,9 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                         {type: "root", children: firstMarkdownPart},
                         // In our Markdown `convertMarkdownTreeToAgentWebMarkdownTree()` pre-processing we
                         // make sure to provide enough information that our parse function can return
-                        // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
-                        // `ApiContentMentionInlineElementResponse` object).
-                    ) as ApiContentResponseWithoutKeys;
+                        // `ApiContent` (e.g. setting `data.mentionElement` to a hydrated
+                        // `ApiContentMentionInlineElement` object).
+                    ) as ApiContentWithoutKeys;
                 };
 
                 if (
@@ -275,9 +272,9 @@ export class AgentWebMarkdownStreamParser<Span extends TracerSpan | null = null>
                     {type: "root", children: markdownPart},
                     // In our Markdown `convertMarkdownTreeToAgentWebMarkdownTree()` pre-processing we
                     // make sure to provide enough information that our parse function can return
-                    // `ApiContentResponse` (e.g. setting `data.mentionElement` to a hydrated
-                    // `ApiContentMentionInlineElementResponse` object).
-                ) as ApiContentResponseWithoutKeys;
+                    // `ApiContent` (e.g. setting `data.mentionElement` to a hydrated
+                    // `ApiContentMentionInlineElement` object).
+                ) as ApiContentWithoutKeys;
 
                 const part: AgentWebMarkdownStreamPart = {
                     index: this._parts.length,
@@ -698,8 +695,7 @@ async function traverseMarkdownHtmlNode(
 
     let fileOrPreviewElementByUrl: Map<
         string,
-        | ApiContentFileBlockElementResponseWithoutKeys
-        | ApiContentPreviewBlockElementResponseWithoutKeys
+        ApiContentFileBlockElementWithoutKeys | ApiContentPreviewBlockElementWithoutKeys
     > | null = null;
 
     const handleOpenTagEndOrSelfCloseTag = () => {
@@ -813,7 +809,7 @@ async function traverseMarkdownHtmlNode(
                         if (!pageLink) return url;
 
                         if (pageLink.type === "File") {
-                            const fileElement: ApiContentFileBlockElementResponseWithoutKeys = {
+                            const fileElement: ApiContentFileBlockElementWithoutKeys = {
                                 type: "File",
                                 file: {
                                     id: pageLink.id,
@@ -836,7 +832,7 @@ async function traverseMarkdownHtmlNode(
                             createAgentWebPageLinkApiPreviewReferenceIfPossible(pageLink);
                         if (!previewReference) return url;
 
-                        const previewElement: ApiContentPreviewBlockElementResponseWithoutKeys = {
+                        const previewElement: ApiContentPreviewBlockElementWithoutKeys = {
                             type: "Preview",
                             reference: previewReference,
                         };
@@ -1229,12 +1225,12 @@ function getPreviousListOrderStartFromPreviousBlockContent(
 }
 
 /*
- * The message stream parts is a 2D array of Content (Array<Array<ApiMessageStreamPartPayload>>).
+ * The message stream parts is a 2D array of Content (Array<Array<ApiMessageStreamPartPayloadRequest>>).
  * This function looks backward from the stream parts until either:
  * 1. It finds a non-ordered list
  * 2. It finds a list with an explicit order start.
  *
- * So for each stream part, it searches backward through the through the ApiMessageStreamPartPayload
+ * So for each stream part, it searches backward through the through the ApiMessageStreamPartPayloadRequest
  * elements.
  *
  * Once it finds a non-ordered list OR an explicit order start, it adds them together to determine
@@ -1291,7 +1287,7 @@ function getPreviousListOrderStartFromPreviousAgentMessageStreamPart({
  * an ordered list with an explicit order start.
  */
 function getListStartAndPreviousNumberOfItemsInListIfExists<
-    Part extends BlockContent | ApiContentBlockElement,
+    Part extends BlockContent | ApiContentBlockElementRequest,
 >(
     parts: ReadonlyArray<Part>,
     {

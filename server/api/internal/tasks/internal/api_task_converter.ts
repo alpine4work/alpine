@@ -2,8 +2,8 @@ import {getSearchEntityMentionTitleForApi} from "~/server/api/internal/shared/in
 import {intoApiTaskLayout} from "~/server/api/internal/tasks/internal/into_api_task_layout.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {
-    ApiTaskParentResponse,
-    ApiTaskResponse,
+    ApiTask,
+    ApiTaskParent,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -71,7 +71,7 @@ export class ApiTaskConverter {
     into(
         task: TaskId | TaskModel,
         options: {referencedAccounts?: ReadonlyArray<AccountModel>} = emptyObject,
-    ): ApiTaskResponse {
+    ): ApiTask {
         if (typeof task === "string") {
             const backfillTask = assertExists(this.#backfillTaskById.get(task));
             assert(backfillTask.type === "Authorized");
@@ -102,7 +102,7 @@ export class ApiTaskConverter {
             due: dueDate ? {date: dueDate.toString()} : undefined,
             priority: priority !== null ? {type: priority} : undefined,
             layout: intoApiTaskLayout(task.getLayout()),
-            parent: ((): ApiTaskParentResponse | undefined => {
+            parent: ((): ApiTaskParent | undefined => {
                 if (!parent) return;
 
                 const backfillParentTask = assertExists(this.#backfillTaskById.get(parent.taskId));

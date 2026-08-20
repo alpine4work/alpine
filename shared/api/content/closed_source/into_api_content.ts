@@ -21,17 +21,17 @@ import {
     ApiContentTableBlockElementRowResponseWithOptionalKeys,
 } from "~/shared/api/specification/types/api_content_response_with_optional_keys.open_source.js";
 import {
-    ApiContentBlockElementResponse,
-    ApiContentCheckListBlockElementItemResponse,
+    ApiContent,
+    ApiContentBlockElement,
+    ApiContentCheckListBlockElementItem,
     ApiContentCommentMark,
     ApiContentHighlightMarkColor,
+    ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiContentInlineElementResponse,
-    ApiContentListBlockElementItemResponse,
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
-    ApiMentionReferenceResponse,
-    ApiPreviewReferenceResponse,
+    ApiContentListBlockElementItem,
+    ApiContentWithoutKeys,
+    ApiMentionReference,
+    ApiPreviewReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -96,10 +96,7 @@ type ApiContentMarkdownIntoContext = Replace<
  * Converts content with required entity context and guarantees content keys on
  * paragraphs, headings, and code block lines in the returned API content.
  */
-export function intoApiContent(
-    node: Node,
-    options: ApiContentMarkdownIntoOptions,
-): ApiContentResponse;
+export function intoApiContent(node: Node, options: ApiContentMarkdownIntoOptions): ApiContent;
 /**
  * Converts content without entity context and omits content keys from the returned
  * paragraphs, headings, and code block lines.
@@ -107,11 +104,11 @@ export function intoApiContent(
 export function intoApiContent(
     node: Node,
     options: ApiContentMarkdownIntoOptionsWithoutKeys,
-): ApiContentResponseWithoutKeys;
+): ApiContentWithoutKeys;
 export function intoApiContent(
     node: Node,
     options: ApiContentMarkdownIntoOptions | ApiContentMarkdownIntoOptionsWithoutKeys,
-): ApiContentResponseWithoutKeys | ApiContentResponse {
+): ApiContentWithoutKeys | ApiContent {
     assert(node.type.name === "doc");
     const posOffset = options.posOffset ?? 0;
     assert(posOffset >= 0);
@@ -673,7 +670,7 @@ function maybeEncodeApiContentKey(
 
 function assertApiContentResponseHasKeys(
     content: ApiContentResponseWithOptionalKeys,
-): asserts content is ApiContentResponse {
+): asserts content is ApiContent {
     if (process.env.NODE_ENV === "production") {
         // Missing keys are a bug, but not worth blocking a user API call in production.
         return;
@@ -686,7 +683,7 @@ function assertApiContentResponseHasKeys(
 
 function assertApiContentBlockElementHasKeys(
     element: ApiContentBlockElementResponseWithOptionalKeys,
-): asserts element is ApiContentBlockElementResponse {
+): asserts element is ApiContentBlockElement {
     switch (element.type) {
         case "Paragraph":
         case "Heading": {
@@ -755,7 +752,7 @@ function assertApiContentBlockElementHasKeys(
 
 function assertApiContentListBlockElementItemHasKeys(
     item: ApiContentListBlockElementItemResponseWithOptionalKeys,
-): asserts item is ApiContentListBlockElementItemResponse {
+): asserts item is ApiContentListBlockElementItem {
     for (const element of item.elements) {
         assertApiContentBlockElementHasKeys(element);
     }
@@ -766,7 +763,7 @@ function assertApiContentListBlockElementItemHasKeys(
 
 function assertApiContentCheckListBlockElementItemHasKeys(
     item: ApiContentCheckListBlockElementItemResponseWithOptionalKeys,
-): asserts item is ApiContentCheckListBlockElementItemResponse {
+): asserts item is ApiContentCheckListBlockElementItem {
     for (const element of item.elements) {
         assertApiContentBlockElementHasKeys(element);
     }
@@ -828,7 +825,7 @@ function intoApiContentFileOrPreviewElement(
             context.getSearchEntityMentionTitleIfExists(fileId) ??
             `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
 
-        let reference: ApiPreviewReferenceResponse;
+        let reference: ApiPreviewReference;
 
         switch (entityIdObject.type) {
             case "Channel": {
@@ -919,14 +916,14 @@ function intoApiContentFileOrPreviewElement(
 function intoApiContentInlineElements(
     context: ApiContentMarkdownIntoContext,
     nodes: ReadonlyArray<Node>,
-): ReadonlyArray<ApiContentInlineElementResponse> {
+): ReadonlyArray<ApiContentInlineElement> {
     return nodes.map(node => intoApiContentInlineElement(context, node));
 }
 
 function intoApiContentInlineElement(
     context: ApiContentMarkdownIntoContext,
     node: Node,
-): ApiContentInlineElementResponse {
+): ApiContentInlineElement {
     const typeName = node.type.name as ContentInlineNodeTypeName;
 
     switch (typeName) {
@@ -980,7 +977,7 @@ function intoApiContentInlineElement(
                     context.getSearchEntityMentionTitleIfExists(mention.entityId) ??
                     `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
 
-                let reference: ApiMentionReferenceResponse;
+                let reference: ApiMentionReference;
 
                 switch (entityIdObject.type) {
                     case "Document": {

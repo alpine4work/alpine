@@ -1,4 +1,4 @@
-import {ApiMessageContentPayloadFile} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessageContentPayloadFileRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {FileId} from "~/shared/id/types/id_types.open_source.js";
@@ -7,7 +7,7 @@ import {FileId} from "~/shared/id/types/id_types.open_source.js";
  * Extract a `FileId` or `FileEntityId` from an API message file wrapper.
  */
 export function getFileIdOrFileEntityIdFromApiMessageContentPayloadFile(
-    file: ApiMessageContentPayloadFile,
+    file: ApiMessageContentPayloadFileRequest,
 ): FileId | FileEntityId {
     switch (file.element.type) {
         case "File":
@@ -20,7 +20,10 @@ export function getFileIdOrFileEntityIdFromApiMessageContentPayloadFile(
 }
 
 function getFileEntityIdFromApiMessageContentPayloadFile(
-    reference: Extract<ApiMessageContentPayloadFile["element"], {type: "Preview"}>["reference"],
+    reference: Extract<
+        ApiMessageContentPayloadFileRequest["element"],
+        {type: "Preview"}
+    >["reference"],
 ): FileEntityId {
     switch (reference.type) {
         case "Channel":

@@ -8,7 +8,7 @@ import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_a
 import {createAgentWebMessagingPageArbitrary} from "~/server/agents/web/test_helpers/agent_web_messaging_page_arbitrary.js";
 import {runAgentWebPageGenerativeTests} from "~/server/agents/web/test_helpers/run_agent_web_page_generative_tests.js";
 import {ApiContentInlineElementWithoutCommentMarkArbitrary} from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {ApiContentInlineElementResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentInlineElement} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -30,7 +30,7 @@ const TestCustomBlockArbitrary = fc.record({
 
 const AgentWebMessagingPageArbitrary = fc.record(
     createAgentWebMessagingPageArbitrary<
-        {readonly elements: ReadonlyArray<ApiContentInlineElementResponse>},
+        {readonly elements: ReadonlyArray<ApiContentInlineElement>},
         TestCustomBlock
     >({
         preambleArbitrary: fc.record({
@@ -68,7 +68,7 @@ runAgentWebPageGenerativeTests({
             parsePreamble: async (storage, preamble) => {
                 const {elements} = await parseApiContentFromAgentWebMarkdownTree(storage, preamble);
 
-                let actualElements: ReadonlyArray<ApiContentInlineElementResponse> = [];
+                let actualElements: ReadonlyArray<ApiContentInlineElement> = [];
 
                 if (elements.length === 0) {
                     // noop

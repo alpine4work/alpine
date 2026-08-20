@@ -1,9 +1,9 @@
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {fromApiLabelContent} from "~/shared/api/content/closed_source/from_api_label_content.js";
 import {
-    ApiMessageExperimentalApproval,
-    ApiMessageExperimentalApprovalDecisionOption,
-    ApiMessageStreamPartPayload,
+    ApiMessageExperimentalApprovalDecisionOptionRequest,
+    ApiMessageExperimentalApprovalRequest,
+    ApiMessageStreamPartPayloadRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     MessageContentProsemirrorSchema,
@@ -18,7 +18,7 @@ import {
 } from "~/shared/messaging/message_schema.js";
 
 export function fromApiMessageStreamPartPayload(
-    payload: ApiMessageStreamPartPayload,
+    payload: ApiMessageStreamPartPayloadRequest,
 ): MessageStreamPartPayload {
     switch (payload.type) {
         case "Content": {
@@ -56,7 +56,7 @@ export function fromApiMessageStreamPartPayload(
 }
 
 function fromApiMessageExperimentalApproval(
-    approval: ApiMessageExperimentalApproval,
+    approval: ApiMessageExperimentalApprovalRequest,
 ): MessageExperimentalApproval {
     assert(approval.decision.schema.options.length >= 1);
     return {
@@ -75,7 +75,7 @@ function fromApiMessageExperimentalApproval(
 }
 
 function fromApiMessageExperimentalApprovalDecisionOption(
-    option: ApiMessageExperimentalApprovalDecisionOption,
+    option: ApiMessageExperimentalApprovalDecisionOptionRequest,
 ): MessageExperimentalApprovalDecisionOption {
     switch (option.type) {
         case "Approved":

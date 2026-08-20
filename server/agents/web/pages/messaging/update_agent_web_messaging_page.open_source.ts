@@ -31,9 +31,9 @@ import {
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {ApiContentRange} from "~/shared/api/specification/types/api_content_position.open_source.js";
 import {
-    ApiContentResponseWithoutKeys,
-    ApiMessageContentPayloadFileResponse,
-    ApiMessageRoomReference,
+    ApiContentWithoutKeys,
+    ApiMessageContentPayloadFile,
+    ApiMessageRoomReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     InternalError,
@@ -73,7 +73,7 @@ export async function updateAgentWebMessagingPage<
         pathname: MaybeThunk<MaybePromise<string>>;
         // Will only run the thunk right before messages are created. Validation always
         // runs before we call this thunk.
-        room: MaybeThunk<MaybePromise<ApiMessageRoomReference>>;
+        room: MaybeThunk<MaybePromise<ApiMessageRoomReferenceRequest>>;
         // Will only run the thunk right before messages are created. Validation always
         // runs before we call this thunk.
         oldPageMetadata: MaybeThunk<MaybePromise<AgentWebMessagingPageMetadata>>;
@@ -726,12 +726,12 @@ export async function updateAgentWebMessagingPage<
     return newPageMetadata;
 }
 
-function extractApiMessageFilesFromContent(content: ApiContentResponseWithoutKeys): {
-    content: ApiContentResponseWithoutKeys;
-    files: ReadonlyArray<ApiMessageContentPayloadFileResponse["element"]>;
+function extractApiMessageFilesFromContent(content: ApiContentWithoutKeys): {
+    content: ApiContentWithoutKeys;
+    files: ReadonlyArray<ApiMessageContentPayloadFile["element"]>;
 } {
     let endIndex = content.elements.length;
-    const files: Array<ApiMessageContentPayloadFileResponse["element"]> = [];
+    const files: Array<ApiMessageContentPayloadFile["element"]> = [];
 
     while (endIndex > 0) {
         const element = content.elements[endIndex - 1]!;
@@ -743,7 +743,7 @@ function extractApiMessageFilesFromContent(content: ApiContentResponseWithoutKey
         }
 
         if (element.type === "FileGallery") {
-            const galleryFiles: Array<ApiMessageContentPayloadFileResponse["element"]> = [];
+            const galleryFiles: Array<ApiMessageContentPayloadFile["element"]> = [];
 
             for (let rowIndex = 0; rowIndex < element.rows.length; rowIndex++) {
                 const row = element.rows[rowIndex]!;

@@ -9,13 +9,13 @@ import {
 } from "~/server/agents/web/pages/agent_web_inbox_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiChannelReferenceResponse,
-    ApiChatReferenceResponse,
-    ApiDocumentReferenceResponse,
-    ApiInboxEntryResponse,
-    ApiPostReferenceResponse,
-    ApiTaskReferenceResponse,
+    ApiAccountReference,
+    ApiChannelReference,
+    ApiChatReference,
+    ApiDocumentReference,
+    ApiInboxEntry,
+    ApiPostReference,
+    ApiTaskReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -45,7 +45,7 @@ const specThreadId = generateId<DocumentCommentThreadId>();
 const standupChatId = generateId<ChatId>();
 const reviewTaskId = generateId<TaskId>();
 
-const calebReference: ApiAccountReferenceResponse = {
+const calebReference: ApiAccountReference = {
     type: "Account",
     id: calebId,
     title: "Caleb",
@@ -338,7 +338,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
     // `preview`. Derived from the response union so the title/featured account types
     // match the strict response `Account` (not the looser request `Account`).
     type InboxEntrySharedResponseFields = Pick<
-        Extract<ApiInboxEntryResponse, {type: "Chat"}>,
+        Extract<ApiInboxEntry, {type: "Chat"}>,
         "title" | "preview" | "time" | "loudNotificationCount" | "status" | "featured"
     >;
     const sharedFields: InboxEntrySharedResponseFields = {
@@ -361,12 +361,12 @@ describe("intoAgentWebInboxPageEntry()", () => {
     const documentId = generateId<DocumentId>();
     const documentThreadId = generateId<DocumentCommentThreadId>();
 
-    function link(entry: ApiInboxEntryResponse) {
+    function link(entry: ApiInboxEntry) {
         return intoAgentWebInboxPageEntry(entry, conversionContext).link;
     }
 
     describe("Chat entry", () => {
-        function chatEntry(chat: ApiChatReferenceResponse): ApiInboxEntryResponse {
+        function chatEntry(chat: ApiChatReference): ApiInboxEntry {
             return {...sharedFields, type: "Chat", chat, previewMessage: {index: 4}};
         }
 
@@ -380,7 +380,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
             });
         });
 
-        test.each<[string, ApiChatReferenceResponse]>([
+        test.each<[string, ApiChatReference]>([
             ["deleted", {type: "Chat", id: chatId, title: "Deleted chat", deleted: true}],
             ["inaccessible", {type: "Chat", id: chatId, title: "Private chat", private: true}],
         ])("has no link when the chat is %s", (_state, chat) => {
@@ -389,7 +389,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
     });
 
     describe("CreatedChannelPosts entry", () => {
-        function channelPostsEntry(channel: ApiChannelReferenceResponse): ApiInboxEntryResponse {
+        function channelPostsEntry(channel: ApiChannelReference): ApiInboxEntry {
             return {
                 ...sharedFields,
                 type: "CreatedChannelPosts",
@@ -404,7 +404,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
             ).toEqual({type: "Channel", id: channelId, title: "Engineering"});
         });
 
-        test.each<[string, ApiChannelReferenceResponse]>([
+        test.each<[string, ApiChannelReference]>([
             ["deleted", {type: "Channel", id: channelId, title: "Deleted channel", deleted: true}],
             [
                 "inaccessible",
@@ -417,9 +417,9 @@ describe("intoAgentWebInboxPageEntry()", () => {
 
     describe("Post entry", () => {
         function postEntry(
-            post: ApiPostReferenceResponse,
+            post: ApiPostReference,
             previewMessage?: {index: number},
-        ): ApiInboxEntryResponse {
+        ): ApiInboxEntry {
             return {...sharedFields, type: "Post", post, previewMessage};
         }
 
@@ -443,7 +443,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
             });
         });
 
-        test.each<[string, ApiPostReferenceResponse]>([
+        test.each<[string, ApiPostReference]>([
             ["deleted", {type: "Post", id: postId, title: "Deleted post", deleted: true}],
             ["inaccessible", {type: "Post", id: postId, title: "Private post", private: true}],
         ])("has no link when the post is %s", (_state, post) => {
@@ -452,9 +452,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
     });
 
     describe("CreatedDocumentThreads entry", () => {
-        function documentThreadsEntry(
-            document: ApiDocumentReferenceResponse,
-        ): ApiInboxEntryResponse {
+        function documentThreadsEntry(document: ApiDocumentReference): ApiInboxEntry {
             return {
                 ...sharedFields,
                 type: "CreatedDocumentThreads",
@@ -469,7 +467,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
             ).toEqual({type: "Document", id: documentId, title: "Roadmap"});
         });
 
-        test.each<[string, ApiDocumentReferenceResponse]>([
+        test.each<[string, ApiDocumentReference]>([
             [
                 "deleted",
                 {type: "Document", id: documentId, title: "Deleted document", deleted: true},
@@ -484,9 +482,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
     });
 
     describe("DocumentThread entry", () => {
-        function documentThreadEntry(
-            document: ApiDocumentReferenceResponse,
-        ): ApiInboxEntryResponse {
+        function documentThreadEntry(document: ApiDocumentReference): ApiInboxEntry {
             return {
                 ...sharedFields,
                 type: "DocumentThread",
@@ -509,7 +505,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
             });
         });
 
-        test.each<[string, ApiDocumentReferenceResponse]>([
+        test.each<[string, ApiDocumentReference]>([
             [
                 "deleted",
                 {type: "Document", id: documentId, title: "Deleted document", deleted: true},
@@ -524,7 +520,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
     });
 
     describe("TaskMessages entry", () => {
-        function taskEntry(task: ApiTaskReferenceResponse): ApiInboxEntryResponse {
+        function taskEntry(task: ApiTaskReference): ApiInboxEntry {
             return {...sharedFields, type: "TaskMessages", task, previewMessage: {index: 5}};
         }
 
@@ -547,7 +543,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
             });
         });
 
-        test.each<[string, ApiTaskReferenceResponse]>([
+        test.each<[string, ApiTaskReference]>([
             [
                 "deleted",
                 {
@@ -579,7 +575,7 @@ describe("intoAgentWebInboxPageEntry()", () => {
     // entry's own preview is `null`. `featured` here is a different account than the
     // preview author used elsewhere so the fallback source is observable.
     describe("preview and author fallbacks", () => {
-        function noMessageChatEntry(): ApiInboxEntryResponse {
+        function noMessageChatEntry(): ApiInboxEntry {
             return {
                 ...sharedFields,
                 preview: undefined,

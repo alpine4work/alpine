@@ -1,12 +1,15 @@
 /* eslint-disable cyberworlds/string-quotes */
 
 import {convertApiContentToProperQuotes} from "~/shared/api/content/convert_api_content_to_proper_quotes.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
-function testConvertApiContentToProperQuotes(input: ApiContent, expected: ApiContent) {
+function testConvertApiContentToProperQuotes(
+    input: ApiContentRequest,
+    expected: ApiContentRequest,
+) {
     const result = convertApiContentToProperQuotes(input);
     expect(result).toEqual(expected);
 }
@@ -596,7 +599,7 @@ test("preserves file and preview block elements", () => {
     const fileId = generateChronologicalId<FileId>();
     const documentId = generateId<DocumentId>();
 
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {type: "File", file: {id: fileId, contentType: "text/plain"}},
             {

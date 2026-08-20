@@ -4,7 +4,7 @@ import {agentMessageFirstPageTokenLimit} from "~/server/agents/bots/deprecated/i
 import {AgentLink} from "~/server/agents/bots/deprecated/internal/link_references/agent_link.js";
 import {listAgentLinksForTest} from "~/server/agents/bots/deprecated/internal/link_references/agent_link_collection.js";
 import {printApiContentToAgentMarkdown} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {
@@ -26,7 +26,7 @@ afterEach(async () => {
 });
 
 async function testPrintAgentContentToMarkdown(
-    content: ApiContentResponseWithoutKeys,
+    content: ApiContentWithoutKeys,
     expectedMarkdown: string,
     expectedContentLinkReferences: ReadonlyMap<string, AgentLink> = emptyMap,
 ) {

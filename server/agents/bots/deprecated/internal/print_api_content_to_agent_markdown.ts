@@ -11,8 +11,8 @@ import {
     printMarkdownTree,
 } from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
-    ApiContentMentionInlineElementResponse,
-    ApiContentResponseWithoutKeys,
+    ApiContentMentionInlineElement,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -26,7 +26,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
  */
 export async function printApiContentToAgentMarkdown(
     storage: DurableObjectStorageInterface,
-    content: ApiContentResponseWithoutKeys,
+    content: ApiContentWithoutKeys,
 ) {
     const markdownTree = await printApiContentToAgentMarkdownTree(storage, content);
     return printAgentContentMarkdownTree(markdownTree);
@@ -41,7 +41,7 @@ export async function printApiContentToAgentMarkdown(
  */
 export async function printApiContentToAgentMarkdownTree(
     storage: DurableObjectStorageInterface,
-    content: ApiContentResponseWithoutKeys,
+    content: ApiContentWithoutKeys,
 ) {
     const promiseWaiter = new PromiseWaiter();
 
@@ -50,9 +50,9 @@ export async function printApiContentToAgentMarkdownTree(
     });
 
     const traverse = (node: Parent) => {
-        // Headings from `ApiContent` should always start at level 2. That way we can add
-        // level 1 headings elsewhere in the agent context (e.g. document titles) without
-        // fear of conflict.
+        // Headings from `ApiContentRequest` should always start at level 2. That way we
+        // can add level 1 headings elsewhere in the agent context (e.g. document titles)
+        // without fear of conflict.
         if (node.type === "heading") {
             (node as Heading).depth += 1;
         }
@@ -83,7 +83,7 @@ export async function printApiContentToAgentMarkdownTree(
                         storage,
                         // Since this function only accepts response-shaped API content, we know the
                         // mention element should also be the response specialization.
-                        mentionElement as ApiContentMentionInlineElementResponse,
+                        mentionElement as ApiContentMentionInlineElement,
                     );
 
                     node.children[index] = {
@@ -155,7 +155,7 @@ export function printAgentContentMarkdownTree(markdownRoot: Root): string {
 
 function createAgentLinkForApiMentionPath(
     storage: DurableObjectStorageInterface,
-    mentionElement: ApiContentMentionInlineElementResponse,
+    mentionElement: ApiContentMentionInlineElement,
 ): Promise<AgentLink> {
     const {reference} = mentionElement;
 

@@ -20,20 +20,20 @@ import {
     sendAlertAvailableChannels,
 } from "~/admin/lambda/send_alert/internal/send_alert_available_channels.js";
 import {
-    ApiContent,
-    ApiContentParagraphBlockElement,
+    ApiContentParagraphBlockElementRequest,
+    ApiContentRequest,
     ApiGetChannelResponse,
     ApiGetMessageResponse,
-    ApiPostResponse,
+    ApiPost,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 
-type ApiContentElement = ApiContent["elements"][number];
+type ApiContentElement = ApiContentRequest["elements"][number];
 type ApiCreatePostMessageRequestBody =
     ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"];
 type ApiSearchResponse =
     ApiSpecification.paths["/spaces/{id}/search"]["get"]["responses"]["200"]["content"]["application/json"];
-type ApiPostId = ApiPostResponse["id"];
+type ApiPostId = ApiPost["id"];
 
 // You can find the GitHub `workflow_id` with the CLI command `gh workflow list`.
 const deployGithubWorkflowId = 111000643;
@@ -418,7 +418,7 @@ export class GitHubAlertSource extends AlertSource {
 
     private createSingleCommitPushElements(
         data: GitHubPushEventPayload,
-        pusherElement: ApiSpecification.components["schemas"]["ContentInlineElement"],
+        pusherElement: ApiSpecification.components["schemas"]["ContentInlineElement_Request"],
     ): Array<ApiContentElement> {
         const commit = data.commits[0]!;
         const commitMessageTitle = commit.message.split("\n", 1)[0] || commit.message;
@@ -430,7 +430,7 @@ export class GitHubAlertSource extends AlertSource {
 
         const shortHash = commit.id.substring(0, 7);
 
-        const summaryElements: Array<ApiContentParagraphBlockElement["elements"][number]> = [
+        const summaryElements: Array<ApiContentParagraphBlockElementRequest["elements"][number]> = [
             pusherElement,
             {
                 type: "Text",
@@ -488,7 +488,7 @@ export class GitHubAlertSource extends AlertSource {
 
     private createMultiCommitPushElements(
         data: GitHubPushEventPayload,
-        pusherElement: ApiSpecification.components["schemas"]["ContentInlineElement"],
+        pusherElement: ApiSpecification.components["schemas"]["ContentInlineElement_Request"],
     ): Array<ApiContentElement> {
         const includeCommitAuthors = !this.commitsHaveSameAuthor(data.commits);
         const commitElements: Array<ApiContentElement> = data.commits.map(commit => {
@@ -503,7 +503,7 @@ export class GitHubAlertSource extends AlertSource {
 
             const shortHash = commit.id.substring(0, 7);
 
-            const elements: Array<ApiContentParagraphBlockElement["elements"][number]> =
+            const elements: Array<ApiContentParagraphBlockElementRequest["elements"][number]> =
                 includeCommitAuthors
                     ? [
                           commitAuthorElement,
@@ -608,7 +608,7 @@ export class GitHubAlertSource extends AlertSource {
 
     private createCommitAuthorElement(
         commit: GitHubPushEventPayload["commits"][number],
-    ): ApiSpecification.components["schemas"]["ContentInlineElement"] {
+    ): ApiSpecification.components["schemas"]["ContentInlineElement_Request"] {
         return commit.author.username
             ? createUserElement(
                   commit.author.name,

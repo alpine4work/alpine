@@ -1,14 +1,13 @@
 import {getSearchEntityMentionTitleForApi} from "~/server/api/internal/shared/into_api_content_with_references.js";
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {
-    ApiChatReferenceResponse,
-    ApiDocumentReferenceResponse,
-    ApiInboxEntryPreviewItemResponse,
-    ApiInboxEntryResponse,
-    ApiInboxEntryShared,
-    ApiInboxEntryTitleItemResponse,
-    ApiPostReferenceResponse,
-    ApiTaskReferenceResponse,
+    ApiChatReference,
+    ApiDocumentReference,
+    ApiInboxEntry,
+    ApiInboxEntryPreviewItem,
+    ApiInboxEntryTitleItem,
+    ApiPostReference,
+    ApiTaskReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -38,7 +37,7 @@ import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
 export function intoApiInboxEntry(
     entry: InboxEntryModel,
     resolvedReferenceEntity: ContentReferencesSearchEntity | null,
-): ApiInboxEntryResponse {
+): ApiInboxEntry {
     const display = getInboxEntryDisplayContent({
         entry,
         locale: defaultLocale,
@@ -64,7 +63,7 @@ export function intoApiInboxEntry(
 
 function intoApiInboxEntryTitle(
     title: InboxEntryDisplayContentTitle,
-): ReadonlyArray<ApiInboxEntryTitleItemResponse> {
+): ReadonlyArray<ApiInboxEntryTitleItem> {
     return title.map(item =>
         typeof item === "string"
             ? {type: "Text", text: item}
@@ -82,7 +81,7 @@ function intoApiInboxEntryTitle(
  */
 function intoApiInboxEntryPreview(
     display: InboxEntryDisplayContent,
-): ReadonlyArray<ApiInboxEntryPreviewItemResponse> | undefined {
+): ReadonlyArray<ApiInboxEntryPreviewItem> | undefined {
     if (!display.latestMessage || display.latestMessage.contentTextSnippet.length === 0) {
         return undefined;
     }
@@ -96,7 +95,7 @@ function intoApiInboxEntryPreview(
 function intoApiInboxEntryReference(
     entry: InboxEntryModel,
     resolvedReferenceEntity: ContentReferencesSearchEntity | null,
-): DistributiveOmit<ApiInboxEntryResponse, keyof ApiInboxEntryShared> {
+): DistributiveOmit<ApiInboxEntry, Exclude<keyof ApiInboxEntry, "type">> {
     switch (entry.type) {
         case "Chat": {
             const chatId = entry.chatId;
@@ -111,7 +110,7 @@ function intoApiInboxEntryReference(
             // When accessible the content snippet is the post's derived title; without it the
             // post has been deleted and is no longer retrievable. Inaccessible posts carry a
             // placeholder title and an explicit flag.
-            const post: ApiPostReferenceResponse = entry.channel.isPrivate
+            const post: ApiPostReference = entry.channel.isPrivate
                 ? {
                       type: "Post",
                       id: entry.postId,
@@ -193,7 +192,7 @@ function intoApiInboxEntryReference(
  */
 function intoApiInboxEntryDocumentReference(
     document: InboxDocumentCommentThreadEntryModel["document"],
-): ApiDocumentReferenceResponse {
+): ApiDocumentReference {
     if (document.isPrivate) {
         return {
             type: "Document",
@@ -222,7 +221,7 @@ function intoApiInboxEntryDocumentReference(
 function intoApiInboxEntryTaskReference(
     taskId: TaskId,
     resolvedReferenceEntity: ContentReferencesSearchEntity | null,
-): ApiTaskReferenceResponse {
+): ApiTaskReference {
     const entityId = `Task:${taskId}` as const;
 
     if (resolvedReferenceEntity === null) {
@@ -277,7 +276,7 @@ function intoApiInboxEntryTaskReference(
 function intoApiInboxEntryChatReference(
     chatId: ChatId,
     resolvedReferenceEntity: ContentReferencesSearchEntity | null,
-): ApiChatReferenceResponse {
+): ApiChatReference {
     const entityId = `Chat:${chatId}` as const;
 
     // The chat no longer exists. We still expose its id but can't show a title.

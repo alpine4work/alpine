@@ -6,28 +6,28 @@ import {
     printAgentWebSpacePage,
 } from "~/server/agents/web/pages/agent_web_space_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
-import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiAccountReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 const spaceId = generateId<SpaceId>();
 
-const aliceReference: ApiAccountReferenceResponse = {
+const aliceReference: ApiAccountReference = {
     type: "Account",
     id: generateId<AccountId>(),
     title: "Alice Smith",
     shortName: "Alice",
 };
 
-const bobReference: ApiAccountReferenceResponse = {
+const bobReference: ApiAccountReference = {
     type: "Account",
     id: generateId<AccountId>(),
     title: "Bob Jones",
     shortName: "Bob",
 };
 
-const botReference: ApiAccountReferenceResponse = {
+const botReference: ApiAccountReference = {
     type: "Account",
     id: generateId<AccountId>(),
     title: "Helper Bot",

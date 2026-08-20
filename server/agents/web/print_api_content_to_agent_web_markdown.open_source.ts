@@ -14,12 +14,12 @@ import {
     printMarkdownTree,
 } from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
-    ApiContentFileBlockElementResponse,
-    ApiContentFileGalleryBlockElementRowResponse,
-    ApiContentMentionInlineElementResponse,
-    ApiContentPreviewBlockElementResponse,
-    ApiContentResponseWithoutKeys,
-    ApiMentionReferenceResponse,
+    ApiContentFileBlockElement,
+    ApiContentFileGalleryBlockElementRow,
+    ApiContentMentionInlineElement,
+    ApiContentPreviewBlockElement,
+    ApiContentWithoutKeys,
+    ApiMentionReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -38,7 +38,7 @@ type ApiContentAgentWebMarkdownPrinterState = {
 
 export async function printApiContentToAgentWebMarkdown(
     storage: AgentWebSessionStorage,
-    content: ApiContentResponseWithoutKeys,
+    content: ApiContentWithoutKeys,
     options?: {documentId?: DocumentId | null},
 ): Promise<string> {
     const markdownTree = await printApiContentToAgentWebMarkdownTree(storage, content, options);
@@ -47,7 +47,7 @@ export async function printApiContentToAgentWebMarkdown(
 
 export async function printApiContentToAgentWebMarkdownTree(
     storage: AgentWebSessionStorage,
-    content: ApiContentResponseWithoutKeys,
+    content: ApiContentWithoutKeys,
     {documentId = null}: {documentId?: DocumentId | null} = emptyObject,
 ): Promise<Root> {
     const state: ApiContentAgentWebMarkdownPrinterState = {
@@ -114,9 +114,9 @@ async function traverseApiContentMarkdownNode(
     }
 
     switch (node.type) {
-        // Headings from `ApiContent` should always start at level 2. That way we can add
-        // level 1 headings elsewhere in the agent context (e.g. document titles) without
-        // fear of conflict.
+        // Headings from `ApiContentRequest` should always start at level 2. That way we
+        // can add level 1 headings elsewhere in the agent context (e.g. document titles)
+        // without fear of conflict.
         case "heading": {
             assert(node.depth <= 3);
             const newDepth = (node.depth + 1) as 2 | 3 | 4;
@@ -125,14 +125,12 @@ async function traverseApiContentMarkdownNode(
         case "html": {
             if (node.data?.fileElement || node.data?.previewElement) {
                 // This `element` will always be a response specialization because we print
-                // `ApiContentResponse`.
+                // `ApiContent`.
                 const element = (node.data.fileElement ?? node.data?.previewElement) as
-                    | ApiContentFileBlockElementResponse
-                    | ApiContentPreviewBlockElementResponse;
+                    | ApiContentFileBlockElement
+                    | ApiContentPreviewBlockElement;
 
-                let pageLink:
-                    | ApiMentionReferenceResponse
-                    | Extract<AgentWebPageStoredLink, {type: "File"}>;
+                let pageLink: ApiMentionReference | Extract<AgentWebPageStoredLink, {type: "File"}>;
 
                 if (element.type === "Preview") {
                     pageLink = element.reference;
@@ -173,14 +171,14 @@ async function traverseApiContentMarkdownNode(
 
             if (node.data?.fileGalleryElementRow) {
                 // This `fileGalleryElementRow` will always be a response specialization because we
-                // print `ApiContentResponse`.
+                // print `ApiContent`.
                 const fileGalleryElementRow = node.data
-                    .fileGalleryElementRow as ApiContentFileGalleryBlockElementRowResponse;
+                    .fileGalleryElementRow as ApiContentFileGalleryBlockElementRow;
 
                 const pageLinkByUrlEntries = await runAllPromises(
                     fileGalleryElementRow.items.map(async item => {
                         let pageLink:
-                            | ApiMentionReferenceResponse
+                            | ApiMentionReference
                             | Extract<AgentWebPageStoredLink, {type: "File"}>;
                         let url: string;
 
@@ -253,9 +251,8 @@ async function traverseApiContentMarkdownNode(
             }
 
             // This `mentionElement` will always be a response specialization because we print
-            // `ApiContentResponse`.
-            const mentionElement = node.data
-                .mentionElement as ApiContentMentionInlineElementResponse;
+            // `ApiContent`.
+            const mentionElement = node.data.mentionElement as ApiContentMentionInlineElement;
 
             const pageLink = mentionElement.reference;
             const pageLinkPathname = await createAgentWebPageStoredLinkPathname(storage, pageLink);
@@ -296,8 +293,8 @@ async function traverseApiContentMarkdownNode(
         case "image": {
             if (node.data?.fileElement) {
                 // This `fileElement` will always be a response specialization because we print
-                // `ApiContentResponse`.
-                const fileElement = node.data.fileElement as ApiContentFileBlockElementResponse;
+                // `ApiContent`.
+                const fileElement = node.data.fileElement as ApiContentFileBlockElement;
                 const pageLink = intoAgentWebFileObject(fileElement.file);
 
                 const pageLinkPathname = await createAgentWebPageStoredLinkPathname(
@@ -313,9 +310,8 @@ async function traverseApiContentMarkdownNode(
 
             if (node.data?.previewElement) {
                 // This `previewElement` will always be a response specialization because we print
-                // `ApiContentResponse`.
-                const previewElement = node.data
-                    .previewElement as ApiContentPreviewBlockElementResponse;
+                // `ApiContent`.
+                const previewElement = node.data.previewElement as ApiContentPreviewBlockElement;
 
                 const pageLink = previewElement.reference;
                 const pageLinkPathname = await createAgentWebPageStoredLinkPathname(
@@ -339,7 +335,7 @@ async function traverseApiContentMarkdownNode(
 }
 
 function intoAgentWebFileObject(
-    file: ApiContentFileBlockElementResponse["file"],
+    file: ApiContentFileBlockElement["file"],
 ): Extract<AgentWebPageStoredLink, {type: "File"}> {
     return {
         type: "File",

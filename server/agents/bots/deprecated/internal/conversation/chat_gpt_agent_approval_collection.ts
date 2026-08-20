@@ -4,12 +4,12 @@ import {
     DurableObjectTransactionInterface,
 } from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
-    ApiMessageExperimentalApprovalDecision,
-    ApiMessageExperimentalApprovalDecisionApprovedForSessionOption,
-    ApiMessageExperimentalApprovalDecisionOption,
-    ApiMessageExperimentalApprovalDecisionSchema,
-    ApiMessageExperimentalApprovalDecisionValue,
-    ApiMessageRoomReference,
+    ApiMessageExperimentalApprovalDecisionApprovedForSessionOptionRequest,
+    ApiMessageExperimentalApprovalDecisionOptionRequest,
+    ApiMessageExperimentalApprovalDecisionRequest,
+    ApiMessageExperimentalApprovalDecisionSchemaRequest,
+    ApiMessageExperimentalApprovalDecisionValueRequest,
+    ApiMessageRoomReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
@@ -17,27 +17,27 @@ import {AccountId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 type ChatGptAgentApprovedForSessionApprovalDecisionOption = Omit<
-    ApiMessageExperimentalApprovalDecisionApprovedForSessionOption,
+    ApiMessageExperimentalApprovalDecisionApprovedForSessionOptionRequest,
     "scope" | "summary"
 > & {
     readonly scope: {value: "Write"};
 };
 
 export type ChatGptAgentMessageApprovalDecisionOption =
-    | Extract<ApiMessageExperimentalApprovalDecisionOption, {type: "Approved" | "Rejected"}>
+    | Extract<ApiMessageExperimentalApprovalDecisionOptionRequest, {type: "Approved" | "Rejected"}>
     | ChatGptAgentApprovedForSessionApprovalDecisionOption;
 
-type ChatGptAgentApprovalDecisionSchema = ApiMessageExperimentalApprovalDecisionSchema & {
+type ChatGptAgentApprovalDecisionSchema = ApiMessageExperimentalApprovalDecisionSchemaRequest & {
     readonly options: ReadonlyArray<ChatGptAgentMessageApprovalDecisionOption>;
 };
 
-export type ChatGptAgentMessageApprovalDecision = ApiMessageExperimentalApprovalDecision & {
+export type ChatGptAgentMessageApprovalDecision = ApiMessageExperimentalApprovalDecisionRequest & {
     readonly schema: ChatGptAgentApprovalDecisionSchema;
 };
 
 export type ChatGptAgentMessageApprovalItem = {
     readonly options: ReadonlyArray<ChatGptAgentMessageApprovalDecisionOption>;
-    readonly response?: ApiMessageExperimentalApprovalDecisionValue;
+    readonly response?: ApiMessageExperimentalApprovalDecisionValueRequest;
 };
 
 /**
@@ -54,7 +54,7 @@ export type ChatGptAgentMessageApproval = {
      * is dispatched, so this field is not an agent-side access check.
      */
     readonly requesterAccountId: AccountId;
-    readonly room: ApiMessageRoomReference;
+    readonly room: ApiMessageRoomReferenceRequest;
     /** The index of the agent message whose stream holds the approval card. */
     readonly messageIndex: number;
     readonly approvals: ReadonlyArray<ChatGptAgentMessageApprovalItem>;
@@ -98,14 +98,14 @@ export async function putChatGptAgentPendingMessageApproval(
         requesterAccountId,
         approvals,
     }: {
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
         messageIndex: number;
         apiAccessToken: string;
         requesterAccountId: AccountId;
         approvals: ReadonlyArray<{
             readonly functionCallId: string;
             readonly options: ReadonlyArray<ChatGptAgentMessageApprovalDecisionOption>;
-            readonly response?: ApiMessageExperimentalApprovalDecisionValue;
+            readonly response?: ApiMessageExperimentalApprovalDecisionValueRequest;
         }>;
     },
 ): Promise<void> {
@@ -151,7 +151,7 @@ export async function putChatGptAgentPendingMessageApproval(
 export async function getChatGptAgentDecidedApprovalResponseByCallIdIfExists(
     storage: DurableObjectStorageInterface,
     providerCallId: string,
-): Promise<ApiMessageExperimentalApprovalDecisionValue | undefined> {
+): Promise<ApiMessageExperimentalApprovalDecisionValueRequest | undefined> {
     const approvalKey = await ChatGptAgentFunctionCallIdToApprovalIndexCollection.get(
         storage,
         providerCallId,

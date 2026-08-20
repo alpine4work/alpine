@@ -17,8 +17,8 @@ import {getAgentMessagesFromStartUntilTokenLimitCount} from "~/server/agents/bot
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
-    ApiMessageRoomReference,
-    ApiPostResponse,
+    ApiMessageRoomReferenceRequest,
+    ApiPost,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
@@ -106,7 +106,7 @@ async function loadPageMessages(options: {
     request: LoadAgentPostCommentsLinkRequest;
     link: AgentPostCommentsLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
-    post: ApiPostResponse;
+    post: ApiPost;
     tokenLimitFactor: number;
 }): Promise<{
     messages: Array<AgentMessage>;
@@ -158,7 +158,7 @@ async function getMarkdownContentForPageFromStart({
         from: "Start";
         cursor: number | null;
     };
-    post: ApiPostResponse;
+    post: ApiPost;
     tokenLimitFactor: number;
 }): Promise<{
     messages: Array<AgentMessage>;
@@ -225,7 +225,7 @@ async function getMarkdownContentForPageFromEnd({
     link: AgentPostCommentsLink;
     conversationState: Pick<AgentConversationState, "startTime" | "timeZone">;
     cursorOptions: {from: "End"; cursor: number | null};
-    post: ApiPostResponse;
+    post: ApiPost;
     tokenLimitFactor: number;
 }): Promise<{
     messages: Array<AgentMessage>;
@@ -295,7 +295,7 @@ async function getMarkdownContentForPageFromMiddle({
         from: "Middle";
         index: number;
     };
-    post: ApiPostResponse;
+    post: ApiPost;
     tokenLimitFactor: number;
 }): Promise<{
     messages: Array<AgentMessage>;
@@ -372,7 +372,7 @@ async function getMarkdownContentForPageFromMiddle({
     };
 }
 
-function getMessageRoom(link: AgentPostCommentsLink): ApiMessageRoomReference {
+function getMessageRoom(link: AgentPostCommentsLink): ApiMessageRoomReferenceRequest {
     return {type: "Post", id: link.postId};
 }
 
@@ -384,7 +384,7 @@ async function getPreambleForPostComments({
     doesPageContainPostComments,
 }: {
     transaction: DurableObjectTransactionInterface;
-    post: ApiPostResponse;
+    post: ApiPost;
     currentPageLink: AgentPostCommentsLink;
     doesPageContainPost: boolean;
     doesPageContainPostComments: boolean;
@@ -449,7 +449,7 @@ async function fetchPost(
     tracer: TracerBase,
     request: Pick<AgentWebhookRequest, "apiClient" | "spaceId">,
     postId: PostId,
-): Promise<ApiPostResponse> {
+): Promise<ApiPost> {
     const {
         data: {post},
     } = await request.apiClient.get(tracer, "/posts/{id}", {
@@ -461,7 +461,7 @@ async function fetchPost(
 async function getPostAgentMessage(
     transaction: DurableObjectTransactionInterface,
     request: LoadAgentPostCommentsLinkRequest,
-    post: ApiPostResponse,
+    post: ApiPost,
 ): Promise<AgentMessage> {
     return await AgentMessage.new(transaction, {
         spaceId: request.spaceId,

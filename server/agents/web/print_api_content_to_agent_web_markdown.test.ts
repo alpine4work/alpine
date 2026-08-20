@@ -8,8 +8,8 @@ import {parseApiContentFromAgentWebMarkdown} from "~/server/agents/web/parse_api
 import {printApiContentToAgentWebMarkdown} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {
-    ApiContentBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
+    ApiContentBlockElementWithoutKeys,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
@@ -63,7 +63,7 @@ const storage = createAgentWebSessionStorageForTest(spaceId);
 const testCases: Array<{
     only?: CommitBlocker;
     name: string;
-    content: ApiContentResponseWithoutKeys;
+    content: ApiContentWithoutKeys;
     markdown: string;
 }> = [
     {
@@ -2944,7 +2944,7 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
             // Always perform one last update.
             await parser.update(null);
 
-            const elements: Array<ApiContentBlockElementResponseWithoutKeys> = [];
+            const elements: Array<ApiContentBlockElementWithoutKeys> = [];
 
             for (const part of parser.getParts()) {
                 // We only push text so there should be only content parts.
@@ -2955,7 +2955,7 @@ for (const {only, name, content: expectedContent, markdown: expectedMarkdown} of
                 }
             }
 
-            const actualContent: ApiContentResponseWithoutKeys = {elements};
+            const actualContent: ApiContentWithoutKeys = {elements};
 
             expect(normalizeApiContentForAgentWebMarkdown(actualContent)).toEqual(
                 normalizeApiContentForAgentWebMarkdown(expectedContent),

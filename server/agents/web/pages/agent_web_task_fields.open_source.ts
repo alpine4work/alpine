@@ -8,12 +8,12 @@ import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web
 import {printApiMentionReferenceToMentionLinkLabel} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiTaskCollectionReferenceResponse,
+    ApiAccountReference,
+    ApiTaskCollectionReference,
     ApiTaskDue,
     ApiTaskLayout,
     ApiTaskPriority,
-    ApiTaskReferenceResponse,
+    ApiTaskReference,
     ApiTaskStatus,
     ApiTaskSubtasks,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
@@ -41,10 +41,10 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.open_source.js"
 export type AgentWebTaskFields = {
     readonly status?: ApiTaskStatus | null;
     readonly layout?: ApiTaskLayout | null;
-    readonly parent?: ApiTaskReferenceResponse | null;
+    readonly parent?: ApiTaskReference | null;
     readonly subtasks?: ApiTaskSubtasks | null;
-    readonly assignee?: ApiAccountReferenceResponse | null;
-    readonly collections?: ReadonlyArray<ApiTaskCollectionReferenceResponse> | null;
+    readonly assignee?: ApiAccountReference | null;
+    readonly collections?: ReadonlyArray<ApiTaskCollectionReference> | null;
     readonly additionalCollectionsCount?: number | null;
     readonly priority?: ApiTaskPriority | null;
     readonly dueDateString?: string | null;
@@ -279,11 +279,11 @@ export async function parseAgentWebTaskFieldListItems(
 
     let status: ApiTaskStatus | null = null;
     let layout: ApiTaskLayout | null = null;
-    let parentPromise: Promise<ApiTaskReferenceResponse | null> | null = null;
+    let parentPromise: Promise<ApiTaskReference | null> | null = null;
     let subtasks: ApiTaskSubtasks = {openTaskCount: 0, closedTaskCount: 0};
-    let assigneePromise: Promise<ApiAccountReferenceResponse | null> | null = null;
+    let assigneePromise: Promise<ApiAccountReference | null> | null = null;
     let collectionsPromise: Promise<{
-        collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
+        collections: ReadonlyArray<ApiTaskCollectionReference>;
         additionalCount: number;
     }> | null = null;
     let priority: ApiTaskPriority | null = null;
@@ -520,7 +520,7 @@ async function parseAgentWebTaskParentField(
     storage: AgentWebSessionStorage,
     itemPosition: Node["position"],
     value: ReadonlyArray<PhrasingContent>,
-): Promise<ApiTaskReferenceResponse | null> {
+): Promise<ApiTaskReference | null> {
     const createError = (position: Node["position"]) => {
         const quotedValue = curlyQuote(value);
 
@@ -559,7 +559,7 @@ async function parseAgentWebTaskAssigneeField(
     storage: AgentWebSessionStorage,
     itemPosition: Node["position"],
     value: ReadonlyArray<PhrasingContent>,
-): Promise<ApiAccountReferenceResponse | null> {
+): Promise<ApiAccountReference | null> {
     const createError = (position: Node["position"]) => {
         const quotedValue = curlyQuote(value);
 
@@ -608,7 +608,7 @@ async function parseAgentWebTaskCollectionsField(
         allowAdditionalCount: boolean;
     },
 ): Promise<{
-    collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
+    collections: ReadonlyArray<ApiTaskCollectionReference>;
     additionalCount: number;
 }> {
     // The collections list may end with an "and n more" count summarizing collections

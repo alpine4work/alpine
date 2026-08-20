@@ -10,44 +10,44 @@ import {
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiChannelReferenceResponse,
-    ApiChatReferenceResponse,
-    ApiContentBlockElementResponse,
+    ApiAccountReference,
+    ApiChannelReference,
+    ApiChatReference,
+    ApiContent,
+    ApiContentBlockElement,
     ApiContentBreakInlineElement,
-    ApiContentCheckListBlockElementItemResponse,
-    ApiContentCheckListBlockElementResponse,
-    ApiContentCodeBlockElementResponse,
+    ApiContentCheckListBlockElement,
+    ApiContentCheckListBlockElementItem,
+    ApiContentCodeBlockElement,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
     ApiContentCommentMark,
-    ApiContentDividerBlockElementResponse,
-    ApiContentFileBlockElementResponse,
-    ApiContentFileFloatBlockElementResponse,
-    ApiContentFileGalleryBlockElementResponse,
-    ApiContentHeadingBlockElementResponse,
+    ApiContentDividerBlockElement,
+    ApiContentFileBlockElement,
+    ApiContentFileFloatBlockElement,
+    ApiContentFileGalleryBlockElement,
+    ApiContentHeadingBlockElement,
     ApiContentHighlightMark,
+    ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiContentInlineElementResponse,
     ApiContentLinkMark,
-    ApiContentListBlockElementItemResponse,
-    ApiContentListBlockElementResponse,
-    ApiContentMentionInlineElementResponse,
-    ApiContentOrderedListBlockElementResponse,
-    ApiContentParagraphBlockElementResponse,
-    ApiContentPreviewBlockElementResponse,
-    ApiContentQuoteBlockElementBlockElementResponse,
-    ApiContentQuoteBlockElementResponse,
-    ApiContentResponse,
-    ApiContentTableBlockElementCellBlockElementResponse,
-    ApiContentTableBlockElementResponse,
+    ApiContentListBlockElement,
+    ApiContentListBlockElementItem,
+    ApiContentMentionInlineElement,
+    ApiContentOrderedListBlockElement,
+    ApiContentParagraphBlockElement,
+    ApiContentPreviewBlockElement,
+    ApiContentQuoteBlockElement,
+    ApiContentQuoteBlockElementBlockElement,
+    ApiContentTableBlockElement,
+    ApiContentTableBlockElementCellBlockElement,
     ApiContentTextInlineElement,
-    ApiContentUnorderedListBlockElementResponse,
-    ApiDocumentReferenceResponse,
-    ApiMentionReferenceResponse,
-    ApiPreviewReferenceResponse,
-    ApiTaskCollectionReferenceResponse,
-    ApiTaskReferenceResponse,
+    ApiContentUnorderedListBlockElement,
+    ApiDocumentReference,
+    ApiMentionReference,
+    ApiPreviewReference,
+    ApiTaskCollectionReference,
+    ApiTaskReference,
     ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {fileAnalysisCaptionMaxLength} from "~/shared/files/file_analysis.js";
@@ -134,19 +134,19 @@ export const ApiContentTextArbitrary = fc.oneof(
     },
 );
 
-export const ApiChannelReferenceArbitrary: fc.Arbitrary<ApiChannelReferenceResponse> = fc.record({
+export const ApiChannelReferenceArbitrary: fc.Arbitrary<ApiChannelReference> = fc.record({
     type: fc.constant("Channel"),
     id: createIdArbitrary<ChannelId>(),
     title: ApiContentTextArbitrary,
 });
 
-export const ApiChatReferenceArbitrary: fc.Arbitrary<ApiChatReferenceResponse> = fc.record({
+export const ApiChatReferenceArbitrary: fc.Arbitrary<ApiChatReference> = fc.record({
     type: fc.constant("Chat"),
     id: createIdArbitrary<ChatId>(),
     title: ApiContentTextArbitrary,
 });
 
-export const ApiDocumentReferenceArbitrary: fc.Arbitrary<ApiDocumentReferenceResponse> = fc.record({
+export const ApiDocumentReferenceArbitrary: fc.Arbitrary<ApiDocumentReference> = fc.record({
     type: fc.constant("Document"),
     id: createIdArbitrary<DocumentId>(),
     title: ApiContentTextArbitrary,
@@ -158,14 +158,14 @@ export const ApiTaskStatusArbitrary: fc.Arbitrary<ApiTaskStatus> = fc.oneof(
     fc.constant({type: "Closed"}),
 );
 
-export const ApiTaskReferenceArbitrary: fc.Arbitrary<ApiTaskReferenceResponse> = fc.record({
+export const ApiTaskReferenceArbitrary: fc.Arbitrary<ApiTaskReference> = fc.record({
     type: fc.constant("Task"),
     id: createIdArbitrary<TaskId>(),
     title: ApiContentTextArbitrary,
     status: ApiTaskStatusArbitrary,
 });
 
-export const ApiTaskCollectionReferenceArbitrary: fc.Arbitrary<ApiTaskCollectionReferenceResponse> =
+export const ApiTaskCollectionReferenceArbitrary: fc.Arbitrary<ApiTaskCollectionReference> =
     fc.record({
         type: fc.constant("TaskCollection"),
         id: createIdArbitrary<TaskCollectionId>(),
@@ -190,7 +190,7 @@ const ApiPreviewReferenceArbitraries = {
     }),
 };
 
-export const ApiAccountReferenceArbitrary: fc.Arbitrary<ApiAccountReferenceResponse> = fc.record({
+export const ApiAccountReferenceArbitrary: fc.Arbitrary<ApiAccountReference> = fc.record({
     type: fc.constant("Account"),
     id: createIdArbitrary<AccountId>(),
     title: ApiContentTextArbitrary,
@@ -201,7 +201,7 @@ export const ApiAccountReferenceArbitrary: fc.Arbitrary<ApiAccountReferenceRespo
     ),
 });
 
-export const ApiMentionReferenceArbitrary = createUnionArbitrary<ApiMentionReferenceResponse>({
+export const ApiMentionReferenceArbitrary = createUnionArbitrary<ApiMentionReference>({
     ...ApiPreviewReferenceArbitraries,
     Account: ApiAccountReferenceArbitrary,
 });
@@ -286,56 +286,54 @@ const ApiContentKeyArbitrary = fc.oneof(
     ),
 );
 
-const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElementResponse> =
-    fc.record({
-        type: fc.constant("File"),
-        key: ApiContentKeyArbitrary,
-        file: fc.record(
-            {
-                id: fc.oneof(
-                    {weight: 100, arbitrary: createIdArbitrary<FileId>()},
-                    {weight: 1, arbitrary: fc.constant(unknownFileId)},
-                ),
-                contentType: fc.oneof(
-                    fc.constant("image/png"),
-                    fc.constant("image/jpeg"),
-                    fc.constant("video/mp4"),
-                    fc.constant("audio/mpeg"),
-                    fc.constant("application/pdf"),
-                    fc.constant("application/yaml"),
-                    fc.constant("application/octet-stream"),
-                ),
-                contentLength: fc.integer({min: 0}),
-                caption: fc.string({
-                    unit: "grapheme-ascii",
-                    minLength: 1,
-                    maxLength: fileAnalysisCaptionMaxLength,
-                }),
-            },
-            {requiredKeys: ["id", "contentType", "contentLength"]},
-        ),
-        marks: fc.oneof(
-            {arbitrary: fc.constant([]), weight: 20},
-            fc.array(ApiContentCommentMarkArbitrary, {maxLength: 3}),
-        ),
-    });
+const ApiContentFileBlockElementArbitrary: Arbitrary<ApiContentFileBlockElement> = fc.record({
+    type: fc.constant("File"),
+    key: ApiContentKeyArbitrary,
+    file: fc.record(
+        {
+            id: fc.oneof(
+                {weight: 100, arbitrary: createIdArbitrary<FileId>()},
+                {weight: 1, arbitrary: fc.constant(unknownFileId)},
+            ),
+            contentType: fc.oneof(
+                fc.constant("image/png"),
+                fc.constant("image/jpeg"),
+                fc.constant("video/mp4"),
+                fc.constant("audio/mpeg"),
+                fc.constant("application/pdf"),
+                fc.constant("application/yaml"),
+                fc.constant("application/octet-stream"),
+            ),
+            contentLength: fc.integer({min: 0}),
+            caption: fc.string({
+                unit: "grapheme-ascii",
+                minLength: 1,
+                maxLength: fileAnalysisCaptionMaxLength,
+            }),
+        },
+        {requiredKeys: ["id", "contentType", "contentLength"]},
+    ),
+    marks: fc.oneof(
+        {arbitrary: fc.constant([]), weight: 20},
+        fc.array(ApiContentCommentMarkArbitrary, {maxLength: 3}),
+    ),
+});
 
-const ApiPreviewReferenceArbitrary = createUnionArbitrary<ApiPreviewReferenceResponse>(
+const ApiPreviewReferenceArbitrary = createUnionArbitrary<ApiPreviewReference>(
     ApiPreviewReferenceArbitraries,
 );
 
-const ApiContentPreviewBlockElementArbitrary: Arbitrary<ApiContentPreviewBlockElementResponse> =
-    fc.record({
-        type: fc.constant("Preview"),
-        key: ApiContentKeyArbitrary,
-        reference: ApiPreviewReferenceArbitrary,
-        marks: fc.oneof(
-            {arbitrary: fc.constant([]), weight: 20},
-            fc.array(ApiContentCommentMarkArbitrary, {maxLength: 3}),
-        ),
-    });
+const ApiContentPreviewBlockElementArbitrary: Arbitrary<ApiContentPreviewBlockElement> = fc.record({
+    type: fc.constant("Preview"),
+    key: ApiContentKeyArbitrary,
+    reference: ApiPreviewReferenceArbitrary,
+    marks: fc.oneof(
+        {arbitrary: fc.constant([]), weight: 20},
+        fc.array(ApiContentCommentMarkArbitrary, {maxLength: 3}),
+    ),
+});
 
-const ApiContentFileGalleryBlockElementArbitrary: Arbitrary<ApiContentFileGalleryBlockElementResponse> =
+const ApiContentFileGalleryBlockElementArbitrary: Arbitrary<ApiContentFileGalleryBlockElement> =
     fc.record({
         type: fc.constant("FileGallery"),
         rows: fc.array(
@@ -367,7 +365,7 @@ const ApiContentFileGalleryBlockElementArbitrary: Arbitrary<ApiContentFileGaller
         ),
     });
 
-const ApiContentFileFloatBlockElementArbitrary: Arbitrary<ApiContentFileFloatBlockElementResponse> =
+const ApiContentFileFloatBlockElementArbitrary: Arbitrary<ApiContentFileFloatBlockElement> =
     fc.record({
         type: fc.constant("FileFloat"),
         side: fc.oneof(fc.constant("Left"), fc.constant("Right")),
@@ -377,7 +375,7 @@ const ApiContentFileFloatBlockElementArbitrary: Arbitrary<ApiContentFileFloatBlo
         ),
     });
 
-const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInlineElementResponse> =
+const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInlineElement> =
     fc.record({
         type: fc.constant("Mention"),
         reference: ApiMentionReferenceArbitrary,
@@ -390,12 +388,11 @@ const ApiContentMentionInlineElementArbitrary: Arbitrary<ApiContentMentionInline
         ),
     });
 
-export const ApiContentInlineElementArbitrary =
-    createUnionArbitrary<ApiContentInlineElementResponse>({
-        Text: {arbitrary: ApiContentTextInlineElementArbitrary, weight: 50},
-        Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
-        Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
-    });
+export const ApiContentInlineElementArbitrary = createUnionArbitrary<ApiContentInlineElement>({
+    Text: {arbitrary: ApiContentTextInlineElementArbitrary, weight: 50},
+    Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
+    Break: {arbitrary: ApiContentBreakInlineElementArbitrary, weight: 1},
+});
 
 export const ApiContentInlineElementWithoutCommentMarkArbitrary =
     ApiContentInlineElementArbitrary.map(element => {
@@ -407,7 +404,7 @@ export const ApiContentInlineElementWithoutCommentMarkArbitrary =
     });
 
 const ApiContentInlineElementArbitraryForSimpleTable = createUnionArbitrary<
-    Exclude<ApiContentInlineElementResponse, {type: "Break"}>
+    Exclude<ApiContentInlineElement, {type: "Break"}>
 >({
     Text: {
         arbitrary: ApiContentTextInlineElementArbitrary.filter(element => {
@@ -423,14 +420,14 @@ const ApiContentInlineElementArbitraryForSimpleTable = createUnionArbitrary<
     Mention: {arbitrary: ApiContentMentionInlineElementArbitrary, weight: 10},
 });
 
-const ApiContentParagraphBlockElementArbitrary: Arbitrary<ApiContentParagraphBlockElementResponse> =
+const ApiContentParagraphBlockElementArbitrary: Arbitrary<ApiContentParagraphBlockElement> =
     fc.record({
         type: fc.constant("Paragraph"),
         key: ApiContentKeyArbitrary,
         elements: fc.array(ApiContentInlineElementArbitrary),
     });
 
-const ApiContentParagraphBlockElementArbitraryForSimpleTable: Arbitrary<ApiContentParagraphBlockElementResponse> =
+const ApiContentParagraphBlockElementArbitraryForSimpleTable: Arbitrary<ApiContentParagraphBlockElement> =
     fc.record({
         type: fc.constant("Paragraph"),
         key: ApiContentKeyArbitrary,
@@ -442,19 +439,18 @@ const {
     ApiContentOrderedListBlockElementArbitrary,
     ApiContentCheckListBlockElementArbitrary,
 } = fc.letrec<{
-    ApiContentListBlockElementArbitrary: ApiContentListBlockElementResponse;
-    ApiContentListBlockElementItemArbitrary: ApiContentListBlockElementItemResponse;
-    ApiContentCheckListBlockElementItemArbitrary: ApiContentCheckListBlockElementItemResponse;
-    ApiContentUnorderedListBlockElementArbitrary: ApiContentUnorderedListBlockElementResponse;
-    ApiContentOrderedListBlockElementArbitrary: ApiContentOrderedListBlockElementResponse;
-    ApiContentCheckListBlockElementArbitrary: ApiContentCheckListBlockElementResponse;
+    ApiContentListBlockElementArbitrary: ApiContentListBlockElement;
+    ApiContentListBlockElementItemArbitrary: ApiContentListBlockElementItem;
+    ApiContentCheckListBlockElementItemArbitrary: ApiContentCheckListBlockElementItem;
+    ApiContentUnorderedListBlockElementArbitrary: ApiContentUnorderedListBlockElement;
+    ApiContentOrderedListBlockElementArbitrary: ApiContentOrderedListBlockElement;
+    ApiContentCheckListBlockElementArbitrary: ApiContentCheckListBlockElement;
 }>(tie => {
-    const ApiContentListBlockElementArbitrary: Arbitrary<ApiContentListBlockElementResponse> =
-        fc.oneof(
-            tie("ApiContentUnorderedListBlockElementArbitrary"),
-            tie("ApiContentOrderedListBlockElementArbitrary"),
-            tie("ApiContentCheckListBlockElementArbitrary"),
-        );
+    const ApiContentListBlockElementArbitrary: Arbitrary<ApiContentListBlockElement> = fc.oneof(
+        tie("ApiContentUnorderedListBlockElementArbitrary"),
+        tie("ApiContentOrderedListBlockElementArbitrary"),
+        tie("ApiContentCheckListBlockElementArbitrary"),
+    );
 
     const ListItemElementArbitrary = fc.oneof(
         {
@@ -500,32 +496,32 @@ const {
         },
     );
 
-    const ApiContentListBlockElementItemArbitrary: Arbitrary<ApiContentListBlockElementItemResponse> =
+    const ApiContentListBlockElementItemArbitrary: Arbitrary<ApiContentListBlockElementItem> =
         fc.record({
             elements: ListItemElementArbitrary,
             nestedListElements: NestedListItemElementArbitrary,
         });
 
-    const ApiContentCheckListBlockElementItemArbitrary: Arbitrary<ApiContentCheckListBlockElementItemResponse> =
+    const ApiContentCheckListBlockElementItemArbitrary: Arbitrary<ApiContentCheckListBlockElementItem> =
         fc.record({
             checked: fc.boolean(),
             elements: ListItemElementArbitrary,
             nestedListElements: NestedListItemElementArbitrary,
         });
 
-    const ApiContentUnorderedListBlockElementArbitrary: Arbitrary<ApiContentUnorderedListBlockElementResponse> =
+    const ApiContentUnorderedListBlockElementArbitrary: Arbitrary<ApiContentUnorderedListBlockElement> =
         fc.record({
             type: fc.constant("UnorderedList"),
             items: fc.array(ApiContentListBlockElementItemArbitrary),
         });
 
-    const ApiContentOrderedListBlockElementArbitrary: Arbitrary<ApiContentOrderedListBlockElementResponse> =
+    const ApiContentOrderedListBlockElementArbitrary: Arbitrary<ApiContentOrderedListBlockElement> =
         fc.record({
             type: fc.constant("OrderedList"),
             items: fc.array(ApiContentListBlockElementItemArbitrary),
         });
 
-    const ApiContentCheckListBlockElementArbitrary: Arbitrary<ApiContentCheckListBlockElementResponse> =
+    const ApiContentCheckListBlockElementArbitrary: Arbitrary<ApiContentCheckListBlockElement> =
         fc.record({
             type: fc.constant("CheckList"),
             items: fc.array(ApiContentCheckListBlockElementItemArbitrary),
@@ -541,32 +537,29 @@ const {
     };
 });
 
-const ApiContentQuoteBlockElementArbitrary: Arbitrary<ApiContentQuoteBlockElementResponse> =
-    fc.record({
-        type: fc.constant("Quote"),
-        elements: fc.array(
-            createUnionArbitrary<ApiContentQuoteBlockElementBlockElementResponse>({
-                Paragraph: ApiContentParagraphBlockElementArbitrary,
-                UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
-                OrderedList: ApiContentOrderedListBlockElementArbitrary,
-                CheckList: ApiContentCheckListBlockElementArbitrary,
-            }),
-        ),
-    });
+const ApiContentQuoteBlockElementArbitrary: Arbitrary<ApiContentQuoteBlockElement> = fc.record({
+    type: fc.constant("Quote"),
+    elements: fc.array(
+        createUnionArbitrary<ApiContentQuoteBlockElementBlockElement>({
+            Paragraph: ApiContentParagraphBlockElementArbitrary,
+            UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
+            OrderedList: ApiContentOrderedListBlockElementArbitrary,
+            CheckList: ApiContentCheckListBlockElementArbitrary,
+        }),
+    ),
+});
 
-const ApiContentHeadingBlockElementArbitrary: Arbitrary<ApiContentHeadingBlockElementResponse> =
-    fc.record({
-        type: fc.constant("Heading"),
-        key: ApiContentKeyArbitrary,
-        level: fc.oneof(fc.constant(1), fc.constant(2), fc.constant(3)),
-        elements: fc.array(ApiContentInlineElementArbitrary),
-    });
+const ApiContentHeadingBlockElementArbitrary: Arbitrary<ApiContentHeadingBlockElement> = fc.record({
+    type: fc.constant("Heading"),
+    key: ApiContentKeyArbitrary,
+    level: fc.oneof(fc.constant(1), fc.constant(2), fc.constant(3)),
+    elements: fc.array(ApiContentInlineElementArbitrary),
+});
 
-const ApiContentDividerBlockElementArbitrary: Arbitrary<ApiContentDividerBlockElementResponse> =
-    fc.record({
-        type: fc.constant("Divider"),
-        key: ApiContentKeyArbitrary,
-    });
+const ApiContentDividerBlockElementArbitrary: Arbitrary<ApiContentDividerBlockElement> = fc.record({
+    type: fc.constant("Divider"),
+    key: ApiContentKeyArbitrary,
+});
 
 const ApiContentCodeBlockElementTextInlineElementMarkArbitrary =
     createUnionArbitrary<ApiContentCodeBlockElementTextInlineElementMark>({
@@ -590,123 +583,118 @@ const ApiContentCodeBlockElementTextInlineElementArbitrary: Arbitrary<ApiContent
         ),
     });
 
-const ApiContentCodeBlockElementArbitrary: Arbitrary<ApiContentCodeBlockElementResponse> =
-    fc.record({
-        type: fc.constant("Code"),
-        language: fc.oneof(
-            ...mapIterable(
-                getObjectKeysWithKeyofType(apiContentCodeBlockLanguageDefinition),
-                language => fc.constant(language),
-            ),
+const ApiContentCodeBlockElementArbitrary: Arbitrary<ApiContentCodeBlockElement> = fc.record({
+    type: fc.constant("Code"),
+    language: fc.oneof(
+        ...mapIterable(
+            getObjectKeysWithKeyofType(apiContentCodeBlockLanguageDefinition),
+            language => fc.constant(language),
         ),
-        lines: fc.array(
-            fc.record({
-                key: ApiContentKeyArbitrary,
-                elements: fc.array(ApiContentCodeBlockElementTextInlineElementArbitrary),
-            }),
-        ),
-    });
+    ),
+    lines: fc.array(
+        fc.record({
+            key: ApiContentKeyArbitrary,
+            elements: fc.array(ApiContentCodeBlockElementTextInlineElementArbitrary),
+        }),
+    ),
+});
 
 // Schema requires tableCell{2,} so tables must have at least 2 columns
-const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElementResponse> =
-    fc.oneof(
-        // Simple table that should be formatted as a GFM table.
-        fc
-            .record({
-                type: fc.constant("Table"),
-                width: fc.constant(1),
-                hasHeaderRow: fc.constant(true),
-                hasHeaderColumn: fc.constant(false),
-                columns: fc.array(fc.record({width: fc.constant(1)}), {minLength: 2}),
-                rows: fc.array(
-                    fc.record({
-                        cells: fc.array(
-                            fc.record({
-                                elements: fc.tuple(
-                                    ApiContentParagraphBlockElementArbitraryForSimpleTable,
-                                ),
-                            }),
-                            {minLength: 2},
-                        ),
-                    }),
-                ),
-            })
-            .map(oldTable => {
-                let columnCount = 0;
-
-                for (const row of oldTable.rows) {
-                    columnCount = Math.max(columnCount, row.cells.length);
-                }
-
-                const rows = oldTable.rows.map(row => {
-                    if (row.cells.length === columnCount) return row;
-
-                    return {
-                        cells: [
-                            ...row.cells,
-                            ...createArrayWithLength(columnCount - row.cells.length, () => ({
-                                elements: [],
-                            })),
-                        ],
-                    };
-                });
-
-                let newTable: ApiContentTableBlockElementResponse = {...oldTable, rows};
-
-                const tableLayout =
-                    computeApiContentTableBlockElementGfmTableLayoutForTest(newTable);
-
-                // Make sure we can print the table as a GFM table. If the table isn't printable as
-                // a GFM table then this will be null.
-                assert(tableLayout !== null);
-
-                newTable = {
-                    ...newTable,
-                    width: tableLayout.tableWidth,
-                    columns: tableLayout.columnWidths.map(width => ({width})),
-                };
-
-                return newTable;
-            }),
-
-        // Arbitrary table that's not limited to simple constructs that'll work in a GFM
-        // table.
-        fc.record({
+const ApiContentTableBlockElementArbitrary: Arbitrary<ApiContentTableBlockElement> = fc.oneof(
+    // Simple table that should be formatted as a GFM table.
+    fc
+        .record({
             type: fc.constant("Table"),
-            width: fc.float({min: 1, max: 20, noNaN: true}),
-            hasHeaderRow: fc.boolean(),
-            hasHeaderColumn: fc.boolean(),
-            columns: fc.array(
-                fc.record({width: fc.float({min: Math.fround(0.01), max: 20, noNaN: true})}),
-                {minLength: 2},
-            ),
+            width: fc.constant(1),
+            hasHeaderRow: fc.constant(true),
+            hasHeaderColumn: fc.constant(false),
+            columns: fc.array(fc.record({width: fc.constant(1)}), {minLength: 2}),
             rows: fc.array(
                 fc.record({
                     cells: fc.array(
                         fc.record({
-                            elements: fc.array(
-                                createUnionArbitrary<ApiContentTableBlockElementCellBlockElementResponse>(
-                                    {
-                                        Paragraph: ApiContentParagraphBlockElementArbitrary,
-                                        UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
-                                        OrderedList: ApiContentOrderedListBlockElementArbitrary,
-                                        Quote: ApiContentQuoteBlockElementArbitrary,
-                                        Code: ApiContentCodeBlockElementArbitrary,
-                                        CheckList: ApiContentCheckListBlockElementArbitrary,
-                                        File: ApiContentFileBlockElementArbitrary,
-                                        Preview: ApiContentPreviewBlockElementArbitrary,
-                                    },
-                                ),
+                            elements: fc.tuple(
+                                ApiContentParagraphBlockElementArbitraryForSimpleTable,
                             ),
                         }),
                         {minLength: 2},
                     ),
                 }),
             ),
-        }),
-    );
+        })
+        .map(oldTable => {
+            let columnCount = 0;
 
-const ApiContentBlockElementArbitrary = createUnionArbitrary<ApiContentBlockElementResponse>({
+            for (const row of oldTable.rows) {
+                columnCount = Math.max(columnCount, row.cells.length);
+            }
+
+            const rows = oldTable.rows.map(row => {
+                if (row.cells.length === columnCount) return row;
+
+                return {
+                    cells: [
+                        ...row.cells,
+                        ...createArrayWithLength(columnCount - row.cells.length, () => ({
+                            elements: [],
+                        })),
+                    ],
+                };
+            });
+
+            let newTable: ApiContentTableBlockElement = {...oldTable, rows};
+
+            const tableLayout = computeApiContentTableBlockElementGfmTableLayoutForTest(newTable);
+
+            // Make sure we can print the table as a GFM table. If the table isn't printable as
+            // a GFM table then this will be null.
+            assert(tableLayout !== null);
+
+            newTable = {
+                ...newTable,
+                width: tableLayout.tableWidth,
+                columns: tableLayout.columnWidths.map(width => ({width})),
+            };
+
+            return newTable;
+        }),
+
+    // Arbitrary table that's not limited to simple constructs that'll work in a GFM
+    // table.
+    fc.record({
+        type: fc.constant("Table"),
+        width: fc.float({min: 1, max: 20, noNaN: true}),
+        hasHeaderRow: fc.boolean(),
+        hasHeaderColumn: fc.boolean(),
+        columns: fc.array(
+            fc.record({width: fc.float({min: Math.fround(0.01), max: 20, noNaN: true})}),
+            {minLength: 2},
+        ),
+        rows: fc.array(
+            fc.record({
+                cells: fc.array(
+                    fc.record({
+                        elements: fc.array(
+                            createUnionArbitrary<ApiContentTableBlockElementCellBlockElement>({
+                                Paragraph: ApiContentParagraphBlockElementArbitrary,
+                                UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
+                                OrderedList: ApiContentOrderedListBlockElementArbitrary,
+                                Quote: ApiContentQuoteBlockElementArbitrary,
+                                Code: ApiContentCodeBlockElementArbitrary,
+                                CheckList: ApiContentCheckListBlockElementArbitrary,
+                                File: ApiContentFileBlockElementArbitrary,
+                                Preview: ApiContentPreviewBlockElementArbitrary,
+                            }),
+                        ),
+                    }),
+                    {minLength: 2},
+                ),
+            }),
+        ),
+    }),
+);
+
+const ApiContentBlockElementArbitrary = createUnionArbitrary<ApiContentBlockElement>({
     Paragraph: {arbitrary: ApiContentParagraphBlockElementArbitrary, weight: 20},
     UnorderedList: ApiContentUnorderedListBlockElementArbitrary,
     OrderedList: ApiContentOrderedListBlockElementArbitrary,
@@ -722,12 +710,12 @@ const ApiContentBlockElementArbitrary = createUnionArbitrary<ApiContentBlockElem
     Preview: ApiContentPreviewBlockElementArbitrary,
 });
 
-export const ApiContentArbitrary: Arbitrary<ApiContentResponse> = fc.record({
+export const ApiContentArbitrary: Arbitrary<ApiContent> = fc.record({
     elements: fc.array(ApiContentBlockElementArbitrary),
 });
 
-export const ApiContentWithoutCommentMarkArbitrary: Arbitrary<ApiContentResponse> =
-    ApiContentArbitrary.map(content => {
+export const ApiContentWithoutCommentMarkArbitrary: Arbitrary<ApiContent> = ApiContentArbitrary.map(
+    content => {
         return produce(content, content => {
             visitDraftApiContent(content, {
                 visitInlineElement: element => {
@@ -745,4 +733,5 @@ export const ApiContentWithoutCommentMarkArbitrary: Arbitrary<ApiContentResponse
                 },
             });
         });
-    });
+    },
+);

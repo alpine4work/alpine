@@ -5,7 +5,7 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source
 import {createAgentWebTaskQueryCursorHash} from "~/server/agents/web/agent_web_task_query_cursor_hash.open_source.js";
 import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiTaskQueryDefaultsResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiTaskQueryDefaults} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -48,7 +48,7 @@ function getApiPostUntitledTaskViewQueryRequestHistory() {
 }
 
 test("reads a filtered and sorted task view", async () => {
-    const query: ApiTaskQueryDefaultsResponse = {
+    const query: ApiTaskQueryDefaults = {
         filters: [
             {
                 type: "Status",
@@ -104,7 +104,7 @@ End of tasks.`,
 });
 
 test("paginates a filtered and sorted task view", async () => {
-    const query: ApiTaskQueryDefaultsResponse = {
+    const query: ApiTaskQueryDefaults = {
         filters: [],
         sorts: [{type: "CreatedTime", direction: "Descending"}],
     };

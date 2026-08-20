@@ -2,25 +2,28 @@ import {ApiReference} from "~/shared/api/specification/types/api_reference.open_
 import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.open_source.js";
 import {
     ApiBotWebhookCreatedMessageEventParent,
-    ApiContentFileBlockElementResponseWithoutKeys,
-    ApiContentPreviewBlockElementResponseWithoutKeys,
+    ApiBotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent,
+    ApiContentFileBlockElementWithoutKeys,
+    ApiContentPreviewBlockElementWithoutKeys,
     ApiContentTextInlineElement,
     ApiGetDocumentResponse,
     ApiGetTaskResponse,
     ApiMentionReference,
-    ApiMentionReferenceResponse,
-    ApiMessageContentPayloadFileResponse,
+    ApiMentionReferenceRequest,
+    ApiMessageContentPayloadFile,
+    ApiMessageContentPayloadParent,
     ApiMessageContentPayloadParentContentSnippetTextInlineElement,
-    ApiMessageContentPayloadParentResponse,
-    ApiMessageExperimentalApprovalDecisionOption,
+    ApiMessageExperimentalApprovalDecisionOptionRequest,
     ApiMessageExperimentalApprovalDecisionValue,
-    ApiMessageRoomReference,
+    ApiMessageExperimentalApprovalDecisionValueRequest,
+    ApiMessageRoomReferenceRequest,
     ApiSearchResult,
     ApiSearchResultMatch,
     ApiSearchResultParsedFilter,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
 
 type ApiCreateDocumentRequestBody =
     ApiSpecification.paths["/documents"]["post"]["requestBody"]["content"]["application/json"];
@@ -63,12 +66,12 @@ test("all search results are assignable to `ApiReference`", () => {
 });
 
 test("all mention references are assignable to `ApiReference`", () => {
-    assertAssignableTypes<ApiMentionReference, ApiReference>();
-    assertAssignableTypes<ApiMentionReferenceResponse, ApiReferenceResponse>();
+    assertAssignableTypes<ApiMentionReferenceRequest, ApiReference>();
+    assertAssignableTypes<ApiMentionReference, ApiReferenceResponse>();
 });
 
 test("all message room references are assignable to `ApiReference`", () => {
-    assertAssignableTypes<ApiMessageRoomReference, ApiReference>();
+    assertAssignableTypes<ApiMessageRoomReferenceRequest, ApiReference>();
 });
 
 test("`/reference` paths are assignable to `ApiReferenceResponse`", () => {
@@ -79,8 +82,8 @@ test("`/reference` paths are assignable to `ApiReferenceResponse`", () => {
     assertAssignableTypes<Left, ApiReferenceResponse>();
 });
 
-test("`ApiMentionReferenceResponse` is assignable to `ApiMentionReference`", () => {
-    assertAssignableTypes<ApiMentionReferenceResponse, ApiMentionReference>();
+test("`ApiMentionReference` is assignable to `ApiMentionReferenceRequest`", () => {
+    assertAssignableTypes<ApiMentionReference, ApiMentionReferenceRequest>();
 });
 
 test("ApiGetDocumentResponse is assignable to ApiCreateDocumentRequestBody", () => {
@@ -102,18 +105,19 @@ test("`MessageContentPayloadParentContentSnippetTextInlineElement` is assignable
     >();
 });
 
-test("all `_Response` schemas are assignable to the corresponding base schema", () => {
-    type ResponseName = keyof ApiSpecification.components["schemas"] & `${string}_Response`;
+test("all base response schemas are assignable to the corresponding `_Request` schema", () => {
+    type RequestName = keyof ApiSpecification.components["schemas"] & `${string}_Request`;
 
-    type NameWithResponse = ResponseName extends `${infer Name}_Response` ? Name : "ERROR";
+    type NameWithRequest = RequestName extends `${infer Name}_Request` ? Name : "ERROR";
+
+    type CommonName = NameWithRequest & keyof ApiSpecification.components["schemas"];
 
     type Left = {
-        [Key in NameWithResponse]: ApiSpecification.components["schemas"][`${Key}_Response`];
+        [Key in CommonName]: ApiSpecification.components["schemas"][Key];
     };
 
     type Right = {
-        [Key in NameWithResponse &
-            keyof ApiSpecification.components["schemas"]]: ApiSpecification.components["schemas"][Key];
+        [Key in CommonName]: ApiSpecification.components["schemas"][`${Key}_Request`];
     };
 
     // This gives a much nicer error message than `assertAssignableTypes()` if the
@@ -132,33 +136,41 @@ test("response file elements are assignable to `CreateMessage` request body file
         ApiSpecification.components["requestBodies"]["CreateMessage"]["content"]["application/json"]["files"]
     >[number];
 
-    assertAssignableTypes<ApiMessageContentPayloadFileResponse, CreateMessageFiles>();
+    assertAssignableTypes<ApiMessageContentPayloadFile, CreateMessageFiles>();
 });
 
-test("`ApiMessageContentPayloadParentResponse` is assignable to `ApiBotWebhookCreatedMessageEventParent`", () => {
+test("`ApiMessageContentPayloadParent` is assignable to `ApiBotWebhookCreatedMessageEventParent`", () => {
+    assertAssignableTypes<ApiMessageContentPayloadParent, ApiBotWebhookCreatedMessageEventParent>();
+});
+
+test("`ApiContentFileBlockElementWithoutKeys` is assignable to message file elements", () => {
     assertAssignableTypes<
-        ApiMessageContentPayloadParentResponse,
-        ApiBotWebhookCreatedMessageEventParent
+        ApiContentFileBlockElementWithoutKeys,
+        ApiMessageContentPayloadFile["element"]
     >();
 });
 
-test("`ApiContentFileBlockElementResponseWithoutKeys` is assignable to message file elements", () => {
+test("`ApiContentPreviewBlockElementWithoutKeys` is assignable to message file elements", () => {
     assertAssignableTypes<
-        ApiContentFileBlockElementResponseWithoutKeys,
-        ApiMessageContentPayloadFileResponse["element"]
+        ApiContentPreviewBlockElementWithoutKeys,
+        ApiMessageContentPayloadFile["element"]
     >();
 });
 
-test("`ApiContentPreviewBlockElementResponseWithoutKeys` is assignable to message file elements", () => {
+test("`ApiMessageExperimentalApprovalDecisionValueRequest` is assignable to `ApiMessageExperimentalApprovalDecisionOptionRequest`", () => {
     assertAssignableTypes<
-        ApiContentPreviewBlockElementResponseWithoutKeys,
-        ApiMessageContentPayloadFileResponse["element"]
+        ApiMessageExperimentalApprovalDecisionValueRequest,
+        ApiMessageExperimentalApprovalDecisionOptionRequest
     >();
 });
 
-test("`ApiMessageExperimentalApprovalDecisionValue` is assignable to `ApiMessageExperimentalApprovalDecisionOption`", () => {
-    assertAssignableTypes<
-        ApiMessageExperimentalApprovalDecisionValue,
-        ApiMessageExperimentalApprovalDecisionOption
+test("bot webhook approval decisions use response decision values", () => {
+    type BotWebhookApprovalDecisionValue = NonNullable<
+        ApiBotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent["approvals"][number]["decision"]["value"]
+    >;
+
+    assertEqualTypes<
+        BotWebhookApprovalDecisionValue,
+        ApiMessageExperimentalApprovalDecisionValue
     >();
 });

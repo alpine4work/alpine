@@ -14,8 +14,8 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
+    ApiContent,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -68,14 +68,14 @@ afterEach(() => {
     import.meta.jest.useRealTimers();
 });
 
-function createDocumentContentFromMarkdown(markdown: string): ApiContentResponse {
+function createDocumentContentFromMarkdown(markdown: string): ApiContent {
     return addKeysToApiContentForTest(
-        parseApiContentFromMarkdown(markdown) as ApiContentResponseWithoutKeys,
+        parseApiContentFromMarkdown(markdown) as ApiContentWithoutKeys,
     );
 }
 
 async function seedDocumentPathViaPrint(documentId: DocumentId, title: string): Promise<string> {
-    const content: ApiContentResponse = addKeysToApiContentForTest({
+    const content: ApiContent = addKeysToApiContentForTest({
         elements: [
             {
                 type: "Paragraph",

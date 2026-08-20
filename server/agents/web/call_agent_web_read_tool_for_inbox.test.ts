@@ -8,7 +8,7 @@ import {
     agentWebInboxPageApiEntriesBatchCount,
 } from "~/server/agents/web/pages/agent_web_inbox_page.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiInboxEntryResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiInboxEntry} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -86,7 +86,7 @@ function mockInboxEntries({
 }: {
     status: AgentWebInboxPageStatus;
     cursor?: string;
-    entries: ReadonlyArray<ApiInboxEntryResponse>;
+    entries: ReadonlyArray<ApiInboxEntry>;
     nextCursor: string | null;
 }): void {
     api.mockGet("/spaces/{id}/accounts/{accountId}/inbox/entries", {

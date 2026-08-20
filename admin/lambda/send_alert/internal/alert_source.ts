@@ -10,7 +10,7 @@ import {
     sendAlertAvailableChannels,
 } from "~/admin/lambda/send_alert/internal/send_alert_available_channels.js";
 import {
-    ApiContent,
+    ApiContentRequest,
     ApiGetChannelResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
@@ -65,7 +65,7 @@ export abstract class AlertSource {
      */
     protected async postAlertToAlpine(
         channel: SendAlertAvailableChannel,
-        content: ApiContent,
+        content: ApiContentRequest,
     ): Promise<SendAlertResult> {
         const result = await this.createPostInAlpine(channel, content);
         return result.ok ? {ok: true} : result;
@@ -76,7 +76,7 @@ export abstract class AlertSource {
      */
     protected async createPostInAlpine(
         channel: SendAlertAvailableChannel,
-        content: ApiContent,
+        content: ApiContentRequest,
     ): Promise<FetchAlpineApiResult<ApiCreatePostResponse>> {
         const channelId = sendAlertAvailableChannels[channel];
         const channelResult = await this.fetchAlpineApi<ApiGetChannelResponse>(
@@ -224,12 +224,12 @@ export abstract class AlertSource {
             return JSON.stringify(value, null, 2) ?? "undefined";
         };
 
-        const createLabel = (text: string): ApiContent["elements"][number] => ({
+        const createLabel = (text: string): ApiContentRequest["elements"][number] => ({
             type: "Paragraph",
             elements: [{type: "Text", text, marks: [{type: "Bold"}]}],
         });
 
-        const createCodeBlock = (text: string): ApiContent["elements"][number] => ({
+        const createCodeBlock = (text: string): ApiContentRequest["elements"][number] => ({
             type: "Code",
             language: "json",
             lines: text.split(/\r?\n/).map(line => ({

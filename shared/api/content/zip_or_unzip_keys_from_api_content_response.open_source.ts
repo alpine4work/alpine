@@ -5,8 +5,8 @@ import {
     ApiContentResponseWithOptionalKeys,
 } from "~/shared/api/specification/types/api_content_response_with_optional_keys.open_source.js";
 import {
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
+    ApiContent,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -14,8 +14,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.j
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /**
- * Remove `key`s from `ApiContentResponse` and return them in a flat `keys` array.
- * This flat `keys` array can be zipped back into the content via
+ * Remove `key`s from `ApiContent` and return them in a flat `keys` array. This
+ * flat `keys` array can be zipped back into the content via
  * `zipKeysIntoApiContentResponse()`.
  *
  * This is useful for our agent web system since we unzip and print API content to
@@ -23,8 +23,8 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
  * agent). Then when the agent tries to reference content we parse and zip to get
  * the full API content back so we can reference specific parts of the content.
  */
-export function unzipKeysFromApiContentResponse(content: ApiContentResponse): {
-    content: ApiContentResponseWithoutKeys;
+export function unzipKeysFromApiContentResponse(content: ApiContent): {
+    content: ApiContentWithoutKeys;
     keys: ReadonlyArray<ApiContentKey>;
 } {
     const keys: Array<ApiContentKey> = [];
@@ -36,7 +36,7 @@ export function unzipKeysFromApiContentResponse(content: ApiContentResponse): {
 
         while (step.done !== true) {
             if (step.value === undefined) {
-                throw new InternalError("Missing `ApiContentKey` in `ApiContentResponse`");
+                throw new InternalError("Missing `ApiContentKey` in `ApiContent`");
             }
 
             keys.push(step.value);
@@ -45,14 +45,14 @@ export function unzipKeysFromApiContentResponse(content: ApiContentResponse): {
     });
 
     return {
-        content: contentWithoutKeys as ApiContentResponseWithoutKeys,
+        content: contentWithoutKeys as ApiContentWithoutKeys,
         keys,
     };
 }
 
 /**
  * Add `key`s from a previous `unzipKeysFromApiContentResponse()` call back into
- * API content to produce a full `ApiContentResponse`.
+ * API content to produce a full `ApiContent`.
  *
  * This is useful for our agent web system since we unzip and print API content to
  * markdown and we store the `keys` array in metadata (which is invisible to the
@@ -63,9 +63,9 @@ export function zipKeysIntoApiContentResponse({
     content,
     keys,
 }: {
-    content: ApiContentResponseWithoutKeys;
+    content: ApiContentWithoutKeys;
     keys: ReadonlyArray<ApiContentKey>;
-}): ApiContentResponse {
+}): ApiContent {
     let keyIndex = 0;
 
     const contentWithKeys = produce(content, content => {
@@ -89,7 +89,7 @@ export function zipKeysIntoApiContentResponse({
         throw new InternalError("Unused `ApiContentKey`s in keys array");
     }
 
-    return contentWithKeys as ApiContentResponse;
+    return contentWithKeys as ApiContent;
 }
 
 /**
@@ -99,10 +99,8 @@ export function zipKeysIntoApiContentResponse({
  * agent is trying to create some content and is trying to reference previous
  * content.
  */
-export function unsafelyZipTemporaryKeysIntoApiContentResponse(
-    content: ApiContentResponseWithoutKeys,
-): {
-    content: ApiContentResponse;
+export function unsafelyZipTemporaryKeysIntoApiContentResponse(content: ApiContentWithoutKeys): {
+    content: ApiContent;
     temporaryKeys: ReadonlyArray<ApiContentKey>;
 } {
     let keyIndex = 0;
@@ -123,7 +121,7 @@ export function unsafelyZipTemporaryKeysIntoApiContentResponse(
     });
 
     return {
-        content: contentWithKeys as ApiContentResponse,
+        content: contentWithKeys as ApiContent,
         temporaryKeys,
     };
 }

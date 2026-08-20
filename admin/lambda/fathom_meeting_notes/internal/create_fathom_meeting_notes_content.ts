@@ -1,13 +1,13 @@
 import {FathomWebhookPayload} from "~/admin/lambda/fathom_meeting_notes/internal/fathom_webhook_payload_types.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
-type ApiContentBlockElement = ApiContent["elements"][number];
+type ApiContentBlockElementRequest = ApiContentRequest["elements"][number];
 
 export interface FathomMeetingNotesContent {
     readonly title: string;
-    readonly content: ApiContent;
+    readonly content: ApiContentRequest;
 }
 
 const meetingDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -31,7 +31,7 @@ export function createFathomMeetingNotesContent(
         ? Math.max(0, Math.round(durationMilliseconds / 60_000))
         : 0;
     const recordingLinkText = `VIEW RECORDING - ${durationMinutes} mins (No highlights)`;
-    const elements: Array<ApiContentBlockElement> = [
+    const elements: Array<ApiContentBlockElementRequest> = [
         {
             type: "Heading",
             level: 1,

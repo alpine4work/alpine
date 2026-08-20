@@ -3,7 +3,7 @@ import {
     ApiMentionReferencePath,
     parseApiMentionReference,
 } from "~/shared/api/specification/parse_api_path.js";
-import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMentionReferenceRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {createContentBuilder} from "~/shared/content/create_content_builder.js";
 import {
@@ -368,7 +368,7 @@ const messageStreamToolCallPartPayloadContentBuilder = createContentBuilder(
 
 function createMessageStreamToolCallPartPayloadContent(
     text: string,
-    target?: ApiMentionReference,
+    target?: ApiMentionReferenceRequest,
 ): MessageContent {
     return assertMessageContent(
         messageStreamToolCallPartPayloadContentBuilder.doc(
@@ -387,7 +387,7 @@ function createMessageStreamToolCallPartPayloadContent(
 }
 
 function getMessageStreamToolCallPartPayloadContentMention(
-    target: ApiMentionReference,
+    target: ApiMentionReferenceRequest,
 ): ContentMention {
     switch (target.type) {
         case "Account":

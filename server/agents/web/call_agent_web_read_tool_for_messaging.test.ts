@@ -15,8 +15,8 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiContentResponse,
-    ApiMessageContentPayloadFileResponse,
+    ApiContent,
+    ApiMessageContentPayloadFile,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertTimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -94,9 +94,7 @@ function stableRandomBit(index: number): number {
     return (index ^ (index >>> 16)) >>> 31;
 }
 
-function createImageMessageFiles(
-    count: number,
-): ReadonlyArray<ApiMessageContentPayloadFileResponse> {
+function createImageMessageFiles(count: number): ReadonlyArray<ApiMessageContentPayloadFile> {
     return Array.from({length: count}, (_, index) => {
         const rowIndex = Math.floor(index / 3);
         const rowStartIndex = rowIndex * 3;
@@ -430,7 +428,7 @@ End of messages.`);
 
 test("prints rich message content using agent web markdown links", async () => {
     const documentId = generateId<DocumentId>();
-    const content: ApiContentResponse = addKeysToApiContentForTest({
+    const content: ApiContent = addKeysToApiContentForTest({
         elements: [
             {
                 type: "Paragraph",
@@ -747,7 +745,7 @@ test("throws on invalid pagination search parameters", async () => {
 });
 
 test("caches the full chat read response for scroll", async () => {
-    const content: ApiContentResponse = addKeysToApiContentForTest({
+    const content: ApiContent = addKeysToApiContentForTest({
         elements: Array.from({length: 10}, (_, index) => ({
             type: "Paragraph",
             elements: [{type: "Text", text: `Paragraph ${index + 1}.`}],

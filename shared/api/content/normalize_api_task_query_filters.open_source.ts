@@ -1,6 +1,6 @@
 import {
-    ApiTaskQueryAccountFilterOperation,
-    ApiTaskQueryFilter,
+    ApiTaskQueryAccountFilterOperationRequest,
+    ApiTaskQueryFilterRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
@@ -25,13 +25,15 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
  * ) === normalizeApiTaskQueryFilters(filters);
  * ```
  */
-export function normalizeApiTaskQueryFilters<Filter extends ApiTaskQueryFilter>(
+export function normalizeApiTaskQueryFilters<Filter extends ApiTaskQueryFilterRequest>(
     filters: ReadonlyArray<Filter>,
 ): ReadonlyArray<Filter> {
     return filters.map(normalizeApiTaskQueryFilter);
 }
 
-function normalizeApiTaskQueryFilter<Filter extends ApiTaskQueryFilter>(filter: Filter): Filter {
+function normalizeApiTaskQueryFilter<Filter extends ApiTaskQueryFilterRequest>(
+    filter: Filter,
+): Filter {
     switch (filter.type) {
         case "Status": {
             return {
@@ -152,7 +154,7 @@ function dedupeApiTaskQueryFilterValues<Value>(
 }
 
 function printApiTaskQueryFilterAccountDedupeKey(
-    account: ApiTaskQueryAccountFilterOperation["accounts"][number],
+    account: ApiTaskQueryAccountFilterOperationRequest["accounts"][number],
 ): string {
     return account.type === "Account" ? `Account:${account.account.id}` : account.type;
 }

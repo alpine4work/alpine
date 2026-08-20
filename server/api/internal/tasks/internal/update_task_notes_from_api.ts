@@ -7,8 +7,8 @@ import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/e
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {
-    ApiTaskNotesPatch,
-    ApiTaskNotesResponse,
+    ApiTaskNotes,
+    ApiTaskNotesPatchRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
@@ -29,8 +29,8 @@ import {
  */
 export async function updateTaskNotesFromApi(
     context: ApiServiceBotActionContext,
-    {taskId, patches}: {taskId: TaskId; patches: ReadonlyArray<ApiTaskNotesPatch>},
-): Promise<{spaceId: SpaceId; notes: ApiTaskNotesResponse}> {
+    {taskId, patches}: {taskId: TaskId; patches: ReadonlyArray<ApiTaskNotesPatchRequest>},
+): Promise<{spaceId: SpaceId; notes: ApiTaskNotes}> {
     if (patches.length !== 1) {
         throw new InvalidArgumentError(
             "A task notes update must contain exactly one SetContent patch",
@@ -99,7 +99,7 @@ export async function updateTaskNotesFromApi(
 // `InvalidArgumentError` instead of an `InternalError`. This could happen if a
 // user submits structurally valid content that contains content types that aren't
 // supported by the task notes content schema (e.g. a file float).
-function validateTaskNotesPatchContent(patch: ApiTaskNotesPatch) {
+function validateTaskNotesPatchContent(patch: ApiTaskNotesPatchRequest) {
     try {
         return assertTaskNotesContent(
             fromApiContent(TaskNotesContentProsemirrorSchema, patch.content),

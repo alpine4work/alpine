@@ -1,5 +1,5 @@
 import {getFathomMeetingNotesMonthDocumentIds} from "~/admin/lambda/fathom_meeting_notes/internal/get_fathom_meeting_notes_month_document_ids.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assertId} from "~/shared/id/id.open_source.js";
 import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
@@ -7,7 +7,7 @@ const julyDocumentId = assertId<DocumentId>("11111111111111111111111111");
 const juneDocumentId = assertId<DocumentId>("22222222222222222222222222");
 const previousYearDocumentId = assertId<DocumentId>("33333333333333333333333333");
 
-const content: ApiContent = {
+const content: ApiContentRequest = {
     elements: [
         {
             type: "Heading",

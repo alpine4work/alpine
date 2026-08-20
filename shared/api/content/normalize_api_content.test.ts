@@ -1,5 +1,5 @@
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
@@ -11,7 +11,7 @@ const fileId4 = generateChronologicalId<FileId>();
 const fileId5 = generateChronologicalId<FileId>();
 
 test("FileGallery with single row and single file unwraps to standalone File", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -27,7 +27,7 @@ test("FileGallery with single row and single file unwraps to standalone File", (
 
 test("FileGallery with single row and single Preview unwraps to standalone Preview", () => {
     const documentId = generateId<DocumentId>();
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -54,7 +54,7 @@ test("FileGallery with single row and single Preview unwraps to standalone Previ
 
 test("Preview reference title is stripped during normalization", () => {
     const documentId = generateId<DocumentId>();
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Preview",
@@ -71,7 +71,7 @@ test("Preview reference title is stripped during normalization", () => {
 
 test("Preview without title is unchanged", () => {
     const documentId = generateId<DocumentId>();
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [{type: "Preview", reference: {type: "Document", id: documentId}}],
     };
 
@@ -79,7 +79,7 @@ test("Preview without title is unchanged", () => {
 });
 
 test("FileGallery with multiple items in a row is preserved", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -99,7 +99,7 @@ test("FileGallery with multiple items in a row is preserved", () => {
 });
 
 test("adjacent FileGalleries are merged into one", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -138,7 +138,7 @@ test("adjacent FileGalleries are merged into one", () => {
 });
 
 test("three adjacent single-item FileGalleries merge into one", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -170,7 +170,7 @@ test("three adjacent single-item FileGalleries merge into one", () => {
 });
 
 test("three adjacent multi-item FileGalleries merge into one", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -238,7 +238,7 @@ test("three adjacent multi-item FileGalleries merge into one", () => {
 });
 
 test("non-adjacent FileGalleries are not merged", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -280,7 +280,7 @@ test("non-adjacent FileGalleries are not merged", () => {
 });
 
 test("separate FileGalleries with a single-element gallery between them normalize the same as one combined gallery", () => {
-    const separate: ApiContent = {
+    const separate: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -311,7 +311,7 @@ test("separate FileGalleries with a single-element gallery between them normaliz
         ],
     };
 
-    const combined: ApiContent = {
+    const combined: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -338,7 +338,7 @@ test("separate FileGalleries with a single-element gallery between them normaliz
 });
 
 test("standalone File between two FileGalleries normalizes the same as one combined gallery", () => {
-    const withStandalone: ApiContent = {
+    const withStandalone: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -366,7 +366,7 @@ test("standalone File between two FileGalleries normalizes the same as one combi
         ],
     };
 
-    const combined: ApiContent = {
+    const combined: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -393,7 +393,7 @@ test("standalone File between two FileGalleries normalizes the same as one combi
 });
 
 test("single empty paragraph in table cell is preserved", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Table",
@@ -430,7 +430,7 @@ test("single empty paragraph in table cell is preserved", () => {
 });
 
 test("empty table cell is filled with an empty paragraph", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Table",
@@ -474,7 +474,7 @@ test("empty table cell is filled with an empty paragraph", () => {
 
 test("FileFloat normalizes inner element", () => {
     const documentId = generateId<DocumentId>();
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "FileFloat",
@@ -499,7 +499,7 @@ test("FileFloat normalizes inner element", () => {
 });
 
 test("adjacent standalone Files merge into a FileGallery", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {type: "File", file: {id: fileId1}},
             {type: "File", file: {id: fileId2}},
@@ -521,7 +521,7 @@ test("adjacent standalone Files merge into a FileGallery", () => {
 
 test("FileGallery normalizes Preview title inside items", () => {
     const documentId = generateId<DocumentId>();
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "FileGallery",
@@ -569,7 +569,7 @@ test("FileGallery normalizes Preview title inside items", () => {
 });
 
 test("leading phantom list item after another list becomes nested content", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "CheckList",
@@ -619,7 +619,7 @@ test("leading phantom list item after another list becomes nested content", () =
 });
 
 test("leading phantom list item is canonicalized before adjacent lists merge", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "UnorderedList",
@@ -665,7 +665,7 @@ test("leading phantom list item is canonicalized before adjacent lists merge", (
 });
 
 test("empty lists don\u2019t block leading phantom list item canonicalization", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "OrderedList",

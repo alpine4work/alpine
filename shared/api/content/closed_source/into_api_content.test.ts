@@ -10,7 +10,7 @@ import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {createContentBuilder} from "~/shared/content/create_content_builder.js";
 import {MessageContentProsemirrorSchema} from "~/shared/content/message_content_schema.js";
@@ -78,7 +78,7 @@ function normalizeNode(node: Node): Node {
     return node.type.create(attrs, content, node.marks);
 }
 
-function testIntoApiContent(node: Node, content: ApiContentResponseWithoutKeys) {
+function testIntoApiContent(node: Node, content: ApiContentWithoutKeys) {
     expect(
         fromApiContent(
             node.type.schema,
@@ -101,7 +101,7 @@ function testIntoApiContent(node: Node, content: ApiContentResponseWithoutKeys) 
     ).toEqual(content);
 }
 
-function testIntoApiContentOnly(node: Node, content: ApiContentResponseWithoutKeys) {
+function testIntoApiContentOnly(node: Node, content: ApiContentWithoutKeys) {
     // Only test the intoApiContent conversion (not round-trip) This is for cases where
     // the schema doesn't support certain marks
     expect(
@@ -4131,7 +4131,7 @@ describe("file block elements", () => {
         getFileIfExists: fileId => createFileModelData(fileId),
     };
 
-    function testFileIntoApiContent(node: Node, content: ApiContentResponseWithoutKeys) {
+    function testFileIntoApiContent(node: Node, content: ApiContentWithoutKeys) {
         expect(
             fromApiContent(node.type.schema, intoApiContent(node, fileOptions)).toJSON(),
         ).toEqual(normalizeNode(node).toJSON());

@@ -6,7 +6,7 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source
 import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
-import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiTaskReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -28,7 +28,7 @@ const aliceAccount = createApiAccountMock({name: "Alice"});
 const bobAccount = createApiAccountMock({name: "Bob"});
 const author = [aliceAccount, bobAccount];
 
-const taskReference: ApiTaskReferenceResponse = {
+const taskReference: ApiTaskReference = {
     type: "Task",
     id: taskId,
     title: "Write Spec",

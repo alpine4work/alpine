@@ -4,8 +4,8 @@ import {
     patchApiMessageApprovals,
 } from "~/server/agents/api/api_client.open_source.js";
 import {
-    ApiMessageExperimentalApproval,
-    ApiMessageRoomReference,
+    ApiMessageExperimentalApprovalRequest,
+    ApiMessageRoomReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
@@ -38,11 +38,11 @@ export function rejectPendingChatGptAgentMessageApproval(
         patches: initialPatches,
     }: {
         apiClient: ApiClient;
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
         messageIndex: number;
         patches: ReadonlyArray<{index: number; value: {type: "Rejected"}}>;
     },
-): Promise<ReadonlyArray<ApiMessageExperimentalApproval>> {
+): Promise<ReadonlyArray<ApiMessageExperimentalApprovalRequest>> {
     let patches = initialPatches;
 
     return retryWithExponentialBackoff(

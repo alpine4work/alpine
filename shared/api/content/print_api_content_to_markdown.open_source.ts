@@ -26,24 +26,24 @@ import {
 import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.open_source.js";
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
-    ApiContentCodeBlockElement,
+    ApiContentBlockElementRequest,
+    ApiContentCodeBlockElementRequest,
     ApiContentCodeBlockElementTextInlineElementMark,
     ApiContentCodeMark,
-    ApiContentFileBlockElement,
-    ApiContentFileGalleryBlockElementRow,
+    ApiContentFileBlockElementRequest,
+    ApiContentFileGalleryBlockElementRowRequest,
     ApiContentHighlightMarkColor,
-    ApiContentInlineElement,
     ApiContentInlineElementMark,
+    ApiContentInlineElementRequest,
     ApiContentLinkMark,
-    ApiContentMentionInlineElement,
-    ApiContentParagraphBlockElement,
-    ApiContentPreviewBlockElement,
-    ApiContentTableBlockElement,
-    ApiContentUnorderedListBlockElement,
-    ApiMentionReference,
-    ApiPreviewReference,
+    ApiContentMentionInlineElementRequest,
+    ApiContentParagraphBlockElementRequest,
+    ApiContentPreviewBlockElementRequest,
+    ApiContentRequest,
+    ApiContentTableBlockElementRequest,
+    ApiContentUnorderedListBlockElementRequest,
+    ApiMentionReferenceRequest,
+    ApiPreviewReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
@@ -62,24 +62,24 @@ declare module "mdast" {
     }
 
     export interface LinkData {
-        mentionElement?: ApiContentMentionInlineElement;
-        mentionReference?: ApiMentionReference;
+        mentionElement?: ApiContentMentionInlineElementRequest;
+        mentionReference?: ApiMentionReferenceRequest;
     }
 
     export interface ImageData {
-        fileElement?: ApiContentFileBlockElement;
-        previewElement?: ApiContentPreviewBlockElement;
+        fileElement?: ApiContentFileBlockElementRequest;
+        previewElement?: ApiContentPreviewBlockElementRequest;
     }
 
     export interface HtmlData {
         expectedOpenHtml?: string;
         expectedCloseHtml?: string;
-        fileElement?: ApiContentFileBlockElement;
-        previewElement?: ApiContentPreviewBlockElement;
-        fileGalleryElementRow?: ApiContentFileGalleryBlockElementRow;
+        fileElement?: ApiContentFileBlockElementRequest;
+        previewElement?: ApiContentPreviewBlockElementRequest;
+        fileGalleryElementRow?: ApiContentFileGalleryBlockElementRowRequest;
         fileOrPreviewElementByUrl?: Map<
             string,
-            ApiContentFileBlockElement | ApiContentPreviewBlockElement
+            ApiContentFileBlockElementRequest | ApiContentPreviewBlockElementRequest
         >;
     }
 }
@@ -105,7 +105,7 @@ export {actuallyPrintApiContentToMarkdown as printApiContentToMarkdown};
 export {printApiContentToMarkdown as printApiContentToMarkdownTree};
 
 function actuallyPrintApiContentToMarkdown(
-    content: ApiContent,
+    content: ApiContentRequest,
     options: ApiContentMarkdownPrinterOptions = {},
 ): string {
     const root = printApiContentToMarkdown(content, options);
@@ -147,7 +147,7 @@ export function printMarkdownTree(root: Root | RootContent): string {
 }
 
 function printApiContentToMarkdown(
-    content: ApiContent,
+    content: ApiContentRequest,
     options: ApiContentMarkdownPrinterOptions = {},
 ): Root {
     const firstPrintableBlockElementIndex = getFirstPrintableBlockElementIndex(content.elements);
@@ -181,7 +181,7 @@ function printApiContentToMarkdown(
  * removes them during markdown round trips.
  */
 function getFirstPrintableBlockElementIndex(
-    elements: ReadonlyArray<ApiContentBlockElement>,
+    elements: ReadonlyArray<ApiContentBlockElementRequest>,
 ): number {
     for (let index = 0; index < elements.length; index++) {
         const element = elements[index]!;
@@ -202,7 +202,7 @@ function getFirstPrintableBlockElementIndex(
 }
 
 function* printApiContentBlockElementsToMarkdown(
-    elements: ReadonlyArray<ApiContentBlockElement>,
+    elements: ReadonlyArray<ApiContentBlockElementRequest>,
     options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<BlockContent> {
     let pendingContent: BlockContent | null = null;
@@ -236,8 +236,8 @@ function* printApiContentBlockElementsToMarkdown(
 }
 
 function* processApiContentBlockElements(
-    elements: ReadonlyArray<ApiContentBlockElement>,
-): IterableIterator<ApiContentBlockElement> {
+    elements: ReadonlyArray<ApiContentBlockElementRequest>,
+): IterableIterator<ApiContentBlockElementRequest> {
     let nextIndex = 0;
 
     while (nextIndex < elements.length) {
@@ -295,7 +295,7 @@ function* processApiContentBlockElements(
 
                     // The union type is annoying to work with, so just pretend this is an unordered
                     // list element.
-                    const actualElement = element as ApiContentUnorderedListBlockElement;
+                    const actualElement = element as ApiContentUnorderedListBlockElementRequest;
 
                     yield {
                         ...actualElement,
@@ -328,7 +328,7 @@ function* processApiContentBlockElements(
 }
 
 function* printApiContentBlockElementToMarkdown(
-    element: ApiContentBlockElement,
+    element: ApiContentBlockElementRequest,
     options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<BlockContent> {
     switch (element.type) {
@@ -707,7 +707,7 @@ function printApiContentFileOrPreviewBlockElementToMarkdown(
                   readonly caption?: string;
               };
           }
-        | {readonly type: "Preview"; readonly reference: ApiPreviewReference},
+        | {readonly type: "Preview"; readonly reference: ApiPreviewReferenceRequest},
     style?: string,
 ): string {
     const styleAttr = style ? ` style="${escapeHtml(style)}"` : "";
@@ -732,7 +732,7 @@ function printApiContentFileOrPreviewBlockElementToMarkdown(
 }
 
 function printApiContentCodeBlockElementToMarkdown(
-    element: ApiContentCodeBlockElement,
+    element: ApiContentCodeBlockElementRequest,
     options: ApiContentMarkdownPrinterOptions,
 ): BlockContent {
     let hasMarks = false;
@@ -897,7 +897,7 @@ function printApiContentCodeBlockElementToMarkdown(
 }
 
 export function computeApiContentTableBlockElementGfmTableLayoutForTest(
-    element: ApiContentTableBlockElement,
+    element: ApiContentTableBlockElementRequest,
 ): ApiContentGfmTableLayout | null {
     assert(import.meta.jest);
 
@@ -910,7 +910,7 @@ export function computeApiContentTableBlockElementGfmTableLayoutForTest(
 }
 
 function printApiContentTableBlockElementToGfmTableMarkdownIfPossible(
-    element: ApiContentTableBlockElement,
+    element: ApiContentTableBlockElementRequest,
     options: ApiContentMarkdownPrinterOptions,
 ): BlockContent | null {
     const table = createApiContentTableBlockElementAsGfmTableMarkdownIfPossibleWithoutLayout(
@@ -921,12 +921,12 @@ function printApiContentTableBlockElementToGfmTableMarkdownIfPossible(
 
     // We can't configure table or column width for simple GFM tables. So instead we
     // compute reasonable table/column widths based on the content in the table. Then
-    // we expect the `ApiContentTableBlockElement` to have the exact same table/column
-    // widths we computed. If it doesn't then we unfortunately fall back to HTML
-    // `<table>`s. This is quite a bummer but the alternatives are difficult for agents
-    // and developers to work with. (e.g. Including a `<span hidden>` in the table or a
-    // wrapper `<div>` that carries `data-column-widths` is inconsistent with how we
-    // handle column widths for `<table>`s.)
+    // we expect the `ApiContentTableBlockElementRequest` to have the exact same
+    // table/column widths we computed. If it doesn't then we unfortunately fall back
+    // to HTML `<table>`s. This is quite a bummer but the alternatives are difficult
+    // for agents and developers to work with. (e.g. Including a `<span hidden>` in the
+    // table or a wrapper `<div>` that carries `data-column-widths` is inconsistent
+    // with how we handle column widths for `<table>`s.)
     //
     // Also, as we add more customizations to tables we'll just see more bail-out cases
     // to HTML `<table>` so we may live in a future where most tables need to be HTML
@@ -951,7 +951,7 @@ function printApiContentTableBlockElementToGfmTableMarkdownIfPossible(
 }
 
 function createApiContentTableBlockElementAsGfmTableMarkdownIfPossibleWithoutLayout(
-    element: ApiContentTableBlockElement,
+    element: ApiContentTableBlockElementRequest,
     options: ApiContentMarkdownPrinterOptions,
 ): Table | null {
     // Simple GFM tables must have a header row.
@@ -979,7 +979,7 @@ function createApiContentTableBlockElementAsGfmTableMarkdownIfPossibleWithoutLay
         for (let columnIndex = 0; columnIndex < Math.max(2, row.cells.length); columnIndex++) {
             const cell = row.cells[columnIndex] ?? {elements: []};
 
-            let paragraphElement: ApiContentParagraphBlockElement | null;
+            let paragraphElement: ApiContentParagraphBlockElementRequest | null;
 
             if (cell.elements.length === 0) {
                 paragraphElement = null;
@@ -1036,7 +1036,7 @@ function createApiContentTableBlockElementAsGfmTableMarkdownIfPossibleWithoutLay
 }
 
 function* printApiContentTableBlockElementToMarkdown(
-    element: ApiContentTableBlockElement,
+    element: ApiContentTableBlockElementRequest,
     options: ApiContentMarkdownPrinterOptions,
 ): IterableIterator<BlockContent> {
     const gfmTable = printApiContentTableBlockElementToGfmTableMarkdownIfPossible(element, options);
@@ -1155,7 +1155,7 @@ function* printApiContentTableBlockElementToMarkdown(
 }
 
 function printApiContentInlineElementsToMarkdown(
-    elements: ReadonlyArray<ApiContentInlineElement>,
+    elements: ReadonlyArray<ApiContentInlineElementRequest>,
     options: ApiContentMarkdownPrinterOptions & {forceBreakHtml?: boolean},
 ): Array<PhrasingContent> {
     const contents: Array<PhrasingContent> = [];
@@ -1227,7 +1227,7 @@ function printApiContentInlineElementsToMarkdown(
             //
             // We want to remove the intermediate `</mark><mark data-comment="abc">` HTML. We
             // generate the original content because of how marks are represented on text nodes
-            // in our `ApiContent` object.
+            // in our `ApiContentRequest` object.
             if (
                 lastContent.type === "html" &&
                 nextContent.type === "html" &&
@@ -1391,7 +1391,7 @@ function mergePhrasingContent(lastContent: PhrasingContent, nextContent: Phrasin
 }
 
 function* printApiContentInlineElementToMarkdown(
-    element: ApiContentInlineElement,
+    element: ApiContentInlineElementRequest,
     options: ApiContentMarkdownPrinterOptions & {forceBreakHtml?: boolean},
 ): IterableIterator<PhrasingContent> {
     switch (element.type) {
@@ -1558,7 +1558,7 @@ function* printApiContentInlineElementToMarkdown(
 }
 
 export function printApiMentionReferenceToMentionLinkLabel(
-    reference: ApiMentionReference,
+    reference: ApiMentionReferenceRequest,
     {isAccountShortName = false}: {isAccountShortName?: boolean} = {},
 ): string {
     if (reference.type === "Account" && isAccountShortName && reference.shortName !== undefined) {
@@ -1579,7 +1579,7 @@ export function printApiMentionReferenceToMentionLinkLabel(
 }
 
 export function printApiMentionReferenceToMentionUrl(
-    reference: ApiMentionReference,
+    reference: ApiMentionReferenceRequest,
     {isAccountShortName}: {isAccountShortName: boolean | undefined},
 ) {
     switch (reference.type) {
@@ -1616,7 +1616,9 @@ export function printApiFileContentUrl(fileId: string): string {
     return `https://alpine.inc/file/${fileId}/content`;
 }
 
-export function printApiPreviewReferenceToPreviewUrl(reference: ApiPreviewReference): string {
+export function printApiPreviewReferenceToPreviewUrl(
+    reference: ApiPreviewReferenceRequest,
+): string {
     // TODO(#sites): Add Site to PreviewTarget.
     switch (reference.type) {
         case "Channel":
@@ -1862,8 +1864,8 @@ function printApiContentInlineElementHighlightMarkColor(color: ApiContentHighlig
 //
 // If an ordered list has an explicit order start of `1`, we inject a span with the
 // data-start attribute into the first item in the list. This is necessary in order
-// to avoid lossiness when going from Prosemirror -> ApiContent -> Markdown ->
-// ApiContent -> Prosemirror.
+// to avoid lossiness when going from Prosemirror -> ApiContentRequest -> Markdown
+// -> ApiContentRequest -> Prosemirror.
 //
 // For example, if we have the following list in prosemirror:
 //
@@ -1881,8 +1883,9 @@ function printApiContentInlineElementHighlightMarkColor(color: ApiContentHighlig
 // 2. second item
 // ```
 //
-// However, when we parse this markdown back into Prosemirror (via ApiContent), how
-// do we know that the ordered list must ALWAYS start with 1?
+// However, when we parse this markdown back into Prosemirror (via
+// ApiContentRequest), how do we know that the ordered list must ALWAYS start with
+// 1?
 //
 // What happens if the user changes that list to the following:
 //

@@ -26,8 +26,8 @@ import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_o
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {visitDraftApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
 import {
-    ApiContentResponseWithoutKeys,
-    ApiMessageRoomReference,
+    ApiContentWithoutKeys,
+    ApiMessageRoomReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -347,7 +347,7 @@ async function getMarkdownContentForPageFromMiddle({
     };
 }
 
-function getMessageRoom(link: AgentPaginatedMessagesListLink): ApiMessageRoomReference {
+function getMessageRoom(link: AgentPaginatedMessagesListLink): ApiMessageRoomReferenceRequest {
     switch (link.type) {
         case "ChatMessages":
             return {type: "Chat", id: link.chatId};
@@ -375,7 +375,7 @@ async function getPreambleForChatMessages(_options: {
 }
 
 function getDocumentContentSnippetForThreadExcludingOtherCommentMarks(
-    content: ApiContentResponseWithoutKeys,
+    content: ApiContentWithoutKeys,
     commentThreadId: DocumentCommentThreadId,
 ) {
     return produce(content, content => {
@@ -422,7 +422,7 @@ async function getPreambleForDocumentComments({
         (link.paginationType === "page" && link.pageNumber === 1) ||
         (link.paginationType === "chunk" && link.pageNumber === 0);
 
-    let documentContentSnippet: ApiContentResponseWithoutKeys | null = null;
+    let documentContentSnippet: ApiContentWithoutKeys | null = null;
 
     if (!isFirstRenderForConversation) {
         paragraphContent.push({

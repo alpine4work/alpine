@@ -12,7 +12,7 @@ import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_conten
 import {printApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
 import {
     ApiBotWebhookRequestBody,
-    ApiMessageRoomReference,
+    ApiMessageRoomReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     InternalError,
@@ -248,7 +248,7 @@ async function handleFetch(
                         accessToken: requestBody.accessToken,
                     });
 
-                    let shouldRespondToRoom: ApiMessageRoomReference | null = null;
+                    let shouldRespondToRoom: ApiMessageRoomReferenceRequest | null = null;
 
                     switch (requestBody.event.type) {
                         case "CreatedMessage": {

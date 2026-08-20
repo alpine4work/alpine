@@ -14,11 +14,11 @@ import {intoApiContentFileResponse} from "~/shared/api/content/closed_source/int
 import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_task_status.js";
 import {getApiMentionReferenceNoun} from "~/shared/api/content/get_api_mention_reference_noun.open_source.js";
 import {
-    ApiMessageContentPayloadFileResponse,
-    ApiMessageContentPayloadParentResponse,
-    ApiMessagePayloadResponse,
-    ApiMessageResponse,
-    ApiPreviewReferenceResponse,
+    ApiMessage,
+    ApiMessageContentPayloadFile,
+    ApiMessageContentPayloadParent,
+    ApiMessagePayload,
+    ApiPreviewReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {fileRowMaxFileCount} from "~/shared/content/compute_file_row_layout.js";
 import {isContentBodyEmpty} from "~/shared/content/is_content_empty.js";
@@ -56,9 +56,9 @@ export async function intoApiMessage(
         message: MessageItem;
         intoContentPayloadParent: (
             parent: MessageContentPayloadParent,
-        ) => Promise<ApiMessageContentPayloadParentResponse | null>;
+        ) => Promise<ApiMessageContentPayloadParent | null>;
     },
-): Promise<ApiMessageResponse> {
+): Promise<ApiMessage> {
     const referencesContext = context.dynamo.unexpectStrongReadConsistency();
 
     const stream = message.stream;
@@ -188,10 +188,10 @@ async function intoApiMessagePayload(
         payload: MessagePayload;
         intoContentPayloadParent: (
             parent: MessageContentPayloadParent,
-        ) => Promise<ApiMessageContentPayloadParentResponse | null>;
+        ) => Promise<ApiMessageContentPayloadParent | null>;
         entityId: SearchDynamicEntityId;
     },
-): Promise<ApiMessagePayloadResponse> {
+): Promise<ApiMessagePayload> {
     switch (payload.type) {
         case "Deleted": {
             return {type: "Deleted"};
@@ -241,7 +241,7 @@ async function intoApiMessagePayloadFiles(
         fileIds: ReadonlyArray<FileId | FileEntityId>;
     },
 ) {
-    type Element = ApiMessageContentPayloadFileResponse["element"];
+    type Element = ApiMessageContentPayloadFile["element"];
 
     const fileById = new Map<FileId, FileModelData>();
 
@@ -283,7 +283,7 @@ async function intoApiMessagePayloadFiles(
                 getSearchEntityMentionTitleForApi(fileOrEntityId, entityResult) ??
                 `Unknown ${getApiMentionReferenceNoun(entityIdObject.type)}`;
 
-            let reference: ApiPreviewReferenceResponse;
+            let reference: ApiPreviewReference;
 
             switch (entityIdObject.type) {
                 case "Channel": {
@@ -364,7 +364,7 @@ async function intoApiMessagePayloadFiles(
         }),
     );
 
-    const files: Array<ApiMessageContentPayloadFileResponse> = [];
+    const files: Array<ApiMessageContentPayloadFile> = [];
 
     for (let rowIndex = 0; rowIndex * fileRowMaxFileCount < elements.length; rowIndex++) {
         const rowElements = elements.slice(

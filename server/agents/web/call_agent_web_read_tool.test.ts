@@ -10,7 +10,7 @@ import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/age
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -46,13 +46,13 @@ const context: AgentWebContext = {
 };
 
 function createDocumentContentFromParagraphs(paragraphTextList: ReadonlyArray<string>) {
-    return parseApiContentFromMarkdown(paragraphTextList.join("\n\n")) as ApiContentResponse;
+    return parseApiContentFromMarkdown(paragraphTextList.join("\n\n")) as ApiContent;
 }
 
 function createDocumentContentWithDocumentMention(
     documentId: DocumentId,
     title: string,
-): ApiContentResponse {
+): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -251,7 +251,7 @@ test("reads a compact GFM table", async () => {
 | API schema freeze | Platform | Done |
 | Query planner rollout | Search | In Progress |
 | Inbox polish | Comms | Planned |`,
-        ) as ApiContentResponse,
+        ) as ApiContent,
     });
 
     const responseString = await callAgentWebReadTool(context, {

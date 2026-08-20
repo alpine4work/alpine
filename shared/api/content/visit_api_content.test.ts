@@ -1,9 +1,9 @@
 import {visitApiContent} from "~/shared/api/content/visit_api_content.open_source.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 describe("visitApiContent", () => {
     test("visits all block elements", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {type: "Paragraph", elements: [{type: "Text", text: "Hello"}]},
                 {type: "Divider"},
@@ -22,7 +22,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits all inline elements", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Paragraph",
@@ -46,7 +46,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits inline elements in headings", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Heading",
@@ -69,7 +69,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits nested list items", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "UnorderedList",
@@ -102,7 +102,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits quote block elements", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Quote",
@@ -126,7 +126,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits table cells", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Table",
@@ -171,7 +171,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits code block lines", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Code",
@@ -197,7 +197,7 @@ describe("visitApiContent", () => {
     });
 
     test("provides whether inline elements are in code blocks", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Paragraph",
@@ -222,7 +222,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits marks on inline elements", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Paragraph",
@@ -248,7 +248,7 @@ describe("visitApiContent", () => {
     });
 
     test("provides correct context to visitors", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {type: "Paragraph", elements: [{type: "Text", text: "First"}]},
                 {type: "Paragraph", elements: [{type: "Text", text: "Second"}]},
@@ -269,7 +269,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits mention elements", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Paragraph",
@@ -293,7 +293,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits checklist items", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "CheckList",
@@ -328,7 +328,7 @@ describe("visitApiContent", () => {
     });
 
     test("visits ordered list items", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "OrderedList",

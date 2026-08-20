@@ -8,11 +8,11 @@ import {
     intoApiAccountReference,
 } from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {
-    ApiTaskCollectionPreviewResponse,
+    ApiTaskCollectionPreview,
     ApiTaskLayout,
     ApiTaskPriority,
-    ApiTaskQueryAccountFilterOperationAccountResponse,
-    ApiTaskQueryFilterResponse,
+    ApiTaskQueryAccountFilterOperationAccount,
+    ApiTaskQueryFilter,
     ApiTaskQueryTimeFilterOperationDuration,
     ApiTaskQueryTimeFilterOperationTime,
     ApiTaskStatus,
@@ -37,10 +37,10 @@ type RemoveSpace<Value> = Value extends JsonScalarValue | undefined
           ? {readonly [Key in keyof Value]: RemoveSpace<Value[Key]>}
           : Value;
 
-export type ApiTaskQueryFilterResponseWithoutAccountSpace = RemoveSpace<ApiTaskQueryFilterResponse>;
+export type ApiTaskQueryFilterResponseWithoutAccountSpace = RemoveSpace<ApiTaskQueryFilter>;
 
 export type ApiTaskQueryAccountFilterOperationAccountResponseWithoutAccountSpace =
-    RemoveSpace<ApiTaskQueryAccountFilterOperationAccountResponse>;
+    RemoveSpace<ApiTaskQueryAccountFilterOperationAccount>;
 
 /**
  * Prints a list of API task filters as URL search params for the agent web. The
@@ -324,7 +324,7 @@ function printAgentWebTaskQueryFilterStatus(status: ApiTaskStatus): string {
 
 async function printAgentWebTaskQueryFilterCollection(
     storage: AgentWebSessionStorage,
-    collection: ApiTaskCollectionPreviewResponse,
+    collection: ApiTaskCollectionPreview,
 ): Promise<string> {
     const pathname = await createAgentWebPageLinkPathname(storage, {
         type: "TaskCollection",
@@ -893,7 +893,7 @@ async function parseAgentWebTaskQueryFilterCollections(
     storage: AgentWebSessionStorage,
     operator: "all" | "not" | null,
     values: ReadonlyArray<string>,
-): Promise<ApiTaskQueryFilterResponse> {
+): Promise<ApiTaskQueryFilter> {
     // In a bare `collection` param the `none` value is a "tasks in no collections"
     // filter of its own. It can't be combined with collections in the same filter
     // since a filter matches tasks with any of its values and a task with no

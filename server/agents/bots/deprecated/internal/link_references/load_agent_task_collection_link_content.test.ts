@@ -6,8 +6,8 @@ import {AgentTaskCollectionLink} from "~/server/agents/bots/deprecated/internal/
 import {loadAgentTaskCollectionLinkContent} from "~/server/agents/bots/deprecated/internal/link_references/load_agent_task_collection_link_content.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {
+    ApiTask,
     ApiTaskCollection,
-    ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {PartialBy} from "~/shared/helpers/types/partial_by.js";
@@ -51,9 +51,7 @@ function mockGetTaskCollectionTasks(
     responseData: {
         totalTaskCount?: number;
         nextCursor?: ApiTaskQueryCursor | null;
-        tasks?: Array<
-            PartialBy<ApiTaskResponse, Exclude<keyof ApiTaskResponse, "id" | "status" | "title">>
-        >;
+        tasks?: Array<PartialBy<ApiTask, Exclude<keyof ApiTask, "id" | "status" | "title">>>;
     },
     queryParams?: {
         limit?: number;

@@ -11,11 +11,11 @@ import {loadAgentMessagesListLinkContent as actuallyLoadAgentMessagesListLinkCon
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
-    ApiDocumentThreadResponse,
-    ApiMessageResponse,
-    ApiTaskResponse,
+    ApiContent,
+    ApiContentWithoutKeys,
+    ApiDocumentThread,
+    ApiMessage,
+    ApiTask,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
@@ -48,7 +48,7 @@ const conversationState = {
     timeZone: defaultTimeZone,
 } as const;
 // Helper to create sample content
-function createSampleContent(...texts: Array<string>): ApiContentResponse {
+function createSampleContent(...texts: Array<string>): ApiContent {
     return addKeysToApiContentForTest({
         elements: texts.map(text => ({
             type: "Paragraph",
@@ -71,7 +71,7 @@ function mockGetChatMessagesList(
     responseData: {
         totalMessageCount?: number;
         nextCursor?: number | null;
-        messages?: ReadonlyArray<ApiMessageResponse>;
+        messages?: ReadonlyArray<ApiMessage>;
     },
 ): void {
     api.mockGet("/chats/{id}/messages", {
@@ -94,8 +94,8 @@ function mockGetDocumentThread(
     responseData: Partial<{
         isResolved: boolean;
         totalMessageCount: number;
-        firstMessage: ApiDocumentThreadResponse["firstMessage"];
-        documentContentSnippet: ApiContentResponseWithoutKeys;
+        firstMessage: ApiDocumentThread["firstMessage"];
+        documentContentSnippet: ApiContentWithoutKeys;
     }> &
         Record<string, unknown>,
 ): void {
@@ -135,7 +135,7 @@ function mockGetDocumentCommentsList(
     responseData: {
         totalMessageCount?: number;
         nextCursor?: number | null;
-        messages?: Array<ApiMessageResponse>;
+        messages?: Array<ApiMessage>;
     },
 ): void {
     api.mockGet("/documents/{id}/threads/{threadId}/messages", {
@@ -154,7 +154,7 @@ function mockGetTask(
     api: ApiClientMock,
     spaceId: SpaceId,
     taskId: TaskId,
-    responseData: Partial<Omit<ApiTaskResponse, "id">>,
+    responseData: Partial<Omit<ApiTask, "id">>,
 ): void {
     api.mockGet("/tasks/{id}", {
         params: {path: {id: taskId}},
@@ -179,7 +179,7 @@ function mockGetTaskCommentsList(
     responseData: {
         totalMessageCount?: number;
         nextCursor?: number | null;
-        messages?: Array<ApiMessageResponse>;
+        messages?: Array<ApiMessage>;
     },
 ): void {
     api.mockGet("/tasks/{id}/messages", {

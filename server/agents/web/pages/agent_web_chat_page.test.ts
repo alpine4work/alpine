@@ -6,11 +6,11 @@ import {
 } from "~/server/agents/web/pages/agent_web_chat_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiContentInlineElementResponse,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
+    ApiAccountReference,
+    ApiContentInlineElement,
+    ApiContentParagraphBlockElementWithoutKeys,
     ApiContentTextInlineElement,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -19,13 +19,7 @@ import {AccountId, BotId, ChatId} from "~/shared/id/types/id_types.open_source.j
 const chatId = generateId<ChatId>();
 const paginationChatId = generateId<ChatId>();
 
-function accountReference({
-    name,
-    botId,
-}: {
-    name: string;
-    botId?: BotId;
-}): ApiAccountReferenceResponse {
+function accountReference({name, botId}: {name: string; botId?: BotId}): ApiAccountReference {
     return {
         type: "Account",
         id: generateId<AccountId>(),
@@ -44,15 +38,13 @@ const escapedTeamReference = accountReference({
     name: `Alice & Bob\u2019s \u201CTeam\u201D`,
 });
 
-function content(
-    elements: ApiContentResponseWithoutKeys["elements"],
-): ApiContentResponseWithoutKeys {
+function content(elements: ApiContentWithoutKeys["elements"]): ApiContentWithoutKeys {
     return {elements};
 }
 
 function paragraph(
-    elements: ReadonlyArray<ApiContentInlineElementResponse>,
-): ApiContentParagraphBlockElementResponseWithoutKeys {
+    elements: ReadonlyArray<ApiContentInlineElement>,
+): ApiContentParagraphBlockElementWithoutKeys {
     return {type: "Paragraph", elements};
 }
 

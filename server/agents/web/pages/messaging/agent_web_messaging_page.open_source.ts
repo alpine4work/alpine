@@ -1,8 +1,8 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiContentResponseWithoutKeys,
+    ApiAccountReference,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 export type AgentWebMessagingPage<
@@ -71,7 +71,7 @@ export type AgentWebMessagingPageTimeBlock = {
 type AgentWebMessagingPageMessageBlockBase = {
     readonly type: "Message";
     readonly idAttribute: AgentWebMessagingPageMessageRange | null;
-    readonly author: ApiAccountReferenceResponse | null;
+    readonly author: ApiAccountReference | null;
     readonly timeAttribute: string | null;
     readonly timeZoneAttribute: string | null;
 };
@@ -80,7 +80,7 @@ export type AgentWebMessagingPageMessageBlock =
     | (AgentWebMessagingPageMessageBlockBase & {
           readonly deletedAttribute: null;
           readonly parent: AgentWebMessagingPageMessageBlockParent | null;
-          readonly content: ApiContentResponseWithoutKeys;
+          readonly content: ApiContentWithoutKeys;
       })
     | (AgentWebMessagingPageMessageBlockBase & {
           readonly deletedAttribute: true;
@@ -97,8 +97,8 @@ export type AgentWebMessagingPageCustomBlockBase = {
 export type AgentWebMessagingPageMessageBlockParent = {
     readonly citeAttribute: AgentWebMessagingPageMessageRange;
     readonly matchAttribute: number | null;
-    readonly author: ApiAccountReferenceResponse;
-    readonly previewContent: ApiContentResponseWithoutKeys;
+    readonly author: ApiAccountReference;
+    readonly previewContent: ApiContentWithoutKeys;
 };
 
 export type AgentWebMessagingPageWithMetadata<

@@ -3,9 +3,9 @@ import {getApiAccount} from "~/server/api/internal/shared/get_api_account.js";
 import {getContentReferences} from "~/server/content/get_content_references.js";
 import {ServerBotActionContext} from "~/server/context/server_action_context.js";
 import {
+    ApiMessageContentPayloadParent,
     ApiMessageContentPayloadParentContentSnippet,
     ApiMessageContentPayloadParentContentSnippetInlineElementMark,
-    ApiMessageContentPayloadParentResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
@@ -29,7 +29,7 @@ export async function intoApiMessageContentPayloadParent(
         | {type: "MessagesRange"; startIndex: number; endIndex: number}
         | {type: "PostRange"}
     ),
-): Promise<ApiMessageContentPayloadParentResponse> {
+): Promise<ApiMessageContentPayloadParent> {
     const referencesContext = context.dynamo.unexpectStrongReadConsistency();
 
     const [author, contentSnippet] = await runAllPromises([

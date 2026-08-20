@@ -3,7 +3,7 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {stripLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/deprecated/internal/cursor/strip_links_from_markdown_tree_for_cursor_agent.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, DocumentId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
@@ -17,7 +17,7 @@ describe("account mentions", () => {
     test("converts account mention to @ mention", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -51,7 +51,7 @@ describe("account mentions", () => {
         const aliceId = generateId<AccountId>();
         const bobId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -89,7 +89,7 @@ describe("account mentions", () => {
     test("account link kept as link when shouldKeepLink returns true", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -127,7 +127,7 @@ describe("account mentions", () => {
         // important context for the agent to know it's being addressed
         const cursorAccountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -164,7 +164,7 @@ describe("non-account links", () => {
     test("strips document links when shouldKeepLink returns false", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -193,7 +193,7 @@ describe("non-account links", () => {
     test("keeps document links when shouldKeepLink returns true", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -223,7 +223,7 @@ describe("non-account links", () => {
     test("strips task links without @ prefix", async () => {
         const taskId = generateId<TaskId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -260,7 +260,7 @@ describe("mixed content", () => {
         const accountId = generateId<AccountId>();
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -299,7 +299,7 @@ describe("mixed content", () => {
         const accountId = generateId<AccountId>();
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -342,7 +342,7 @@ describe("nested content", () => {
     test("strips links in nested list content", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "UnorderedList",
@@ -383,7 +383,7 @@ describe("nested content", () => {
     test("strips links in blockquotes", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Quote",
@@ -420,7 +420,7 @@ describe("nested content", () => {
     test("strips links in headings", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Heading",
@@ -453,7 +453,7 @@ describe("nested content", () => {
 
 describe("edge cases", () => {
     test("handles content with no links", async () => {
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -472,7 +472,7 @@ describe("edge cases", () => {
     });
 
     test("handles empty content", async () => {
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [],
         };
 
@@ -488,7 +488,7 @@ describe("edge cases", () => {
     test("handles link at start of paragraph", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -520,7 +520,7 @@ describe("edge cases", () => {
     test("handles link at end of paragraph", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -552,7 +552,7 @@ describe("edge cases", () => {
     test("handles link as only content", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -585,7 +585,7 @@ describe("edge cases", () => {
         const bobId = generateId<AccountId>();
         const charlieId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",

@@ -24,11 +24,11 @@ import {fromApiContent} from "~/shared/api/content/closed_source/from_api_conten
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
-    ApiContentInlineElement,
-    ApiContentQuoteBlockElement,
-    ApiContentTableBlockElementCellBlockElement,
+    ApiContentBlockElementRequest,
+    ApiContentInlineElementRequest,
+    ApiContentQuoteBlockElementRequest,
+    ApiContentRequest,
+    ApiContentTableBlockElementCellBlockElementRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -672,8 +672,8 @@ function convertFilePathsToMarkdownLinkLines(
  * section removed
  */
 function removeChildLinksSectionFromApiContent(
-    elements: Array<ApiContentBlockElement>,
-): Array<ApiContentBlockElement> {
+    elements: Array<ApiContentBlockElementRequest>,
+): Array<ApiContentBlockElementRequest> {
     const firstDividerIndex = elements.findIndex(element => element.type === "Divider");
     if (firstDividerIndex === -1) {
         // No divider found - return as-is
@@ -694,15 +694,15 @@ function removeChildLinksSectionFromApiContent(
  * properties
  */
 function formatDatabasePropertiesInApiContent(
-    elements: Array<ApiContentBlockElement>,
-): Array<ApiContentBlockElement> {
+    elements: Array<ApiContentBlockElementRequest>,
+): Array<ApiContentBlockElementRequest> {
     if (elements.length === 0) return elements;
 
     // Pattern to match property lines: "Property Name: value"
     const propertyPattern = /^[A-Za-z]+(?:\s[A-Za-z]+)*:\s*.+$/;
 
     // Check if a paragraph contains only a property line
-    function isPropertyParagraph(element: ApiContentBlockElement): string | null {
+    function isPropertyParagraph(element: ApiContentBlockElementRequest): string | null {
         if (element.type !== "Paragraph") return null;
         if (element.elements.length !== 1) return null;
 
@@ -734,7 +734,7 @@ function formatDatabasePropertiesInApiContent(
     if (propertyLines.length === 0) return elements;
 
     // Build the formatted output: Divider, UnorderedList, Divider
-    const formattedElements: Array<ApiContentBlockElement> = [];
+    const formattedElements: Array<ApiContentBlockElementRequest> = [];
 
     formattedElements.push({type: "Divider"});
     formattedElements.push({
@@ -790,7 +790,7 @@ function formatDatabasePropertiesInApiContent(
  */
 async function reformatNotionApiContentIntoOurDesiredFormat(
     context: {importerService: ImporterServiceContextModuleBase},
-    apiContent: ApiContent,
+    apiContent: ApiContentRequest,
     options: {
         spaceId: SpaceId;
         pathToDocumentId: Map<string, DocumentId>;
@@ -803,7 +803,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
         inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
         filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
     },
-): Promise<{title: string; content: ApiContent}> {
+): Promise<{title: string; content: ApiContentRequest}> {
     const {
         pathToDocumentId,
         documentIdToPath,
@@ -816,7 +816,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
         filesToUpload,
     } = options;
 
-    let elements: Array<ApiContentBlockElement> = [...apiContent.elements];
+    let elements: Array<ApiContentBlockElementRequest> = [...apiContent.elements];
 
     // ----------------------------------------------------------------
     // Extract title from first H1 heading
@@ -938,7 +938,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
     });
 
     // Build the final content
-    const finalElements: Array<ApiContentBlockElement> = [];
+    const finalElements: Array<ApiContentBlockElementRequest> = [];
 
     // Add parent link if exists
     if (parentId && documentIdToPath.has(parentId)) {
@@ -963,7 +963,7 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
         });
 
         const childListItems: Array<{
-            elements: Array<{type: "Paragraph"; elements: Array<ApiContentInlineElement>}>;
+            elements: Array<{type: "Paragraph"; elements: Array<ApiContentInlineElementRequest>}>;
         }> = [];
         for (const childId of childIds) {
             if (documentIdToPath.has(childId)) {
@@ -991,7 +991,9 @@ async function reformatNotionApiContentIntoOurDesiredFormat(
 }
 
 /** Extract plain text from an array of inline elements. */
-function extractTextFromInlineElements(elements: ReadonlyArray<ApiContentInlineElement>): string {
+function extractTextFromInlineElements(
+    elements: ReadonlyArray<ApiContentInlineElementRequest>,
+): string {
     return elements
         .map(element => {
             if (element.type === "Text") return element.text;
@@ -1009,7 +1011,7 @@ function extractTextFromInlineElements(elements: ReadonlyArray<ApiContentInlineE
  * structured "Child documents" section at the end anyway.
  */
 function isApiContentOnlyChildMentions(
-    elements: Array<ApiContentBlockElement>,
+    elements: Array<ApiContentBlockElementRequest>,
     childIds: Set<DocumentId>,
 ): boolean {
     if (childIds.size === 0) return false;
@@ -1086,7 +1088,7 @@ function resolveFileLinkPath(
  * the paragraph contains only file links, or null if it contains other content.
  */
 function convertParagraphToFileRowsIfNeeded(
-    element: ApiContentBlockElement,
+    element: ApiContentBlockElementRequest,
     currentDir: string,
     filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
 ): Array<{path: string; fileId: FileId}> | null {
@@ -1143,20 +1145,20 @@ function convertParagraphToFileRowsIfNeeded(
  * because our schema DOES support files in table cells via `File` elements.
  */
 function extractFilesFromContainerElement(
-    element: ApiContentBlockElement & {
+    element: ApiContentBlockElementRequest & {
         type: "UnorderedList" | "OrderedList" | "CheckList" | "Quote";
     },
     currentDir: string,
     filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
 ): {
     files: Array<{path: string; fileId: FileId}>;
-    remainingElement: ApiContentBlockElement | null;
+    remainingElement: ApiContentBlockElementRequest | null;
 } {
     const allFiles: Array<{path: string; fileId: FileId}> = [];
 
     // Splits a list of paragraphs into file-only paragraphs (whose file references are
     // collected into `allFiles`) and everything else (returned as the kept array).
-    const partitionParagraphs = <T extends ApiContentBlockElement>(
+    const partitionParagraphs = <T extends ApiContentBlockElementRequest>(
         paragraphs: ReadonlyArray<T>,
     ): Array<T> => {
         const kept: Array<T> = [];
@@ -1235,16 +1237,16 @@ function extractFilesFromContainerElement(
  * handle it now so it works automatically if Notion adds this.
  */
 function transformTableFileLinksToFileRowTables(
-    element: ApiContentBlockElement & {type: "Table"},
+    element: ApiContentBlockElementRequest & {type: "Table"},
     currentDir: string,
     filesToUpload: NotionImportMappedReferencesResult["filesToUpload"],
-): ApiContentBlockElement {
+): ApiContentBlockElementRequest {
     let changed = false;
 
     const rows = element.rows.map(row => ({
         ...row,
         cells: row.cells.map(cell => {
-            const newElements: Array<ApiContentTableBlockElementCellBlockElement> = [];
+            const newElements: Array<ApiContentTableBlockElementCellBlockElementRequest> = [];
 
             for (const cellElement of cell.elements) {
                 const files = convertParagraphToFileRowsIfNeeded(
@@ -1284,14 +1286,14 @@ function transformTableFileLinksToFileRowTables(
  * including file mappings @returns Elements with file blocks
  */
 function transformFileLinksToFileElementsIfPossible(
-    elements: Array<ApiContentBlockElement>,
+    elements: Array<ApiContentBlockElementRequest>,
     options: {
         currentDir: string;
         filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
     },
-): Array<ApiContentBlockElement> {
+): Array<ApiContentBlockElementRequest> {
     const {currentDir, filesToUpload} = options;
-    const result: Array<ApiContentBlockElement> = [];
+    const result: Array<ApiContentBlockElementRequest> = [];
 
     // Collect pending files to combine into rows
     let pendingFiles: Array<{fileId: FileId}> = [];
@@ -1410,21 +1412,21 @@ function transformFileLinksToFileElementsIfPossible(
  */
 async function transformCsvLinksToTables(
     context: {importerService: ImporterServiceContextModuleBase},
-    elements: Array<ApiContentBlockElement>,
+    elements: Array<ApiContentBlockElementRequest>,
     options: {
         currentDir: string;
         diskPathToUnzippedFiles: string;
         inlineDatabaseChildren: Map<string, Map<string, DocumentId>>;
         filesToUpload: NotionImportMappedReferencesResult["filesToUpload"];
     },
-): Promise<Array<ApiContentBlockElement>> {
+): Promise<Array<ApiContentBlockElementRequest>> {
     const {currentDir, diskPathToUnzippedFiles, inlineDatabaseChildren, filesToUpload} = options;
-    const result: Array<ApiContentBlockElement> = [];
+    const result: Array<ApiContentBlockElementRequest> = [];
 
     for (const element of elements) {
         if (element.type === "Paragraph") {
             // Check if this paragraph contains a CSV link
-            let csvTable: ApiContentBlockElement | null = null;
+            let csvTable: ApiContentBlockElementRequest | null = null;
 
             for (const inlineElement of element.elements) {
                 if (inlineElement.type === "Text" && inlineElement.marks) {
@@ -1497,7 +1499,7 @@ async function transformCsvLinksToTables(
                     context,
                     [...element.elements],
                     options,
-                )) as ApiContentQuoteBlockElement["elements"],
+                )) as ApiContentQuoteBlockElementRequest["elements"],
             });
         } else {
             result.push(element);
@@ -1515,12 +1517,12 @@ async function transformCsvLinksToTables(
  * elements.
  */
 function transformMdLinksToMentions(
-    content: ApiContent,
+    content: ApiContentRequest,
     options: {
         pathToDocumentId: Map<string, DocumentId>;
         currentDir: string;
     },
-): ApiContent {
+): ApiContentRequest {
     const {pathToDocumentId, currentDir} = options;
 
     return visitAndProduceApiContent(content, {

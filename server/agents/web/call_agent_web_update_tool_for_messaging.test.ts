@@ -26,11 +26,11 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {
-    ApiAccountResponse,
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
-    ApiMessageContentPayloadFileResponse,
-    ApiMessageResponse,
+    ApiAccount,
+    ApiContent,
+    ApiContentWithoutKeys,
+    ApiMessage,
+    ApiMessageContentPayloadFile,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
@@ -131,13 +131,11 @@ beforeEach(async () => {
     assert(chatPathname === chatPath);
 });
 
-function createTextContent(text: string): ApiContentResponseWithoutKeys {
+function createTextContent(text: string): ApiContentWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
-function createImageMessageFiles(
-    count: number,
-): ReadonlyArray<ApiMessageContentPayloadFileResponse> {
+function createImageMessageFiles(count: number): ReadonlyArray<ApiMessageContentPayloadFile> {
     return Array.from({length: count}, (_, index) => {
         const rowIndex = Math.floor(index / 3);
         const rowStartIndex = rowIndex * 3;
@@ -167,12 +165,12 @@ function createMessage({
     files = [],
 }: {
     index: number;
-    author?: ApiAccountResponse;
-    content?: ApiContentResponse | string;
+    author?: ApiAccount;
+    content?: ApiContent | string;
     createdTime?: string;
     parent?: ApiMessageMockParent;
-    files?: ReadonlyArray<ApiMessageContentPayloadFileResponse>;
-}): ApiMessageResponse {
+    files?: ReadonlyArray<ApiMessageContentPayloadFile>;
+}): ApiMessage {
     return createApiMessageMock({
         index,
         author,
@@ -229,7 +227,7 @@ async function readChat({
     path?: string;
     limit?: string;
     totalMessageCount: number;
-    createMessage?: (index: number) => ApiMessageResponse;
+    createMessage?: (index: number) => ApiMessage;
     readContext?: AgentWebContext;
 }): Promise<string> {
     mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});

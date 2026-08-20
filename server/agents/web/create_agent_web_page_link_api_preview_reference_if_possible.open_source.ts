@@ -1,10 +1,10 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
-import {ApiPreviewReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiPreviewReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function createAgentWebPageLinkApiPreviewReferenceIfPossible(
     link: AgentWebPageLink,
-): ApiPreviewReferenceResponse | null {
+): ApiPreviewReference | null {
     switch (link.type) {
         case "Channel":
         case "Chat":

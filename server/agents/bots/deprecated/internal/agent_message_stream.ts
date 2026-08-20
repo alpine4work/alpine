@@ -12,8 +12,8 @@ import {
     parseApiNotMentionReference,
 } from "~/shared/api/specification/parse_api_path.js";
 import {
-    ApiContentBlockElement,
-    ApiMessageStreamPartPayload,
+    ApiContentBlockElementRequest,
+    ApiMessageStreamPartPayloadRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.open_source.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
@@ -25,7 +25,7 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type AgentMessageStreamPart = {
     readonly index: number;
-    readonly payload: ApiMessageStreamPartPayload;
+    readonly payload: ApiMessageStreamPartPayloadRequest;
 };
 
 /**
@@ -100,7 +100,7 @@ export class AgentMessageStream {
      */
     public async update(
         updateSpan: TracerSpan,
-        newPartPayloads: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>> = [],
+        newPartPayloads: Array<Exclude<ApiMessageStreamPartPayloadRequest, {type: "Content"}>> = [],
     ): Promise<Array<{span: TracerSpan; part: AgentMessageStreamPart}>> {
         const putParts: Array<{span: TracerSpan; part: AgentMessageStreamPart}> = [];
 
@@ -603,12 +603,12 @@ function getPreviousListOrderStartFromPreviousBlockContent(
     return undefined;
 }
 /*
- * The message stream parts is a 2D array of Content (Array<Array<ApiMessageStreamPartPayload>>).
+ * The message stream parts is a 2D array of Content (Array<Array<ApiMessageStreamPartPayloadRequest>>).
  * This function looks backward from the stream parts until either:
  * 1. It finds a non-ordered list
  * 2. It finds a list with an explicit order start.
  *
- * So for each stream part, it searches backward through the through the ApiMessageStreamPartPayload
+ * So for each stream part, it searches backward through the through the ApiMessageStreamPartPayloadRequest
  * elements.
  *
  * Once it finds a non-ordered list OR an explicit order start, it adds them together to determine
@@ -665,7 +665,7 @@ function getPreviousListOrderStartFromPreviousAgentMessageStreamPart({
  * an ordered list with an explicit order start.
  */
 function getListStartAndPreviousNumberOfItemsInListIfExists<
-    Part extends BlockContent | ApiContentBlockElement,
+    Part extends BlockContent | ApiContentBlockElementRequest,
 >(
     parts: ReadonlyArray<Part>,
     {

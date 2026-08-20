@@ -4,7 +4,7 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
-import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {DocumentId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
@@ -53,7 +53,7 @@ test("will report a stale read for an expired read response", async () => {
 test("will mention the entity a delete targets", async () => {
     const pathname = await storeAgentWebPageLinkForTest(
         storage,
-        cast<ApiMentionReferenceResponse>({
+        cast<ApiMentionReference>({
             type: "Task",
             id: "task-1" as TaskId,
             title: "Fix the bug",
@@ -99,7 +99,7 @@ test("will report a stale read for a malformed input", async () => {
 test("will mention the entity an update targets", async () => {
     const pathname = await storeAgentWebPageLinkForTest(
         storage,
-        cast<ApiMentionReferenceResponse>({
+        cast<ApiMentionReference>({
             type: "Document",
             id: "document-1" as DocumentId,
             title: "Hello World",
@@ -132,7 +132,7 @@ test("will mention the entity an update targets", async () => {
 test("will name what a routed path targets rather than just the entity", async () => {
     const pathname = await storeAgentWebPageLinkForTest(
         storage,
-        cast<ApiMentionReferenceResponse>({
+        cast<ApiMentionReference>({
             type: "Task",
             id: "task-2" as TaskId,
             title: "Todos",
@@ -171,7 +171,7 @@ test("will name what a routed path targets rather than just the entity", async (
 test("will link a target that addresses something narrower than the entity", async () => {
     const pathname = await storeAgentWebPageLinkForTest(
         storage,
-        cast<ApiMentionReferenceResponse>({
+        cast<ApiMentionReference>({
             type: "Task",
             id: "task-3" as TaskId,
             title: "Ship it",

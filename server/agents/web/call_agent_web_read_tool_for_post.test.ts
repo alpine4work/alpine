@@ -9,8 +9,8 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiContentResponse,
-    ApiPostReferenceResponse,
+    ApiContent,
+    ApiPostReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
@@ -51,7 +51,7 @@ const pacificTimeZone = assertTimeZone("America/Los_Angeles");
 const aliceAccount = createApiAccountMock({name: "Alice"});
 const bobAccount = createApiAccountMock({name: "Bob"});
 const author = [aliceAccount, bobAccount];
-const postReference: ApiPostReferenceResponse = {
+const postReference: ApiPostReference = {
     type: "Post",
     id: postId,
     title: "Launch",
@@ -88,7 +88,7 @@ beforeEach(async () => {
     ]);
 });
 
-function contentFromText(text: string): ApiContentResponse {
+function contentFromText(text: string): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -106,7 +106,7 @@ function mockGetPost({
     channelName = "Announcements",
     title = postReference.title,
 }: {
-    content?: ApiContentResponse;
+    content?: ApiContent;
     createdTime?: Date;
     createdTimeZone?: TimeZone;
     channelName?: string;

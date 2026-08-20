@@ -2,9 +2,9 @@ import {AgentWebPageLinkKeyObject} from "~/server/agents/web/agent_web_page_link
 import {createAgentWebPageLinkUrl} from "~/server/agents/web/create_agent_web_page_link_url.open_source.js";
 import {agentToolAnnotations} from "~/shared/agents/agent_tool_annotations.js";
 import {
-    ApiLabelContent,
-    ApiMentionReference,
-    ApiMessageStreamToolCallPartPayloadCall,
+    ApiLabelContentRequest,
+    ApiMentionReferenceRequest,
+    ApiMessageStreamToolCallPartPayloadCallRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -25,7 +25,7 @@ type AgentWebToolCall =
 // <document>" or "Couldn't update <document>."
 export function intoApiMessageStreamToolCallPart(
     toolCall: AgentWebToolCall,
-): ApiMessageStreamToolCallPartPayloadCall | null {
+): ApiMessageStreamToolCallPartPayloadCallRequest | null {
     switch (toolCall.type) {
         case "Read": {
             const content = intoReadContent(toolCall.pageLink);
@@ -59,7 +59,7 @@ export function intoApiMessageStreamToolCallPart(
     }
 }
 
-function intoReadContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent | null {
+function intoReadContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContentRequest | null {
     switch (pageLink.type) {
         case "Account":
         case "Channel":
@@ -165,11 +165,11 @@ function intoLinkedReadContent({
     preposition,
     url,
 }: {
-    readonly reference: ApiMentionReference;
+    readonly reference: ApiMentionReferenceRequest;
     readonly label: string;
     readonly preposition: string;
     readonly url: string;
-}): ApiLabelContent {
+}): ApiLabelContentRequest {
     return {
         elements: [
             {type: "Text", text: "Reading "},
@@ -180,7 +180,7 @@ function intoLinkedReadContent({
     };
 }
 
-function intoCreateContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent {
+function intoCreateContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContentRequest {
     switch (pageLink.type) {
         case "Document":
         case "Post":
@@ -236,7 +236,7 @@ function intoCreateContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent
 // - Link to the document version UI when document is updated
 // - Changed name/description of channel
 // - Changed name of chat room
-function intoUpdateContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent | null {
+function intoUpdateContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContentRequest | null {
     switch (pageLink.type) {
         case "Document":
         case "Post":
@@ -318,10 +318,10 @@ function intoUpdateContent(pageLink: AgentWebPageLinkKeyObject): ApiLabelContent
 }
 
 function intoLinkedUpdateContent(
-    reference: ApiMentionReference,
+    reference: ApiMentionReferenceRequest,
     label: string,
     url: string,
-): ApiLabelContent {
+): ApiLabelContentRequest {
     return {
         elements: [
             {type: "Text", text: "Updated "},

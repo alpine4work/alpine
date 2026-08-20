@@ -4,10 +4,10 @@ import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecate
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {visitApiContent} from "~/shared/api/content/visit_api_content.open_source.js";
 import {
-    ApiContent,
-    ApiMessageContentPayloadParentResponse,
-    ApiMessageContentPayloadResponse,
-    ApiMessageResponse,
+    ApiContentRequest,
+    ApiMessage,
+    ApiMessageContentPayload,
+    ApiMessageContentPayloadParent,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -17,16 +17,16 @@ import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export class AgentMessage {
     public readonly index: number;
-    public readonly author: ApiMessageResponse["author"];
+    public readonly author: ApiMessage["author"];
     public readonly createdTime: DateString;
 
     public readonly createdTimeZone: TimeZone;
     public readonly markdownContent: Array<RootContent>;
 
-    public readonly content: ApiContent;
+    public readonly content: ApiContentRequest;
 
     public readonly parent:
-        | (ApiMessageContentPayloadParentResponse & {markdownContent: Array<RootContent>})
+        | (ApiMessageContentPayloadParent & {markdownContent: Array<RootContent>})
         | null;
 
     private _tokenCount: number | null = null;
@@ -40,15 +40,13 @@ export class AgentMessage {
             payload,
         }: {
             index: number;
-            author: ApiMessageResponse["author"];
+            author: ApiMessage["author"];
             createdTime: DateString;
             createdTimeZone: TimeZone;
-            payload: ApiMessageContentPayloadResponse;
+            payload: ApiMessageContentPayload;
         },
         markdownContent: Array<RootContent>,
-        parent:
-            | (ApiMessageContentPayloadParentResponse & {markdownContent: Array<RootContent>})
-            | null,
+        parent: (ApiMessageContentPayloadParent & {markdownContent: Array<RootContent>}) | null,
     ) {
         this.index = index;
         this.author = author;
@@ -64,10 +62,10 @@ export class AgentMessage {
         message: {
             spaceId: SpaceId;
             index: number;
-            author: ApiMessageResponse["author"];
+            author: ApiMessage["author"];
             createdTime: DateString;
             createdTimeZone: TimeZone;
-            payload: ApiMessageContentPayloadResponse;
+            payload: ApiMessageContentPayload;
         },
     ) {
         const [markdownTree, parentWithMarkdownContent] = await runAllPromises([

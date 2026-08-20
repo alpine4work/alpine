@@ -37,10 +37,10 @@ import {
 } from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.open_source.js";
 import {ApiContentRange} from "~/shared/api/specification/types/api_content_position.open_source.js";
 import {
-    ApiContentResponseWithoutKeys,
-    ApiDocumentReferenceResponse,
-    ApiDocumentThreadResponse,
-    ApiMessageResponse,
+    ApiContentWithoutKeys,
+    ApiDocumentReference,
+    ApiDocumentThread,
+    ApiMessage,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
@@ -88,13 +88,13 @@ export type AgentWebDocumentThreadPagePreamble =
 
 export type AgentWebDocumentThreadHeadPagePreamble = {
     readonly type: "Head";
-    readonly document: ApiDocumentReferenceResponse;
+    readonly document: ApiDocumentReference;
     readonly isResolved: boolean;
 };
 
 export type AgentWebDocumentThreadTailPagePreamble = {
     readonly type: "Tail";
-    readonly document: ApiDocumentReferenceResponse;
+    readonly document: ApiDocumentReference;
 };
 
 export type AgentWebDocumentThreadPageWithMetadata = AgentWebDocumentThreadPage & {
@@ -112,7 +112,7 @@ export type AgentWebDocumentThreadPageCustomBlock = {
     readonly tagName: "blockquote";
     readonly timeAttribute: null;
     readonly matchAttribute: number | "deleted" | null;
-    readonly content: ApiContentResponseWithoutKeys;
+    readonly content: ApiContentWithoutKeys;
 };
 
 function buildAgentWebDocumentThreadPage(
@@ -204,7 +204,7 @@ export async function readAgentWebDocumentThreadPage(
         // Extract out the first slice of content where the comment appears. May return
         // null if the comment was removed from the document.
         let documentContentSliceResult: {
-            contentSlice: ApiContentResponseWithoutKeys;
+            contentSlice: ApiContentWithoutKeys;
             range: ApiContentRange;
         } | null = null;
 
@@ -244,7 +244,7 @@ export async function readAgentWebDocumentThreadPage(
             }
         }
 
-        const documentReference: ApiDocumentReferenceResponse = {
+        const documentReference: ApiDocumentReference = {
             type: "Document",
             id,
             title: document.title,
@@ -579,8 +579,8 @@ export async function createAgentWebDocumentThreadPage(
     // comments do we want to create the document comment thread.
     const createPromise = new Lazy<
         Promise<{
-            thread: ApiDocumentThreadResponse;
-            firstMessage: ApiMessageResponse;
+            thread: ApiDocumentThread;
+            firstMessage: ApiMessage;
             pageLink: AgentWebPageDocumentThreadRoutedLink;
         }>
     >(async () => {

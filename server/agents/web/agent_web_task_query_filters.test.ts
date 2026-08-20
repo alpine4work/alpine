@@ -12,10 +12,10 @@ import {
     intoApiAccountReference,
 } from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {
-    ApiAccountResponse,
-    ApiAccountWithoutSpaceResponse,
-    ApiTaskCollectionPreviewResponse,
-    ApiTaskQueryFilterResponse,
+    ApiAccount,
+    ApiAccountWithoutSpace,
+    ApiTaskCollectionPreview,
+    ApiTaskQueryFilter,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ErrorBase, InternalError} from "~/shared/error/error.open_source.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
@@ -40,7 +40,7 @@ const storage = createAgentWebSessionStorageForTest(generateId<SpaceId>());
  * filters.
  */
 async function expectTaskQueryFilterFormat(
-    filters: ReadonlyArray<ApiTaskQueryFilterResponse>,
+    filters: ReadonlyArray<ApiTaskQueryFilter>,
     searchParamsString: string,
 ): Promise<void> {
     expect({
@@ -59,7 +59,7 @@ async function expectTaskQueryFilterFormat(
  * Removes account space data that isn't stored in agent web links.
  */
 function intoApiTaskQueryFiltersWithoutAccountSpace(
-    filters: ReadonlyArray<ApiTaskQueryFilterResponse>,
+    filters: ReadonlyArray<ApiTaskQueryFilter>,
 ): Array<ApiTaskQueryFilterResponseWithoutAccountSpace> {
     return filters.map((filter): ApiTaskQueryFilterResponseWithoutAccountSpace => {
         switch (filter.type) {
@@ -109,8 +109,8 @@ function intoApiTaskQueryFiltersWithoutAccountSpace(
 async function createAccountForTest(
     name: string,
     {bot = false}: {bot?: boolean} = {},
-): Promise<ApiAccountResponse> {
-    const account: ApiAccountResponse = {
+): Promise<ApiAccount> {
+    const account: ApiAccount = {
         id: generateId<AccountId>(),
         name,
         shortName: name.split(" ")[0]!,
@@ -125,10 +125,8 @@ async function createAccountForTest(
     return account;
 }
 
-async function createTaskCollectionForTest(
-    name: string,
-): Promise<ApiTaskCollectionPreviewResponse> {
-    const collection: ApiTaskCollectionPreviewResponse = {
+async function createTaskCollectionForTest(name: string): Promise<ApiTaskCollectionPreview> {
+    const collection: ApiTaskCollectionPreview = {
         id: generateId<TaskCollectionId>(),
         name,
     };
@@ -566,7 +564,7 @@ test("prints an assignee filter with a bot account", async () => {
 });
 
 test("prints an assignee filter creating a link for an unseen account", async () => {
-    const account: ApiAccountResponse = {
+    const account: ApiAccount = {
         id: generateId<AccountId>(),
         name: "Anthony Mose",
         shortName: "Anthony",
@@ -1102,7 +1100,7 @@ test("normalizes repeated statuses keeping the first occurrence", () => {
 });
 
 test("normalizes repeated accounts in an assignee filter", () => {
-    const account: ApiAccountWithoutSpaceResponse = {
+    const account: ApiAccountWithoutSpace = {
         id: generateId<AccountId>(),
         name: "John Doe",
         shortName: "John",
@@ -1134,7 +1132,7 @@ test("normalizes repeated accounts in an assignee filter", () => {
 });
 
 test("normalization leaves distinct filters unchanged", () => {
-    const filters: ReadonlyArray<ApiTaskQueryFilterResponse> = [
+    const filters: ReadonlyArray<ApiTaskQueryFilter> = [
         {type: "Title", operation: {type: "Includes", titleQuery: "launch"}},
         {type: "Due", operation: {type: "Overdue"}},
         {type: "Due", operation: {type: "LessThan", time: {type: "AbsoluteDate", date: null}}},

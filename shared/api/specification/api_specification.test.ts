@@ -28,20 +28,20 @@ const apiSpecification: OpenAPIV3.Document = Yaml.parse(apiSpecificationString);
  * specification.
  *
  * `DocumentThreadReference` is the only reference without a hand-written
- * `_Response` schema, so the generator derives one from the (now open) base
- * schema. Every other `*Reference_Response` is hand-written and still closed.
+ * `_Request` schema, so the generator derives one from the open base schema. Every
+ * other response reference is hand-written and closed.
  */
 const openReferenceSchemaNames = new Set([
-    "AccountReference",
-    "ChannelReference",
-    "ChatReference",
-    "DocumentReference",
+    "AccountReference_Request",
+    "ChannelReference_Request",
+    "ChatReference_Request",
+    "DocumentReference_Request",
     "DocumentThreadReference",
-    "DocumentThreadReference_Response",
-    "PostReference",
-    "TaskReference",
-    "TaskCollectionReference",
-    "SiteReference",
+    "DocumentThreadReference_Request",
+    "PostReference_Request",
+    "TaskReference_Request",
+    "TaskCollectionReference_Request",
+    "SiteReference_Request",
 ]);
 
 function validate(specification: JsonValue) {

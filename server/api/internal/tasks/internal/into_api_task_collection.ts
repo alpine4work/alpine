@@ -4,10 +4,10 @@ import {intoApiTaskQueryFilter} from "~/shared/api/content/closed_source/into_ap
 import {intoApiTaskQuerySort} from "~/shared/api/content/closed_source/into_api_task_query_sort.js";
 import {intoApiThemeColor} from "~/shared/api/content/closed_source/into_api_theme_color.js";
 import {
-    ApiTaskCollectionResponse,
-    ApiTaskQueryDefaultsResponse,
+    ApiTaskCollection,
+    ApiTaskQueryDefaults,
     ApiTaskQueryFilter,
-    ApiTaskQueryFilterResponse,
+    ApiTaskQueryFilterRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {intoApiAccount} from "~/shared/spaces/into_api_account.js";
@@ -19,7 +19,7 @@ import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_refere
 export async function intoApiTaskCollection(
     context: ServerActionContext,
     collection: TaskCollectionModel,
-): Promise<ApiTaskCollectionResponse> {
+): Promise<ApiTaskCollection> {
     const defaults = collection.getDefaults();
 
     const references = await getTaskQueryFilterReferences(
@@ -42,7 +42,7 @@ export async function intoApiTaskCollection(
 function intoApiTaskQueryDefaults(
     defaults: TaskQueryDefaults,
     references: TaskQueryFilterReferences,
-): ApiTaskQueryDefaultsResponse {
+): ApiTaskQueryDefaults {
     return {
         filters: defaults.filters.map(filter => intoApiTaskQueryFilterResponse(filter, references)),
         sorts: defaults.sorts.map(intoApiTaskQuerySort),
@@ -52,8 +52,8 @@ function intoApiTaskQueryDefaults(
 function intoApiTaskQueryFilterResponse(
     originalFilter: TaskQueryFilter,
     references: TaskQueryFilterReferences,
-): ApiTaskQueryFilterResponse {
-    const filter: ApiTaskQueryFilter = intoApiTaskQueryFilter(originalFilter);
+): ApiTaskQueryFilter {
+    const filter: ApiTaskQueryFilterRequest = intoApiTaskQueryFilter(originalFilter);
 
     switch (filter.type) {
         case "Collections": {

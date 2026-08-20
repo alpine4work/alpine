@@ -9,10 +9,10 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiContentResponseWithoutKeys,
+    ApiContentWithoutKeys,
+    ApiTask,
     ApiTaskPatchResult,
-    ApiTaskResponse,
-    ApiTaskWithNotesResponse,
+    ApiTaskWithNotes,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -106,7 +106,7 @@ function mockAgentWebBotAccountReferenceForTest(
     });
 }
 
-const emptyNotesContent: ApiContentResponseWithoutKeys = {
+const emptyNotesContent: ApiContentWithoutKeys = {
     elements: [{type: "Paragraph", elements: []}],
 };
 
@@ -146,7 +146,7 @@ function mockTaskNotesPatch({
 }: {
     taskId: TaskId;
     version: number;
-    content: ApiContentResponseWithoutKeys;
+    content: ApiContentWithoutKeys;
 }) {
     api.mockPatch("/tasks/{id}/notes", {
         params: {path: {id: taskId}},
@@ -179,7 +179,7 @@ function getTaskListPatchRequests() {
 }
 
 function mockTaskListPatch(
-    tasks: ReadonlyArray<ApiTaskResponse>,
+    tasks: ReadonlyArray<ApiTask>,
     results: ReadonlyArray<ReadonlyArray<ApiTaskPatchResult>>,
 ): void {
     api.mockPatch("/tasks", {
@@ -198,10 +198,10 @@ function mockGetTask(
     api: ApiClientMock,
     spaceId: SpaceId,
     taskId: TaskId,
-    responseData: Omit<ApiTaskWithNotesResponse, "id">,
+    responseData: Omit<ApiTaskWithNotes, "id">,
     subtasks: ReadonlyArray<{
         readonly cursor: ReturnType<typeof printApiTaskQueryCursorMock>;
-        readonly task: ApiTaskResponse;
+        readonly task: ApiTask;
     }>,
 ): void {
     api.mockGet("/tasks/{id}-with-notes/subtasks", {
@@ -243,10 +243,10 @@ async function readTask({
     priority?: {readonly type: "Low" | "Medium" | "High" | "Urgent"};
     due?: {readonly date: string};
     notesVersion?: number;
-    notesContent?: ApiContentResponseWithoutKeys;
+    notesContent?: ApiContentWithoutKeys;
     subtasks?: ReadonlyArray<{
         readonly cursor: ReturnType<typeof printApiTaskQueryCursorMock>;
-        readonly task: ApiTaskResponse;
+        readonly task: ApiTask;
     }>;
     totalSubtaskCount?: number;
 }): Promise<{taskId: TaskId; path: string}> {
@@ -302,7 +302,7 @@ async function readTask({
     return {taskId, path};
 }
 
-function withoutNotes(task: ApiTaskResponse | ApiTaskWithNotesResponse): ApiTaskResponse {
+function withoutNotes(task: ApiTask | ApiTaskWithNotes): ApiTask {
     if (!("notes" in task)) return task;
 
     const {notes: _notes, ...taskWithoutNotes} = task;
@@ -771,7 +771,7 @@ test("adds task notes", async () => {
         title: "Notes task",
         notesVersion: 4,
     });
-    const notesContent: ApiContentResponseWithoutKeys = {
+    const notesContent: ApiContentWithoutKeys = {
         elements: [
             {
                 type: "Paragraph",
@@ -805,7 +805,7 @@ test("adds task notes", async () => {
 
 test("adds task notes with heading", async () => {
     const {taskId, path} = await readTask({title: "Notes heading task"});
-    const notesContent: ApiContentResponseWithoutKeys = {
+    const notesContent: ApiContentWithoutKeys = {
         elements: [
             {
                 type: "Heading",
@@ -839,7 +839,7 @@ test("adds task notes with heading", async () => {
 });
 
 test("clears task notes after reading task with notes set", async () => {
-    const oldNotesContent: ApiContentResponseWithoutKeys = {
+    const oldNotesContent: ApiContentWithoutKeys = {
         elements: [
             {
                 type: "Paragraph",
@@ -867,7 +867,7 @@ test("clears task notes after reading task with notes set", async () => {
 });
 
 test("changes task notes after reading task with notes set", async () => {
-    const oldNotesContent: ApiContentResponseWithoutKeys = {
+    const oldNotesContent: ApiContentWithoutKeys = {
         elements: [
             {
                 type: "Paragraph",
@@ -875,7 +875,7 @@ test("changes task notes after reading task with notes set", async () => {
             },
         ],
     };
-    const newNotesContent: ApiContentResponseWithoutKeys = {
+    const newNotesContent: ApiContentWithoutKeys = {
         elements: [
             {
                 type: "Paragraph",
@@ -904,7 +904,7 @@ test("changes task notes after reading task with notes set", async () => {
 
 test("updates task fields and notes", async () => {
     const {taskId, path} = await readTask({title: "Mixed task"});
-    const notesContent: ApiContentResponseWithoutKeys = {
+    const notesContent: ApiContentWithoutKeys = {
         elements: [
             {
                 type: "Paragraph",

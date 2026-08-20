@@ -4,17 +4,17 @@ import {
 } from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {parseApiContentResponseFromMarkdownForTest} from "~/shared/api/content/test_helpers/parse_api_content_response_from_markdown_for_test.js";
 import {
-    ApiAccountResponse,
-    ApiContentResponse,
-    ApiTaskCollectionItemResponse,
+    ApiAccount,
+    ApiContent,
+    ApiTaskCollectionItem,
     ApiTaskDue,
     ApiTaskLayout,
-    ApiTaskNotesResponse,
-    ApiTaskParentResponse,
+    ApiTaskNotes,
+    ApiTaskParent,
     ApiTaskPriority,
     ApiTaskStatus,
     ApiTaskSubtasks,
-    ApiTaskWithNotesResponse,
+    ApiTaskWithNotes,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {scrambleBytes} from "~/shared/helpers/binary/scramble_bytes.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -45,23 +45,21 @@ export type ApiTaskMockOptions = {
     id?: TaskId;
     title?: string;
     status?: ApiTaskStatusMock | ApiTaskStatus;
-    assignee?: ApiAccountMockOptions | ApiAccountResponse;
+    assignee?: ApiAccountMockOptions | ApiAccount;
     due?: ApiTaskDue["date"] | ApiTaskDue;
     priority?: ApiTaskPriority["type"] | ApiTaskPriority;
     layout?: ApiTaskLayout["type"] | ApiTaskLayout;
     parent?:
         | Replace<
-              Partial<ApiTaskParentResponse["task"]>,
+              Partial<ApiTaskParent["task"]>,
               {index?: number; status?: ApiTaskStatusMock | ApiTaskStatus}
           >
-        | ApiTaskParentResponse;
+        | ApiTaskParent;
     collections?: ReadonlyArray<
-        | TaskCollectionId
-        | Partial<ApiTaskCollectionItemResponse["collection"]>
-        | ApiTaskCollectionItemResponse
+        TaskCollectionId | Partial<ApiTaskCollectionItem["collection"]> | ApiTaskCollectionItem
     >;
     subtasks?: Partial<ApiTaskSubtasks>;
-    notes?: string | ApiContentResponse | ApiTaskNotesResponse;
+    notes?: string | ApiContent | ApiTaskNotes;
 };
 
 export function createApiTaskMock({
@@ -77,8 +75,8 @@ export function createApiTaskMock({
     collections,
     subtasks,
     notes,
-}: ApiTaskMockOptions): ApiTaskWithNotesResponse {
-    const task: WritableShallow<ApiTaskWithNotesResponse> = {
+}: ApiTaskMockOptions): ApiTaskWithNotes {
+    const task: WritableShallow<ApiTaskWithNotes> = {
         id,
         title,
         status: typeof status === "string" ? createApiTaskMockStatus(status) : status,

@@ -1,7 +1,7 @@
 import OpenAi from "openai";
 import {AgentConversationStore} from "~/server/agents/bots/deprecated/internal/conversation/agent_conversation_store.js";
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
-import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {TimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {emptySet} from "~/shared/helpers/set/empty_set.open_source.js";
 import {OrderKey, generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.open_source.js";
@@ -15,8 +15,8 @@ export type ChatGptAgentConversationState = {
     readonly timeZone: TimeZone;
     readonly allowedMessageApprovalScopes: ReadonlySet<ChatGptAgentMessageApprovalScope>;
     readonly currentlyViewingTarget: {
-        readonly target: ApiMentionReferenceResponse | null;
-        readonly previousTarget: ApiMentionReferenceResponse | null;
+        readonly target: ApiMentionReference | null;
+        readonly previousTarget: ApiMentionReference | null;
         readonly previousInjectTime: Date | null;
     } | null;
 };

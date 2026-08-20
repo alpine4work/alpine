@@ -6,9 +6,9 @@ import {AgentUsageDatabaseInterface} from "~/server/agents/bots/internal/d1/agen
 import {OpenAiClientInterface} from "~/server/agents/bots/internal/open_ai_client.js";
 import {
     ApiBotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent,
-    ApiMessageExperimentalApprovalDecisionValueResponse,
-    ApiMessageExperimentalApprovalResponse,
-    ApiMessageRoomReference,
+    ApiMessageExperimentalApproval,
+    ApiMessageExperimentalApprovalDecisionValue,
+    ApiMessageRoomReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
@@ -24,7 +24,7 @@ const botId = generateId<BotId>();
 const botAccountId = generateId<AccountId>();
 const deciderAccountId = generateId<AccountId>();
 
-const room: ApiMessageRoomReference = {type: "Chat", id: chatId};
+const room: ApiMessageRoomReferenceRequest = {type: "Chat", id: chatId};
 const messageIndex = 3;
 const approvalsPath = "/chats/{id}/messages/{index}/experimental-approvals";
 const approvalsParams = {path: {id: chatId, index: messageIndex}};
@@ -78,19 +78,19 @@ function createWebhookRequest() {
 const approvalDecisionOptions = [{type: "Approved"} as const, {type: "Rejected"} as const];
 
 function createApiApprovalResponse(
-    value?: ApiMessageExperimentalApprovalDecisionValueResponse,
-): ApiMessageExperimentalApprovalResponse {
+    value?: ApiMessageExperimentalApprovalDecisionValue,
+): ApiMessageExperimentalApproval {
     return {
         summary: {elements: [{type: "Text", text: "Create a document"}]},
         decision: {schema: {options: approvalDecisionOptions}, value},
     };
 }
 
-function createApprovedValueResponse(): ApiMessageExperimentalApprovalDecisionValueResponse {
+function createApprovedValueResponse(): ApiMessageExperimentalApprovalDecisionValue {
     return {type: "Approved", decider: {account: {id: deciderAccountId}}};
 }
 
-function createRejectedValueResponse(): ApiMessageExperimentalApprovalDecisionValueResponse {
+function createRejectedValueResponse(): ApiMessageExperimentalApprovalDecisionValue {
     return {type: "Rejected", decider: {account: {id: deciderAccountId}}};
 }
 

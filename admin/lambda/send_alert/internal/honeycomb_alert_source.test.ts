@@ -8,7 +8,7 @@ import {
 } from "~/admin/lambda/send_alert/internal/honeycomb_alert_source_types.js";
 import {sendAlertAvailableTaskCollections} from "~/admin/lambda/send_alert/internal/send_alert_available_task_collections.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import type {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
@@ -130,7 +130,7 @@ ${markdown}`;
 }
 
 function formatCreateTaskMessageCallForSnapshot(fetchCall: {url: string; body: unknown}): string {
-    const body = fetchCall.body as {content: ApiContent};
+    const body = fetchCall.body as {content: ApiContentRequest};
     const markdown = printApiContentToMarkdown(body.content);
     return `URL: ${fetchCall.url}
 

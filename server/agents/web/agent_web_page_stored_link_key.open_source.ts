@@ -4,8 +4,8 @@ import {
     printApiMentionReferenceKey,
 } from "~/shared/api/specification/api_mention_reference_key.open_source.js";
 import {
-    ApiDocumentReference,
-    ApiMentionReference,
+    ApiDocumentReferenceRequest,
+    ApiMentionReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assertId} from "~/shared/id/id.open_source.js";
 import {
@@ -29,7 +29,7 @@ export type AgentWebPageStoredLinkKey =
     | `File:${FileId}`;
 
 export type AgentWebPageStoredLinkKeyObject =
-    | ApiMentionReference
+    | ApiMentionReferenceRequest
     | {
           readonly type: "ChatMessage";
           readonly id: ChatId;
@@ -37,7 +37,7 @@ export type AgentWebPageStoredLinkKeyObject =
       }
     | {
           readonly type: "DocumentMessage";
-          readonly document: ApiDocumentReference;
+          readonly document: ApiDocumentReferenceRequest;
           readonly id: DocumentCommentThreadId;
           readonly index: number;
       }

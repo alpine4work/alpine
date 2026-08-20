@@ -1,12 +1,12 @@
 import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
 import {
-    ApiContent,
-    ApiContentInlineElement,
+    ApiContentInlineElementRequest,
+    ApiContentRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 describe("visitAndProduceApiContent", () => {
     test("returns same object when no changes made (immer optimization)", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [{type: "Paragraph", elements: [{type: "Text", text: "Hello"}]}],
         };
 
@@ -18,7 +18,7 @@ describe("visitAndProduceApiContent", () => {
     });
 
     test("modifies text content", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [{type: "Paragraph", elements: [{type: "Text", text: "hello"}]}],
         };
 
@@ -42,7 +42,7 @@ describe("visitAndProduceApiContent", () => {
     });
 
     test("replaces inline elements in context array", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Paragraph",
@@ -63,7 +63,7 @@ describe("visitAndProduceApiContent", () => {
             visitInlineElement: (element, context) => {
                 if (element.type === "Text" && element.marks?.some(m => m.type === "Link")) {
                     // Replace link with mention
-                    (context.elements as Array<ApiContentInlineElement>)[context.index] = {
+                    (context.elements as Array<ApiContentInlineElementRequest>)[context.index] = {
                         type: "Mention",
                         reference: {type: "Document", id: "doc123" as any},
                     };
@@ -82,7 +82,7 @@ describe("visitAndProduceApiContent", () => {
     });
 
     test("modifies heading levels", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {type: "Heading", level: 2, elements: [{type: "Text", text: "Section"}]},
                 {type: "Heading", level: 3, elements: [{type: "Text", text: "Subsection"}]},
@@ -104,7 +104,7 @@ describe("visitAndProduceApiContent", () => {
     });
 
     test("modifies marks on inline elements", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Paragraph",
@@ -141,7 +141,7 @@ describe("visitAndProduceApiContent", () => {
     });
 
     test("handles nested list items", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "UnorderedList",
@@ -175,7 +175,7 @@ describe("visitAndProduceApiContent", () => {
     });
 
     test("handles table cells", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Table",
@@ -224,7 +224,7 @@ describe("visitAndProduceApiContent", () => {
     });
 
     test("handles quote blocks", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Quote",
@@ -248,7 +248,7 @@ describe("visitAndProduceApiContent", () => {
     });
 
     test("transforms multiple elements in one pass", () => {
-        const content: ApiContent = {
+        const content: ApiContentRequest = {
             elements: [
                 {
                     type: "Paragraph",
@@ -267,10 +267,11 @@ describe("visitAndProduceApiContent", () => {
                     const linkMark = element.marks.find(m => m.type === "Link");
                     if (linkMark && "url" in linkMark && linkMark.url.endsWith(".md")) {
                         replacedUrls.push(linkMark.url);
-                        (context.elements as Array<ApiContentInlineElement>)[context.index] = {
-                            type: "Mention",
-                            reference: {type: "Document", id: linkMark.url as any},
-                        };
+                        (context.elements as Array<ApiContentInlineElementRequest>)[context.index] =
+                            {
+                                type: "Mention",
+                                reference: {type: "Document", id: linkMark.url as any},
+                            };
                     }
                 }
             },

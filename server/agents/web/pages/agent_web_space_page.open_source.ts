@@ -12,7 +12,7 @@ import {withApiContentNormalizerForAgentWebMarkdown} from "~/server/agents/web/n
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
-import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiAccountReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -22,7 +22,7 @@ import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 export type AgentWebSpacePage = {
     readonly type: "Space";
     readonly name: string;
-    readonly members: ReadonlyArray<ApiAccountReferenceResponse>;
+    readonly members: ReadonlyArray<ApiAccountReference>;
 };
 
 export type AgentWebSpacePageMetadata = {
@@ -187,7 +187,7 @@ export async function parseAgentWebSpacePage(
 async function parseAgentWebSpacePageMember(
     storage: AgentWebSessionStorage,
     member: ListItem,
-): Promise<ApiAccountReferenceResponse> {
+): Promise<ApiAccountReference> {
     const paragraph = member.children[0];
     const link = paragraph?.type === "paragraph" ? paragraph.children[0] : undefined;
 

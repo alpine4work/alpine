@@ -11,10 +11,10 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiAccountResponse,
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
-    ApiMessageResponse,
+    ApiAccount,
+    ApiContent,
+    ApiContentWithoutKeys,
+    ApiMessage,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
@@ -144,11 +144,11 @@ beforeEach(async () => {
     await storeAgentWebPageLinkForTest(storage, [aliceAccount, bobAccount]);
 });
 
-function createTextContent(text: string): ApiContentResponseWithoutKeys {
+function createTextContent(text: string): ApiContentWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
-function createPreviewContent(): ApiContentResponse {
+function createPreviewContent(): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -180,10 +180,10 @@ function createComment({
     createdTime = new Date(Date.UTC(2026, 4, 14, 15, index * 5)).toISOString(),
 }: {
     index: number;
-    author?: ApiAccountResponse;
-    content?: ApiContentResponse | string;
+    author?: ApiAccount;
+    content?: ApiContent | string;
     createdTime?: string;
-}): ApiMessageResponse {
+}): ApiMessage {
     return createApiMessageMock({
         index,
         author,
@@ -222,9 +222,9 @@ function mockGetDocumentThread({
     previewContent = documentContent,
     isResolved = false,
 }: {
-    documentContent?: ApiContentResponse;
+    documentContent?: ApiContent;
     createdTime?: Date;
-    previewContent?: ApiContentResponse;
+    previewContent?: ApiContent;
     isResolved?: boolean;
 } = {}) {
     api.mockGet("/documents/{id}/threads/{threadId}-with-preview", {
@@ -285,8 +285,8 @@ async function readDocumentThread({
     path?: string;
     limit?: string;
     totalCommentCount: number;
-    createComment?: (index: number) => ApiMessageResponse;
-    previewContent?: ApiContentResponse;
+    createComment?: (index: number) => ApiMessage;
+    previewContent?: ApiContent;
     isResolved?: boolean;
 }): Promise<string> {
     const actualPreviewContent = previewContent ?? createPreviewContent();

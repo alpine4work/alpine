@@ -17,7 +17,7 @@ import {
 import {printAgentWebError} from "~/server/agents/web/print_agent_web_error.open_source.js";
 import {withInstrumentedAgentWebSessionStorage} from "~/server/agents/web/with_instrumented_agent_web_session_storage.open_source.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
-import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSearchResult} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -83,8 +83,8 @@ async function actuallyCallAgentWebSearchTool(
 
     // Group results by the summary of the natural language filter they matched, if
     // any. Results that didn't match a filter only matched the keyword search.
-    const resultsByParsedFilterSummary = new Map<string, Array<ApiSearchResultResponse>>();
-    const otherResults: Array<ApiSearchResultResponse> = [];
+    const resultsByParsedFilterSummary = new Map<string, Array<ApiSearchResult>>();
+    const otherResults: Array<ApiSearchResult> = [];
 
     for (const result of data.results) {
         if (!result.parsedFilter) {
@@ -170,7 +170,7 @@ async function actuallyCallAgentWebSearchTool(
 
 async function createAgentWebSearchResultListItem(
     storage: AgentWebSessionStorage,
-    result: ApiSearchResultResponse,
+    result: ApiSearchResult,
 ): Promise<ListItem> {
     switch (result.type) {
         case "ChatMessage":
@@ -196,7 +196,7 @@ async function createAgentWebSearchResultListItem(
 
 async function createAgentWebSearchEntityResultListItem(
     storage: AgentWebSessionStorage,
-    result: Exclude<ApiSearchResultResponse, ApiSearchMessageResultResponse>,
+    result: Exclude<ApiSearchResult, ApiSearchMessageResultResponse>,
 ): Promise<ListItem> {
     const resultLinkPathname = await createAgentWebPageStoredLinkPathname(
         storage,

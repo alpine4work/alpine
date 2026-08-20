@@ -1,9 +1,9 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
 import {
+    ApiTask,
+    ApiTaskCollection,
     ApiTaskCollectionColor,
-    ApiTaskCollectionResponse,
-    ApiTaskQueryDefaultsResponse,
-    ApiTaskResponse,
+    ApiTaskQueryDefaults,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -28,11 +28,11 @@ export function mockGetApiTaskCollectionTasks(
         id?: TaskCollectionId;
         name?: string;
         color?: ApiTaskCollectionColor;
-        defaults?: ApiTaskQueryDefaultsResponse;
+        defaults?: ApiTaskQueryDefaults;
         totalTaskCount: number;
         limit: number;
         cursor?: ApiTaskQueryCursor;
-        createTask: (index: number) => ApiTaskResponse;
+        createTask: (index: number) => ApiTask;
     },
 ) {
     const cursor =
@@ -48,7 +48,7 @@ export function mockGetApiTaskCollectionTasks(
 
     const nextCursor = cursor + limit;
 
-    const collection: ApiTaskCollectionResponse = {
+    const collection: ApiTaskCollection = {
         id,
         name,
         color,

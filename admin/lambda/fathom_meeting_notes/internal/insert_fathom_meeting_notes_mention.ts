@@ -1,17 +1,17 @@
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import type {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
-type ApiContentBlockElement = ApiContent["elements"][number];
+type ApiContentBlockElementRequest = ApiContentRequest["elements"][number];
 
 export interface InsertFathomMeetingNotesMentionOptions {
-    readonly content: ApiContent;
+    readonly content: ApiContentRequest;
     readonly documentId: DocumentId;
     readonly scheduledStartTime: string;
 }
 
 export interface InsertFathomMeetingNotesMentionResult {
-    readonly content: ApiContent;
+    readonly content: ApiContentRequest;
     readonly inserted: boolean;
 }
 
@@ -70,8 +70,8 @@ export function insertFathomMeetingNotesMention({
     const year = Number(meetingDateParts.find(part => part.type === "year")?.value);
     const month = Number(meetingDateParts.find(part => part.type === "month")?.value) - 1;
     const monthName = meetingSectionMonthFormatter.format(meetingDate);
-    const elements: Array<ApiContentBlockElement> = [...content.elements];
-    const mentionElement: ApiContentBlockElement = {
+    const elements: Array<ApiContentBlockElementRequest> = [...content.elements];
+    const mentionElement: ApiContentBlockElementRequest = {
         type: "Paragraph",
         elements: [
             {
@@ -80,7 +80,7 @@ export function insertFathomMeetingNotesMention({
             },
         ],
     };
-    const monthHeading: ApiContentBlockElement = {
+    const monthHeading: ApiContentBlockElementRequest = {
         type: "Heading",
         level: 3,
         elements: [{type: "Text", text: monthName}],
@@ -144,7 +144,7 @@ export function insertFathomMeetingNotesMention({
 }
 
 function getFathomMeetingNotesHeadingText(
-    heading: Extract<ApiContentBlockElement, {readonly type: "Heading"}>,
+    heading: Extract<ApiContentBlockElementRequest, {readonly type: "Heading"}>,
 ): string {
     return heading.elements.map(element => (element.type === "Text" ? element.text : "")).join("");
 }

@@ -6,19 +6,19 @@ import {
     printAgentWebTaskViewPage,
 } from "~/server/agents/web/pages/agent_web_task_view_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
-import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiTaskReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {PrettyMarkdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {TaskId} from "~/shared/id/types/id_types.open_source.js";
 
-const writeSpecTaskReference: ApiTaskReferenceResponse = {
+const writeSpecTaskReference: ApiTaskReference = {
     type: "Task",
     id: generateId<TaskId>(),
     title: "Write spec",
     status: {type: "Open", isActive: false},
 };
 
-const planLaunchTaskReference: ApiTaskReferenceResponse = {
+const planLaunchTaskReference: ApiTaskReference = {
     type: "Task",
     id: generateId<TaskId>(),
     title: "Plan launch",
@@ -26,7 +26,7 @@ const planLaunchTaskReference: ApiTaskReferenceResponse = {
 };
 
 function taskViewTask(
-    task: ApiTaskReferenceResponse,
+    task: ApiTaskReference,
     fields: Partial<Omit<AgentWebTaskQueryPageTask, "taskId" | "title" | "status">> = {},
 ): AgentWebTaskQueryPageTask {
     return {

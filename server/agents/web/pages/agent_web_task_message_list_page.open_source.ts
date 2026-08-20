@@ -21,7 +21,7 @@ import {updateAgentWebMessagingPage} from "~/server/agents/web/pages/messaging/u
 import {parseApiContentFromAgentWebMarkdownTree} from "~/server/agents/web/parse_api_content_from_agent_web_markdown.open_source.js";
 import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_api_content_to_agent_web_markdown.open_source.js";
 import {normalizeApiReference} from "~/shared/api/content/normalize_api_content.open_source.js";
-import {ApiTaskReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiTaskReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -37,7 +37,7 @@ export type AgentWebTaskMessageListPage = AgentWebMessagingPage<
 };
 
 export type AgentWebTaskMessageListPagePreamble = {
-    readonly task: ApiTaskReferenceResponse;
+    readonly task: ApiTaskReference;
 };
 
 export type AgentWebTaskMessageListPageWithMetadata = AgentWebTaskMessageListPage & {

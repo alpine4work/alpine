@@ -43,7 +43,7 @@ import {fromApiContent} from "~/shared/api/content/closed_source/from_api_conten
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {
     ApiChannelPreview,
-    ApiContent,
+    ApiContentRequest,
     ApiGetChannelResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
@@ -127,7 +127,7 @@ export const apiForumPaths: Pick<
 
         patch: async (context, {pathParameters, requestBody}) => {
             let name: string | undefined;
-            let patchDescription: ApiContent | undefined;
+            let patchDescription: ApiContentRequest | undefined;
 
             // NOTE: Last write wins, so if someone sends the `SetName` patch three times,
             // we'll only write the third name

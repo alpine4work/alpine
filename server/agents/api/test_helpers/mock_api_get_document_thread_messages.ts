@@ -1,5 +1,5 @@
 import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js";
-import {ApiMessageResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessage} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {
@@ -27,7 +27,7 @@ export function mockApiGetDocumentThreadMessages(
         totalMessageCount: number;
         limit: number;
         cursor?: number;
-        createMessage: (index: number) => ApiMessageResponse;
+        createMessage: (index: number) => ApiMessage;
     },
 ) {
     switch (from) {

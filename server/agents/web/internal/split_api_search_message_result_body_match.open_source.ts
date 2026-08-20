@@ -3,10 +3,10 @@ import {
     zipApiSearchResultMatches,
 } from "~/server/agents/web/internal/zip_api_search_result_matches.open_source.js";
 import {
-    ApiSearchChatMessageResultResponse,
-    ApiSearchDocumentMessageResultResponse,
-    ApiSearchPostMessageResultResponse,
-    ApiSearchTaskMessageResultResponse,
+    ApiSearchChatMessageResult,
+    ApiSearchDocumentMessageResult,
+    ApiSearchPostMessageResult,
+    ApiSearchTaskMessageResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {iterateGraphemes} from "~/shared/helpers/string/iterate_graphemes.open_source.js";
@@ -17,10 +17,10 @@ import {maxReasonableEnglishWordGraphemeCount} from "~/shared/helpers/string/max
  * a post comment, or a task comment.
  */
 export type ApiSearchMessageResultResponse =
-    | ApiSearchChatMessageResultResponse
-    | ApiSearchTaskMessageResultResponse
-    | ApiSearchPostMessageResultResponse
-    | ApiSearchDocumentMessageResultResponse;
+    | ApiSearchChatMessageResult
+    | ApiSearchTaskMessageResult
+    | ApiSearchPostMessageResult
+    | ApiSearchDocumentMessageResult;
 
 /**
  * The number of [graphemes][1] (aka characters) to include in a link label before

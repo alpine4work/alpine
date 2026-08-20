@@ -14,9 +14,9 @@ import {
     parseApiMessageRoomPath,
 } from "~/shared/api/specification/parse_api_path.js";
 import {
-    ApiMessageExperimentalApprovalDecisionOption,
-    ApiMessageExperimentalApprovalDecisionValue,
-    ApiMessageStreamExperimentalApprovalsPartPayload,
+    ApiMessageExperimentalApprovalDecisionOptionRequest,
+    ApiMessageExperimentalApprovalDecisionValueRequest,
+    ApiMessageStreamExperimentalApprovalsPartPayloadRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {
@@ -3755,13 +3755,13 @@ export function testMessagingApiImplementation(
             });
 
             describe("approvals", () => {
-                const defaultApprovalDecisionOptions: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> =
+                const defaultApprovalDecisionOptions: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOptionRequest> =
                     [{type: "Approved"}, {type: "Rejected"}];
 
                 function createApiPendingApprovalsPayload(
                     approvalCount: number,
-                    options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
-                ): ApiMessageStreamExperimentalApprovalsPartPayload {
+                    options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOptionRequest> = defaultApprovalDecisionOptions,
+                ): ApiMessageStreamExperimentalApprovalsPartPayloadRequest {
                     return {
                         type: "ExperimentalApprovals",
                         approvals: createArrayWithLength(approvalCount, approvalIndex => ({
@@ -3779,13 +3779,13 @@ export function testMessagingApiImplementation(
                 }
 
                 function createApiPendingApprovalPayload(
-                    options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOption> = defaultApprovalDecisionOptions,
-                ): ApiMessageStreamExperimentalApprovalsPartPayload {
+                    options: ReadonlyArray<ApiMessageExperimentalApprovalDecisionOptionRequest> = defaultApprovalDecisionOptions,
+                ): ApiMessageStreamExperimentalApprovalsPartPayloadRequest {
                     return createApiPendingApprovalsPayload(1, options);
                 }
 
                 async function createApiStreamMessageWithFinalApprovalPart(
-                    approvalPayload: ApiMessageStreamExperimentalApprovalsPartPayload = createApiPendingApprovalPayload(),
+                    approvalPayload: ApiMessageStreamExperimentalApprovalsPartPayloadRequest = createApiPendingApprovalPayload(),
                 ) {
                     const space = await TestSpace.create(context);
                     const session = await space.createSession({role: "Admin"});
@@ -3822,7 +3822,7 @@ export function testMessagingApiImplementation(
 
                 function createApiApprovalPatch(
                     index: number,
-                    decisionValue: ApiMessageExperimentalApprovalDecisionValue,
+                    decisionValue: ApiMessageExperimentalApprovalDecisionValueRequest,
                 ) {
                     return {
                         patches: [
@@ -4040,12 +4040,14 @@ export function testMessagingApiImplementation(
                             await createApiStreamMessageWithFinalApprovalPart(
                                 createApiPendingApprovalsPayload(2),
                             );
-                        const approvedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
-                            type: "Approved",
-                        };
-                        const rejectedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
-                            type: "Rejected",
-                        };
+                        const approvedDecisionValue: ApiMessageExperimentalApprovalDecisionValueRequest =
+                            {
+                                type: "Approved",
+                            };
+                        const rejectedDecisionValue: ApiMessageExperimentalApprovalDecisionValueRequest =
+                            {
+                                type: "Rejected",
+                            };
 
                         expect(
                             await server.PATCH(
@@ -4099,12 +4101,14 @@ export function testMessagingApiImplementation(
                             await createApiStreamMessageWithFinalApprovalPart(
                                 createApiPendingApprovalsPayload(2, [{type: "Approved"}]),
                             );
-                        const approvedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
-                            type: "Approved",
-                        };
-                        const rejectedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
-                            type: "Rejected",
-                        };
+                        const approvedDecisionValue: ApiMessageExperimentalApprovalDecisionValueRequest =
+                            {
+                                type: "Approved",
+                            };
+                        const rejectedDecisionValue: ApiMessageExperimentalApprovalDecisionValueRequest =
+                            {
+                                type: "Rejected",
+                            };
 
                         expect(
                             await server.PATCH(
@@ -4189,12 +4193,14 @@ export function testMessagingApiImplementation(
                             await createApiStreamMessageWithFinalApprovalPart(
                                 createApiPendingApprovalsPayload(2),
                             );
-                        const approvedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
-                            type: "Approved",
-                        };
-                        const rejectedDecisionValue: ApiMessageExperimentalApprovalDecisionValue = {
-                            type: "Rejected",
-                        };
+                        const approvedDecisionValue: ApiMessageExperimentalApprovalDecisionValueRequest =
+                            {
+                                type: "Approved",
+                            };
+                        const rejectedDecisionValue: ApiMessageExperimentalApprovalDecisionValueRequest =
+                            {
+                                type: "Rejected",
+                            };
 
                         expect(
                             await server.PATCH(

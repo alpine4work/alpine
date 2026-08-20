@@ -4,7 +4,7 @@ import {LoaderContext} from "~/server/remix/loader_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
 import {printApiMessageRoomPath} from "~/shared/api/specification/parse_api_path.js";
-import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessageRoomReferenceRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     ClaudeConversationDebugData,
     ClaudeConversationStateResponseSchema,
@@ -30,7 +30,7 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js"
 export async function loadClaudeConversationDebugData(
     unauthenticatedContext: LoaderContext,
     spaceId: SpaceId,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
 ): Promise<ClaudeConversationDebugData> {
     const context = (await unauthenticatedContext.actor.authenticate()).actor.authorizeSession();
 

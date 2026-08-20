@@ -6,7 +6,7 @@ import {agentWebChannelPageApiPostsBatchCount} from "~/server/agents/web/pages/a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {
     DateString,
@@ -73,7 +73,7 @@ beforeEach(async () => {
     ]);
 });
 
-function contentFromText(text: string): ApiContentResponse {
+function contentFromText(text: string): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -87,7 +87,7 @@ function contentFromText(text: string): ApiContentResponse {
 function mockGetChannel({
     description = contentFromText("Updates from the team."),
 }: {
-    description?: ApiContentResponse;
+    description?: ApiContent;
 } = {}) {
     api.mockGet("/channels/{id}", {
         params: {path: {id: channelId}},

@@ -19,9 +19,9 @@ import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
-    ApiTaskCollectionResponse,
+    ApiTask,
+    ApiTaskCollection,
     ApiTaskPatchResult,
-    ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -109,7 +109,7 @@ function mockApiPatchTasks(response: {
     data: {
         spaceId: SpaceId;
         tasks: ReadonlyArray<{
-            task: ApiTaskResponse;
+            task: ApiTask;
             results: ReadonlyArray<ApiTaskPatchResult>;
         }>;
     };
@@ -5249,7 +5249,7 @@ test("removes a task from a collection with a default sort", async () => {
 });
 
 test("removes a task from a collection with a default sort using manual order", async () => {
-    const collection: ApiTaskCollectionResponse = {
+    const collection: ApiTaskCollection = {
         id: generateId<TaskCollectionId>(),
         name: "Test Task Collection",
         defaults: {
@@ -5544,7 +5544,7 @@ test("rejects adding a task to a collection with a default sort", async () => {
 });
 
 test("adds a task to a collection with a default sort using manual order", async () => {
-    const collection: ApiTaskCollectionResponse = {
+    const collection: ApiTaskCollection = {
         id: generateId<TaskCollectionId>(),
         name: "Test Task Collection",
         defaults: {
@@ -5840,7 +5840,7 @@ test("rejects moving a task in a collection with a default sort", async () => {
 });
 
 test("moves a task in a collection with a default sort using manual order", async () => {
-    const collection: ApiTaskCollectionResponse = {
+    const collection: ApiTaskCollection = {
         id: generateId<TaskCollectionId>(),
         name: "Test Task Collection",
         defaults: {

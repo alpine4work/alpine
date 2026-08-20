@@ -9,11 +9,11 @@ import {
     ApiContentRange,
 } from "~/shared/api/specification/types/api_content_position.open_source.js";
 import {
-    ApiContentBlockElementResponse,
-    ApiContentInlineElement,
+    ApiContent,
+    ApiContentBlockElement,
     ApiContentInlineElementMark,
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
+    ApiContentInlineElementRequest,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -25,8 +25,8 @@ import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js
  */
 export function extractCommentSliceFromApiContent(
     threadId: DocumentCommentThreadId,
-    content: ApiContentResponse,
-): {range: ApiContentRange; contentSlice: ApiContentResponseWithoutKeys} | null {
+    content: ApiContent,
+): {range: ApiContentRange; contentSlice: ApiContentWithoutKeys} | null {
     let range: {start: ApiContentPosition; end: ApiContentPosition} | null = null;
 
     for (const token of iterateApiContent(content)) {
@@ -65,14 +65,14 @@ type Token = {
     marks: ReadonlyArray<ApiContentInlineElementMark> | undefined;
 };
 
-function* iterateApiContent(content: ApiContentResponse): IterableIterator<Token, undefined> {
+function* iterateApiContent(content: ApiContent): IterableIterator<Token, undefined> {
     for (const element of content.elements) {
         yield* iterateApiContentBlockElement(element);
     }
 }
 
 function* iterateApiContentBlockElement(
-    element: ApiContentBlockElementResponse,
+    element: ApiContentBlockElement,
 ): IterableIterator<Token, undefined> {
     switch (element.type) {
         case "Paragraph": {
@@ -182,7 +182,7 @@ function* iterateApiContentBlockElement(
 
 function* iterateApiContentInlineElements(
     key: ApiContentKey,
-    elements: ReadonlyArray<ApiContentInlineElement>,
+    elements: ReadonlyArray<ApiContentInlineElementRequest>,
 ): IterableIterator<Token, undefined> {
     let index = 0;
 

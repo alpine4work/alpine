@@ -1,13 +1,13 @@
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {DocumentWithoutTitleContentProsemirrorSchema as schema} from "~/shared/documents/document_content_schema.js";
 import {assertId} from "~/shared/id/id.open_source.js";
 import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 test("converts newline runs in text elements to spaces", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "Paragraph",
@@ -62,7 +62,7 @@ test("converts empty quote block from API content", () => {
     // When API content has an empty Quote, we should create a quoteBlock with an empty
     // paragraph This can happen when importing markdown like "> \n> \n" (empty
     // blockquote)
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "Quote",
@@ -81,7 +81,7 @@ test("converts empty quote block from API content", () => {
 });
 
 test("converts quote block with empty ordered list inside", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "Quote",
@@ -104,7 +104,7 @@ test("converts quote block with empty ordered list inside", () => {
 });
 
 test("converts empty unordered list item from API content", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "UnorderedList",
@@ -128,7 +128,7 @@ test("converts empty unordered list item from API content", () => {
 });
 
 test("converts empty ordered list item from API content", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "OrderedList",
@@ -152,7 +152,7 @@ test("converts empty ordered list item from API content", () => {
 });
 
 test("converts empty unordered list item from API content with nested list item", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "UnorderedList",
@@ -195,7 +195,7 @@ test("converts empty unordered list item from API content with nested list item"
 });
 
 test("converts empty ordered list item from API content with nested list item", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "OrderedList",
@@ -243,7 +243,7 @@ test("converts empty ordered list item from API content with nested list item", 
 });
 
 test("converts empty table cells from API content", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "Table",
@@ -427,7 +427,7 @@ test("converts empty table cells from API content", () => {
 });
 
 test("converts empty table cells from API content (normalized)", () => {
-    const apiContent: ApiContent = normalizeApiContent({
+    const apiContent: ApiContentRequest = normalizeApiContent({
         elements: [
             {
                 type: "Table",
@@ -611,7 +611,7 @@ test("converts empty table cells from API content (normalized)", () => {
 });
 
 test("nested list within ordered list with empty elements list", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "OrderedList",
@@ -656,7 +656,7 @@ test("nested list within ordered list with empty elements list", () => {
 });
 
 test("three cells with no elements", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "Table",
@@ -709,7 +709,7 @@ test("three cells with no elements", () => {
 });
 
 test("empty cell and the file cell in row", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "Table",
@@ -789,7 +789,7 @@ test("empty cell and the file cell in row", () => {
 });
 
 test("unordered list with no items nested in unordered list with no items", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "UnorderedList",
@@ -823,7 +823,7 @@ test("unordered list with no items nested in unordered list with no items", () =
 });
 
 test("ordered list item phantom wrapper", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "OrderedList",
@@ -884,7 +884,7 @@ test("ordered list item phantom wrapper", () => {
 });
 
 test("marks in code block", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "Code",
@@ -933,7 +933,7 @@ test("marks in code block", () => {
 });
 
 test("unordered list item followed by phantom indented ordered list item", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "UnorderedList",
@@ -989,7 +989,7 @@ test("unordered list item followed by phantom indented ordered list item", () =>
 });
 
 test("unordered list item followed by phantom indented ordered list item (with unordered list item after)", () => {
-    const apiContent: ApiContent = {
+    const apiContent: ApiContentRequest = {
         elements: [
             {
                 type: "UnorderedList",

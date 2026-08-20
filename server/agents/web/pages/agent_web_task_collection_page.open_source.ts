@@ -33,9 +33,9 @@ import {
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
+    ApiTaskCollection,
     ApiTaskCollectionColor,
     ApiTaskCollectionPatch,
-    ApiTaskCollectionResponse,
     ApiTaskQuerySort,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.open_source.js";
@@ -121,96 +121,104 @@ export async function readAgentWebTaskCollectionPage(
         printPage: (page: AgentWebTaskCollectionPage) => Promise<string>;
     },
 ): Promise<{response: string; metadata: AgentWebTaskCollectionPageMetadata}> {
-    const result = await readAgentWebTaskQueryPage<
-        ApiTaskCollectionResponse,
-        AgentWebTaskCollectionPage
-    >(context, {
-        pageLink: {
-            type: "TaskCollection",
-            id,
-        },
-        searchParams,
-        limitLength,
-        readTaskBatch: async ({cursor, query, limit}) => {
-            // The `?manual` search param forces manual collection order instead of collection
-            // defaults. It can't be combined with custom filters or sorts.
-            if (
-                searchParams.has("manual") &&
-                (query.filters.length > 0 || query.sorts.length > 0)
-            ) {
-                throw new InvalidArgumentError(
-                    "URL search param has both `?manual` search param and filter/sort search params",
-                    {
-                        displayMessage: errorDisplayMessage`Can\u2019t use the \`?manual\` URL search param in addition to filter/sort URL search params. Try again and either remove the \`?manual\` search param or remove the filter/sort search params.`,
+    const result = await readAgentWebTaskQueryPage<ApiTaskCollection, AgentWebTaskCollectionPage>(
+        context,
+        {
+            pageLink: {
+                type: "TaskCollection",
+                id,
+            },
+            searchParams,
+            limitLength,
+            readTaskBatch: async ({cursor, query, limit}) => {
+                // The `?manual` search param forces manual collection order instead of collection
+                // defaults. It can't be combined with custom filters or sorts.
+                if (
+                    searchParams.has("manual") &&
+                    (query.filters.length > 0 || query.sorts.length > 0)
+                ) {
+                    throw new InvalidArgumentError(
+                        "URL search param has both `?manual` search param and filter/sort search params",
+                        {
+                            displayMessage: errorDisplayMessage`Can\u2019t use the \`?manual\` URL search param in addition to filter/sort URL search params. Try again and either remove the \`?manual\` search param or remove the filter/sort search params.`,
+                        },
+                    );
+                }
+
+                const tasksResult =
+                    query.filters.length === 0 &&
+                    query.sorts.length === 0 &&
+                    !searchParams.has("manual")
+                        ? await context.api.get(context.span, "/task-collections/{id}/tasks", {
+                              params: {path: {id}, query: {limit, cursor}},
+                          })
+                        : await context.api.post(
+                              context.span,
+                              "/task-collections/{id}/tasks-query",
+                              {
+                                  params: {path: {id}},
+                                  body: {
+                                      limit,
+                                      cursor,
+                                      filters: query.filters,
+                                      sorts: query.sorts,
+                                  },
+                              },
+                          );
+
+                return {
+                    pageLink: {
+                        type: "TaskCollection",
+                        id,
+                        title: tasksResult.data.collection.name,
                     },
-                );
-            }
+                    resource: tasksResult.data.collection,
+                    isManuallyOrdered:
+                        searchParams.has("manual") ||
+                        (query.filters.length === 0 &&
+                            query.sorts.length === 0 &&
+                            tasksResult.data.collection.defaults.filters.length === 0 &&
+                            tasksResult.data.collection.defaults.sorts.length === 0),
+                    nextCursor: tasksResult.data.nextCursor,
+                    tasks: tasksResult.data.tasks,
+                };
+            },
+            intoPageTask: ({task, contextDate}) =>
+                intoAgentWebTaskQueryPageTask({
+                    timeZone: context.timeZone,
+                    contextDate,
+                    // The collection this page is for is implied by the page itself, so it's filtered
+                    // out of each task's "Collections" field.
+                    omittedCollectionId: id,
+                    task,
+                }),
+            buildPage: ({
+                queryPage,
+                resource: collection,
+                afterCursor,
+            }): AgentWebTaskCollectionPage => {
+                const pageBase = {
+                    type: "TaskCollection" as const,
+                    name: collection.name,
+                    ...queryPage,
+                };
 
-            const tasksResult =
-                query.filters.length === 0 &&
-                query.sorts.length === 0 &&
-                !searchParams.has("manual")
-                    ? await context.api.get(context.span, "/task-collections/{id}/tasks", {
-                          params: {path: {id}, query: {limit, cursor}},
-                      })
-                    : await context.api.post(context.span, "/task-collections/{id}/tasks-query", {
-                          params: {path: {id}},
-                          body: {
-                              limit,
-                              cursor,
-                              filters: query.filters,
-                              sorts: query.sorts,
-                          },
-                      });
-
-            return {
-                pageLink: {
-                    type: "TaskCollection",
-                    id,
-                    title: tasksResult.data.collection.name,
-                },
-                resource: tasksResult.data.collection,
-                isManuallyOrdered:
-                    searchParams.has("manual") ||
-                    (query.filters.length === 0 &&
-                        query.sorts.length === 0 &&
-                        tasksResult.data.collection.defaults.filters.length === 0 &&
-                        tasksResult.data.collection.defaults.sorts.length === 0),
-                nextCursor: tasksResult.data.nextCursor,
-                tasks: tasksResult.data.tasks,
-            };
+                return afterCursor === null
+                    ? {
+                          ...pageBase,
+                          subType: "Head",
+                          color: collection.color ?? null,
+                          defaults:
+                              collection.defaults.filters.length > 0 ||
+                              collection.defaults.sorts.length > 0
+                                  ? collection.defaults
+                                  : null,
+                      }
+                    : {...pageBase, subType: "Tail"};
+            },
+            printPage,
         },
-        intoPageTask: ({task, contextDate}) =>
-            intoAgentWebTaskQueryPageTask({
-                timeZone: context.timeZone,
-                contextDate,
-                // The collection this page is for is implied by the page itself, so it's filtered
-                // out of each task's "Collections" field.
-                omittedCollectionId: id,
-                task,
-            }),
-        buildPage: ({queryPage, resource: collection, afterCursor}): AgentWebTaskCollectionPage => {
-            const pageBase = {
-                type: "TaskCollection" as const,
-                name: collection.name,
-                ...queryPage,
-            };
-
-            return afterCursor === null
-                ? {
-                      ...pageBase,
-                      subType: "Head",
-                      color: collection.color ?? null,
-                      defaults:
-                          collection.defaults.filters.length > 0 ||
-                          collection.defaults.sorts.length > 0
-                              ? collection.defaults
-                              : null,
-                  }
-                : {...pageBase, subType: "Tail"};
-        },
-        printPage,
-    });
+    );
 
     return {
         response: result.response,

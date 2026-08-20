@@ -7,8 +7,8 @@ import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
-import type {ApiAccountResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import type {ApiAccount} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -79,7 +79,7 @@ beforeEach(async () => {
 });
 
 function createTextMessageRequestBody(text: string): {
-    content: ApiContentResponseWithoutKeys;
+    content: ApiContentWithoutKeys;
     createdTimeZone: typeof defaultTimeZone;
 } {
     return {
@@ -95,7 +95,7 @@ function mockCreateDirectChat({
 }: {
     id?: ChatId;
     title: string;
-    members?: ReadonlyArray<ApiAccountResponse>;
+    members?: ReadonlyArray<ApiAccount>;
 }): ChatId {
     api.mockPost("/chats", {
         params: "Any",

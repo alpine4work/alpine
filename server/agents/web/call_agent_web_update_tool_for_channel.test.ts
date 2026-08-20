@@ -8,8 +8,8 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
+    ApiContent,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {DateString, serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
@@ -80,7 +80,7 @@ beforeEach(async () => {
     ]);
 });
 
-function contentFromText(text: string): ApiContentResponse {
+function contentFromText(text: string): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -91,7 +91,7 @@ function contentFromText(text: string): ApiContentResponse {
     });
 }
 
-function contentWithoutKeysFromText(text: string): ApiContentResponseWithoutKeys {
+function contentWithoutKeysFromText(text: string): ApiContentWithoutKeys {
     return {
         elements: [
             {
@@ -107,7 +107,7 @@ function mockPatchChannel({
     description = contentFromText("Updates from the team."),
 }: {
     name?: string;
-    description?: ApiContentResponse;
+    description?: ApiContent;
 } = {}) {
     api.mockPatch("/channels/{id}", {
         params: {path: {id: channelId}},

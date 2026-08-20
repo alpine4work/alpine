@@ -3,15 +3,15 @@ import {ApiReferenceResponse} from "~/shared/api/specification/types/api_referen
 import {
     ApiContent,
     ApiContentBlockElement,
-    ApiContentBlockElementResponse,
+    ApiContentBlockElementRequest,
     ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiContentInlineElementResponse,
+    ApiContentInlineElementRequest,
     ApiContentMentionInlineElement,
-    ApiContentMentionInlineElementResponse,
+    ApiContentMentionInlineElementRequest,
     ApiContentPreviewBlockElement,
-    ApiContentPreviewBlockElementResponse,
-    ApiContentResponse,
+    ApiContentPreviewBlockElementRequest,
+    ApiContentRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
@@ -19,13 +19,13 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export type ApiContentVisitor = {
     readonly visitBlockElement?: (
-        element: ApiContentBlockElement,
-        context: {elements: ReadonlyArray<ApiContentBlockElement>; index: number},
+        element: ApiContentBlockElementRequest,
+        context: {elements: ReadonlyArray<ApiContentBlockElementRequest>; index: number},
     ) => void;
     readonly visitInlineElement?: (
-        element: ApiContentInlineElement,
+        element: ApiContentInlineElementRequest,
         context: {
-            elements: ReadonlyArray<ApiContentInlineElement>;
+            elements: ReadonlyArray<ApiContentInlineElementRequest>;
             index: number;
             // TODO: Replace this ad hoc flag with a `parent` or `parents` array once we have a
             // better idea of what callers need from this traversal.
@@ -38,18 +38,20 @@ export type ApiContentVisitor = {
     ) => void;
     readonly visitReference?: (
         reference: ApiReference,
-        context: {element: ApiContentMentionInlineElement | ApiContentPreviewBlockElement},
+        context: {
+            element: ApiContentMentionInlineElementRequest | ApiContentPreviewBlockElementRequest;
+        },
     ) => void;
 };
 
 export type ApiContentResponseVisitor = {
     readonly visitBlockElement?: (
-        element: ApiContentBlockElementResponse,
-        context: {elements: ReadonlyArray<ApiContentBlockElementResponse>; index: number},
+        element: ApiContentBlockElement,
+        context: {elements: ReadonlyArray<ApiContentBlockElement>; index: number},
     ) => void;
     readonly visitInlineElement?: (
-        element: ApiContentInlineElementResponse,
-        context: {elements: ReadonlyArray<ApiContentInlineElementResponse>; index: number},
+        element: ApiContentInlineElement,
+        context: {elements: ReadonlyArray<ApiContentInlineElement>; index: number},
     ) => void;
     readonly visitMark?: (
         mark: ApiContentInlineElementMark,
@@ -58,24 +60,21 @@ export type ApiContentResponseVisitor = {
     readonly visitReference?: (
         reference: ApiReferenceResponse,
         context: {
-            element: ApiContentMentionInlineElementResponse | ApiContentPreviewBlockElementResponse;
+            element: ApiContentMentionInlineElement | ApiContentPreviewBlockElement;
         },
     ) => void;
 };
 
-export function visitApiContent(content: ApiContent, visitor: ApiContentVisitor) {
+export function visitApiContent(content: ApiContentRequest, visitor: ApiContentVisitor) {
     visitApiContentBlockElements(content.elements, visitor);
 }
 
-export function visitApiContentResponse(
-    content: ApiContentResponse,
-    visitor: ApiContentResponseVisitor,
-) {
+export function visitApiContentResponse(content: ApiContent, visitor: ApiContentResponseVisitor) {
     visitApiContentBlockElements(content.elements, visitor as ApiContentVisitor);
 }
 
 function visitApiContentBlockElements(
-    elements: ReadonlyArray<ApiContentBlockElement>,
+    elements: ReadonlyArray<ApiContentBlockElementRequest>,
     visitor: ApiContentVisitor,
 ) {
     for (let index = 0; index < elements.length; index++) {
@@ -87,7 +86,7 @@ function visitApiContentBlockElements(
 }
 
 export function visitApiContentBlockElement(
-    element: ApiContentBlockElement,
+    element: ApiContentBlockElementRequest,
     visitor: ApiContentVisitor,
 ) {
     switch (element.type) {
@@ -173,7 +172,7 @@ export function visitApiContentBlockElement(
                     // back into the parent `row.items` array manually because the `elements` array we
                     // built above is a snapshot, not a live reference into the tree.
                     if (context.elements[index] !== item.element) {
-                        (item as {element: ApiContentBlockElement}).element =
+                        (item as {element: ApiContentBlockElementRequest}).element =
                             context.elements[index]!;
                     }
 
@@ -197,7 +196,8 @@ export function visitApiContentBlockElement(
             assert(context.elements.length === 1, "`FileFloat` can only have one child");
 
             if (context.elements[0] !== element.element) {
-                (element as {element: ApiContentBlockElement}).element = context.elements[0]!;
+                (element as {element: ApiContentBlockElementRequest}).element =
+                    context.elements[0]!;
             }
 
             visitApiContentBlockElement(element.element, visitor);
@@ -209,7 +209,7 @@ export function visitApiContentBlockElement(
 }
 
 export function visitApiContentInlineElements(
-    elements: ReadonlyArray<ApiContentInlineElement>,
+    elements: ReadonlyArray<ApiContentInlineElementRequest>,
     visitor: ApiContentVisitor,
     {withinCodeBlockElement = false}: {withinCodeBlockElement?: boolean} = {},
 ) {
@@ -221,7 +221,7 @@ export function visitApiContentInlineElements(
 }
 
 function visitApiContentInlineElement(
-    element: ApiContentInlineElement,
+    element: ApiContentInlineElementRequest,
     visitor: ApiContentVisitor,
 ) {
     if (element.marks !== undefined) {

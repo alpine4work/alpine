@@ -1,5 +1,5 @@
 import {visitAndProduceApiContent} from "~/shared/api/content/visit_and_produce_api_content.open_source.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 /* eslint-disable cyberworlds/string-quotes */
@@ -8,7 +8,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
  * `\u201D`, `\u2018`, `\u2019`).
  */
 /* eslint-enable cyberworlds/string-quotes */
-export function convertApiContentToProperQuotes<Content extends ApiContent>(
+export function convertApiContentToProperQuotes<Content extends ApiContentRequest>(
     content: Content,
 ): Content {
     return visitAndProduceApiContent(content, {

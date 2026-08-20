@@ -9,8 +9,8 @@ import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.op
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
-    ApiContent,
-    ApiContentResponseWithoutKeys,
+    ApiContentRequest,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {FileModelData} from "~/shared/files/file_model.js";
@@ -21,7 +21,7 @@ const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 function testIntoApiContentAndPrintToMarkdown(
     expectedProsemirrorNode: Node,
-    expectedApiContent: ApiContent,
+    expectedApiContent: ApiContentRequest,
     expectedMarkdown: string,
 ) {
     expectedProsemirrorNode.check();
@@ -389,7 +389,7 @@ function previewUrl(entityPath: string) {
 
 function testFileIntoApiContentAndPrintToMarkdown(
     prosemirrorNode: Node,
-    expectedApiContent: ApiContentResponseWithoutKeys,
+    expectedApiContent: ApiContentWithoutKeys,
     expectedMarkdown: string,
 ) {
     prosemirrorNode.check();
@@ -703,7 +703,7 @@ test("file gallery with mixed files and previews", () => {
     );
 });
 
-test("null fileId round-trips through ApiContent as unknownFileId", () => {
+test("null fileId round-trips through ApiContentRequest as unknownFileId", () => {
     const prosemirrorNode = schema.nodes.doc.create(null, [
         schema.nodes.fileRow!.create(null, [schema.nodes.file!.create({fileId: null})]),
     ]);

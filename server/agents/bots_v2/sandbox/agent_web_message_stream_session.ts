@@ -11,11 +11,11 @@ import {convertApiContentToProperQuotes} from "~/shared/api/content/convert_api_
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {printErrorDisplayMessageToApiContent} from "~/shared/api/content/print_error_display_message_to_api_content.js";
 import {
-    ApiContent,
-    ApiMessageRoomReference,
-    ApiMessageStreamExperimentalApprovalsPartPayload,
-    ApiMessageStreamPartPayload,
-    ApiMessageStreamToolCallPartPayloadCall,
+    ApiContentRequest,
+    ApiMessageRoomReferenceRequest,
+    ApiMessageStreamExperimentalApprovalsPartPayloadRequest,
+    ApiMessageStreamPartPayloadRequest,
+    ApiMessageStreamToolCallPartPayloadCallRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
@@ -88,7 +88,7 @@ interface AgentWebMessageStreamSessionInterface {
      *   `#update()` runs, content will be persisted then reasoning, preserving the
      *   original ordering.
      */
-    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall): void;
+    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCallRequest): void;
 
     /**
      * Push an interactive approval-request card: the agent paused, awaiting human
@@ -101,7 +101,7 @@ interface AgentWebMessageStreamSessionInterface {
      */
     pushApprovalRequestAndComplete(
         span: TracerSpan,
-        payload: ApiMessageStreamExperimentalApprovalsPartPayload,
+        payload: ApiMessageStreamExperimentalApprovalsPartPayloadRequest,
     ): Promise<void>;
 
     /**
@@ -162,7 +162,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
 
     #parentSpan: TracerSpan;
     #apiClient: ApiClient;
-    #room: ApiMessageRoomReference;
+    #room: ApiMessageRoomReferenceRequest;
     #parser: AgentWebMarkdownStreamParser<TracerSpan>;
 
     /**
@@ -195,7 +195,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     }: {
         parentSpan: TracerSpan;
         apiClient: ApiClient;
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
         messageIndex: number;
         streamParser: AgentWebMarkdownStreamParser<TracerSpan>;
     }) {
@@ -240,7 +240,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
         }
     }
 
-    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall) {
+    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCallRequest) {
         this.#assertCanPush();
         this.#flushUpdateTextState();
         void this.#update(span, [{type: "ToolCall", call}]);
@@ -248,7 +248,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
 
     async pushApprovalRequestAndComplete(
         span: TracerSpan,
-        payload: ApiMessageStreamExperimentalApprovalsPartPayload,
+        payload: ApiMessageStreamExperimentalApprovalsPartPayloadRequest,
     ) {
         this.#assertCanPush();
 
@@ -346,7 +346,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
      */
     #update(
         updateSpan: TracerSpan,
-        newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>>,
+        newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayloadRequest, {type: "Content"}>>,
     ) {
         return this.#mutex.withLock(async () => {
             if (this.#streamError !== null) return;
@@ -363,7 +363,8 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
                 // efficient than making two separate `PUT` requests when `update()` returns
                 // multiple parts.
                 for (const {span, part: originalPart} of putParts) {
-                    let part: {index: number; payload: ApiMessageStreamPartPayload} = originalPart;
+                    let part: {index: number; payload: ApiMessageStreamPartPayloadRequest} =
+                        originalPart;
 
                     if (part.payload.type === "Content" || part.payload.type === "Reasoning") {
                         let content = part.payload.content;
@@ -441,7 +442,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
         // This is best effort. If the API is unavailable then this request fails too, we
         // never complete the stream, and the stream times out on its own.
         if (this.#streamError !== null) {
-            const content: ApiContent = {
+            const content: ApiContentRequest = {
                 elements: [
                     {
                         type: "Paragraph",

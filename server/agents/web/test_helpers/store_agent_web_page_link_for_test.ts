@@ -3,11 +3,11 @@ import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_stor
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {
-    ApiAccountResponse,
-    ApiMentionReferenceResponse,
-    ApiTaskCollectionPreviewResponse,
-    ApiTaskCollectionResponse,
-    ApiTaskResponse,
+    ApiAccount,
+    ApiMentionReference,
+    ApiTask,
+    ApiTaskCollection,
+    ApiTaskCollectionPreview,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.open_source.js";
@@ -19,11 +19,11 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js
 import {MaybeReadonlyArray} from "~/shared/helpers/types/maybe_array.open_source.js";
 
 export type StoreAgentWebPageLinkForTestTarget =
-    | ApiAccountResponse
-    | ApiTaskCollectionPreviewResponse
-    | ApiTaskCollectionResponse
-    | ApiTaskResponse
-    | ApiMentionReferenceResponse;
+    | ApiAccount
+    | ApiTaskCollectionPreview
+    | ApiTaskCollection
+    | ApiTask
+    | ApiMentionReference;
 
 /**
  * Store pathnames for various API response objects so that we can call tools like
@@ -85,8 +85,8 @@ export async function storeAgentWebPageLinkForTest(
             }
 
             // In this `else` branch, the only remaining possibility should be a
-            // `ApiMentionReferenceResponse`. Other cases should be handled above.
-            return cast<ApiMentionReferenceResponse>(target);
+            // `ApiMentionReference`. Other cases should be handled above.
+            return cast<ApiMentionReference>(target);
         },
     );
 

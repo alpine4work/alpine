@@ -11,7 +11,7 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TestTask} from "~/server/tasks/data/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_collection.js";
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
-import {ApiTaskPatch} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiTaskPatchRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
@@ -35,7 +35,7 @@ async function updateTaskForTest(
     botContext: ApiServiceBotActionContext,
     spaceId: SpaceId,
     taskId: TaskId,
-    patches: ReadonlyArray<ApiTaskPatch>,
+    patches: ReadonlyArray<ApiTaskPatchRequest>,
 ): Promise<TaskModel> {
     const {tasks} = await commitTaskPatchesFromApi(botContext, {
         spaceId,

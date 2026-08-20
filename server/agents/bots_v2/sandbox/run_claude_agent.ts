@@ -40,7 +40,7 @@ import {
 } from "~/server/agents/web/agent_web_page_link_key.open_source.js";
 import {AgentWebSessionStorage} from "~/server/agents/web/agent_web_session_storage.open_source.js";
 import {independentlyCallAgentWebReadToolWithoutTruncation} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
-import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessageRoomReferenceRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {FailedPreconditionError, InternalError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {PromiseWaiter} from "~/shared/helpers/async/promise_waiter.open_source.js";
@@ -79,7 +79,7 @@ export type RunClaudeAgentOptions = {
     spaceId: SpaceId;
     botAccount: {id: AccountId; bot: {id: BotId}};
     apiClient: ApiClient;
-    room: ApiMessageRoomReference;
+    room: ApiMessageRoomReferenceRequest;
     eventQueue: EventQueue<ClaudeAgentServiceEvent>;
 };
 
@@ -1281,7 +1281,7 @@ async function* generateClaudeAgentPrompt(
     }
 }
 
-function getClaudeAgentSystemPromptRoomInformation(room: ApiMessageRoomReference) {
+function getClaudeAgentSystemPromptRoomInformation(room: ApiMessageRoomReferenceRequest) {
     switch (room.type) {
         case "Chat":
             return {description: "chat room", messageNoun: "message"};

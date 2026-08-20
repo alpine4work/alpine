@@ -10,7 +10,7 @@ import {
     unzipKeysFromApiContentResponse,
     zipKeysIntoApiContentResponse,
 } from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.open_source.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
@@ -62,9 +62,7 @@ test("can zip/unzip keys from parsed/printed API content", async () => {
                 keys,
             });
 
-            const normalizeFileGalleryRowWidths = (
-                content: ApiContentResponse,
-            ): ApiContentResponse => {
+            const normalizeFileGalleryRowWidths = (content: ApiContent): ApiContent => {
                 return visitAndProduceApiContent(content, {
                     visitBlockElement: element => {
                         if (element.type !== "FileGallery") return;

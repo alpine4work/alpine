@@ -9,8 +9,8 @@ import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
     ApiAccountReference,
-    ApiAccountReferenceResponse,
-    ApiInboxEntryResponse,
+    ApiAccountReferenceRequest,
+    ApiInboxEntry,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
@@ -110,7 +110,7 @@ export type AgentWebInboxPage = {
      * round-trips) and used to build the "Next page" link back to
      * `/human/{name}/inbox`.
      */
-    readonly account: ApiAccountReferenceResponse;
+    readonly account: ApiAccountReference;
     /** The `?status` filter this page was read with (defaults to `New`). */
     readonly status: AgentWebInboxPageStatus;
     readonly pagination: AgentWebInboxPagePagination | null;
@@ -149,7 +149,7 @@ export const agentWebInboxPageApiEntriesBatchCount = 10;
  */
 export async function readAgentWebInboxPage(
     context: AgentWebContext,
-    account: ApiAccountReference,
+    account: ApiAccountReferenceRequest,
     {
         searchParams,
         limitLength,
@@ -270,11 +270,11 @@ function parseAgentWebInboxPageSearchParams(searchParams: URLSearchParams): {
 }
 
 /**
- * Converts an `ApiInboxEntryResponse` into an `AgentWebInboxPageEntry`, choosing
- * the link target for each entry type (see `AgentWebInboxPageEntry`).
+ * Converts an `ApiInboxEntry` into an `AgentWebInboxPageEntry`, choosing the link
+ * target for each entry type (see `AgentWebInboxPageEntry`).
  */
 export function intoAgentWebInboxPageEntry(
-    entry: ApiInboxEntryResponse,
+    entry: ApiInboxEntry,
     {
         timeZone,
         contextTime,
@@ -536,7 +536,7 @@ export async function printAgentWebInboxPage(
  */
 async function printAgentWebInboxPagePreambleParagraph(
     storage: AgentWebSessionStorage,
-    account: ApiAccountReferenceResponse,
+    account: ApiAccountReference,
     status: AgentWebInboxPageStatus,
 ): Promise<Paragraph> {
     const [accountPathname, inboxPathname] = await runAllPromises([
@@ -638,7 +638,7 @@ export async function parseAgentWebInboxPage(
     id: AccountId | null,
     root: Root,
 ): Promise<AgentWebInboxPage> {
-    let account: ApiAccountReferenceResponse | null = null;
+    let account: ApiAccountReference | null = null;
     let status: AgentWebInboxPageStatus = "New";
     let entries: ReadonlyArray<AgentWebInboxPageEntry> = [];
     let pagination: AgentWebInboxPagePagination | null = null;
@@ -696,7 +696,7 @@ export async function parseAgentWebInboxPage(
 async function parseAgentWebInboxPagePreamble(
     storage: AgentWebSessionStorage,
     node: RootContent,
-): Promise<{status: AgentWebInboxPageStatus; account: ApiAccountReferenceResponse}> {
+): Promise<{status: AgentWebInboxPageStatus; account: ApiAccountReference}> {
     if (node.type === "paragraph") {
         const text = printMarkdownPhrasingContentText(node.children);
         const statusMatch = text.match(/showing (new|done) notifications/i);

@@ -1,33 +1,33 @@
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {
-    ApiContentBlockElementResponse,
-    ApiContentBlockElementResponseWithoutKeys,
-    ApiContentCheckListBlockElementItemResponse,
-    ApiContentCheckListBlockElementItemResponseWithoutKeys,
-    ApiContentCodeBlockElementLineResponseWithoutKeys,
-    ApiContentFileBlockElementResponse,
-    ApiContentFileBlockElementResponseWithoutKeys,
-    ApiContentHeadingBlockElementResponseWithoutKeys,
-    ApiContentInlineElementResponse,
-    ApiContentListBlockElementItemResponse,
-    ApiContentListBlockElementItemResponseWithoutKeys,
-    ApiContentListBlockElementResponse,
-    ApiContentListBlockElementResponseWithoutKeys,
-    ApiContentParagraphBlockElementResponse,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentPreviewBlockElementResponse,
-    ApiContentPreviewBlockElementResponseWithoutKeys,
-    ApiContentQuoteBlockElementBlockElementResponse,
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
-    ApiContentTableBlockElementCellBlockElementResponse,
+    ApiContent,
+    ApiContentBlockElement,
+    ApiContentBlockElementWithoutKeys,
+    ApiContentCheckListBlockElementItem,
+    ApiContentCheckListBlockElementItemWithoutKeys,
+    ApiContentCodeBlockElementLineWithoutKeys,
+    ApiContentFileBlockElement,
+    ApiContentFileBlockElementWithoutKeys,
+    ApiContentHeadingBlockElementWithoutKeys,
+    ApiContentInlineElement,
+    ApiContentListBlockElement,
+    ApiContentListBlockElementItem,
+    ApiContentListBlockElementItemWithoutKeys,
+    ApiContentListBlockElementWithoutKeys,
+    ApiContentParagraphBlockElement,
+    ApiContentParagraphBlockElementWithoutKeys,
+    ApiContentPreviewBlockElement,
+    ApiContentPreviewBlockElementWithoutKeys,
+    ApiContentQuoteBlockElementBlockElement,
+    ApiContentTableBlockElementCellBlockElement,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 type ApiContentFileOrPreviewBlockElementResponseWithoutKeys =
-    | ApiContentFileBlockElementResponseWithoutKeys
-    | ApiContentPreviewBlockElementResponseWithoutKeys;
+    | ApiContentFileBlockElementWithoutKeys
+    | ApiContentPreviewBlockElementWithoutKeys;
 
 type ApiContentPositionState = {
     pos: number;
@@ -35,11 +35,11 @@ type ApiContentPositionState = {
 
 /**
  * Add `ApiContentKey`s that match what you'd get from `intoApiContent()`. Useful
- * if you need to create an `ApiContentResponse` object in a test and you don't
- * have the underlying ProseMirror content.
+ * if you need to create an `ApiContent` object in a test and you don't have the
+ * underlying ProseMirror content.
  */
 export function addKeysToApiContentForTest(
-    content: ApiContentResponseWithoutKeys,
+    content: ApiContentWithoutKeys,
     {
         // We recommend these dummy options for tests since it doesn't matter for the keys
         // to be exactly accurate in most tests and having deterministic keys across test
@@ -50,7 +50,7 @@ export function addKeysToApiContentForTest(
         entityId?: string;
         version?: number;
     } = {},
-): ApiContentResponse {
+): ApiContent {
     assert(process.env.NODE_ENV === "test");
 
     const encoder = new ApiContentKeyEncoder({entityId, version});
@@ -64,17 +64,17 @@ export function addKeysToApiContentForTest(
 
 function addKeysToApiContentBlockElements(
     encoder: ApiContentKeyEncoder,
-    elements: ReadonlyArray<ApiContentBlockElementResponseWithoutKeys>,
+    elements: ReadonlyArray<ApiContentBlockElementWithoutKeys>,
     state: ApiContentPositionState,
-): Array<ApiContentBlockElementResponse> {
+): Array<ApiContentBlockElement> {
     return elements.map(element => addKeysToApiContentBlockElement(encoder, element, state));
 }
 
 function addKeysToApiContentBlockElement(
     encoder: ApiContentKeyEncoder,
-    element: ApiContentBlockElementResponseWithoutKeys,
+    element: ApiContentBlockElementWithoutKeys,
     state: ApiContentPositionState,
-): ApiContentBlockElementResponse {
+): ApiContentBlockElement {
     switch (element.type) {
         case "Paragraph":
             return addKeysToApiContentParagraphBlockElement(encoder, element, state);
@@ -89,7 +89,7 @@ function addKeysToApiContentBlockElement(
                 encoder,
                 element.elements,
                 state,
-            ) as Array<ApiContentQuoteBlockElementBlockElementResponse>;
+            ) as Array<ApiContentQuoteBlockElementBlockElement>;
 
             state.pos += 1;
 
@@ -120,7 +120,7 @@ function addKeysToApiContentBlockElement(
                         encoder,
                         cell.elements,
                         state,
-                    ) as Array<ApiContentTableBlockElementCellBlockElementResponse>;
+                    ) as Array<ApiContentTableBlockElementCellBlockElement>;
 
                     state.pos += 1;
 
@@ -208,9 +208,9 @@ function addKeysToApiContentBlockElement(
 
 function addKeysToApiContentParagraphBlockElements(
     encoder: ApiContentKeyEncoder,
-    elements: ReadonlyArray<ApiContentParagraphBlockElementResponseWithoutKeys>,
+    elements: ReadonlyArray<ApiContentParagraphBlockElementWithoutKeys>,
     state: ApiContentPositionState,
-): Array<ApiContentParagraphBlockElementResponse> {
+): Array<ApiContentParagraphBlockElement> {
     return elements.map(element =>
         addKeysToApiContentParagraphBlockElement(encoder, element, state),
     );
@@ -218,9 +218,9 @@ function addKeysToApiContentParagraphBlockElements(
 
 function addKeysToApiContentParagraphBlockElement(
     encoder: ApiContentKeyEncoder,
-    element: ApiContentParagraphBlockElementResponseWithoutKeys,
+    element: ApiContentParagraphBlockElementWithoutKeys,
     state: ApiContentPositionState,
-): ApiContentParagraphBlockElementResponse {
+): ApiContentParagraphBlockElement {
     const nodePos = state.pos;
     const nodeSize = getApiContentInlineElementsNodeSize(element.elements) + 2;
     state.pos += nodeSize;
@@ -230,7 +230,7 @@ function addKeysToApiContentParagraphBlockElement(
 
 function addKeysToApiContentHeadingBlockElement(
     encoder: ApiContentKeyEncoder,
-    element: ApiContentHeadingBlockElementResponseWithoutKeys,
+    element: ApiContentHeadingBlockElementWithoutKeys,
     state: ApiContentPositionState,
 ) {
     const nodePos = state.pos;
@@ -242,17 +242,17 @@ function addKeysToApiContentHeadingBlockElement(
 
 function addKeysToApiContentListBlockElements(
     encoder: ApiContentKeyEncoder,
-    elements: ReadonlyArray<ApiContentListBlockElementResponseWithoutKeys>,
+    elements: ReadonlyArray<ApiContentListBlockElementWithoutKeys>,
     state: ApiContentPositionState,
-): Array<ApiContentListBlockElementResponse> {
+): Array<ApiContentListBlockElement> {
     return elements.map(element => addKeysToApiContentListBlockElement(encoder, element, state));
 }
 
 function addKeysToApiContentListBlockElement(
     encoder: ApiContentKeyEncoder,
-    element: ApiContentListBlockElementResponseWithoutKeys,
+    element: ApiContentListBlockElementWithoutKeys,
     state: ApiContentPositionState,
-): ApiContentListBlockElementResponse {
+): ApiContentListBlockElement {
     switch (element.type) {
         case "UnorderedList":
         case "OrderedList": {
@@ -276,9 +276,9 @@ function addKeysToApiContentListBlockElement(
 
 function addKeysToApiContentListBlockElementItem(
     encoder: ApiContentKeyEncoder,
-    item: ApiContentListBlockElementItemResponseWithoutKeys,
+    item: ApiContentListBlockElementItemWithoutKeys,
     state: ApiContentPositionState,
-): ApiContentListBlockElementItemResponse {
+): ApiContentListBlockElementItem {
     const itemPos = state.pos;
     state.pos = itemPos + 1;
 
@@ -303,9 +303,9 @@ function addKeysToApiContentListBlockElementItem(
 
 function addKeysToApiContentCheckListBlockElementItem(
     encoder: ApiContentKeyEncoder,
-    item: ApiContentCheckListBlockElementItemResponseWithoutKeys,
+    item: ApiContentCheckListBlockElementItemWithoutKeys,
     state: ApiContentPositionState,
-): ApiContentCheckListBlockElementItemResponse {
+): ApiContentCheckListBlockElementItem {
     const itemPos = state.pos;
     state.pos = itemPos + 1;
 
@@ -333,7 +333,7 @@ function addKeyToApiContentFileOrPreviewBlockElement(
     encoder: ApiContentKeyEncoder,
     element: ApiContentFileOrPreviewBlockElementResponseWithoutKeys,
     pos: number,
-): ApiContentFileBlockElementResponse | ApiContentPreviewBlockElementResponse {
+): ApiContentFileBlockElement | ApiContentPreviewBlockElement {
     const key = encoder.encode({pos, nodeSize: 1, inlineContent: false});
 
     switch (element.type) {
@@ -346,7 +346,7 @@ function addKeyToApiContentFileOrPreviewBlockElement(
 }
 
 function getApiContentInlineElementsNodeSize(
-    elements: ReadonlyArray<ApiContentInlineElementResponse>,
+    elements: ReadonlyArray<ApiContentInlineElement>,
 ): number {
     let nodeSize = 0;
 
@@ -368,13 +368,13 @@ function getApiContentInlineElementsNodeSize(
 }
 
 function getApiContentCodeBlockElementLineNodeSize(
-    line: ApiContentCodeBlockElementLineResponseWithoutKeys,
+    line: ApiContentCodeBlockElementLineWithoutKeys,
 ): number {
     return getApiContentCodeBlockElementLineInlineNodeSize(line.elements) + 2;
 }
 
 function getApiContentCodeBlockElementLineInlineNodeSize(
-    elements: ApiContentCodeBlockElementLineResponseWithoutKeys["elements"],
+    elements: ApiContentCodeBlockElementLineWithoutKeys["elements"],
 ): number {
     let nodeSize = 0;
 

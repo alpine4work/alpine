@@ -22,11 +22,11 @@ import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markd
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiChannelPatch,
-    ApiContentResponseWithoutKeys,
-    ApiPostPreviewResponse,
-    ApiPostReferenceResponse,
+    ApiAccountReference,
+    ApiChannelPatchRequest,
+    ApiContentWithoutKeys,
+    ApiPostPreview,
+    ApiPostReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
@@ -61,7 +61,7 @@ export type AgentWebChannelPage = {
 } & (
     | {
           readonly subType: "Head";
-          readonly description: ApiContentResponseWithoutKeys;
+          readonly description: ApiContentWithoutKeys;
       }
     | {
           readonly subType: "Tail";
@@ -74,10 +74,10 @@ export type AgentWebChannelPagePagination = {
 
 export type AgentWebChannelPagePostBlock = {
     readonly type: "Post";
-    readonly author: ApiAccountReferenceResponse | null;
+    readonly author: ApiAccountReference | null;
     readonly timeAttribute: string | null;
-    readonly contentSnippet: ApiContentResponseWithoutKeys;
-    readonly reference: ApiPostReferenceResponse | null;
+    readonly contentSnippet: ApiContentWithoutKeys;
+    readonly reference: ApiPostReference | null;
     readonly commentCount: number;
 };
 
@@ -109,9 +109,7 @@ export async function readAgentWebChannelPage(
 ): Promise<{response: string; metadata: AgentWebChannelPageMetadata}> {
     const afterCursor = parseAgentWebChannelPageSearchParams(searchParams);
 
-    const posts: Array<
-        Replace<AgentWebChannelPagePostBlock, {reference: ApiPostReferenceResponse}>
-    > = [];
+    const posts: Array<Replace<AgentWebChannelPagePostBlock, {reference: ApiPostReference}>> = [];
     const postCursors: Array<DateString> = [];
 
     const [channelDescriptionResult, initialPostsResult] = await runAllPromises([
@@ -135,10 +133,10 @@ export async function readAgentWebChannelPage(
     const {channel} = initialPostsResult.data;
     let currentPostBatch = initialPostsResult.data.posts;
     let nextCursor = initialPostsResult.data.nextCursor;
-    let lookaheadPost: ApiPostPreviewResponse | null = null;
+    let lookaheadPost: ApiPostPreview | null = null;
 
     while (true) {
-        const postBatch: ReadonlyArray<ApiPostPreviewResponse> =
+        const postBatch: ReadonlyArray<ApiPostPreview> =
             lookaheadPost !== null ? [lookaheadPost, ...currentPostBatch] : currentPostBatch;
         lookaheadPost = null;
 
@@ -669,7 +667,7 @@ export async function updateAgentWebChannelPage(
     if (oldPage.subType === "Head") {
         assert(newPage.subType === "Head");
 
-        const patches: Array<ApiChannelPatch> = [];
+        const patches: Array<ApiChannelPatchRequest> = [];
 
         if (oldPage.name !== newPage.name) {
             patches.push({type: "SetName", name: newPage.name});
@@ -1268,8 +1266,8 @@ async function parseAgentWebChannelPagePostBlock(
             ? seeMore.children[0]
             : null;
 
-    let contentSnippet: ApiContentResponseWithoutKeys;
-    let reference: ApiPostReferenceResponse | null = null;
+    let contentSnippet: ApiContentWithoutKeys;
+    let reference: ApiPostReference | null = null;
 
     if (seeMoreLink === null) {
         contentSnippet = await parseApiContentFromAgentWebMarkdownTree(storage, root);
@@ -1417,7 +1415,7 @@ async function parseAgentWebChannelPageAccountLink(
     storage: AgentWebSessionStorage,
     position: Html["position"],
     string: string,
-): Promise<ApiAccountReferenceResponse> {
+): Promise<ApiAccountReference> {
     const createError = () => {
         const quotedString = curlyQuote(string);
 

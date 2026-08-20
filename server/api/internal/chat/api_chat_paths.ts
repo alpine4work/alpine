@@ -28,7 +28,7 @@ import {getOrCreateChatForAccounts} from "~/server/chat/data/get_or_create_chat_
 import {attachFileToTargetAsBot} from "~/server/files/data/attach_file_to_target_as_bot.js";
 import {getSearchDirectChatEntityTitleAndMedia} from "~/server/search/data/index/search_entity_index.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
-import {ApiDirectChatResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiDirectChat} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -139,7 +139,7 @@ export const apiChatPaths: Pick<ApiPaths, (keyof ApiPaths & `/chats/${string}`) 
                         chatDefinition.definition.accountIds,
                     );
 
-                    const chat: ApiDirectChatResponse = {
+                    const chat: ApiDirectChat = {
                         type: "Direct",
                         id: pathParameters.id,
                         members: await runAllPromises(

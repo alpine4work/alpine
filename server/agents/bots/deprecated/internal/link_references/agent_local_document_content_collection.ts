@@ -2,7 +2,7 @@ import {
     DurableObjectStorageCollection,
     DurableObjectStorageInterface,
 } from "~/server/cloudflare/durable_object_storage_collection.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_source.js";
 import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
@@ -28,17 +28,17 @@ export type AgentLocalDocumentKey = `/local/document/${DocumentId}-${number}`;
 // collection and update the document's dedupe number.
 const AgentLocalDocumentContentCollection = new DurableObjectStorageCollection<
     AgentLocalDocumentKey,
-    // NOTE(calebmer): We still support `ApiContentResponse` in the collection for
-    // backwards compatibility purposes. After deploying this change and all ChatGPT
-    // agent durable objects reset their storage we should be able to drop
-    // `ApiContentResponse` from this union.
-    ApiContentResponse | {title: string; content: ApiContentResponse}
+    // NOTE(calebmer): We still support `ApiContent` in the collection for backwards
+    // compatibility purposes. After deploying this change and all ChatGPT agent
+    // durable objects reset their storage we should be able to drop `ApiContent` from
+    // this union.
+    ApiContent | {title: string; content: ApiContent}
 >("a5");
 
 export async function putAgentLocalDocumentContent(
     storage: DurableObjectStorageInterface,
     documentId: DocumentId,
-    document: {title: string; content: ApiContentResponse},
+    document: {title: string; content: ApiContent},
 ) {
     let dedupeNumber = 1;
     let documentKey: AgentLocalDocumentKey = `/local/document/${documentId}-${dedupeNumber}`;
@@ -57,7 +57,7 @@ export async function putAgentLocalDocumentContent(
 export async function getAgentLocalDocumentContentIfExists(
     storage: DurableObjectStorageInterface,
     documentKey: AgentLocalDocumentKey,
-): Promise<{title: string; content: ApiContentResponse} | null> {
+): Promise<{title: string; content: ApiContent} | null> {
     const documentContent = await AgentLocalDocumentContentCollection.get(storage, documentKey);
     if (!documentContent) return null;
 

@@ -1,11 +1,11 @@
 import {insertFathomMeetingNotesMention} from "~/admin/lambda/fathom_meeting_notes/internal/insert_fathom_meeting_notes_mention.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import type {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 const oldDocumentId = "old-document-id" as DocumentId;
 const newDocumentId = "new-document-id" as DocumentId;
 
-function summarizeContent(content: ApiContent): Array<string> {
+function summarizeContent(content: ApiContentRequest): Array<string> {
     return content.elements.map(element => {
         if (element.type === "Heading") {
             const text = element.elements
@@ -26,7 +26,7 @@ function summarizeContent(content: ApiContent): Array<string> {
 }
 
 test("adds the newest mention immediately after an existing month heading", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Heading",
@@ -71,7 +71,7 @@ test("adds the newest mention immediately after an existing month heading", () =
 });
 
 test("allows a different document", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Heading",
@@ -115,7 +115,7 @@ test("allows a different document", () => {
 });
 
 test("returns the original content when the document is already mentioned", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Heading",
@@ -153,7 +153,7 @@ test("returns the original content when the document is already mentioned", () =
 });
 
 test("creates a missing month in descending chronological order", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Heading",
@@ -189,7 +189,7 @@ test("creates a missing month in descending chronological order", () => {
 });
 
 test("creates a missing year in descending chronological order", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Heading",
@@ -226,7 +226,7 @@ test("creates a missing year in descending chronological order", () => {
 });
 
 test("uses the default time zone to choose the month section", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Heading",

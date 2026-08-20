@@ -1,8 +1,8 @@
 import {ClaudeAgentApprovalScope} from "~/server/agents/bots_v2/sandbox/claude_agent_approval_scope.js";
 import {ClaudeAgentGatedToolName} from "~/server/agents/bots_v2/sandbox/claude_agent_tool_names.js";
 import {
-    ApiLabelContent,
-    ApiMessageExperimentalApproval,
+    ApiLabelContentRequest,
+    ApiMessageExperimentalApprovalRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {DateString} from "~/shared/helpers/date/date_string.open_source.js";
 
@@ -95,7 +95,7 @@ export type ClaudeAgentPendingApproval = {
      * a write targets where there is one, so the card shows its live title rather than
      * a raw path.
      */
-    readonly summaryContent: ApiLabelContent;
+    readonly summaryContent: ApiLabelContentRequest;
 
     /**
      * The exact options rendered on the card, used to validate webhook decisions.
@@ -104,7 +104,7 @@ export type ClaudeAgentPendingApproval = {
 };
 
 export type ClaudeAgentApprovalDecisionOptions =
-    ApiMessageExperimentalApproval["decision"]["schema"]["options"];
+    ApiMessageExperimentalApprovalRequest["decision"]["schema"]["options"];
 
 /** A request held only in memory until its card is persisted. */
 export type ClaudeAgentApprovalRequest = ClaudeAgentPendingApproval & {

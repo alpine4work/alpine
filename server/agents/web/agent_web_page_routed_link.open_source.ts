@@ -1,8 +1,8 @@
 import {AgentWebPageRoutedLinkKeyObject} from "~/server/agents/web/agent_web_page_routed_link_key.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiDocumentReferenceResponse,
-    ApiTaskReferenceResponse,
+    ApiAccountReference,
+    ApiDocumentReference,
+    ApiTaskReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.open_source.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.open_source.js";
@@ -34,18 +34,18 @@ export type AgentWebPageSkillRoutedLink = {
 
 export type AgentWebPageDocumentThreadRoutedLink = {
     readonly type: "DocumentThread";
-    readonly document: ApiDocumentReferenceResponse;
+    readonly document: ApiDocumentReference;
     readonly id: DocumentCommentThreadId;
 };
 
 export type AgentWebPageTaskMessageListRoutedLink = {
     readonly type: "TaskMessageList";
-    readonly task: ApiTaskReferenceResponse;
+    readonly task: ApiTaskReference;
 };
 
 export type AgentWebPageTaskSubtasksRoutedLink = {
     readonly type: "TaskSubtasks";
-    readonly task: ApiTaskReferenceResponse;
+    readonly task: ApiTaskReference;
 };
 
 export type AgentWebPageTaskViewRoutedLink = {
@@ -54,7 +54,7 @@ export type AgentWebPageTaskViewRoutedLink = {
 
 export type AgentWebPageInboxRoutedLink = {
     readonly type: "Inbox";
-    readonly account: ApiAccountReferenceResponse;
+    readonly account: ApiAccountReference;
 };
 
 export type AgentWebPageSpaceRoutedLink = {

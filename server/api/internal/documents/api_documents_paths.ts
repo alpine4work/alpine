@@ -38,9 +38,9 @@ import {
 } from "~/shared/api/content/closed_source/from_api_content.js";
 import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.js";
 import {
-    ApiContent,
-    ApiContentResponseWithoutKeys,
-    ApiDocumentSetContentPatch,
+    ApiContentRequest,
+    ApiContentWithoutKeys,
+    ApiDocumentSetContentPatchRequest,
     ApiDocumentSetTitlePatch,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
@@ -191,7 +191,7 @@ export const apiDocumentsPaths: Pick<
 
         patch: async (context, {pathParameters, requestBody}) => {
             let titlePatch: ApiDocumentSetTitlePatch | undefined;
-            let contentPatch: ApiDocumentSetContentPatch | undefined;
+            let contentPatch: ApiDocumentSetContentPatchRequest | undefined;
 
             for (const requestPatch of requestBody.patches) {
                 switch (requestPatch.type) {
@@ -468,7 +468,7 @@ export const apiDocumentsPaths: Pick<
 
                     let markedPreview: {
                         version: number;
-                        contentSnippet: ApiContentResponseWithoutKeys;
+                        contentSnippet: ApiContentWithoutKeys;
                     } | null = null;
 
                     if (commentThreadSnippet) {
@@ -1030,7 +1030,7 @@ function validateApiDocumentContentForCreate({
 }: {
     title: string;
     accessPolicy: LocalAccessPolicy;
-    content: ApiContent | undefined;
+    content: ApiContentRequest | undefined;
 }): DocumentContent {
     try {
         return assertDocumentContent(
@@ -1058,7 +1058,7 @@ function validateApiDocumentContentForCreate({
 // of an `InternalError`. This could happen if a user submits structurally valid
 // content that contains content types that aren't supported by the document
 // content schema.
-function validateApiDocumentBodyContentForUpdate(content: ApiContent): ReadonlyArray<Node> {
+function validateApiDocumentBodyContentForUpdate(content: ApiContentRequest): ReadonlyArray<Node> {
     try {
         return fromApiContentToDocumentChildNodes(
             DocumentContentProsemirrorSchema,

@@ -12,9 +12,9 @@ import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
-    ApiAccountResponse,
-    ApiContentResponse,
-    ApiMessageResponse,
+    ApiAccount,
+    ApiContent,
+    ApiMessage,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {UrlPath} from "~/shared/helpers/http/url_path.open_source.js";
@@ -89,11 +89,11 @@ function createMessage({
     parent,
 }: {
     index: number;
-    author?: ApiAccountResponse;
-    content?: ApiContentResponse | string;
+    author?: ApiAccount;
+    content?: ApiContent | string;
     createdTime?: string;
     parent?: ApiMessageMockParent;
-}): ApiMessageResponse {
+}): ApiMessage {
     return createApiMessageMock({
         index,
         author,
@@ -136,7 +136,7 @@ async function readChat({
     path?: string;
     limit?: string;
     totalMessageCount: number;
-    createMessage?: (index: number) => ApiMessageResponse;
+    createMessage?: (index: number) => ApiMessage;
     readContext?: AgentWebContext;
 }): Promise<string> {
     mockApiGetChat(api, {spaceId, chatId, name: "Incident Response"});
@@ -160,7 +160,7 @@ async function readDirectChat({
     createMessage: actuallyCreateMessage,
 }: {
     totalMessageCount: number;
-    createMessage?: (index: number) => ApiMessageResponse;
+    createMessage?: (index: number) => ApiMessage;
 }): Promise<{path: string; response: string}> {
     const directChatId = generateId<ChatId>();
     const path = await storeAgentWebPageLinkForTest(storage, {

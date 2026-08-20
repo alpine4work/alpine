@@ -8,9 +8,9 @@ import {AgentWebTaskQueryPageTask} from "~/server/agents/web/pages/agent_web_tas
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiTaskCollectionReferenceResponse,
-    ApiTaskReferenceResponse,
+    ApiAccountReference,
+    ApiTaskCollectionReference,
+    ApiTaskReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {assertId, generateId} from "~/shared/id/id.open_source.js";
@@ -18,55 +18,55 @@ import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.op
 
 const collectionId = generateId<TaskCollectionId>();
 
-const writeSpecTaskReference: ApiTaskReferenceResponse = {
+const writeSpecTaskReference: ApiTaskReference = {
     type: "Task",
     id: generateId<TaskId>(),
     title: "Write spec",
     status: {type: "Open", isActive: false},
 };
 
-const activeWriteSpecTaskReference: ApiTaskReferenceResponse = {
+const activeWriteSpecTaskReference: ApiTaskReference = {
     type: "Task",
     id: generateId<TaskId>(),
     title: "Write spec",
     status: {type: "Open", isActive: true},
 };
 
-const shipLaunchTaskReference: ApiTaskReferenceResponse = {
+const shipLaunchTaskReference: ApiTaskReference = {
     type: "Task",
     id: generateId<TaskId>(),
     title: "Ship launch",
     status: {type: "Closed"},
 };
 
-const planLaunchTaskReference: ApiTaskReferenceResponse = {
+const planLaunchTaskReference: ApiTaskReference = {
     type: "Task",
     id: generateId<TaskId>(),
     title: "Plan launch",
     status: {type: "Open", isActive: false},
 };
 
-const aliceReference: ApiAccountReferenceResponse = {
+const aliceReference: ApiAccountReference = {
     type: "Account",
     id: generateId<AccountId>(),
     title: "Alice",
     shortName: "Alice",
 };
 
-const engineeringReference: ApiTaskCollectionReferenceResponse = {
+const engineeringReference: ApiTaskCollectionReference = {
     type: "TaskCollection",
     id: generateId<TaskCollectionId>(),
     title: "Engineering",
 };
 
-const designReference: ApiTaskCollectionReferenceResponse = {
+const designReference: ApiTaskCollectionReference = {
     type: "TaskCollection",
     id: generateId<TaskCollectionId>(),
     title: "Design",
 };
 
 function collectionPageTask(
-    task: ApiTaskReferenceResponse,
+    task: ApiTaskReference,
     fields: Partial<Omit<AgentWebTaskQueryPageTask, "taskId" | "title" | "status">> = {},
 ): AgentWebTaskQueryPageTask {
     return {

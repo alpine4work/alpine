@@ -18,7 +18,7 @@ import {
     agentWebMessagingPreviousPageLinkTextWithStartArrow,
 } from "~/server/agents/web/pages/messaging/print_agent_web_messaging_page.open_source.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
-import {ApiMessageResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessage} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -65,7 +65,7 @@ export async function truncateAgentWebMessagingPage<
         direction: "Start" | "End";
         isStartOfMessages: boolean;
         isEndOfMessages: boolean;
-        messages: ReadonlyArray<ApiMessageResponse>;
+        messages: ReadonlyArray<ApiMessage>;
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
         contextFormattedTimeZone: string;
@@ -582,7 +582,7 @@ export async function truncateAgentWebMessagingPageAroundMessage<
         around: AgentWebMessagingPageMessageRange;
         isStartOfMessages: boolean;
         isEndOfMessages: boolean;
-        messages: ReadonlyArray<ApiMessageResponse>;
+        messages: ReadonlyArray<ApiMessage>;
         contextTimeZone: TimeZone;
         contextDate: CalendarDate;
         contextFormattedTimeZone: string;

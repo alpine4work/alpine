@@ -5,9 +5,9 @@ import {ApiClientMock} from "~/server/agents/api/test_helpers/api_client_mock.js
 import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_account_mock.js";
 import {searchAlpineForAgent} from "~/server/agents/bots/deprecated/internal/tools/search_alpine_for_agent.js";
 import {
-    ApiMessageRoomReference,
+    ApiMessageRoomReferenceRequest,
+    ApiSearchResult,
     ApiSearchResultMatch,
-    ApiSearchResultResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -40,13 +40,13 @@ const request = {
     spaceId,
     apiClient,
     // Default room for tests that don't care about filtering
-    room: cast<ApiMessageRoomReference>({type: "Chat", id: generateId()}),
+    room: cast<ApiMessageRoomReferenceRequest>({type: "Chat", id: generateId()}),
 } as const;
 
 type ApiSearchResultMatchItemWithText = {text: string; isMatch?: true};
 
-type TestApiSearchResultResponse = ApiSearchResultResponse extends infer Result
-    ? Result extends ApiSearchResultResponse
+type TestApiSearchResultResponse = ApiSearchResult extends infer Result
+    ? Result extends ApiSearchResult
         ? Omit<Result, "bodySnippet" | "matches"> & {
               bodyMatch: Array<ApiSearchResultMatchItemWithText> | null;
           }
@@ -55,7 +55,7 @@ type TestApiSearchResultResponse = ApiSearchResultResponse extends infer Result
 
 function intoApiSearchResultResponses(
     results: Array<TestApiSearchResultResponse>,
-): Array<ApiSearchResultResponse> {
+): Array<ApiSearchResult> {
     return results.map(result => {
         const {bodyMatch, ...resultWithoutBodyMatch} = result;
         const matches: Array<ApiSearchResultMatch> = [];
@@ -73,7 +73,7 @@ function intoApiSearchResultResponses(
             bodySnippet:
                 bodyMatch === null ? null : bodyMatch.map(segment => segment.text).join(""),
         };
-    }) as Array<ApiSearchResultResponse>;
+    }) as Array<ApiSearchResult>;
 }
 
 afterEach(async () => {
@@ -377,7 +377,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReferenceRequest>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(
@@ -430,7 +430,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReferenceRequest>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(
@@ -492,7 +492,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomReference>({type: "Post", id: currentPostId}),
+            room: cast<ApiMessageRoomReferenceRequest>({type: "Post", id: currentPostId}),
         };
 
         const result = await storage.transaction(
@@ -554,7 +554,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomReference>({type: "Task", id: currentTaskId}),
+            room: cast<ApiMessageRoomReferenceRequest>({type: "Task", id: currentTaskId}),
         };
 
         const result = await storage.transaction(
@@ -620,7 +620,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomReference>({
+            room: cast<ApiMessageRoomReferenceRequest>({
                 type: "DocumentThread",
                 id: currentThreadId,
                 document: {type: "Document", id: currentDocumentId},
@@ -679,7 +679,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReferenceRequest>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(
@@ -777,7 +777,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomReference>({
+            room: cast<ApiMessageRoomReferenceRequest>({
                 type: "DocumentThread",
                 id: currentThreadId,
                 document: {type: "Document", id: currentDocumentId},
@@ -842,7 +842,7 @@ The following search results matched the keyword search but did not match any sp
 
         const requestWithRoom = {
             ...request,
-            room: cast<ApiMessageRoomReference>({type: "Chat", id: currentChatId}),
+            room: cast<ApiMessageRoomReferenceRequest>({type: "Chat", id: currentChatId}),
         };
 
         const result = await storage.transaction(

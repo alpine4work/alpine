@@ -12,25 +12,25 @@ import {
 import {
     ApiContent,
     ApiContentBreakInlineElement,
-    ApiContentCheckListBlockElement,
-    ApiContentCodeBlockElement,
-    ApiContentDividerBlockElement,
-    ApiContentFileBlockElement,
-    ApiContentFileFloatBlockElement,
-    ApiContentFileGalleryBlockElementRow,
-    ApiContentHeadingBlockElement,
-    ApiContentInlineElement,
+    ApiContentCheckListBlockElementRequest,
+    ApiContentCodeBlockElementRequest,
+    ApiContentDividerBlockElementRequest,
+    ApiContentFileBlockElementRequest,
+    ApiContentFileFloatBlockElementRequest,
+    ApiContentFileGalleryBlockElementRowRequest,
+    ApiContentHeadingBlockElementRequest,
     ApiContentInlineElementMark,
-    ApiContentMentionInlineElement,
-    ApiContentOrderedListBlockElement,
-    ApiContentParagraphBlockElement,
-    ApiContentPreviewBlockElement,
-    ApiContentQuoteBlockElement,
-    ApiContentResponse,
-    ApiContentTableBlockElement,
-    ApiContentTableBlockElementCell,
-    ApiContentTableBlockElementRow,
-    ApiContentUnorderedListBlockElement,
+    ApiContentInlineElementRequest,
+    ApiContentMentionInlineElementRequest,
+    ApiContentOrderedListBlockElementRequest,
+    ApiContentParagraphBlockElementRequest,
+    ApiContentPreviewBlockElementRequest,
+    ApiContentQuoteBlockElementRequest,
+    ApiContentRequest,
+    ApiContentTableBlockElementCellRequest,
+    ApiContentTableBlockElementRequest,
+    ApiContentTableBlockElementRowRequest,
+    ApiContentUnorderedListBlockElementRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.open_source.js";
@@ -65,8 +65,8 @@ import {Replace} from "~/shared/helpers/types/replace.open_source.js";
  * about the first match, for instance.
  */
 export function* findApiContentRanges(
-    haystack: ApiContentResponse,
-    needle: ApiContent,
+    haystack: ApiContent,
+    needle: ApiContentRequest,
 ): IterableIterator<ApiContentRange, undefined> {
     const needleStates: Array<{
         needleIterator: IterableIterator<Token, undefined>;
@@ -157,8 +157,8 @@ export function* findApiContentRanges(
                         case "Inline": {
                             end = {
                                 type: "Inline",
-                                // We use the non-null assertion operator (`!`) because `haystack` is
-                                // `ApiContentResponse` and so it must always include keys.
+                                // We use the non-null assertion operator (`!`) because `haystack` is `ApiContent`
+                                // and so it must always include keys.
                                 key: haystackToken.position.key!,
                                 index: haystackToken.position.index + 1,
                             };
@@ -167,8 +167,8 @@ export function* findApiContentRanges(
                         case "Before": {
                             end = {
                                 type: "After",
-                                // We use the non-null assertion operator (`!`) because `haystack` is
-                                // `ApiContentResponse` and so it must always include keys.
+                                // We use the non-null assertion operator (`!`) because `haystack` is `ApiContent`
+                                // and so it must always include keys.
                                 key: haystackToken.position.key!,
                             };
                             break;
@@ -207,8 +207,8 @@ export function* findApiContentRanges(
                     case "Inline": {
                         start = {
                             type: "Inline",
-                            // We use the non-null assertion operator (`!`) because `haystack` is
-                            // `ApiContentResponse` and so it must always include keys.
+                            // We use the non-null assertion operator (`!`) because `haystack` is `ApiContent`
+                            // and so it must always include keys.
                             key: haystackToken.position.key!,
                             index: haystackToken.position.index,
                         };
@@ -217,8 +217,8 @@ export function* findApiContentRanges(
                     case "Before": {
                         start = {
                             type: "Before",
-                            // We use the non-null assertion operator (`!`) because `haystack` is
-                            // `ApiContentResponse` and so it must always include keys.
+                            // We use the non-null assertion operator (`!`) because `haystack` is `ApiContent`
+                            // and so it must always include keys.
                             key: haystackToken.position.key!,
                         };
                         break;
@@ -245,8 +245,8 @@ export function* findApiContentRanges(
                         case "Inline": {
                             end = {
                                 type: "Inline",
-                                // We use the non-null assertion operator (`!`) because `haystack` is
-                                // `ApiContentResponse` and so it must always include keys.
+                                // We use the non-null assertion operator (`!`) because `haystack` is `ApiContent`
+                                // and so it must always include keys.
                                 key: haystackToken.position.key!,
                                 index: haystackToken.position.index + 1,
                             };
@@ -255,8 +255,8 @@ export function* findApiContentRanges(
                         case "Before": {
                             end = {
                                 type: "After",
-                                // We use the non-null assertion operator (`!`) because `haystack` is
-                                // `ApiContentResponse` and so it must always include keys.
+                                // We use the non-null assertion operator (`!`) because `haystack` is `ApiContent`
+                                // and so it must always include keys.
                                 key: haystackToken.position.key!,
                             };
                             break;
@@ -297,14 +297,14 @@ function hasTokenParents(
 }
 
 type TokenParent =
-    | ApiContentParagraphBlockElement
-    | ApiContentHeadingBlockElement
-    | ApiContentQuoteBlockElement
-    | ApiContentUnorderedListBlockElement
-    | ApiContentOrderedListBlockElement
-    | ApiContentCodeBlockElement
-    | ApiContentFileFloatBlockElement
-    | ApiContentTableBlockElement
+    | ApiContentParagraphBlockElementRequest
+    | ApiContentHeadingBlockElementRequest
+    | ApiContentQuoteBlockElementRequest
+    | ApiContentUnorderedListBlockElementRequest
+    | ApiContentOrderedListBlockElementRequest
+    | ApiContentCodeBlockElementRequest
+    | ApiContentFileFloatBlockElementRequest
+    | ApiContentTableBlockElementRequest
     | TokenCheckListItemParent
     | TokenFileGalleryRowParent
     | TokenTableCellParent
@@ -313,22 +313,22 @@ type TokenParent =
 type TokenCheckListItemParent = {
     readonly type: "CheckListItem";
     readonly itemIndex: number;
-    readonly listElement: ApiContentCheckListBlockElement;
+    readonly listElement: ApiContentCheckListBlockElementRequest;
 };
 
 type TokenFileGalleryRowParent = {
     readonly type: "FileGalleryRow";
-    readonly row: ApiContentFileGalleryBlockElementRow | null;
+    readonly row: ApiContentFileGalleryBlockElementRowRequest | null;
 };
 
 type TokenTableCellParent = {
     readonly type: "TableCell";
-    readonly cell: ApiContentTableBlockElementCell;
+    readonly cell: ApiContentTableBlockElementCellRequest;
 };
 
 type TokenTableRowParent = {
     readonly type: "TableRow";
-    readonly row: ApiContentTableBlockElementRow;
+    readonly row: ApiContentTableBlockElementRowRequest;
 };
 
 type Token = {
@@ -343,10 +343,10 @@ type Token = {
 type TokenValue =
     | string
     | ApiContentBreakInlineElement
-    | ApiContentMentionInlineElement
-    | ApiContentDividerBlockElement
-    | ApiContentFileBlockElement
-    | ApiContentPreviewBlockElement;
+    | ApiContentMentionInlineElementRequest
+    | ApiContentDividerBlockElementRequest
+    | ApiContentFileBlockElementRequest
+    | ApiContentPreviewBlockElementRequest;
 
 function areTokensMatch(haystackToken: Token, needleTokens: Token): boolean {
     // This is most likely to be different, put it first to short circuit early.
@@ -499,9 +499,9 @@ function areTokenValuesEqual(value1: TokenValue, value2: TokenValue): boolean {
         case "Mention": {
             if (value2.type !== "Mention") return false;
 
-            // If other keys are added to `ApiContentMentionInlineElement` in the future you
-            // may need to add equality check for them here. TypeScript will error when a new
-            // key is added forcing the developer to consider updating this equality logic.
+            // If other keys are added to `ApiContentMentionInlineElementRequest` in the future
+            // you may need to add equality check for them here. TypeScript will error when a
+            // new key is added forcing the developer to consider updating this equality logic.
             assertEqualTypes<
                 keyof typeof value1,
                 "type" | "reference" | "isAccountShortName" | "marks"
@@ -727,7 +727,7 @@ function* iterateApiContentBlockElement(
 function* iterateApiContentInlineElements(
     parents: NonEmptyLinkedList<TokenParent>,
     key: ApiContentKey | undefined,
-    elements: ReadonlyArray<ApiContentInlineElement>,
+    elements: ReadonlyArray<ApiContentInlineElementRequest>,
 ): IterableIterator<Token, undefined> {
     let index = 0;
 

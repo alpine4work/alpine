@@ -8,10 +8,10 @@ import {
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiMentionReferenceResponse,
-    ApiTaskCollectionReferenceResponse,
-    ApiTaskReferenceResponse,
+    ApiAccountReference,
+    ApiMentionReference,
+    ApiTaskCollectionReference,
+    ApiTaskReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -24,13 +24,7 @@ import {
 
 const taskId = generateId<TaskId>();
 
-function accountReference({
-    name,
-    botId,
-}: {
-    name: string;
-    botId?: BotId;
-}): ApiAccountReferenceResponse {
+function accountReference({name, botId}: {name: string; botId?: BotId}): ApiAccountReference {
     return {
         type: "Account",
         id: generateId<AccountId>(),
@@ -40,7 +34,7 @@ function accountReference({
     };
 }
 
-function collectionReference({name}: {name: string}): ApiTaskCollectionReferenceResponse {
+function collectionReference({name}: {name: string}): ApiTaskCollectionReference {
     return {
         type: "TaskCollection",
         id: generateId<TaskCollectionId>(),
@@ -48,7 +42,7 @@ function collectionReference({name}: {name: string}): ApiTaskCollectionReference
     };
 }
 
-function taskReference({name}: {name: string}): ApiTaskReferenceResponse {
+function taskReference({name}: {name: string}): ApiTaskReference {
     return {
         type: "Task",
         id: generateId<TaskId>(),
@@ -62,7 +56,7 @@ const bobReference = accountReference({name: "Bob"});
 const parentReference = taskReference({name: "Parent task"});
 const engineeringReference = collectionReference({name: "Engineering"});
 const roadmapReference = collectionReference({name: "Roadmap"});
-const currentTaskReference: ApiTaskReferenceResponse = {
+const currentTaskReference: ApiTaskReference = {
     type: "Task",
     id: taskId,
     title: "Task with subtasks",
@@ -80,7 +74,7 @@ async function setupTaskPageSubtasksStorage({
     storedLinks = [],
 }: {
     storage: AgentWebSessionStorage;
-    storedLinks?: ReadonlyArray<ApiMentionReferenceResponse>;
+    storedLinks?: ReadonlyArray<ApiMentionReference>;
 }) {
     await storeAgentWebPageLinkForTest(
         storage,

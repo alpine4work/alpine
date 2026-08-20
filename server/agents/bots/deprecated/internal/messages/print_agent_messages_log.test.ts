@@ -8,8 +8,8 @@ import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_conte
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {
-    ApiAccountResponse,
-    ApiContentResponse,
+    ApiAccount,
+    ApiContent,
     ApiMessageContentPayloadParentContentSnippet,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -55,7 +55,7 @@ function createTestAgentMessage({
 }: {
     author: "Alice" | "Assistant" | {id: AccountId; name: string; bot?: {id: BotId}};
     createdTime: Date;
-    content: ApiContentResponse | string;
+    content: ApiContent | string;
     createdTimeZone?: TimeZone;
     parent?: {
         author: "Alice" | "Assistant" | {id: AccountId; name: string; bot?: {id: BotId}};
@@ -82,7 +82,7 @@ function createTestAgentMessage({
 
         let parentPayload: {
             type: "Message";
-            author: ApiAccountResponse;
+            author: ApiAccount;
             index: number;
             contentSnippet: ApiMessageContentPayloadParentContentSnippet;
         } | null = null;
@@ -420,7 +420,7 @@ Hello
 });
 
 test("text property uses `printAgentContentToMarkdown()` result", async () => {
-    const content: ApiContentResponse = {
+    const content: ApiContent = {
         elements: [
             {
                 type: "Paragraph",
@@ -800,7 +800,7 @@ From Toronto
 
 test("message with trailing newline is trimmed", async () => {
     const baseTime = new Date("2024-01-01T12:00:00Z");
-    const content: ApiContentResponse = {
+    const content: ApiContent = {
         elements: [
             {
                 type: "Paragraph",

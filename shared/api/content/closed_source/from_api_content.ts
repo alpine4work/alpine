@@ -4,17 +4,17 @@ import {unknownFileId} from "~/shared/api/content/closed_source/unknown_file_id.
 import {normalizeApiContentInlineElementMarks} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {intoApiContentParagraphBlockElement} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
-    ApiContentFileBlockElement,
+    ApiContentBlockElementRequest,
+    ApiContentFileBlockElementRequest,
     ApiContentHighlightMarkColor,
-    ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiContentListBlockElement,
-    ApiContentMentionInlineElement,
-    ApiContentPreviewBlockElement,
-    ApiContentTableBlockElementCellBlockElement,
-    ApiPreviewReference,
+    ApiContentInlineElementRequest,
+    ApiContentListBlockElementRequest,
+    ApiContentMentionInlineElementRequest,
+    ApiContentPreviewBlockElementRequest,
+    ApiContentRequest,
+    ApiContentTableBlockElementCellBlockElementRequest,
+    ApiPreviewReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentListItemNodeTypeName} from "~/shared/content/content_node_type_name.js";
@@ -35,7 +35,7 @@ import {SearchMentionEntityId} from "~/shared/search/search_entity_id.js";
 /**
  * Convert content from the API back into ProseMirror nodes.
  */
-export function fromApiContent(schema: ContentProsemirrorSchema, content: ApiContent): Node {
+export function fromApiContent(schema: ContentProsemirrorSchema, content: ApiContentRequest): Node {
     const blockNodes = Array.from(fromApiContentBlockElements(schema, content.elements));
 
     return schema.nodes.doc.create(
@@ -54,7 +54,7 @@ export function fromApiContent(schema: ContentProsemirrorSchema, content: ApiCon
 export function fromApiContentToDocumentChildNodes(
     schema: ContentProsemirrorSchema,
     title: string,
-    content: ApiContent,
+    content: ApiContentRequest,
 ): ReadonlyArray<Node> {
     assert(schema.nodes.title);
 
@@ -74,7 +74,7 @@ export function fromApiContentToDocumentChildNodes(
 
 export function* fromApiContentBlockElements(
     schema: ContentProsemirrorSchema,
-    elements: Iterable<ApiContentBlockElement>,
+    elements: Iterable<ApiContentBlockElementRequest>,
 ): IterableIterator<Node> {
     for (const element of elements) {
         switch (element.type) {
@@ -89,7 +89,7 @@ export function* fromApiContentBlockElements(
             case "OrderedList":
             case "CheckList": {
                 function* fromApiContentListBlockElement(
-                    element: ApiContentListBlockElement,
+                    element: ApiContentListBlockElementRequest,
                     indent: number,
                 ): IterableIterator<Node> {
                     let typeName: ContentListItemNodeTypeName;
@@ -345,7 +345,7 @@ export function* fromApiContentBlockElements(
  */
 function* fromApiContentTableCellBlockElements(
     schema: ContentProsemirrorSchema,
-    elements: Iterable<ApiContentTableBlockElementCellBlockElement>,
+    elements: Iterable<ApiContentTableBlockElementCellBlockElementRequest>,
 ): IterableIterator<Node> {
     for (const element of elements) {
         switch (element.type) {
@@ -371,7 +371,7 @@ function* fromApiContentTableCellBlockElements(
 
 function fromApiContentFileOrPreviewElement(
     schema: ContentProsemirrorSchema,
-    element: ApiContentFileBlockElement | ApiContentPreviewBlockElement,
+    element: ApiContentFileBlockElementRequest | ApiContentPreviewBlockElementRequest,
 ): Node {
     switch (element.type) {
         case "File": {
@@ -431,7 +431,7 @@ function fromApiContentFileOrPreviewElement(
     }
 }
 
-function previewReferenceToFileEntityId(target: ApiPreviewReference): string {
+function previewReferenceToFileEntityId(target: ApiPreviewReferenceRequest): string {
     // Construct a FileEntityId (`Type:id`) from the preview target.
     switch (target.type) {
         case "Channel":
@@ -449,7 +449,7 @@ function previewReferenceToFileEntityId(target: ApiPreviewReference): string {
 
 function fromApiContentInlineElements(
     schema: ContentProsemirrorSchema,
-    elements: ReadonlyArray<ApiContentInlineElement>,
+    elements: ReadonlyArray<ApiContentInlineElementRequest>,
 ): ReadonlyArray<Node> {
     return filterMapArray(elements, element => {
         if (element.type === "Text" && element.text === "") return;
@@ -459,7 +459,7 @@ function fromApiContentInlineElements(
 
 function fromApiContentInlineElement(
     schema: ContentProsemirrorSchema,
-    element: ApiContentInlineElement,
+    element: ApiContentInlineElementRequest,
 ): Node {
     const marks = fromApiContentInlineElementMarks(schema, element.marks);
 
@@ -482,7 +482,7 @@ function fromApiContentInlineElement(
 
 function fromApiContentMentionInlineElement(
     schema: ContentProsemirrorSchema,
-    element: ApiContentMentionInlineElement,
+    element: ApiContentMentionInlineElementRequest,
     marks: ReadonlyArray<Mark> | undefined,
 ) {
     if (!schema.nodes.mention) {

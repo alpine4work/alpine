@@ -26,14 +26,14 @@ import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {
-    ApiContentBlockElementResponseWithoutKeys,
-    ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys,
-    ApiContentInlineElementResponse,
-    ApiContentResponseWithoutKeys,
-    ApiMessageContentPayloadFileResponse,
+    ApiContentBlockElementWithoutKeys,
+    ApiContentFileGalleryBlockElementRowItemWithoutKeys,
+    ApiContentInlineElement,
+    ApiContentWithoutKeys,
+    ApiMessage,
+    ApiMessageContentPayloadFile,
     ApiMessageContentPayloadParentContentSnippet,
-    ApiMessageResponse,
-    ApiMessageRoomReference,
+    ApiMessageRoomReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {
@@ -71,7 +71,7 @@ export async function readAgentWebMessagingPage<
         printPage,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
         // May be called multiple times! If we need to load more messages because we
         // haven't filled the limit yet.
         getRoomMetadata: (options: {
@@ -302,7 +302,7 @@ export async function readAgentWebMessagingPageInDirection<
         printPage,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
         // May be called multiple times! If we need to load more messages because we
         // haven't filled the limit yet.
         getRoomMetadata: (options: {
@@ -328,7 +328,7 @@ export async function readAgentWebMessagingPageInDirection<
     metadata: AgentWebMessagingPageMetadata;
 }> {
     let cursor = startCursor;
-    let messages: Array<ApiMessageResponse> = [];
+    let messages: Array<ApiMessage> = [];
 
     while (true) {
         const remainingRangeMessageCount =
@@ -477,7 +477,7 @@ export async function readAgentWebMessagingPageAroundMessage<
         printPage,
     }: {
         messageNouns: AgentWebMessagingPageNouns;
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
         // May be called multiple times! If we need to load more messages because we
         // haven't filled the limit yet.
         getRoomMetadata: (options: {
@@ -560,7 +560,7 @@ export async function readAgentWebMessagingPageAroundMessage<
 
     let beforeCursor = initialMessages[0]!.index !== 0 ? initialMessages[0]!.index : null;
     let afterCursor = initialNextCursor;
-    let messages: ReadonlyArray<ApiMessageResponse> = initialMessages;
+    let messages: ReadonlyArray<ApiMessage> = initialMessages;
 
     while (true) {
         const isStartOfMessages = beforeCursor === null;
@@ -618,8 +618,8 @@ export async function readAgentWebMessagingPageAroundMessage<
                 data: {messages: currentAfterMessages, nextCursor: nextAfterCursor},
             },
         ]: [
-            {data: {messages: ReadonlyArray<ApiMessageResponse>; nextCursor: number | null}},
-            {data: {messages: ReadonlyArray<ApiMessageResponse>; nextCursor: number | null}},
+            {data: {messages: ReadonlyArray<ApiMessage>; nextCursor: number | null}},
+            {data: {messages: ReadonlyArray<ApiMessage>; nextCursor: number | null}},
         ] = await runAllPromises([
             beforeCursor === null
                 ? {data: {messages: [], nextCursor: null}}
@@ -664,7 +664,7 @@ function buildAgentWebMessagingPageFromApiMessages<
                 block: CustomBlock;
             } | null;
         };
-        messages: ReadonlyArray<ApiMessageResponse>;
+        messages: ReadonlyArray<ApiMessage>;
         hasMoreMessagesInDirection?: boolean;
         isStartOfMessages: boolean;
         isEndOfMessages: boolean;
@@ -690,7 +690,7 @@ function buildAgentWebMessagingPageFromApiMessages<
         differenceInMinutesSinceLastMessage: number;
         hasFiles: boolean;
         isDeleted: boolean;
-        messages: Array<ApiMessageResponse>;
+        messages: Array<ApiMessage>;
     } | null = null;
 
     const continueBlockBeforeMinutesSinceLastMessage = 5;
@@ -983,7 +983,7 @@ function buildAgentWebMessagingPageFromApiMessages<
             }
         }
 
-        const elements: Array<ApiContentBlockElementResponseWithoutKeys> = [];
+        const elements: Array<ApiContentBlockElementWithoutKeys> = [];
 
         for (const message of currentBlock.messages) {
             switch (message.payload.type) {
@@ -1048,8 +1048,8 @@ function buildAgentWebMessagingPageFromApiMessages<
 
 function convertApiMessageContentPayloadParentContentSnippetToContent(
     parent: ApiMessageContentPayloadParentContentSnippet,
-): ApiContentResponseWithoutKeys {
-    const elements: ReadonlyArray<ApiContentInlineElementResponse> = !parent.isTruncated
+): ApiContentWithoutKeys {
+    const elements: ReadonlyArray<ApiContentInlineElement> = !parent.isTruncated
         ? parent.elements
         : [...parent.elements, {type: "Text", text: " […]"}];
 
@@ -1057,14 +1057,13 @@ function convertApiMessageContentPayloadParentContentSnippetToContent(
 }
 
 function convertApiMessageFilesToElements(
-    files: ReadonlyArray<ApiMessageContentPayloadFileResponse>,
-): ReadonlyArray<ApiContentBlockElementResponseWithoutKeys> {
+    files: ReadonlyArray<ApiMessageContentPayloadFile>,
+): ReadonlyArray<ApiContentBlockElementWithoutKeys> {
     if (files.length === 0) return [];
 
-    const rows = new DefaultMap<
-        number,
-        Array<ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys>
-    >(() => []);
+    const rows = new DefaultMap<number, Array<ApiContentFileGalleryBlockElementRowItemWithoutKeys>>(
+        () => [],
+    );
 
     for (const file of files) {
         rows.getOrSetDefault(file.rowIndex).push({width: file.width, element: file.element});

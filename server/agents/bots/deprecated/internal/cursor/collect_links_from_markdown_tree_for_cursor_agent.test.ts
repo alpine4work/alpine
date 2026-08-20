@@ -3,7 +3,7 @@ import {MemoryStorage} from "@miniflare/storage-memory";
 import {collectLinksFromMarkdownTreeForCursorAgent} from "~/server/agents/bots/deprecated/internal/cursor/collect_links_from_markdown_tree_for_cursor_agent.js";
 import {printApiContentToAgentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, ChannelId, DocumentId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
@@ -17,7 +17,7 @@ describe("account mentions", () => {
     test("ignores account links", async () => {
         const accountId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -53,7 +53,7 @@ describe("account mentions", () => {
         const aliceId = generateId<AccountId>();
         const bobId = generateId<AccountId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -91,7 +91,7 @@ describe("non-account links", () => {
     test("collects document links", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -118,7 +118,7 @@ describe("non-account links", () => {
     test("collects task links", async () => {
         const taskId = generateId<TaskId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -151,7 +151,7 @@ describe("non-account links", () => {
     test("collects channel links", async () => {
         const channelId = generateId<ChannelId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -180,7 +180,7 @@ describe("non-account links", () => {
         const documentId = generateId<DocumentId>();
         const taskId = generateId<TaskId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -235,7 +235,7 @@ describe("nested content", () => {
     test("collects links from nested content like lists", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "UnorderedList",
@@ -274,7 +274,7 @@ describe("nested content", () => {
     test("collects links from blockquotes", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Quote",
@@ -309,7 +309,7 @@ describe("nested content", () => {
 
 describe("edge cases", () => {
     test("returns empty map for content with no links", async () => {
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",
@@ -326,7 +326,7 @@ describe("edge cases", () => {
     });
 
     test("returns empty map for empty content", async () => {
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [],
         };
 
@@ -340,7 +340,7 @@ describe("edge cases", () => {
     test("handles links with styled text", async () => {
         const documentId = generateId<DocumentId>();
 
-        const content: ApiContentResponseWithoutKeys = {
+        const content: ApiContentWithoutKeys = {
             elements: [
                 {
                     type: "Paragraph",

@@ -10,7 +10,7 @@ import {createAgentWebTaskQueryCursorHash} from "~/server/agents/web/agent_web_t
 import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
-import {ApiTaskQueryDefaultsResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiTaskQueryDefaults} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -833,7 +833,7 @@ test("rejects an after cursor that is not from a next page link", async () => {
 });
 
 test("queries a task collection with custom filters and sorts", async () => {
-    const query: ApiTaskQueryDefaultsResponse = {
+    const query: ApiTaskQueryDefaults = {
         filters: [
             {
                 type: "Status",
@@ -897,7 +897,7 @@ End of tasks.`,
 });
 
 test("paginates custom task collection filters and sorts with after", async () => {
-    const query: ApiTaskQueryDefaultsResponse = {
+    const query: ApiTaskQueryDefaults = {
         filters: [
             {
                 type: "Status",

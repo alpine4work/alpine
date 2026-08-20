@@ -4,7 +4,7 @@ import escapeHtml from "escape-html";
 import {RootContent} from "mdast";
 import {AgentMessage} from "~/server/agents/bots/deprecated/internal/messages/agent_message.js";
 import {printAgentContentMarkdownTree} from "~/server/agents/bots/deprecated/internal/print_api_content_to_agent_markdown.js";
-import {ApiMessageContentPayloadParentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessageContentPayloadParent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {formatPrettyAbsoluteDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_absolute_date_without_full_time_tooltip.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {deserializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
@@ -227,7 +227,7 @@ export function printAgentMessagesIntoMarkdownTree(
 }
 
 function* getMessageParentHtml(
-    parent: (ApiMessageContentPayloadParentResponse & {markdownContent: Array<RootContent>}) | null,
+    parent: (ApiMessageContentPayloadParent & {markdownContent: Array<RootContent>}) | null,
 ): IterableIterator<RootContent | null> {
     if (parent === null) return null;
 

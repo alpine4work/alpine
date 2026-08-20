@@ -11,9 +11,9 @@ import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_conten
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {ApiContentResponseWithOptionalKeys} from "~/shared/api/specification/types/api_content_response_with_optional_keys.open_source.js";
 import {
-    ApiContentResponse,
-    ApiMessageResponse,
-    ApiPostResponse,
+    ApiContent,
+    ApiMessage,
+    ApiPost,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
@@ -46,7 +46,7 @@ const losAngelesTimeZone = assertTimeZone("America/Los_Angeles");
 const chicagoTimeZone = assertTimeZone("America/Chicago");
 
 // Helper to create sample content
-function createSampleContent(...texts: Array<string>): ApiContentResponse {
+function createSampleContent(...texts: Array<string>): ApiContent {
     return addKeysToApiContentForTest({
         elements: texts.map(text => ({
             type: "Paragraph",
@@ -67,7 +67,7 @@ function mockGetPost(
     spaceId: SpaceId,
     postId: PostId,
     responseData: Partial<
-        Omit<ApiPostResponse, "id" | "content"> & {content: ApiContentResponseWithOptionalKeys}
+        Omit<ApiPost, "id" | "content"> & {content: ApiContentResponseWithOptionalKeys}
     > &
         Record<string, unknown>,
 ): void {
@@ -98,7 +98,7 @@ function mockGetPostCommentsList(
     responseData: {
         totalMessageCount?: number;
         nextCursor?: number | null;
-        messages?: Array<ApiMessageResponse>;
+        messages?: Array<ApiMessage>;
     },
     pageInfo?: {
         from?: "Start" | "End";
@@ -459,7 +459,7 @@ ${"Hi Alice, how are you?".repeat(200)}
     - with a nested list
     - item
 `,
-                        ) as ApiContentResponse,
+                        ) as ApiContent,
                         files: [],
                     },
                     createdTimeZone: losAngelesTimeZone,

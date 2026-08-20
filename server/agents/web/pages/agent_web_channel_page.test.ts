@@ -6,13 +6,13 @@ import {
 } from "~/server/agents/web/pages/agent_web_channel_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiContentInlineElementResponse,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
+    ApiAccountReference,
+    ApiContentInlineElement,
+    ApiContentParagraphBlockElementWithoutKeys,
     ApiContentTextInlineElement,
-    ApiMentionReferenceResponse,
-    ApiPostReferenceResponse,
+    ApiContentWithoutKeys,
+    ApiMentionReference,
+    ApiPostReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -23,13 +23,7 @@ const launchPostId = generateId<PostId>();
 const seeMorePostId = generateId<PostId>();
 const roadmapPostId = generateId<PostId>();
 
-function accountReference({
-    name,
-    botId,
-}: {
-    name: string;
-    botId?: BotId;
-}): ApiAccountReferenceResponse {
+function accountReference({name, botId}: {name: string; botId?: BotId}): ApiAccountReference {
     return {
         type: "Account",
         id: generateId<AccountId>(),
@@ -43,46 +37,44 @@ const aliceReference = accountReference({name: "Alice"});
 const bobReference = accountReference({name: "Bob"});
 const seeMoreAccountReference = accountReference({name: "See more »"});
 
-const launchPostReference: ApiPostReferenceResponse = {
+const launchPostReference: ApiPostReference = {
     type: "Post",
     id: launchPostId,
     title: "Launch notes",
 };
 
-const roadmapPostReference: ApiPostReferenceResponse = {
+const roadmapPostReference: ApiPostReference = {
     type: "Post",
     id: roadmapPostId,
     title: "Roadmap",
 };
 
-const seeMorePostReference: ApiPostReferenceResponse = {
+const seeMorePostReference: ApiPostReference = {
     type: "Post",
     id: seeMorePostId,
     title: "See more »",
 };
 
-function content(
-    elements: ApiContentResponseWithoutKeys["elements"],
-): ApiContentResponseWithoutKeys {
+function content(elements: ApiContentWithoutKeys["elements"]): ApiContentWithoutKeys {
     return {elements};
 }
 
 function paragraph(
-    elements: ReadonlyArray<ApiContentInlineElementResponse>,
-): ApiContentParagraphBlockElementResponseWithoutKeys {
+    elements: ReadonlyArray<ApiContentInlineElement>,
+): ApiContentParagraphBlockElementWithoutKeys {
     return {type: "Paragraph", elements};
 }
 
 function unorderedList(
     items: ReadonlyArray<{
-        readonly elements: ReadonlyArray<ApiContentParagraphBlockElementResponseWithoutKeys>;
+        readonly elements: ReadonlyArray<ApiContentParagraphBlockElementWithoutKeys>;
     }>,
-): ApiContentResponseWithoutKeys["elements"][number] {
+): ApiContentWithoutKeys["elements"][number] {
     return {type: "UnorderedList", items};
 }
 
-function listItem(elements: ReadonlyArray<ApiContentParagraphBlockElementResponseWithoutKeys>): {
-    readonly elements: ReadonlyArray<ApiContentParagraphBlockElementResponseWithoutKeys>;
+function listItem(elements: ReadonlyArray<ApiContentParagraphBlockElementWithoutKeys>): {
+    readonly elements: ReadonlyArray<ApiContentParagraphBlockElementWithoutKeys>;
 } {
     return {elements};
 }
@@ -94,7 +86,7 @@ function text(
     return {type: "Text", text, ...(marks ? {marks} : {})};
 }
 
-function mention(reference: ApiMentionReferenceResponse): ApiContentInlineElementResponse {
+function mention(reference: ApiMentionReference): ApiContentInlineElement {
     return {type: "Mention", reference};
 }
 

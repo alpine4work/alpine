@@ -11,10 +11,10 @@ import {messageStreamPingIntervalMs} from "~/shared/agents/message_stream_ping_i
 import {convertApiContentToProperQuotes} from "~/shared/api/content/convert_api_content_to_proper_quotes.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
-    ApiMessageResponse,
-    ApiMessageStreamExperimentalApprovalsPartPayload,
-    ApiMessageStreamPartPayload,
-    ApiMessageStreamToolCallPartPayloadCall,
+    ApiMessage,
+    ApiMessageStreamExperimentalApprovalsPartPayloadRequest,
+    ApiMessageStreamPartPayloadRequest,
+    ApiMessageStreamToolCallPartPayloadCallRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {Mutex} from "~/shared/helpers/async/mutex.open_source.js";
@@ -80,7 +80,7 @@ interface AgentMessageStreamSessionInterface {
     // E.g.
     //
     // "Reading @Cool doc..." -> "Read @Cool doc."
-    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall): void;
+    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCallRequest): void;
 
     /**
      * Push an interactive approval-request card: the agent paused, awaiting human
@@ -89,7 +89,7 @@ interface AgentMessageStreamSessionInterface {
      */
     pushApprovalRequest(
         span: TracerSpan,
-        payload: ApiMessageStreamExperimentalApprovalsPartPayload,
+        payload: ApiMessageStreamExperimentalApprovalsPartPayloadRequest,
     ): void;
 
     /**
@@ -265,7 +265,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
         }
     }
 
-    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCall) {
+    pushToolCall(span: TracerSpan, call: ApiMessageStreamToolCallPartPayloadCallRequest) {
         assert(!this._isCompleted);
         this._flushUpdateTextState();
         void this._update(span, [{type: "ToolCall", call}]);
@@ -273,7 +273,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
 
     pushApprovalRequest(
         span: TracerSpan,
-        payload: ApiMessageStreamExperimentalApprovalsPartPayload,
+        payload: ApiMessageStreamExperimentalApprovalsPartPayloadRequest,
     ) {
         assert(!this._isCompleted);
         this._flushUpdateTextState();
@@ -364,7 +364,7 @@ export class AgentMessageStreamSession implements AgentMessageStreamSessionInter
      */
     private _update(
         updateSpan: TracerSpan,
-        newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayload, {type: "Content"}>>,
+        newPartPayloads?: Array<Exclude<ApiMessageStreamPartPayloadRequest, {type: "Content"}>>,
     ) {
         return this._mutex.withLock(async () => {
             const putParts = await this._agentMessageStream.update(updateSpan, newPartPayloads);
@@ -486,7 +486,7 @@ async function createAgentEmptyStreamMessage(
     tracer: TracerBase,
     request: AgentWebhookRequest,
     conversationTimeZone: TimeZone,
-): Promise<ApiMessageResponse> {
+): Promise<ApiMessage> {
     // TODO(calebmer, #ai): When you're talking to AI in a messaging room we probably
     // shouldn't update an inbox entry if you're viewing the AI's response. What's the
     // right heuristic here?

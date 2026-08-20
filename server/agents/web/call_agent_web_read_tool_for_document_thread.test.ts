@@ -11,14 +11,14 @@ import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_a
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiContentBlockElementResponseWithoutKeys,
-    ApiContentFileBlockElementResponseWithoutKeys,
+    ApiContent,
+    ApiContentBlockElementWithoutKeys,
+    ApiContentFileBlockElementWithoutKeys,
+    ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiContentInlineElementResponse,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponse,
-    ApiDocumentReferenceResponse,
-    ApiMessageResponse,
+    ApiContentParagraphBlockElementWithoutKeys,
+    ApiDocumentReference,
+    ApiMessage,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
@@ -51,7 +51,7 @@ const otherThreadId = generateId<DocumentCommentThreadId>();
 const aliceAccount = createApiAccountMock({name: "Alice"});
 const bobAccount = createApiAccountMock({name: "Bob"});
 
-const documentReference: ApiDocumentReferenceResponse = {
+const documentReference: ApiDocumentReference = {
     type: "Document",
     id: documentId,
     title: "Launch Spec",
@@ -95,21 +95,21 @@ beforeEach(async () => {
 });
 
 function contentFromBlockElements(
-    elements: ReadonlyArray<ApiContentBlockElementResponseWithoutKeys>,
-): ApiContentResponse {
+    elements: ReadonlyArray<ApiContentBlockElementWithoutKeys>,
+): ApiContent {
     return addKeysToApiContentForTest({elements});
 }
 
 function paragraph(
-    elements: ReadonlyArray<ApiContentInlineElementResponse>,
-): ApiContentParagraphBlockElementResponseWithoutKeys {
+    elements: ReadonlyArray<ApiContentInlineElement>,
+): ApiContentParagraphBlockElementWithoutKeys {
     return {type: "Paragraph", elements};
 }
 
 function text(
     text: string,
     marks?: ReadonlyArray<ApiContentInlineElementMark>,
-): ApiContentInlineElementResponse {
+): ApiContentInlineElement {
     return marks ? {type: "Text", text, marks} : {type: "Text", text};
 }
 
@@ -126,17 +126,15 @@ function commentedText(
         id?: DocumentCommentThreadId;
         marks?: ReadonlyArray<ApiContentInlineElementMark>;
     } = {},
-): ApiContentInlineElementResponse {
+): ApiContentInlineElement {
     return {type: "Text", text, marks: [commentMark(id), ...marks]};
 }
 
-function contentFromCommentedText(text: string): ApiContentResponse {
+function contentFromCommentedText(text: string): ApiContent {
     return contentFromBlockElements([paragraph([commentedText(text)])]);
 }
 
-function commentedFile(
-    contentType: ApiContentFileBlockElementResponseWithoutKeys["file"]["contentType"],
-) {
+function commentedFile(contentType: ApiContentFileBlockElementWithoutKeys["file"]["contentType"]) {
     return {
         type: "File" as const,
         file: {
@@ -148,7 +146,7 @@ function commentedFile(
     };
 }
 
-function documentContentSnippet(): ApiContentResponse {
+function documentContentSnippet(): ApiContent {
     return contentFromBlockElements([
         paragraph([
             text("Keep "),
@@ -175,9 +173,9 @@ function mockGetDocumentThread({
     isResolved = false,
 }: {
     commentCount?: number;
-    documentContent?: ApiContentResponse;
+    documentContent?: ApiContent;
     createdTime?: Date;
-    previewContent?: ApiContentResponse;
+    previewContent?: ApiContent;
     isResolved?: boolean;
 } = {}) {
     api.mockGet("/documents/{id}/threads/{threadId}-with-preview", {
@@ -208,9 +206,7 @@ function mockGetDocumentThread({
     });
 }
 
-function mockGetDocument({
-    content = documentContentSnippet(),
-}: {content?: ApiContentResponse} = {}) {
+function mockGetDocument({content = documentContentSnippet()}: {content?: ApiContent} = {}) {
     mockApiGetDocument(api, {
         spaceId,
         documentId,
@@ -241,7 +237,7 @@ function mockMessages({
     cursor?: number;
     from?: "Start" | "End";
     limit?: number;
-    createMessage?: (index: number) => ApiMessageResponse;
+    createMessage?: (index: number) => ApiMessage;
 }) {
     mockApiGetDocumentThreadMessages(api, {
         spaceId,

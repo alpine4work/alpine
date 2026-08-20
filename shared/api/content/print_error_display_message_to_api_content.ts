@@ -1,10 +1,10 @@
-import {ApiContentInlineElement} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentInlineElementRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ErrorDisplayMessage} from "~/shared/error/types/error_display_message_type.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 
 export function printErrorDisplayMessageToApiContent(
     displayMessage: ErrorDisplayMessage,
-): Array<ApiContentInlineElement> {
+): Array<ApiContentInlineElementRequest> {
     return displayMessage.map(displayMessageSegment => {
         switch (displayMessageSegment.type) {
             case "Text":

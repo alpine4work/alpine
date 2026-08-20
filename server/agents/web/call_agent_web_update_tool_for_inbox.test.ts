@@ -5,7 +5,7 @@ import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/age
 import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {createAgentWebPageStoredLinkPathname} from "~/server/agents/web/create_agent_web_page_stored_link_pathname.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiInboxEntryResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiInboxEntry} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -70,7 +70,7 @@ test("throws when updating an inbox", async () => {
         data: {reference: accountReference},
     });
 
-    const entry: ApiInboxEntryResponse = {
+    const entry: ApiInboxEntry = {
         type: "CreatedChannelPosts",
         title: [{type: "Text", text: "New posts in Engineering"}],
         preview: [

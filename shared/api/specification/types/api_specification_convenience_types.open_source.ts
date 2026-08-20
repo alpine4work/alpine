@@ -17,49 +17,46 @@ export type ApiContentRange = ApiSpecification.components["schemas"]["ContentRan
 
 export type ApiTaskCollectionColor = ApiSpecification.components["schemas"]["TaskCollectionColor"];
 
+export type ApiAccountReferenceRequest =
+    ApiSpecification.components["schemas"]["AccountReference_Request"];
+
 export type ApiAccountReference = ApiSpecification.components["schemas"]["AccountReference"];
 
-export type ApiAccountReferenceResponse =
-    ApiSpecification.components["schemas"]["AccountReference_Response"];
+export type ApiChannelReferenceRequest =
+    ApiSpecification.components["schemas"]["ChannelReference_Request"];
 
 export type ApiChannelReference = ApiSpecification.components["schemas"]["ChannelReference"];
 
-export type ApiChannelReferenceResponse =
-    ApiSpecification.components["schemas"]["ChannelReference_Response"];
+export type ApiChatReferenceRequest =
+    ApiSpecification.components["schemas"]["ChatReference_Request"];
 
 export type ApiChatReference = ApiSpecification.components["schemas"]["ChatReference"];
 
-export type ApiChatReferenceResponse =
-    ApiSpecification.components["schemas"]["ChatReference_Response"];
+export type ApiDocumentReferenceRequest =
+    ApiSpecification.components["schemas"]["DocumentReference_Request"];
 
 export type ApiDocumentReference = ApiSpecification.components["schemas"]["DocumentReference"];
 
-export type ApiDocumentReferenceResponse =
-    ApiSpecification.components["schemas"]["DocumentReference_Response"];
-
-export type ApiDocumentThreadReference =
-    ApiSpecification.components["schemas"]["DocumentThreadReference"];
+export type ApiPostReferenceRequest =
+    ApiSpecification.components["schemas"]["PostReference_Request"];
 
 export type ApiPostReference = ApiSpecification.components["schemas"]["PostReference"];
 
-export type ApiPostReferenceResponse =
-    ApiSpecification.components["schemas"]["PostReference_Response"];
+export type ApiTaskReferenceRequest =
+    ApiSpecification.components["schemas"]["TaskReference_Request"];
 
 export type ApiTaskReference = ApiSpecification.components["schemas"]["TaskReference"];
 
-export type ApiTaskReferenceResponse =
-    ApiSpecification.components["schemas"]["TaskReference_Response"];
+export type ApiTaskCollectionReferenceRequest =
+    ApiSpecification.components["schemas"]["TaskCollectionReference_Request"];
 
 export type ApiTaskCollectionReference =
     ApiSpecification.components["schemas"]["TaskCollectionReference"];
 
-export type ApiTaskCollectionReferenceResponse =
-    ApiSpecification.components["schemas"]["TaskCollectionReference_Response"];
+export type ApiSiteReferenceRequest =
+    ApiSpecification.components["schemas"]["SiteReference_Request"];
 
 export type ApiSiteReference = ApiSpecification.components["schemas"]["SiteReference"];
-
-export type ApiSiteReferenceResponse =
-    ApiSpecification.components["schemas"]["SiteReference_Response"];
 
 export type ApiMentionReference = ApiSpecification.components["schemas"]["MentionReference"];
 
@@ -73,14 +70,14 @@ export type ApiContent = ApiSpecification.components["schemas"]["Content"];
 
 export type ApiContentBlockElement = ApiSpecification.components["schemas"]["ContentBlockElement"];
 
+export type ApiContentParagraphBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentParagraphBlockElement_Request"];
+
 export type ApiContentParagraphBlockElement =
     ApiSpecification.components["schemas"]["ContentParagraphBlockElement"];
 
-export type ApiContentParagraphBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentParagraphBlockElement_Response"];
-
-export type ApiContentParagraphBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentParagraphBlockElement_Response_WithoutKeys"];
+export type ApiContentParagraphBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentParagraphBlockElement_WithoutKeys"];
 
 export type ApiContentListBlockElement =
     ApiSpecification.components["schemas"]["ContentListBlockElement"];
@@ -106,23 +103,23 @@ export type ApiContentQuoteBlockElement =
 export type ApiContentQuoteBlockElementBlockElement =
     ApiSpecification.components["schemas"]["ContentQuoteBlockElementBlockElement"];
 
+export type ApiContentHeadingBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentHeadingBlockElement_Request"];
+
 export type ApiContentHeadingBlockElement =
     ApiSpecification.components["schemas"]["ContentHeadingBlockElement"];
 
-export type ApiContentHeadingBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentHeadingBlockElement_Response"];
+export type ApiContentHeadingBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentHeadingBlockElement_WithoutKeys"];
 
-export type ApiContentHeadingBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentHeadingBlockElement_Response_WithoutKeys"];
+export type ApiContentDividerBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentDividerBlockElement_Request"];
 
 export type ApiContentDividerBlockElement =
     ApiSpecification.components["schemas"]["ContentDividerBlockElement"];
 
-export type ApiContentDividerBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentDividerBlockElement_Response"];
-
-export type ApiContentDividerBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentDividerBlockElement_Response_WithoutKeys"];
+export type ApiContentDividerBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentDividerBlockElement_WithoutKeys"];
 
 export type ApiContentTableBlockElement =
     ApiSpecification.components["schemas"]["ContentTableBlockElement"];
@@ -139,38 +136,38 @@ export type ApiContentTableBlockElementCellBlockElement =
 export type ApiContentCodeBlockElement =
     ApiSpecification.components["schemas"]["ContentCodeBlockElement"];
 
+export type ApiContentCodeBlockElementLineRequest =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine_Request"];
+
 export type ApiContentCodeBlockElementLine =
     ApiSpecification.components["schemas"]["ContentCodeBlockElementLine"];
 
-export type ApiContentCodeBlockElementLineResponse =
-    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine_Response"];
+export type ApiContentCodeBlockElementLineWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine_WithoutKeys"];
 
-export type ApiContentCodeBlockElementLineResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentCodeBlockElementLine_Response_WithoutKeys"];
+export type ApiContentFileBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentFileBlockElement_Request"];
 
 export type ApiContentFileBlockElement =
     ApiSpecification.components["schemas"]["ContentFileBlockElement"];
 
-export type ApiContentFileBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentFileBlockElement_Response"];
+export type ApiContentFileBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentFileBlockElement_WithoutKeys"];
 
-export type ApiContentFileBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentFileBlockElement_Response_WithoutKeys"];
+export type ApiContentFileBlockElementFileRequest =
+    ApiSpecification.components["schemas"]["ContentFileBlockElementFile_Request"];
 
 export type ApiContentFileBlockElementFile =
     ApiSpecification.components["schemas"]["ContentFileBlockElementFile"];
 
-export type ApiContentFileBlockElementFileResponse =
-    ApiSpecification.components["schemas"]["ContentFileBlockElementFile_Response"];
+export type ApiContentPreviewBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentPreviewBlockElement_Request"];
 
 export type ApiContentPreviewBlockElement =
     ApiSpecification.components["schemas"]["ContentPreviewBlockElement"];
 
-export type ApiContentPreviewBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentPreviewBlockElement_Response"];
-
-export type ApiContentPreviewBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentPreviewBlockElement_Response_WithoutKeys"];
+export type ApiContentPreviewBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentPreviewBlockElement_WithoutKeys"];
 
 export type ApiContentFileGalleryBlockElement =
     ApiSpecification.components["schemas"]["ContentFileGalleryBlockElement"];
@@ -178,11 +175,11 @@ export type ApiContentFileGalleryBlockElement =
 export type ApiContentFileGalleryBlockElementRow =
     ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRow"];
 
+export type ApiContentFileGalleryBlockElementRowItemRequest =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRowItem_Request"];
+
 export type ApiContentFileGalleryBlockElementRowItem =
     ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRowItem"];
-
-export type ApiContentFileGalleryBlockElementRowItemResponse =
-    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRowItem_Response"];
 
 export type ApiContentFileFloatBlockElement =
     ApiSpecification.components["schemas"]["ContentFileFloatBlockElement"];
@@ -242,18 +239,13 @@ export type ApiLabelContentMentionInlineElement =
 
 export type ApiAccountWithoutSpace = ApiSpecification.components["schemas"]["AccountWithoutSpace"];
 
-export type ApiAccountWithoutSpaceResponse =
-    ApiSpecification.components["schemas"]["AccountWithoutSpace_Response"];
-
 export type ApiSpace = ApiSpecification.components["schemas"]["Space"];
+
+export type ApiAccountRequest = ApiSpecification.components["schemas"]["Account_Request"];
 
 export type ApiAccount = ApiSpecification.components["schemas"]["Account"];
 
-export type ApiAccountResponse = ApiSpecification.components["schemas"]["Account_Response"];
-
 export type ApiBotAccount = ApiSpecification.components["schemas"]["BotAccount"];
-
-export type ApiBotAccountResponse = ApiSpecification.components["schemas"]["BotAccount_Response"];
 
 export type ApiAccountSpace = ApiSpecification.components["schemas"]["AccountSpace"];
 
@@ -267,8 +259,6 @@ export type ApiAccountSpaceInvitePendingInactive =
     ApiSpecification.components["schemas"]["AccountSpaceInvitePendingInactive"];
 
 export type ApiInbox = ApiSpecification.components["schemas"]["Inbox"];
-
-export type ApiInboxEntryShared = ApiSpecification.components["schemas"]["InboxEntryShared"];
 
 export type ApiInboxEntryTitleItem = ApiSpecification.components["schemas"]["InboxEntryTitleItem"];
 
@@ -314,23 +304,18 @@ export type ApiDirectChat = ApiSpecification.components["schemas"]["DirectChat"]
 
 export type ApiRoomChat = ApiSpecification.components["schemas"]["RoomChat"];
 
-export type ApiChatCreateRequest = ApiSpecification.components["schemas"]["ChatCreateRequest"];
+export type ApiChatCreateRequest = ApiSpecification.components["schemas"]["ChatCreate_Request"];
 
 export type ApiDirectChatCreateRequest =
-    ApiSpecification.components["schemas"]["DirectChatCreateRequest"];
+    ApiSpecification.components["schemas"]["DirectChatCreate_Request"];
 
 export type ApiRoomChatCreateRequest =
-    ApiSpecification.components["schemas"]["RoomChatCreateRequest"];
+    ApiSpecification.components["schemas"]["RoomChatCreate_Request"];
 
 export type ApiDocument = ApiSpecification.components["schemas"]["Document"];
 
-export type ApiDocumentPatch = ApiSpecification.components["schemas"]["DocumentPatch"];
-
 export type ApiDocumentSetTitlePatch =
     ApiSpecification.components["schemas"]["DocumentSetTitlePatch"];
-
-export type ApiDocumentSetContentPatch =
-    ApiSpecification.components["schemas"]["DocumentSetContentPatch"];
 
 export type ApiDocumentThread = ApiSpecification.components["schemas"]["DocumentThread"];
 
@@ -349,12 +334,7 @@ export type ApiChannelPreview = ApiSpecification.components["schemas"]["ChannelP
 
 export type ApiChannel = ApiSpecification.components["schemas"]["Channel"];
 
-export type ApiChannelPatch = ApiSpecification.components["schemas"]["ChannelPatch"];
-
 export type ApiChannelSetNamePatch = ApiSpecification.components["schemas"]["ChannelSetNamePatch"];
-
-export type ApiChannelSetDescriptionPatch =
-    ApiSpecification.components["schemas"]["ChannelSetDescriptionPatch"];
 
 export type ApiPost = ApiSpecification.components["schemas"]["Post"];
 
@@ -382,27 +362,17 @@ export type ApiTaskUrgentPriority = ApiSpecification.components["schemas"]["Task
 
 export type ApiTaskNotes = ApiSpecification.components["schemas"]["TaskNotes"];
 
-export type ApiTaskNotesPatch = ApiSpecification.components["schemas"]["TaskNotesPatch"];
-
-export type ApiTaskNotesSetContentPatch =
-    ApiSpecification.components["schemas"]["TaskNotesSetContentPatch"];
-
 export type ApiTaskLayout = ApiSpecification.components["schemas"]["TaskLayout"];
+
+export type ApiTaskParentRequest = ApiSpecification.components["schemas"]["TaskParent_Request"];
 
 export type ApiTaskParent = ApiSpecification.components["schemas"]["TaskParent"];
 
-export type ApiTaskParentResponse = ApiSpecification.components["schemas"]["TaskParent_Response"];
-
 export type ApiTaskCollectionItem = ApiSpecification.components["schemas"]["TaskCollectionItem"];
 
-export type ApiTaskCreateRequest = ApiSpecification.components["schemas"]["TaskCreateRequest"];
-
-export type ApiTaskPatch = ApiSpecification.components["schemas"]["TaskPatch"];
+export type ApiTaskCreateRequest = ApiSpecification.components["schemas"]["TaskCreate_Request"];
 
 export type ApiTaskSetTitlePatch = ApiSpecification.components["schemas"]["TaskSetTitlePatch"];
-
-export type ApiTaskSetAssigneePatch =
-    ApiSpecification.components["schemas"]["TaskSetAssigneePatch"];
 
 export type ApiTaskSetStatusPatch = ApiSpecification.components["schemas"]["TaskSetStatusPatch"];
 
@@ -413,13 +383,8 @@ export type ApiTaskSetPriorityPatch =
 
 export type ApiTaskSetLayoutPatch = ApiSpecification.components["schemas"]["TaskSetLayoutPatch"];
 
-export type ApiTaskSetParentPatch = ApiSpecification.components["schemas"]["TaskSetParentPatch"];
-
 export type ApiTaskMoveInParentPatch =
     ApiSpecification.components["schemas"]["TaskMoveInParentPatch"];
-
-export type ApiTaskAddCollectionPatch =
-    ApiSpecification.components["schemas"]["TaskAddCollectionPatch"];
 
 export type ApiTaskRemoveCollectionPatch =
     ApiSpecification.components["schemas"]["TaskRemoveCollectionPatch"];
@@ -474,14 +439,6 @@ export type ApiTaskRemoveCollectionPatchResult =
 export type ApiTaskMoveInCollectionPatchResult =
     ApiSpecification.components["schemas"]["TaskMoveInCollectionPatchResult"];
 
-export type ApiTaskBatchPatch = ApiSpecification.components["schemas"]["TaskBatchPatch"];
-
-export type ApiTaskBatchCreatePatch =
-    ApiSpecification.components["schemas"]["TaskBatchCreatePatch"];
-
-export type ApiTaskBatchUpdatePatch =
-    ApiSpecification.components["schemas"]["TaskBatchUpdatePatch"];
-
 export type ApiTaskBatchPatchResult =
     ApiSpecification.components["schemas"]["TaskBatchPatchResult"];
 
@@ -507,19 +464,13 @@ export type ApiTaskClosedStatus = ApiSpecification.components["schemas"]["TaskCl
 
 export type ApiTaskCollection = ApiSpecification.components["schemas"]["TaskCollection"];
 
-export type ApiTaskCollectionResponse =
-    ApiSpecification.components["schemas"]["TaskCollection_Response"];
+export type ApiTaskCollectionPreviewRequest =
+    ApiSpecification.components["schemas"]["TaskCollectionPreview_Request"];
 
 export type ApiTaskCollectionPreview =
     ApiSpecification.components["schemas"]["TaskCollectionPreview"];
 
-export type ApiTaskCollectionPreviewResponse =
-    ApiSpecification.components["schemas"]["TaskCollectionPreview_Response"];
-
 export type ApiTaskQueryDefaults = ApiSpecification.components["schemas"]["TaskQueryDefaults"];
-
-export type ApiTaskQueryDefaultsResponse =
-    ApiSpecification.components["schemas"]["TaskQueryDefaults_Response"];
 
 export type ApiTaskQueryFilter = ApiSpecification.components["schemas"]["TaskQueryFilter"];
 
@@ -738,40 +689,29 @@ export type ApiMessagePayload = ApiSpecification.components["schemas"]["MessageP
 export type ApiMessageContentPayload =
     ApiSpecification.components["schemas"]["MessageContentPayload"];
 
-export type ApiMessageContentPayloadResponse =
-    ApiSpecification.components["schemas"]["MessageContentPayload_Response"];
+export type ApiMessageContentPayloadFileRequest =
+    ApiSpecification.components["schemas"]["MessageContentPayloadFile_Request"];
 
 export type ApiMessageContentPayloadFile =
     ApiSpecification.components["schemas"]["MessageContentPayloadFile"];
 
-export type ApiMessageContentPayloadFileResponse =
-    ApiSpecification.components["schemas"]["MessageContentPayloadFile_Response"];
-
 export type ApiMessageContentPayloadParent =
     ApiSpecification.components["schemas"]["MessageContentPayloadParent"];
+
+export type ApiMessageContentPayloadMessageParentRequest =
+    ApiSpecification.components["schemas"]["MessageContentPayloadMessageParent_Request"];
 
 export type ApiMessageContentPayloadMessageParent =
     ApiSpecification.components["schemas"]["MessageContentPayloadMessageParent"];
 
-export type ApiMessageContentPayloadMessageParentResponse =
-    ApiSpecification.components["schemas"]["MessageContentPayloadMessageParent_Response"];
+export type ApiMessageContentPayloadPostParentRequest =
+    ApiSpecification.components["schemas"]["MessageContentPayloadPostParent_Request"];
 
 export type ApiMessageContentPayloadPostParent =
     ApiSpecification.components["schemas"]["MessageContentPayloadPostParent"];
 
-export type ApiMessageContentPayloadPostParentResponse =
-    ApiSpecification.components["schemas"]["MessageContentPayloadPostParent_Response"];
-
 export type ApiMessageDeletedPayload =
     ApiSpecification.components["schemas"]["MessageDeletedPayload"];
-
-export type ApiMessageStreamPart = ApiSpecification.components["schemas"]["MessageStreamPart"];
-
-export type ApiMessageStreamPartPayload =
-    ApiSpecification.components["schemas"]["MessageStreamPartPayload"];
-
-export type ApiMessageStreamExperimentalApprovalsPartPayload =
-    ApiSpecification.components["schemas"]["MessageStreamExperimentalApprovalsPartPayload"];
 
 export type ApiMessageExperimentalApproval =
     ApiSpecification.components["schemas"]["MessageExperimentalApproval"];
@@ -797,38 +737,26 @@ export type ApiMessageExperimentalApprovalDecisionApprovedForSessionOption =
 export type ApiMessageExperimentalApprovalDecisionValue =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionValue"];
 
+export type ApiMessageExperimentalApprovalDecisionApprovedValueRequest =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedValue_Request"];
+
 export type ApiMessageExperimentalApprovalDecisionApprovedValue =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedValue"];
 
-export type ApiMessageExperimentalApprovalDecisionApprovedValueResponse =
-    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedValue_Response"];
+export type ApiMessageExperimentalApprovalDecisionRejectedValueRequest =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionRejectedValue_Request"];
 
 export type ApiMessageExperimentalApprovalDecisionRejectedValue =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionRejectedValue"];
 
-export type ApiMessageExperimentalApprovalDecisionRejectedValueResponse =
-    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionRejectedValue_Response"];
+export type ApiMessageExperimentalApprovalDecisionApprovedForSessionValueRequest =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValue_Request"];
 
 export type ApiMessageExperimentalApprovalDecisionApprovedForSessionValue =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValue"];
 
-export type ApiMessageExperimentalApprovalDecisionApprovedForSessionValueResponse =
-    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValue_Response"];
-
 export type ApiMessageExperimentalApprovalDecisionApprovedForSessionValueScope =
     ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionValueScope"];
-
-export type ApiMessageStreamContentPartPayload =
-    ApiSpecification.components["schemas"]["MessageStreamContentPartPayload"];
-
-export type ApiMessageStreamReasoningPartPayload =
-    ApiSpecification.components["schemas"]["MessageStreamReasoningPartPayload"];
-
-export type ApiMessageStreamToolCallPartPayload =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayload"];
-
-export type ApiMessageStreamToolCallPartPayloadCall =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall"];
 
 export type ApiBotWebhookEvent = ApiSpecification.components["schemas"]["BotWebhookEvent"];
 
@@ -858,9 +786,6 @@ export type ApiMessageContentPayloadParentContentSnippetTextInlineElement =
 
 export type ApiMessageContentPayloadParentContentSnippetInlineElementMark =
     ApiSpecification.components["schemas"]["MessageContentPayloadParentContentSnippetInlineElementMark"];
-
-export type ApiMessageRoomReference =
-    ApiSpecification.components["schemas"]["MessageRoomReference"];
 
 export type ApiSearchResult = ApiSpecification.components["schemas"]["SearchResult"];
 
@@ -905,394 +830,279 @@ export type ApiSearchResultBodySnippetMatch =
 export type ApiSearchResultParsedFilter =
     ApiSpecification.components["schemas"]["SearchResultParsedFilter"];
 
-export type ApiActor = ApiSpecification.components["schemas"]["Actor"];
+export type ApiActorRequest = ApiSpecification.components["schemas"]["Actor_Request"];
 
-export type ApiActorResponse = ApiSpecification.components["schemas"]["Actor_Response"];
+export type ApiActor = ApiSpecification.components["schemas"]["Actor"];
 
 export type ApiActorBotFrom = ApiSpecification.components["schemas"]["ActorBotFrom"];
 
-export type ApiMessageResponse = ApiSpecification.components["schemas"]["Message_Response"];
+export type ApiMessageContentPayloadParentRequest =
+    ApiSpecification.components["schemas"]["MessageContentPayloadParent_Request"];
 
-export type ApiDocumentThreadResponse =
-    ApiSpecification.components["schemas"]["DocumentThread_Response"];
+export type ApiMessageExperimentalApprovalDecisionValueRequest =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionValue_Request"];
 
-export type ApiDocumentThreadWithPreviewResponse =
-    ApiSpecification.components["schemas"]["DocumentThreadWithPreview_Response"];
+export type ApiPreviewReferenceRequest =
+    ApiSpecification.components["schemas"]["PreviewReference_Request"];
 
-export type ApiPostPreviewResponse = ApiSpecification.components["schemas"]["PostPreview_Response"];
+export type ApiTaskCollectionItemRequest =
+    ApiSpecification.components["schemas"]["TaskCollectionItem_Request"];
 
-export type ApiTaskCreateRequestResponse =
-    ApiSpecification.components["schemas"]["TaskCreateRequest_Response"];
+export type ApiMessageRoomReferenceRequest =
+    ApiSpecification.components["schemas"]["MessageRoomReference_Request"];
 
-export type ApiTaskResponse = ApiSpecification.components["schemas"]["Task_Response"];
+export type ApiMentionReferenceRequest =
+    ApiSpecification.components["schemas"]["MentionReference_Request"];
 
-export type ApiTaskWithNotesResponse =
-    ApiSpecification.components["schemas"]["TaskWithNotes_Response"];
+export type ApiContentBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentBlockElement_Request"];
 
-export type ApiMessageContentPayloadParentResponse =
-    ApiSpecification.components["schemas"]["MessageContentPayloadParent_Response"];
+export type ApiTaskSetAssigneePatchRequest =
+    ApiSpecification.components["schemas"]["TaskSetAssigneePatch_Request"];
 
-export type ApiMessageExperimentalApprovalDecisionValueResponse =
-    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionValue_Response"];
+export type ApiTaskSetParentPatchRequest =
+    ApiSpecification.components["schemas"]["TaskSetParentPatch_Request"];
 
-export type ApiPostResponse = ApiSpecification.components["schemas"]["Post_Response"];
+export type ApiContentBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentBlockElement_WithoutKeys"];
 
-export type ApiPreviewReferenceResponse =
-    ApiSpecification.components["schemas"]["PreviewReference_Response"];
+export type ApiDocumentThreadReferenceRequest =
+    ApiSpecification.components["schemas"]["DocumentThreadReference_Request"];
 
-export type ApiBotAccountAuthResponse =
-    ApiSpecification.components["schemas"]["BotAccountAuth_Response"];
+export type ApiContentCodeBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElement_Request"];
 
-export type ApiInboxChatEntryResponse =
-    ApiSpecification.components["schemas"]["InboxChatEntry_Response"];
+export type ApiContentFileFloatBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentFileFloatBlockElement_Request"];
 
-export type ApiInboxCreatedChannelPostsEntryResponse =
-    ApiSpecification.components["schemas"]["InboxCreatedChannelPostsEntry_Response"];
+export type ApiContentCodeBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentCodeBlockElement_WithoutKeys"];
 
-export type ApiInboxPostEntryResponse =
-    ApiSpecification.components["schemas"]["InboxPostEntry_Response"];
+export type ApiContentFileFloatBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentFileFloatBlockElement_WithoutKeys"];
 
-export type ApiInboxCreatedDocumentThreadsEntryResponse =
-    ApiSpecification.components["schemas"]["InboxCreatedDocumentThreadsEntry_Response"];
+export type ApiContentListBlockElementItemRequest =
+    ApiSpecification.components["schemas"]["ContentListBlockElementItem_Request"];
 
-export type ApiInboxDocumentThreadEntryResponse =
-    ApiSpecification.components["schemas"]["InboxDocumentThreadEntry_Response"];
+export type ApiContentCheckListBlockElementItemRequest =
+    ApiSpecification.components["schemas"]["ContentCheckListBlockElementItem_Request"];
 
-export type ApiInboxTaskMessagesEntryResponse =
-    ApiSpecification.components["schemas"]["InboxTaskMessagesEntry_Response"];
+export type ApiContentQuoteBlockElementBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentQuoteBlockElementBlockElement_Request"];
 
-export type ApiDirectChatCreateRequestResponse =
-    ApiSpecification.components["schemas"]["DirectChatCreateRequest_Response"];
+export type ApiContentFileGalleryBlockElementRowRequest =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRow_Request"];
 
-export type ApiContentBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentBlockElement_Response"];
+export type ApiTaskQueryCollectionsFilterIncludesOneOfOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterIncludesOneOfOperation_Request"];
 
-export type ApiMessagePayloadResponse =
-    ApiSpecification.components["schemas"]["MessagePayload_Response"];
+export type ApiTaskQueryCollectionsFilterIncludesAllOfOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterIncludesAllOfOperation_Request"];
 
-export type ApiSearchChatMessageResultResponse =
-    ApiSpecification.components["schemas"]["SearchChatMessageResult_Response"];
+export type ApiTaskQueryCollectionsFilterExcludesAllOfOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterExcludesAllOfOperation_Request"];
 
-export type ApiSearchDocumentMessageResultResponse =
-    ApiSpecification.components["schemas"]["SearchDocumentMessageResult_Response"];
+export type ApiContentListBlockElementItemWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentListBlockElementItem_WithoutKeys"];
 
-export type ApiSearchPostResultResponse =
-    ApiSpecification.components["schemas"]["SearchPostResult_Response"];
+export type ApiContentCheckListBlockElementItemWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentCheckListBlockElementItem_WithoutKeys"];
 
-export type ApiSearchPostMessageResultResponse =
-    ApiSpecification.components["schemas"]["SearchPostMessageResult_Response"];
+export type ApiContentQuoteBlockElementBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentQuoteBlockElementBlockElement_WithoutKeys"];
 
-export type ApiSearchTaskMessageResultResponse =
-    ApiSpecification.components["schemas"]["SearchTaskMessageResult_Response"];
+export type ApiContentFileGalleryBlockElementRowItemWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRowItem_WithoutKeys"];
 
-export type ApiTaskCollectionItemResponse =
-    ApiSpecification.components["schemas"]["TaskCollectionItem_Response"];
+export type ApiContentTableBlockElementCellBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementCellBlockElement_Request"];
 
-export type ApiTaskSetAssigneePatchResponse =
-    ApiSpecification.components["schemas"]["TaskSetAssigneePatch_Response"];
+export type ApiTaskQueryAccountFilterOperationAccountItemRequest =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationAccountItem_Request"];
 
-export type ApiTaskSetParentPatchResponse =
-    ApiSpecification.components["schemas"]["TaskSetParentPatch_Response"];
+export type ApiContentTableBlockElementCellBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementCellBlockElement_WithoutKeys"];
 
-export type ApiBotWebhookCreatedPostEventResponse =
-    ApiSpecification.components["schemas"]["BotWebhookCreatedPostEvent_Response"];
+export type ApiContentRequest = ApiSpecification.components["schemas"]["Content_Request"];
 
-export type ApiDirectChatResponse = ApiSpecification.components["schemas"]["DirectChat_Response"];
+export type ApiTaskPatchRequest = ApiSpecification.components["schemas"]["TaskPatch_Request"];
 
-export type ApiInboxEntryAccountFeaturedResponse =
-    ApiSpecification.components["schemas"]["InboxEntryAccountFeatured_Response"];
+export type ApiContentWithoutKeys = ApiSpecification.components["schemas"]["Content_WithoutKeys"];
 
-export type ApiContentCodeBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentCodeBlockElement_Response"];
+export type ApiTaskAddCollectionPatchRequest =
+    ApiSpecification.components["schemas"]["TaskAddCollectionPatch_Request"];
 
-export type ApiContentFileFloatBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentFileFloatBlockElement_Response"];
+export type ApiMessageExperimentalApprovalDecisionRequest =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecision_Request"];
 
-export type ApiMessageRoomReferenceResponse =
-    ApiSpecification.components["schemas"]["MessageRoomReference_Response"];
+export type ApiContentMentionInlineElementRequest =
+    ApiSpecification.components["schemas"]["ContentMentionInlineElement_Request"];
 
-export type ApiMentionReferenceResponse =
-    ApiSpecification.components["schemas"]["MentionReference_Response"];
+export type ApiContentUnorderedListBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentUnorderedListBlockElement_Request"];
 
-export type ApiInboxEntryTitleAccountItemResponse =
-    ApiSpecification.components["schemas"]["InboxEntryTitleAccountItem_Response"];
+export type ApiContentOrderedListBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentOrderedListBlockElement_Request"];
 
-export type ApiInboxEntryPreviewAccountItemResponse =
-    ApiSpecification.components["schemas"]["InboxEntryPreviewAccountItem_Response"];
+export type ApiContentCheckListBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentCheckListBlockElement_Request"];
 
-export type ApiContentListBlockElementItemResponse =
-    ApiSpecification.components["schemas"]["ContentListBlockElementItem_Response"];
+export type ApiContentQuoteBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentQuoteBlockElement_Request"];
 
-export type ApiContentCheckListBlockElementItemResponse =
-    ApiSpecification.components["schemas"]["ContentCheckListBlockElementItem_Response"];
+export type ApiContentFileGalleryBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElement_Request"];
 
-export type ApiContentQuoteBlockElementBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentQuoteBlockElementBlockElement_Response"];
+export type ApiTaskQueryCollectionsFilterOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterOperation_Request"];
 
-export type ApiContentFileGalleryBlockElementRowResponse =
-    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRow_Response"];
+export type ApiContentUnorderedListBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentUnorderedListBlockElement_WithoutKeys"];
 
-export type ApiTaskQueryCollectionsFilterIncludesOneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterIncludesOneOfOperation_Response"];
+export type ApiContentOrderedListBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentOrderedListBlockElement_WithoutKeys"];
 
-export type ApiTaskQueryCollectionsFilterIncludesAllOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterIncludesAllOfOperation_Response"];
+export type ApiContentCheckListBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentCheckListBlockElement_WithoutKeys"];
 
-export type ApiTaskQueryCollectionsFilterExcludesAllOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterExcludesAllOfOperation_Response"];
+export type ApiContentQuoteBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentQuoteBlockElement_WithoutKeys"];
 
-export type ApiDocumentThreadReferenceResponse =
-    ApiSpecification.components["schemas"]["DocumentThreadReference_Response"];
+export type ApiLabelContentMentionInlineElementRequest =
+    ApiSpecification.components["schemas"]["LabelContentMentionInlineElement_Request"];
 
-export type ApiContentTableBlockElementCellBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentTableBlockElementCellBlockElement_Response"];
+export type ApiContentFileGalleryBlockElementRowWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRow_WithoutKeys"];
 
-export type ApiTaskQueryAccountFilterOperationAccountItemResponse =
-    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationAccountItem_Response"];
+export type ApiContentTableBlockElementCellRequest =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementCell_Request"];
 
-export type ApiContentBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentBlockElement_Response_WithoutKeys"];
+export type ApiTaskQueryAccountFilterOperationAccountRequest =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationAccount_Request"];
 
-export type ApiContentCodeBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentCodeBlockElement_Response_WithoutKeys"];
+export type ApiTaskQueryCreatorFilterOperationAccountRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOperationAccount_Request"];
 
-export type ApiContentFileFloatBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentFileFloatBlockElement_Response_WithoutKeys"];
+export type ApiContentTableBlockElementCellWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementCell_WithoutKeys"];
 
-export type ApiContentListBlockElementItemResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentListBlockElementItem_Response_WithoutKeys"];
+export type ApiMessageExperimentalApprovalRequest =
+    ApiSpecification.components["schemas"]["MessageExperimentalApproval_Request"];
 
-export type ApiContentCheckListBlockElementItemResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentCheckListBlockElementItem_Response_WithoutKeys"];
+export type ApiContentInlineElementRequest =
+    ApiSpecification.components["schemas"]["ContentInlineElement_Request"];
 
-export type ApiContentQuoteBlockElementBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentQuoteBlockElementBlockElement_Response_WithoutKeys"];
+export type ApiDocumentSetContentPatchRequest =
+    ApiSpecification.components["schemas"]["DocumentSetContentPatch_Request"];
 
-export type ApiContentFileGalleryBlockElementRowItemResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRowItem_Response_WithoutKeys"];
+export type ApiChannelSetDescriptionPatchRequest =
+    ApiSpecification.components["schemas"]["ChannelSetDescriptionPatch_Request"];
 
-export type ApiContentTableBlockElementCellBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentTableBlockElementCellBlockElement_Response_WithoutKeys"];
+export type ApiTaskBatchCreatePatchRequest =
+    ApiSpecification.components["schemas"]["TaskBatchCreatePatch_Request"];
 
-export type ApiAuthResponse = ApiSpecification.components["schemas"]["Auth_Response"];
+export type ApiTaskBatchUpdatePatchRequest =
+    ApiSpecification.components["schemas"]["TaskBatchUpdatePatch_Request"];
 
-export type ApiInboxEntryResponse = ApiSpecification.components["schemas"]["InboxEntry_Response"];
+export type ApiTaskQueryCollectionsFilterRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilter_Request"];
 
-export type ApiChatCreateRequestResponse =
-    ApiSpecification.components["schemas"]["ChatCreateRequest_Response"];
+export type ApiTaskNotesSetContentPatchRequest =
+    ApiSpecification.components["schemas"]["TaskNotesSetContentPatch_Request"];
 
-export type ApiContentResponse = ApiSpecification.components["schemas"]["Content_Response"];
+export type ApiMessageStreamContentPartPayloadRequest =
+    ApiSpecification.components["schemas"]["MessageStreamContentPartPayload_Request"];
 
-export type ApiSearchResultResponse =
-    ApiSpecification.components["schemas"]["SearchResult_Response"];
+export type ApiMessageStreamReasoningPartPayloadRequest =
+    ApiSpecification.components["schemas"]["MessageStreamReasoningPartPayload_Request"];
 
-export type ApiTaskPatchResponse = ApiSpecification.components["schemas"]["TaskPatch_Response"];
+export type ApiLabelContentInlineElementRequest =
+    ApiSpecification.components["schemas"]["LabelContentInlineElement_Request"];
 
-export type ApiTaskQueryItemResponse =
-    ApiSpecification.components["schemas"]["TaskQueryItem_Response"];
+export type ApiContentFileGalleryBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElement_WithoutKeys"];
 
-export type ApiBotWebhookEventResponse =
-    ApiSpecification.components["schemas"]["BotWebhookEvent_Response"];
+export type ApiContentTableBlockElementRowRequest =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementRow_Request"];
 
-export type ApiChatResponse = ApiSpecification.components["schemas"]["Chat_Response"];
+export type ApiTaskQueryAccountFilterOneOfOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOneOfOperation_Request"];
 
-export type ApiTaskBatchCreatePatchResponse =
-    ApiSpecification.components["schemas"]["TaskBatchCreatePatch_Response"];
+export type ApiTaskQueryAccountFilterNoneOfOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterNoneOfOperation_Request"];
 
-export type ApiTaskAddCollectionPatchResponse =
-    ApiSpecification.components["schemas"]["TaskAddCollectionPatch_Response"];
+export type ApiTaskQueryCreatorFilterOneOfOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOneOfOperation_Request"];
 
-export type ApiBotWebhookCreatedMessageEventResponse =
-    ApiSpecification.components["schemas"]["BotWebhookCreatedMessageEvent_Response"];
+export type ApiTaskQueryCreatorFilterNoneOfOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterNoneOfOperation_Request"];
 
-export type ApiBotWebhookUpdatedMessageStreamExperimentalApprovalsPartEventResponse =
-    ApiSpecification.components["schemas"]["BotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent_Response"];
+export type ApiContentTableBlockElementRowWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentTableBlockElementRow_WithoutKeys"];
 
-export type ApiMessageExperimentalApprovalDecisionResponse =
-    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecision_Response"];
+export type ApiContentListBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentListBlockElement_Request"];
 
-export type ApiContentMentionInlineElementResponse =
-    ApiSpecification.components["schemas"]["ContentMentionInlineElement_Response"];
+export type ApiContentListBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentListBlockElement_WithoutKeys"];
 
-export type ApiInboxEntryTitleItemResponse =
-    ApiSpecification.components["schemas"]["InboxEntryTitleItem_Response"];
+export type ApiDocumentPatchRequest =
+    ApiSpecification.components["schemas"]["DocumentPatch_Request"];
 
-export type ApiInboxEntryPreviewItemResponse =
-    ApiSpecification.components["schemas"]["InboxEntryPreviewItem_Response"];
+export type ApiChannelPatchRequest = ApiSpecification.components["schemas"]["ChannelPatch_Request"];
 
-export type ApiContentUnorderedListBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentUnorderedListBlockElement_Response"];
+export type ApiTaskBatchPatchRequest =
+    ApiSpecification.components["schemas"]["TaskBatchPatch_Request"];
 
-export type ApiContentOrderedListBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentOrderedListBlockElement_Response"];
+export type ApiTaskQueryFilterRequest =
+    ApiSpecification.components["schemas"]["TaskQueryFilter_Request"];
 
-export type ApiContentCheckListBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentCheckListBlockElement_Response"];
+export type ApiTaskNotesPatchRequest =
+    ApiSpecification.components["schemas"]["TaskNotesPatch_Request"];
 
-export type ApiContentQuoteBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentQuoteBlockElement_Response"];
+export type ApiMessageStreamPartPayloadRequest =
+    ApiSpecification.components["schemas"]["MessageStreamPartPayload_Request"];
 
-export type ApiContentFileGalleryBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElement_Response"];
+export type ApiMessageStreamExperimentalApprovalsPartPayloadRequest =
+    ApiSpecification.components["schemas"]["MessageStreamExperimentalApprovalsPartPayload_Request"];
 
-export type ApiTaskQueryCollectionsFilterOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilterOperation_Response"];
+export type ApiLabelContentRequest = ApiSpecification.components["schemas"]["LabelContent_Request"];
 
-export type ApiLabelContentMentionInlineElementResponse =
-    ApiSpecification.components["schemas"]["LabelContentMentionInlineElement_Response"];
+export type ApiContentTableBlockElementRequest =
+    ApiSpecification.components["schemas"]["ContentTableBlockElement_Request"];
 
-export type ApiContentTableBlockElementCellResponse =
-    ApiSpecification.components["schemas"]["ContentTableBlockElementCell_Response"];
+export type ApiTaskQueryAccountFilterOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperation_Request"];
 
-export type ApiTaskQueryAccountFilterOperationAccountResponse =
-    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperationAccount_Response"];
+export type ApiTaskQueryCreatorFilterOperationRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOperation_Request"];
 
-export type ApiTaskQueryCreatorFilterOperationAccountResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOperationAccount_Response"];
+export type ApiContentTableBlockElementWithoutKeys =
+    ApiSpecification.components["schemas"]["ContentTableBlockElement_WithoutKeys"];
 
-export type ApiContentResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["Content_Response_WithoutKeys"];
+export type ApiTaskQueryAssigneeFilterRequest =
+    ApiSpecification.components["schemas"]["TaskQueryAssigneeFilter_Request"];
 
-export type ApiContentUnorderedListBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentUnorderedListBlockElement_Response_WithoutKeys"];
+export type ApiTaskQueryCreatorFilterRequest =
+    ApiSpecification.components["schemas"]["TaskQueryCreatorFilter_Request"];
 
-export type ApiContentOrderedListBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentOrderedListBlockElement_Response_WithoutKeys"];
+export type ApiTaskQueryAssignerFilterRequest =
+    ApiSpecification.components["schemas"]["TaskQueryAssignerFilter_Request"];
 
-export type ApiContentCheckListBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentCheckListBlockElement_Response_WithoutKeys"];
+export type ApiMessageStreamToolCallPartPayloadCallRequest =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall_Request"];
 
-export type ApiContentQuoteBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentQuoteBlockElement_Response_WithoutKeys"];
+export type ApiMessageExperimentalApprovalDecisionApprovedForSessionOptionRequest =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionOption_Request"];
 
-export type ApiContentFileGalleryBlockElementRowResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElementRow_Response_WithoutKeys"];
+export type ApiMessageStreamToolCallPartPayloadRequest =
+    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayload_Request"];
 
-export type ApiContentTableBlockElementCellResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentTableBlockElementCell_Response_WithoutKeys"];
+export type ApiMessageExperimentalApprovalDecisionOptionRequest =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionOption_Request"];
 
-export type ApiDocumentResponse = ApiSpecification.components["schemas"]["Document_Response"];
-
-export type ApiTaskBatchPatchResponse =
-    ApiSpecification.components["schemas"]["TaskBatchPatch_Response"];
-
-export type ApiChannelResponse = ApiSpecification.components["schemas"]["Channel_Response"];
-
-export type ApiTaskNotesResponse = ApiSpecification.components["schemas"]["TaskNotes_Response"];
-
-export type ApiMessageExperimentalApprovalResponse =
-    ApiSpecification.components["schemas"]["MessageExperimentalApproval_Response"];
-
-export type ApiContentInlineElementResponse =
-    ApiSpecification.components["schemas"]["ContentInlineElement_Response"];
-
-export type ApiDocumentSetContentPatchResponse =
-    ApiSpecification.components["schemas"]["DocumentSetContentPatch_Response"];
-
-export type ApiChannelSetDescriptionPatchResponse =
-    ApiSpecification.components["schemas"]["ChannelSetDescriptionPatch_Response"];
-
-export type ApiTaskBatchUpdatePatchResponse =
-    ApiSpecification.components["schemas"]["TaskBatchUpdatePatch_Response"];
-
-export type ApiTaskQueryCollectionsFilterResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCollectionsFilter_Response"];
-
-export type ApiTaskNotesSetContentPatchResponse =
-    ApiSpecification.components["schemas"]["TaskNotesSetContentPatch_Response"];
-
-export type ApiMessageStreamContentPartPayloadResponse =
-    ApiSpecification.components["schemas"]["MessageStreamContentPartPayload_Response"];
-
-export type ApiMessageStreamReasoningPartPayloadResponse =
-    ApiSpecification.components["schemas"]["MessageStreamReasoningPartPayload_Response"];
-
-export type ApiLabelContentInlineElementResponse =
-    ApiSpecification.components["schemas"]["LabelContentInlineElement_Response"];
-
-export type ApiContentTableBlockElementRowResponse =
-    ApiSpecification.components["schemas"]["ContentTableBlockElementRow_Response"];
-
-export type ApiTaskQueryAccountFilterOneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOneOfOperation_Response"];
-
-export type ApiTaskQueryAccountFilterNoneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryAccountFilterNoneOfOperation_Response"];
-
-export type ApiTaskQueryCreatorFilterOneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOneOfOperation_Response"];
-
-export type ApiTaskQueryCreatorFilterNoneOfOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterNoneOfOperation_Response"];
-
-export type ApiContentListBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentListBlockElement_Response"];
-
-export type ApiContentFileGalleryBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentFileGalleryBlockElement_Response_WithoutKeys"];
-
-export type ApiContentTableBlockElementRowResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentTableBlockElementRow_Response_WithoutKeys"];
-
-export type ApiContentListBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentListBlockElement_Response_WithoutKeys"];
-
-export type ApiDocumentPatchResponse =
-    ApiSpecification.components["schemas"]["DocumentPatch_Response"];
-
-export type ApiChannelPatchResponse =
-    ApiSpecification.components["schemas"]["ChannelPatch_Response"];
-
-export type ApiTaskQueryFilterResponse =
-    ApiSpecification.components["schemas"]["TaskQueryFilter_Response"];
-
-export type ApiTaskNotesPatchResponse =
-    ApiSpecification.components["schemas"]["TaskNotesPatch_Response"];
-
-export type ApiMessageStreamPartPayloadResponse =
-    ApiSpecification.components["schemas"]["MessageStreamPartPayload_Response"];
-
-export type ApiMessageStreamExperimentalApprovalsPartPayloadResponse =
-    ApiSpecification.components["schemas"]["MessageStreamExperimentalApprovalsPartPayload_Response"];
-
-export type ApiLabelContentResponse =
-    ApiSpecification.components["schemas"]["LabelContent_Response"];
-
-export type ApiContentTableBlockElementResponse =
-    ApiSpecification.components["schemas"]["ContentTableBlockElement_Response"];
-
-export type ApiTaskQueryAccountFilterOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryAccountFilterOperation_Response"];
-
-export type ApiTaskQueryCreatorFilterOperationResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCreatorFilterOperation_Response"];
-
-export type ApiContentTableBlockElementResponseWithoutKeys =
-    ApiSpecification.components["schemas"]["ContentTableBlockElement_Response_WithoutKeys"];
-
-export type ApiTaskQueryAssigneeFilterResponse =
-    ApiSpecification.components["schemas"]["TaskQueryAssigneeFilter_Response"];
-
-export type ApiTaskQueryCreatorFilterResponse =
-    ApiSpecification.components["schemas"]["TaskQueryCreatorFilter_Response"];
-
-export type ApiTaskQueryAssignerFilterResponse =
-    ApiSpecification.components["schemas"]["TaskQueryAssignerFilter_Response"];
-
-export type ApiMessageStreamToolCallPartPayloadCallResponse =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayloadCall_Response"];
-
-export type ApiMessageExperimentalApprovalDecisionApprovedForSessionOptionResponse =
-    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionApprovedForSessionOption_Response"];
-
-export type ApiMessageStreamToolCallPartPayloadResponse =
-    ApiSpecification.components["schemas"]["MessageStreamToolCallPartPayload_Response"];
-
-export type ApiMessageExperimentalApprovalDecisionOptionResponse =
-    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionOption_Response"];
-
-export type ApiMessageExperimentalApprovalDecisionSchemaResponse =
-    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionSchema_Response"];
+export type ApiMessageExperimentalApprovalDecisionSchemaRequest =
+    ApiSpecification.components["schemas"]["MessageExperimentalApprovalDecisionSchema_Request"];
 
 export type ApiErrorResponse =
     ApiSpecification.components["responses"]["Error"]["content"]["application/json"];

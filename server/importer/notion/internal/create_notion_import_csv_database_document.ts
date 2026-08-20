@@ -9,8 +9,8 @@ import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
+    ApiContentBlockElementRequest,
+    ApiContentRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -75,7 +75,7 @@ export async function createNotionImportCsvDatabaseDocument(
     const csvDir = csvPath.includes("/") ? csvPath.slice(0, csvPath.lastIndexOf("/")) : "";
 
     // Build API content directly
-    const elements: Array<ApiContentBlockElement> = [];
+    const elements: Array<ApiContentBlockElementRequest> = [];
 
     // Add parent document link as a paragraph with mention
     elements.push({
@@ -101,7 +101,7 @@ export async function createNotionImportCsvDatabaseDocument(
     // Note: We don't add a "Child documents" section for databases. The children are
     // database rows and they already appear as cell mentions in the table.
 
-    const apiContent: ApiContent = {elements};
+    const apiContent: ApiContentRequest = {elements};
 
     // Convert API content to ProseMirror document
     const bodyContent = fromApiContent(DocumentContentProsemirrorSchema, apiContent);

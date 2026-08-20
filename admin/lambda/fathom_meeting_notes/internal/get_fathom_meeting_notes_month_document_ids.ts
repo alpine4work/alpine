@@ -1,9 +1,9 @@
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
 export interface GetFathomMeetingNotesMonthDocumentIdsOptions {
-    readonly content: ApiContent;
+    readonly content: ApiContentRequest;
     readonly scheduledStartTime: string;
 }
 
@@ -51,7 +51,7 @@ export function getFathomMeetingNotesMonthDocumentIds({
 }
 
 function getHeadingText(
-    heading: Extract<ApiContent["elements"][number], {readonly type: "Heading"}>,
+    heading: Extract<ApiContentRequest["elements"][number], {readonly type: "Heading"}>,
 ): string {
     return heading.elements.map(element => (element.type === "Text" ? element.text : "")).join("");
 }

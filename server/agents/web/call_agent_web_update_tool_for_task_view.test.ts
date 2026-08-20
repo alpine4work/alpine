@@ -5,7 +5,7 @@ import {AgentWebContext} from "~/server/agents/web/agent_web_context.open_source
 import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/agents/web/call_agent_web_read_tool.open_source.js";
 import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiTaskResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiTask} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -46,7 +46,7 @@ beforeEach(async () => {
     await storage.deleteAll();
 });
 
-function mockTaskView(tasks: ReadonlyArray<ApiTaskResponse>, path = "/task-view"): string {
+function mockTaskView(tasks: ReadonlyArray<ApiTask>, path = "/task-view"): string {
     api.mockPost("/tasks-query", {
         params: "Any",
         data: {

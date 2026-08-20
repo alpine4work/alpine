@@ -9,12 +9,12 @@ import {
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiContentInlineElementResponse,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
+    ApiAccountReference,
+    ApiContentInlineElement,
+    ApiContentParagraphBlockElementWithoutKeys,
     ApiContentTextInlineElement,
-    ApiDocumentReferenceResponse,
+    ApiContentWithoutKeys,
+    ApiDocumentReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -28,7 +28,7 @@ import {
 const documentId = generateId<DocumentId>();
 const threadId = generateId<DocumentCommentThreadId>();
 
-const documentReference: ApiDocumentReferenceResponse = {
+const documentReference: ApiDocumentReference = {
     type: "Document",
     id: documentId,
     title: "Launch Spec",
@@ -40,13 +40,7 @@ const pageLink: AgentWebPageDocumentThreadRoutedLink = {
     id: threadId,
 };
 
-function accountReference({
-    name,
-    botId,
-}: {
-    name: string;
-    botId?: BotId;
-}): ApiAccountReferenceResponse {
+function accountReference({name, botId}: {name: string; botId?: BotId}): ApiAccountReference {
     return {
         type: "Account",
         id: generateId<AccountId>(),
@@ -59,15 +53,13 @@ function accountReference({
 const aliceReference = accountReference({name: "Alice"});
 const bobReference = accountReference({name: "Bob"});
 
-function content(
-    elements: ApiContentResponseWithoutKeys["elements"],
-): ApiContentResponseWithoutKeys {
+function content(elements: ApiContentWithoutKeys["elements"]): ApiContentWithoutKeys {
     return {elements};
 }
 
 function paragraph(
-    elements: ReadonlyArray<ApiContentInlineElementResponse>,
-): ApiContentParagraphBlockElementResponseWithoutKeys {
+    elements: ReadonlyArray<ApiContentInlineElement>,
+): ApiContentParagraphBlockElementWithoutKeys {
     return {type: "Paragraph", elements};
 }
 

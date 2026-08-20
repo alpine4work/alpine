@@ -12,12 +12,12 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiAccountResponse,
-    ApiChannelReferenceResponse,
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
-    ApiMessageResponse,
-    ApiPostReferenceResponse,
+    ApiAccount,
+    ApiChannelReference,
+    ApiContent,
+    ApiContentWithoutKeys,
+    ApiMessage,
+    ApiPostReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
@@ -67,25 +67,25 @@ const botApiAccount = createApiAccountMock({
     botId,
 });
 
-const announcementsChannelReference: ApiChannelReferenceResponse = {
+const announcementsChannelReference: ApiChannelReference = {
     type: "Channel",
     id: announcementsChannelId,
     title: "Announcements",
 };
 
-const productUpdatesChannelReference: ApiChannelReferenceResponse = {
+const productUpdatesChannelReference: ApiChannelReference = {
     type: "Channel",
     id: productUpdatesChannelId,
     title: "Product Updates",
 };
 
-const postReference: ApiPostReferenceResponse = {
+const postReference: ApiPostReference = {
     type: "Post",
     id: postId,
     title: "Launch",
 };
 
-const otherPostReference: ApiPostReferenceResponse = {
+const otherPostReference: ApiPostReference = {
     type: "Post",
     id: otherPostId,
     title: "Roadmap",
@@ -154,11 +154,11 @@ beforeEach(async () => {
     ]);
 });
 
-function createTextContent(text: string): ApiContentResponseWithoutKeys {
+function createTextContent(text: string): ApiContentWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
-function createTextContentWithKeys(text: string): ApiContentResponse {
+function createTextContentWithKeys(text: string): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -177,11 +177,11 @@ function createComment({
     parent,
 }: {
     index: number;
-    author?: ApiAccountResponse;
-    content?: ApiContentResponse | string;
+    author?: ApiAccount;
+    content?: ApiContent | string;
     createdTime?: string;
     parent?: ApiMessageMockParent;
-}): ApiMessageResponse {
+}): ApiMessage {
     return createApiMessageMock({
         index,
         author,
@@ -222,9 +222,9 @@ function mockGetPost({
     createdTime = new Date("2026-05-14T15:00:00.000Z"),
     createdTimeZone = defaultTimeZone,
 }: {
-    author?: ApiAccountResponse;
-    channel?: ApiChannelReferenceResponse | null;
-    content?: ApiContentResponse;
+    author?: ApiAccount;
+    channel?: ApiChannelReference | null;
+    content?: ApiContent;
     createdTime?: Date;
     createdTimeZone?: TimeZone;
 } = {}) {
@@ -271,8 +271,8 @@ async function readPost({
     path?: string;
     limit?: string;
     totalCommentCount: number;
-    createComment?: (index: number) => ApiMessageResponse;
-    postAuthor?: ApiAccountResponse;
+    createComment?: (index: number) => ApiMessage;
+    postAuthor?: ApiAccount;
 }): Promise<string> {
     if (path.includes("after=") || path.includes("before=")) {
         mockGetPostReference();

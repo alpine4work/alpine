@@ -21,7 +21,7 @@ import {
 } from "~/shared/api/specification/sign_bot_webhook_request.js";
 import {
     ApiBotWebhookRequestBody,
-    ApiContent,
+    ApiContentRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
@@ -104,8 +104,10 @@ export async function runClaudeAgentWebhook(
             //    its own approvals, the server fires a decision webhook right back at us, and
             //    acting on it would run the agent for a card we just retired.
             for (const approval of event.approvals) {
+                const decisionValue = approval.decision.value;
+
                 // If any approval is undecided, ignore the event
-                if (approval.decision.value === undefined) return createSimpleOkResponse();
+                if (decisionValue === undefined) return createSimpleOkResponse();
 
                 // If any approval is decided by this account, ignore the event. The bot only ever
                 // rejects approvals and only does so when something has gone wrong (e.g. a user
@@ -114,7 +116,7 @@ export async function runClaudeAgentWebhook(
                 // but before responding to the third, another user asked the agent to do something
                 // else, the agent will reject the third approval and start handling that users
                 // message.
-                if (approval.decision.value?.decider.account.id === botAccount.id) {
+                if (decisionValue.decider?.account.id === botAccount.id) {
                     return createSimpleOkResponse();
                 }
             }
@@ -196,7 +198,7 @@ export async function runClaudeAgentWebhook(
             })(),
         ]);
 
-        let errorContent: ApiContent | null = null;
+        let errorContent: ApiContentRequest | null = null;
 
         try {
             // If initializing the sandbox fails, then we want to throw in this try/catch.
@@ -286,7 +288,7 @@ export async function runClaudeAgentWebhook(
             // content made available at `/workspace/error.json` and if there's nothing there
             // then we end up with the default error message.
 
-            const content: ApiContent = errorContent ?? {
+            const content: ApiContentRequest = errorContent ?? {
                 elements: [
                     {
                         type: "Paragraph",

@@ -7,7 +7,7 @@ import {
 } from "~/admin/lambda/send_alert/internal/github_alert_source_types.js";
 import {sendAlertAvailableChannels} from "~/admin/lambda/send_alert/internal/send_alert_available_channels.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 import {assertDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {assertId} from "~/shared/id/id.open_source.js";
@@ -77,7 +77,7 @@ function formatFetchCallForSnapshot(fetchCall: {url: string; body: unknown}): st
     }
     const body = fetchCall.body as Partial<ApiCreatePostRequestBody> & {
         channelId?: string;
-        content?: ApiContent;
+        content?: ApiContentRequest;
     };
     if (body.post?.content) {
         const markdown = printApiContentToMarkdown(body.post.content);

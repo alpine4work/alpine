@@ -3,7 +3,7 @@
 import {normalizeApiContent} from "~/shared/api/content/normalize_api_content.open_source.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {printApiContentToMarkdown} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
 import {cast} from "~/shared/helpers/control/cast.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
@@ -24,7 +24,7 @@ import {
 type PrintMarkdownFixtureTestCase = {
     only?: CommitBlocker;
     description: string;
-    content: ApiContent;
+    content: ApiContentRequest;
     expectedMarkdown: string;
 };
 
@@ -12624,7 +12624,7 @@ Use \`\` \`backticks\` \`\` for inline code
             expect(actualMarkdown).toEqual(expectedMarkdown);
         });
 
-        test(`round trips back to normalized ApiContent`, () => {
+        test(`round trips back to normalized ApiContentRequest`, () => {
             const actualMarkdown = printApiContentToMarkdown(content, {});
 
             expect(
@@ -12637,7 +12637,7 @@ Use \`\` \`backticks\` \`\` for inline code
 });
 
 test("code block line with embedded newline fails markdown equality", async () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "Code",
@@ -12665,7 +12665,7 @@ console.log(x);
 });
 
 test("round trips nested content from a phantom list item after another list", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "CheckList",
@@ -12695,7 +12695,7 @@ test("round trips nested content from a phantom list item after another list", (
 });
 
 test("round trips a non-leading list item with only nested content", () => {
-    const content: ApiContent = {
+    const content: ApiContentRequest = {
         elements: [
             {
                 type: "UnorderedList",

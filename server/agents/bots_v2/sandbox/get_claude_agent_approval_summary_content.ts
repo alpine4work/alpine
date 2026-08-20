@@ -5,8 +5,8 @@ import {createAgentWebPageLinkUrl} from "~/server/agents/web/create_agent_web_pa
 import {normalizeAgentWebPath} from "~/server/agents/web/normalize_agent_web_path.open_source.js";
 import {routeAgentWebPageLinkPathname} from "~/server/agents/web/route_agent_web_page_link_pathname.open_source.js";
 import {
-    ApiLabelContent,
-    ApiMentionReference,
+    ApiLabelContentRequest,
+    ApiMentionReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
@@ -18,7 +18,7 @@ export type ClaudeAgentApprovalSummaryContentResult =
      * such paths, so asking for approval would show the user a card for an action
      * that's guaranteed to fail. Deny and send the agent back to `read` instead.
      */
-    {readonly ok: false} | {readonly ok: true; readonly summaryContent: ApiLabelContent};
+    {readonly ok: false} | {readonly ok: true; readonly summaryContent: ApiLabelContentRequest};
 
 /**
  * The summary rendered on the approval card, which the client prefixes with "Allow
@@ -39,7 +39,7 @@ export async function getClaudeAgentApprovalSummaryContent(
     storage: AgentWebSessionStorage,
     {toolName, input}: {toolName: ClaudeAgentGatedToolName; input: unknown},
 ): Promise<ClaudeAgentApprovalSummaryContentResult> {
-    const summaryTextContent = (): ApiLabelContent => ({
+    const summaryTextContent = (): ApiLabelContentRequest => ({
         elements: [{type: "Text", text: getClaudeAgentApprovalSummaryText({toolName, input})}],
     });
 
@@ -105,7 +105,7 @@ export async function getClaudeAgentApprovalSummaryContent(
 function intoApprovalTargetContent(
     verb: string,
     pageLink: AgentWebPageLink,
-): ApiLabelContent | null {
+): ApiLabelContentRequest | null {
     switch (pageLink.type) {
         case "Account":
         case "Channel":
@@ -196,10 +196,10 @@ function intoLinkedApprovalTargetContent(
     }: {
         readonly label: string;
         readonly preposition: string;
-        readonly reference: ApiMentionReference;
+        readonly reference: ApiMentionReferenceRequest;
         readonly url: string;
     },
-): ApiLabelContent {
+): ApiLabelContentRequest {
     return {
         elements: [
             {type: "Text", text: `${verb} `},
@@ -216,8 +216,8 @@ function intoLinkedApprovalTargetContent(
 function intoNamedApprovalTargetContent(
     verb: string,
     target: string,
-    reference: ApiMentionReference,
-): ApiLabelContent {
+    reference: ApiMentionReferenceRequest,
+): ApiLabelContentRequest {
     return {
         elements: [
             {type: "Text", text: `${verb} ${target} `},

@@ -24,11 +24,11 @@ import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_a
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiChatReferenceResponse,
-    ApiChatResponse,
-    ApiContentInlineElementResponse,
-    ApiContentResponseWithoutKeys,
+    ApiAccountReference,
+    ApiChat,
+    ApiChatReference,
+    ApiContentInlineElement,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.open_source.js";
@@ -62,7 +62,7 @@ export type AgentWebChatPage = AgentWebMessagingPage<AgentWebChatPagePreamble, n
 export type AgentWebChatPagePreamble =
     | {
           readonly type: "Direct";
-          readonly members: NonEmptyReadonlyArray<ApiAccountReferenceResponse>;
+          readonly members: NonEmptyReadonlyArray<ApiAccountReference>;
       }
     | {
           readonly type: "Room";
@@ -148,7 +148,7 @@ async function getChatRoomMetadata(
     context: AgentWebContextWithoutStorage,
     id: ChatId,
 ): Promise<{
-    pageLink: ApiChatReferenceResponse;
+    pageLink: ApiChatReference;
     preamble: AgentWebChatPagePreamble;
     startCustomBlock: null;
 }> {
@@ -194,7 +194,7 @@ export async function createAgentWebChatPage(
     pageMetadata: AgentWebChatPageMetadata;
     pageLink: Extract<AgentWebPageStoredLink, {type: "Chat"}>;
 }> {
-    let createdChat: ApiChatResponse | null = null;
+    let createdChat: ApiChat | null = null;
 
     // Creation is placed in a `Lazy` since we want to create the chat at the last
     // possible moment before it's needed. We want `updateAgentWebChatPage()` to run
@@ -408,11 +408,11 @@ export async function printAgentWebChatPage(
         printPreamble: async (storage, preamble) => {
             switch (preamble.type) {
                 case "Direct": {
-                    const mentions: Array<ApiContentInlineElementResponse> = preamble.members.map(
+                    const mentions: Array<ApiContentInlineElement> = preamble.members.map(
                         member => ({type: "Mention", reference: member}),
                     );
 
-                    let mentionsPrettyConjunctionList: Array<ApiContentInlineElementResponse>;
+                    let mentionsPrettyConjunctionList: Array<ApiContentInlineElement>;
 
                     assert(mentions.length > 0);
 
@@ -428,14 +428,14 @@ export async function printAgentWebChatPage(
                         mentionsPrettyConjunctionList = [
                             ...interleaveArray(
                                 mentions.slice(0, -1),
-                                cast<ApiContentInlineElementResponse>({type: "Text", text: ", "}),
+                                cast<ApiContentInlineElement>({type: "Text", text: ", "}),
                             ),
                             {type: "Text", text: ", and "},
                             mentions[mentions.length - 1]!,
                         ];
                     }
 
-                    const content: ApiContentResponseWithoutKeys = {
+                    const content: ApiContentWithoutKeys = {
                         elements: [
                             {
                                 type: "Paragraph",
@@ -588,7 +588,7 @@ export async function parseAgentWebChatPage(
                 throw createError();
             }
 
-            const members: Array<ApiAccountReferenceResponse> = [firstMentionElement.reference];
+            const members: Array<ApiAccountReference> = [firstMentionElement.reference];
 
             if ((actualElements.length - 1) % 2 !== 0) {
                 throw createError();

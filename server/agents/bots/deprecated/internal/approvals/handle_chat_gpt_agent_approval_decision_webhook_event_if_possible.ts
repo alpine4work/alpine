@@ -14,8 +14,7 @@ import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_o
 import {getTimezoneFromBotWebhookRequest} from "~/server/agents/bots/internal/get_timezone_from_bot_webhook_request.js";
 import {
     ApiBotWebhookUpdatedMessageStreamExperimentalApprovalsPartEvent,
-    ApiMessageExperimentalApprovalDecisionValue,
-    ApiMessageExperimentalApprovalDecisionValueResponse,
+    ApiMessageExperimentalApprovalDecisionValueRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     FailedPreconditionError,
@@ -209,14 +208,14 @@ function applyApprovalDecisionUpdates(
     originalApproval: ChatGptAgentMessageApproval,
     updatedApprovals: ReadonlyArray<{
         readonly decision: {
-            readonly value?: ApiMessageExperimentalApprovalDecisionValueResponse;
+            readonly value?: ApiMessageExperimentalApprovalDecisionValueRequest;
         };
     }>,
 ): Result<
     {
         readonly nextApprovals: ReadonlyArray<{
             readonly options: ReadonlyArray<ChatGptAgentMessageApprovalDecisionOption>;
-            readonly response?: ApiMessageExperimentalApprovalDecisionValue;
+            readonly response?: ApiMessageExperimentalApprovalDecisionValueRequest;
         }>;
         readonly approvedScopes: ReadonlySet<ChatGptAgentMessageApprovalScope>;
     },
@@ -230,7 +229,7 @@ function applyApprovalDecisionUpdates(
         number,
         {
             readonly options: ReadonlyArray<ChatGptAgentMessageApprovalDecisionOption>;
-            readonly response?: ApiMessageExperimentalApprovalDecisionValue;
+            readonly response?: ApiMessageExperimentalApprovalDecisionValueRequest;
         }
     >();
     const approvedScopes = new Set<ChatGptAgentMessageApprovalScope>();

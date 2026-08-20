@@ -7,7 +7,7 @@ import {callAgentWebReadTool as actuallyCallAgentWebReadTool} from "~/server/age
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import type {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import type {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -92,7 +92,7 @@ afterEach(() => {
     import.meta.jest.useRealTimers();
 });
 
-function createDocumentContentFromMarkdown(markdown: string): ApiContentResponse {
+function createDocumentContentFromMarkdown(markdown: string): ApiContent {
     return addKeysToApiContentForTest({
         elements: markdown.split("\n\n").map(paragraphText => {
             return {
@@ -111,7 +111,7 @@ function mockCreateDocument({
 }: {
     id?: DocumentId;
     title: string;
-    content: ApiContentResponse;
+    content: ApiContent;
     version?: number;
 }): DocumentId {
     api.mockPost("/documents", {

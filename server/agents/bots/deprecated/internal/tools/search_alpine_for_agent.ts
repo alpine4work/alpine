@@ -14,7 +14,7 @@ import {
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {
-    ApiMessageRoomReference,
+    ApiMessageRoomReferenceRequest,
     ApiSearchChatMessageResult,
     ApiSearchDocumentMessageResult,
     ApiSearchPostMessageResult,
@@ -382,7 +382,7 @@ function createListItemWithSnippet(link: AgentLink, result: ApiSearchResult): Li
 //
 // https://alpine.inc/s/c2pwxmpv3z7b3db19tsn6y1qfg/tasks/w11jwcrp2asdf79nre611p48fr
 function isApiSearchResultInConversationState(
-    currentMessageRoom: ApiMessageRoomReference,
+    currentMessageRoom: ApiMessageRoomReferenceRequest,
     result: ApiSearchResult,
 ): boolean {
     const resultMessageRoomPath = intoApiMessageRoomPathFromPathIfPossible(result);
@@ -404,7 +404,7 @@ function intoPhrasingContent(bodyMatch: ZippedApiSearchResultMatches): Array<Phr
 
 function intoApiMessageRoomPathFromPathIfPossible(
     apiPath: ApiSearchResult,
-): ApiMessageRoomReference | null {
+): ApiMessageRoomReferenceRequest | null {
     switch (apiPath.type) {
         case "Account":
         case "Channel":

@@ -1,14 +1,14 @@
 import {AgentWebPageLink} from "~/server/agents/web/agent_web_page_link.open_source.js";
 import {createAgentWebPageLinkUrl} from "~/server/agents/web/create_agent_web_page_link_url.open_source.js";
 import {getAgentWebAlpineUrl} from "~/server/agents/web/get_agent_web_alpine_url.js";
-import {ApiMentionReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMentionReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 
 export function createAgentWebPageLinkApiMentionReferenceIfPossible(
     link: AgentWebPageLink,
     spaceId: SpaceId,
-): {type: "MentionReference"; reference: ApiMentionReferenceResponse} | {type: "Url"; url: string} {
+): {type: "MentionReference"; reference: ApiMentionReference} | {type: "Url"; url: string} {
     const productUrl = getAgentWebAlpineUrl();
 
     switch (link.type) {

@@ -36,10 +36,10 @@ import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiChannelReferenceResponse,
-    ApiContentResponseWithoutKeys,
-    ApiPostReferenceResponse,
+    ApiAccountReference,
+    ApiChannelReference,
+    ApiContentWithoutKeys,
+    ApiPostReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError, UnimplementedError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
@@ -104,21 +104,21 @@ assertAssignableTypes<AgentWebPostPage, AgentWebPostPageBase>();
 
 export type AgentWebPostPageHeadPagePreamble = {
     readonly type: "Head";
-    readonly channel: ApiChannelReferenceResponse | null;
+    readonly channel: ApiChannelReference | null;
 };
 
 export type AgentWebPostPageTailPagePreamble = {
     readonly type: "Tail";
-    readonly post: ApiPostReferenceResponse;
+    readonly post: ApiPostReference;
 };
 
 export type AgentWebPostPageCustomBlock = {
     readonly type: "Custom";
     readonly tagName: "post";
-    readonly author: ApiAccountReferenceResponse | null;
+    readonly author: ApiAccountReference | null;
     readonly timeAttribute: null;
     readonly timeZoneAttribute: string | null;
-    readonly content: ApiContentResponseWithoutKeys;
+    readonly content: ApiContentWithoutKeys;
 };
 
 export type AgentWebPostPageWithMetadata =
@@ -229,7 +229,7 @@ export async function readAgentWebPostPage(
     });
 
     type RoomMetadata = {
-        pageLink: ApiPostReferenceResponse;
+        pageLink: ApiPostReference;
         preamble: AgentWebPostPagePreambleBase;
         createdTimeZone: TimeZone | null;
         startCustomBlock: {
@@ -1135,7 +1135,7 @@ async function parseAgentWebPostPageAccountLink(
     storage: AgentWebSessionStorage,
     position: Html["position"],
     string: string,
-): Promise<ApiAccountReferenceResponse> {
+): Promise<ApiAccountReference> {
     const createError = () => {
         const quotedString = curlyQuote(string);
 

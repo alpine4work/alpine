@@ -4,7 +4,7 @@ import {callAgentWebCreateTool as actuallyCallAgentWebCreateTool} from "~/server
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId, ChannelId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -44,11 +44,11 @@ beforeEach(async () => {
     });
 });
 
-function channelContentFromText(text: string): ApiContentResponseWithoutKeys {
+function channelContentFromText(text: string): ApiContentWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
-const emptyChannelContent: ApiContentResponseWithoutKeys = {
+const emptyChannelContent: ApiContentWithoutKeys = {
     elements: [{type: "Paragraph", elements: []}],
 };
 
@@ -59,7 +59,7 @@ function mockCreateChannel({
 }: {
     id?: ChannelId;
     name: string;
-    description: ApiContentResponseWithoutKeys;
+    description: ApiContentWithoutKeys;
 }): ChannelId {
     api.mockPost("/channels", {
         params: "Any",
@@ -137,7 +137,7 @@ Create was successful. New channel: [Announcements](/channel/announcements).`);
 });
 
 test("creates a channel with a description divider and ignores the posts divider", async () => {
-    const description: ApiContentResponseWithoutKeys = {
+    const description: ApiContentWithoutKeys = {
         elements: [
             {type: "Paragraph", elements: [{type: "Text", text: "Before divider"}]},
             {type: "Divider"},
@@ -180,7 +180,7 @@ Create was successful. New channel: [Announcements](/channel/announcements).`);
 });
 
 test("creates a channel with a description divider at the end of the description and ignores the posts divider", async () => {
-    const description: ApiContentResponseWithoutKeys = {
+    const description: ApiContentWithoutKeys = {
         elements: [
             {type: "Paragraph", elements: [{type: "Text", text: "Before divider"}]},
             {type: "Divider"},

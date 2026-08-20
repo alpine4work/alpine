@@ -9,7 +9,7 @@ import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_a
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.open_source.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {hasHtmlOpenTag} from "~/shared/helpers/html/has_html_open_tag.open_source.js";
@@ -18,7 +18,7 @@ import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 export type AgentWebDocumentPage = {
     readonly type: "Document";
     readonly title: string;
-    readonly content: ApiContentResponseWithoutKeys;
+    readonly content: ApiContentWithoutKeys;
 };
 
 export type AgentWebDocumentPageMetadata = {

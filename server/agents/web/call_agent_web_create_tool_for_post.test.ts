@@ -7,12 +7,12 @@ import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponseWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentWithoutKeys} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import type {
-    ApiAccountResponse,
-    ApiChannelReferenceResponse,
-    ApiContentResponse,
-    ApiPostReferenceResponse,
+    ApiAccount,
+    ApiChannelReference,
+    ApiContent,
+    ApiPostReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
@@ -55,13 +55,13 @@ const botApiAccount = createApiAccountMock({
     botId,
 });
 
-const announcementsChannelReference: ApiChannelReferenceResponse = {
+const announcementsChannelReference: ApiChannelReference = {
     type: "Channel",
     id: announcementsChannelId,
     title: "Announcements",
 };
 
-const existingPostReference: ApiPostReferenceResponse = {
+const existingPostReference: ApiPostReference = {
     type: "Post",
     id: existingPostId,
     title: "Existing Post",
@@ -129,11 +129,11 @@ beforeEach(async () => {
     assert(actualExistingPostPathname === "/post/existing-post");
 });
 
-function createTextContent(text: string): ApiContentResponseWithoutKeys {
+function createTextContent(text: string): ApiContentWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
-function createTextContentWithKeys(text: string): ApiContentResponse {
+function createTextContentWithKeys(text: string): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -152,8 +152,8 @@ function mockCreatePost({
 }: {
     id?: PostId;
     title: string;
-    author?: ApiAccountResponse;
-    content?: ApiContentResponse;
+    author?: ApiAccount;
+    content?: ApiContent;
 }): PostId {
     api.mockPost("/posts", {
         params: "Any",

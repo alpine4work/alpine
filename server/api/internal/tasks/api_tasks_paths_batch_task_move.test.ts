@@ -11,7 +11,7 @@ import {TestTaskCollection} from "~/server/tasks/data/test_helpers/test_task_col
 import {TestTaskRealtimeServer} from "~/server/tasks/realtime/test_helpers/test_task_realtime_server.js";
 import {
     ApiGetTaskCollectionTasksResponse,
-    ApiTaskBatchPatch,
+    ApiTaskBatchPatchRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.open_source.js";
@@ -289,7 +289,7 @@ for (const testSuite of testSuites) {
                 expect(oldBody.tasks).toHaveLength(tasks.length);
                 expect(oldBody.nextCursor).toBeNull();
 
-                const patches: Array<ApiTaskBatchPatch> = [];
+                const patches: Array<ApiTaskBatchPatchRequest> = [];
 
                 for (const move of moves) {
                     const task = tasks[move.from]!;

@@ -4,8 +4,8 @@ import {callAgentWebCreateTool as actuallyCallAgentWebCreateTool} from "~/server
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
+    ApiContent,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -38,15 +38,15 @@ const context: AgentWebContext = {
     },
 };
 
-function createDocumentContentFromText(text: string): ApiContentResponseWithoutKeys {
+function createDocumentContentFromText(text: string): ApiContentWithoutKeys {
     return {elements: [{type: "Paragraph", elements: [{type: "Text", text}]}]};
 }
 
-function createEmptyDocumentContent(): ApiContentResponseWithoutKeys {
+function createEmptyDocumentContent(): ApiContentWithoutKeys {
     return {elements: [{type: "Paragraph", elements: []}]};
 }
 
-function createDocumentContentFromTextWithKeys(text: string): ApiContentResponse {
+function createDocumentContentFromTextWithKeys(text: string): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -57,7 +57,7 @@ function createDocumentContentFromTextWithKeys(text: string): ApiContentResponse
     });
 }
 
-function createEmptyDocumentContentWithKeys(): ApiContentResponse {
+function createEmptyDocumentContentWithKeys(): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -76,7 +76,7 @@ function mockCreateDocument({
 }: {
     id?: DocumentId;
     title: string;
-    content: ApiContentResponse;
+    content: ApiContent;
     version?: number;
 }): DocumentId {
     api.mockPost("/documents", {

@@ -7,7 +7,7 @@ import {
     zipKeysIntoApiContentResponse,
 } from "~/shared/api/content/zip_or_unzip_keys_from_api_content_response.open_source.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {CommitBlocker} from "~/shared/helpers/types/commit_blocker.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
@@ -17,7 +17,7 @@ const storage = createAgentWebSessionStorageForTest(apiContentArbitrarySpaceId);
 const testCases: Array<{
     only?: CommitBlocker;
     name: string;
-    content: ApiContentResponse;
+    content: ApiContent;
 }> = [
     {
         name: "table, paragraph, heading",

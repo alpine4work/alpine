@@ -1,26 +1,26 @@
 import {
-    ApiContent,
-    ApiContentBlockElement,
-    ApiContentBlockElementResponseWithoutKeys,
-    ApiContentCheckListBlockElementItem,
-    ApiContentCheckListBlockElementItemResponseWithoutKeys,
-    ApiContentCodeBlockElement,
-    ApiContentCodeBlockElementResponseWithoutKeys,
+    ApiContentBlockElementRequest,
+    ApiContentBlockElementWithoutKeys,
+    ApiContentCheckListBlockElementItemRequest,
+    ApiContentCheckListBlockElementItemWithoutKeys,
+    ApiContentCodeBlockElementRequest,
+    ApiContentCodeBlockElementWithoutKeys,
     ApiContentInlineElement,
-    ApiContentInlineElementResponse,
-    ApiContentListBlockElement,
-    ApiContentListBlockElementItem,
-    ApiContentListBlockElementItemResponseWithoutKeys,
-    ApiContentListBlockElementResponseWithoutKeys,
-    ApiContentParagraphBlockElement,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentQuoteBlockElementBlockElement,
-    ApiContentQuoteBlockElementBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
-    ApiContentTableBlockElement,
-    ApiContentTableBlockElementCellBlockElement,
-    ApiContentTableBlockElementCellBlockElementResponseWithoutKeys,
-    ApiContentTableBlockElementResponseWithoutKeys,
+    ApiContentInlineElementRequest,
+    ApiContentListBlockElementItemRequest,
+    ApiContentListBlockElementItemWithoutKeys,
+    ApiContentListBlockElementRequest,
+    ApiContentListBlockElementWithoutKeys,
+    ApiContentParagraphBlockElementRequest,
+    ApiContentParagraphBlockElementWithoutKeys,
+    ApiContentQuoteBlockElementBlockElementRequest,
+    ApiContentQuoteBlockElementBlockElementWithoutKeys,
+    ApiContentRequest,
+    ApiContentTableBlockElementCellBlockElementRequest,
+    ApiContentTableBlockElementCellBlockElementWithoutKeys,
+    ApiContentTableBlockElementRequest,
+    ApiContentTableBlockElementWithoutKeys,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -28,19 +28,19 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
 
 /**
- * Takes `ApiContent` without response properties and turns it into
- * `ApiContentResponseWithoutKeys`. Useful for tests if you want an
- * `ApiContentResponse` object. You use `parseApiContentFromMarkdown()` to parse
- * markdown then use this to make sure the markdown doesn't contain elements that
- * need response properties (like `Mention`).
+ * Takes `ApiContentRequest` without response properties and turns it into
+ * `ApiContentWithoutKeys`. Useful for tests if you want an `ApiContent` object.
+ * You use `parseApiContentFromMarkdown()` to parse markdown then use this to make
+ * sure the markdown doesn't contain elements that need response properties (like
+ * `Mention`).
  *
  * This function throws if there are any elements that require response properties
  * (like `Mention` or `File`). But elements like `Text` which don't need response
  * properties are ok.
  */
 export function assertApiContentIsResponseForTest(
-    content: ApiContent,
-): ApiContentResponseWithoutKeys {
+    content: ApiContentRequest,
+): ApiContentWithoutKeys {
     assert(process.env.NODE_ENV === "test");
 
     return {
@@ -49,8 +49,8 @@ export function assertApiContentIsResponseForTest(
 }
 
 function assertApiContentBlockElementIsResponseForTest(
-    element: ApiContentBlockElement,
-): ApiContentBlockElementResponseWithoutKeys {
+    element: ApiContentBlockElementRequest,
+): ApiContentBlockElementWithoutKeys {
     switch (element.type) {
         case "Paragraph":
             return assertApiContentParagraphBlockElementIsResponseForTest(element);
@@ -90,8 +90,8 @@ function assertApiContentBlockElementIsResponseForTest(
 }
 
 function assertApiContentParagraphBlockElementIsResponseForTest(
-    element: ApiContentParagraphBlockElement,
-): ApiContentParagraphBlockElementResponseWithoutKeys {
+    element: ApiContentParagraphBlockElementRequest,
+): ApiContentParagraphBlockElementWithoutKeys {
     return {
         type: "Paragraph",
         elements: element.elements.map(assertApiContentInlineElementIsResponseForTest),
@@ -99,8 +99,8 @@ function assertApiContentParagraphBlockElementIsResponseForTest(
 }
 
 function assertApiContentListBlockElementIsResponseForTest(
-    element: ApiContentListBlockElement,
-): ApiContentListBlockElementResponseWithoutKeys {
+    element: ApiContentListBlockElementRequest,
+): ApiContentListBlockElementWithoutKeys {
     switch (element.type) {
         case "UnorderedList":
             return {
@@ -126,8 +126,8 @@ function assertApiContentListBlockElementIsResponseForTest(
 }
 
 function assertApiContentListBlockElementItemIsResponseForTest(
-    item: ApiContentListBlockElementItem,
-): ApiContentListBlockElementItemResponseWithoutKeys {
+    item: ApiContentListBlockElementItemRequest,
+): ApiContentListBlockElementItemWithoutKeys {
     const nestedListElements =
         item.nestedListElements !== undefined
             ? item.nestedListElements.map(assertApiContentListBlockElementIsResponseForTest)
@@ -140,8 +140,8 @@ function assertApiContentListBlockElementItemIsResponseForTest(
 }
 
 function assertApiContentCheckListBlockElementItemIsResponseForTest(
-    item: ApiContentCheckListBlockElementItem,
-): ApiContentCheckListBlockElementItemResponseWithoutKeys {
+    item: ApiContentCheckListBlockElementItemRequest,
+): ApiContentCheckListBlockElementItemWithoutKeys {
     const nestedListElements =
         item.nestedListElements !== undefined
             ? item.nestedListElements.map(assertApiContentListBlockElementIsResponseForTest)
@@ -155,8 +155,8 @@ function assertApiContentCheckListBlockElementItemIsResponseForTest(
 }
 
 function assertApiContentQuoteBlockElementBlockElementIsResponseForTest(
-    element: ApiContentQuoteBlockElementBlockElement,
-): ApiContentQuoteBlockElementBlockElementResponseWithoutKeys {
+    element: ApiContentQuoteBlockElementBlockElementRequest,
+): ApiContentQuoteBlockElementBlockElementWithoutKeys {
     switch (element.type) {
         case "Paragraph":
             return assertApiContentParagraphBlockElementIsResponseForTest(element);
@@ -170,8 +170,8 @@ function assertApiContentQuoteBlockElementBlockElementIsResponseForTest(
 }
 
 function assertApiContentTableBlockElementIsResponseForTest(
-    element: ApiContentTableBlockElement,
-): ApiContentTableBlockElementResponseWithoutKeys {
+    element: ApiContentTableBlockElementRequest,
+): ApiContentTableBlockElementWithoutKeys {
     return {
         ...element,
         rows: element.rows.map(row => ({
@@ -187,8 +187,8 @@ function assertApiContentTableBlockElementIsResponseForTest(
 }
 
 function assertApiContentTableBlockElementCellBlockElementIsResponseForTest(
-    element: ApiContentTableBlockElementCellBlockElement,
-): ApiContentTableBlockElementCellBlockElementResponseWithoutKeys {
+    element: ApiContentTableBlockElementCellBlockElementRequest,
+): ApiContentTableBlockElementCellBlockElementWithoutKeys {
     switch (element.type) {
         case "Paragraph":
             return assertApiContentParagraphBlockElementIsResponseForTest(element);
@@ -214,8 +214,8 @@ function assertApiContentTableBlockElementCellBlockElementIsResponseForTest(
 }
 
 function assertApiContentCodeBlockElementIsResponseForTest(
-    element: ApiContentCodeBlockElement,
-): ApiContentCodeBlockElementResponseWithoutKeys {
+    element: ApiContentCodeBlockElementRequest,
+): ApiContentCodeBlockElementWithoutKeys {
     return {
         ...element,
         lines: element.lines.map(line => ({...line, elements: line.elements})),
@@ -223,8 +223,8 @@ function assertApiContentCodeBlockElementIsResponseForTest(
 }
 
 function assertApiContentInlineElementIsResponseForTest(
-    element: ApiContentInlineElement,
-): ApiContentInlineElementResponse {
+    element: ApiContentInlineElementRequest,
+): ApiContentInlineElement {
     switch (element.type) {
         case "Text":
         case "Break": {

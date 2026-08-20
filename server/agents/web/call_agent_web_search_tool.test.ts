@@ -7,7 +7,7 @@ import {
     defaultAgentWebSearchResultLimit,
 } from "~/server/agents/web/call_agent_web_search_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
-import {ApiSearchResultResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiSearchResult} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -61,7 +61,7 @@ const context: AgentWebContext = {
     },
 };
 
-function mockSearch(query: string, results: Array<ApiSearchResultResponse>): void {
+function mockSearch(query: string, results: Array<ApiSearchResult>): void {
     api.mockGet("/spaces/{id}/search", {
         params: {
             path: {id: spaceId},
@@ -554,7 +554,7 @@ test("dedupes pathnames for two entities with the same title", async () => {
 
 test("reuses the pathname for the same entity across searches", async () => {
     const documentId = generateId<DocumentId>();
-    const results: Array<ApiSearchResultResponse> = [
+    const results: Array<ApiSearchResult> = [
         {
             type: "Document",
             id: documentId,

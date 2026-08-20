@@ -1,7 +1,7 @@
 import {
-    ApiAccountReference,
-    ApiDocumentReference,
-    ApiTaskReference,
+    ApiAccountReferenceRequest,
+    ApiDocumentReferenceRequest,
+    ApiTaskReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -33,23 +33,23 @@ export type AgentWebPageRoutedLinkKeyObject =
       }
     | {
           readonly type: "DocumentThread";
-          readonly document: ApiDocumentReference;
+          readonly document: ApiDocumentReferenceRequest;
           readonly id: DocumentCommentThreadId;
       }
     | {
           readonly type: "TaskMessageList";
-          readonly task: ApiTaskReference;
+          readonly task: ApiTaskReferenceRequest;
       }
     | {
           readonly type: "TaskSubtasks";
-          readonly task: ApiTaskReference;
+          readonly task: ApiTaskReferenceRequest;
       }
     | {
           readonly type: "TaskView";
       }
     | {
           readonly type: "Inbox";
-          readonly account: ApiAccountReference;
+          readonly account: ApiAccountReferenceRequest;
       }
     | {
           readonly type: "Space";

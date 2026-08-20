@@ -1,8 +1,8 @@
 import {
-    ApiContentFileBlockElement,
-    ApiContentFileBlockElementResponseWithoutKeys,
-    ApiContentPreviewBlockElement,
-    ApiContentPreviewBlockElementResponseWithoutKeys,
+    ApiContentFileBlockElementRequest,
+    ApiContentFileBlockElementWithoutKeys,
+    ApiContentPreviewBlockElementRequest,
+    ApiContentPreviewBlockElementWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     computeFileRowLayout,
@@ -17,10 +17,10 @@ import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 export function computeApiContentFileRowWidths(
     elements: ReadonlyArray<
-        | ApiContentFileBlockElement
-        | ApiContentPreviewBlockElement
-        | ApiContentFileBlockElementResponseWithoutKeys
-        | ApiContentPreviewBlockElementResponseWithoutKeys
+        | ApiContentFileBlockElementRequest
+        | ApiContentPreviewBlockElementRequest
+        | ApiContentFileBlockElementWithoutKeys
+        | ApiContentPreviewBlockElementWithoutKeys
     >,
     {
         getFileIfExists,

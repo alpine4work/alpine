@@ -9,9 +9,9 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
 import {
-    ApiContentResponseWithoutKeys,
-    ApiTaskResponse,
-    ApiTaskWithNotesResponse,
+    ApiContentWithoutKeys,
+    ApiTask,
+    ApiTaskWithNotes,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -53,7 +53,7 @@ const context: AgentWebContext = {
     },
 };
 
-const emptyNotesContent: ApiContentResponseWithoutKeys = {
+const emptyNotesContent: ApiContentWithoutKeys = {
     elements: [{type: "Paragraph", elements: []}],
 };
 
@@ -61,8 +61,8 @@ function mockGetTask(
     api: ApiClientMock,
     spaceId: SpaceId,
     taskId: TaskId,
-    responseData: Omit<ApiTaskWithNotesResponse, "id">,
-    subtasks: ReadonlyArray<ApiTaskWithNotesResponse> = [],
+    responseData: Omit<ApiTaskWithNotes, "id">,
+    subtasks: ReadonlyArray<ApiTaskWithNotes> = [],
 ): void {
     api.mockGet("/tasks/{id}-with-notes/subtasks", {
         params: {path: {id: taskId}, query: {limit: 51}},
@@ -427,7 +427,7 @@ End of tasks.`,
     });
 });
 
-function withoutNotes(task: ApiTaskWithNotesResponse): ApiTaskResponse {
+function withoutNotes(task: ApiTaskWithNotes): ApiTask {
     const {notes: _notes, ...taskWithoutNotes} = task;
     return taskWithoutNotes;
 }

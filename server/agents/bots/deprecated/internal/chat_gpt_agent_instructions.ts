@@ -3,7 +3,7 @@
 import Mustache from "mustache";
 import OpenAi from "openai";
 import {agentInstructionsMarkdown as markdown} from "~/server/agents/bots/deprecated/internal/agent_instructions_markdown.js";
-import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessageRoomReferenceRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {Lazy} from "~/shared/helpers/control/lazy.open_source.js";
 
@@ -279,7 +279,7 @@ export function getChatGptAgentInstructions({
     messageRoomType,
 }: {
     spaceName: string;
-    messageRoomType: ApiMessageRoomReference["type"];
+    messageRoomType: ApiMessageRoomReferenceRequest["type"];
 }) {
     let conversationSurface: string;
     switch (messageRoomType) {

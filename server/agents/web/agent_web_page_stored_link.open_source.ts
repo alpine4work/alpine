@@ -1,7 +1,7 @@
 import {AgentWebPageStoredLinkKeyObject} from "~/server/agents/web/agent_web_page_stored_link_key.open_source.js";
 import {
-    ApiDocumentReference,
-    ApiMentionReferenceResponse,
+    ApiDocumentReferenceRequest,
+    ApiMentionReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     FileContentType,
@@ -34,7 +34,7 @@ import {
  * see `AgentWebPageStoredLinkKey`.
  */
 export type AgentWebPageStoredLink =
-    | ApiMentionReferenceResponse
+    | ApiMentionReference
     | {
           readonly type: "ChatMessage";
           readonly id: ChatId;
@@ -44,7 +44,7 @@ export type AgentWebPageStoredLink =
       }
     | {
           readonly type: "DocumentMessage";
-          readonly document: ApiDocumentReference;
+          readonly document: ApiDocumentReferenceRequest;
           readonly id: DocumentCommentThreadId;
           readonly index: number;
           readonly authorShortName: string;
@@ -187,7 +187,7 @@ function slugify(string: string) {
  * link is printed to Markdown this is the `label` part in `[label](path)`.
  * `printAgentWebPageStoredLinkPath(page)` prints the `path` part.
  */
-export function printAgentWebPageStoredLinkLabel(link: ApiMentionReferenceResponse): string {
+export function printAgentWebPageStoredLinkLabel(link: ApiMentionReference): string {
     switch (link.type) {
         case "Account":
         case "Channel":

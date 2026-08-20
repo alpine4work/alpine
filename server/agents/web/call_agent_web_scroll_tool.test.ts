@@ -10,7 +10,7 @@ import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_help
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {wikipediaYoutubeDocumentContent} from "~/shared/documents/fixtures/wikipedia_youtube_document_content.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -53,7 +53,7 @@ const context: AgentWebContext = {
 };
 
 function createDocumentContentFromParagraphs(paragraphTextList: ReadonlyArray<string>) {
-    return parseApiContentFromMarkdown(paragraphTextList.join("\n\n")) as ApiContentResponse;
+    return parseApiContentFromMarkdown(paragraphTextList.join("\n\n")) as ApiContent;
 }
 
 function createReadResponse(response: string): {

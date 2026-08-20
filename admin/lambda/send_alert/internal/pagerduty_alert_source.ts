@@ -10,9 +10,9 @@ import {
 import {createHeaderElements} from "~/admin/lambda/send_alert/internal/create_header_elements.js";
 import {createUserElement} from "~/admin/lambda/send_alert/internal/create_user_element.js";
 import {PagerDutyEventPayload} from "~/admin/lambda/send_alert/internal/pagerduty_alert_source_types.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
-type ApiContentElement = ApiContent["elements"][number];
+type ApiContentElement = ApiContentRequest["elements"][number];
 
 export class PagerDutyAlertSource extends AlertSource {
     override validateAuthorization(): AlertSourceAuthorizationResult {

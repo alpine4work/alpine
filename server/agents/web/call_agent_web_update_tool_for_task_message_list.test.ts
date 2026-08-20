@@ -8,8 +8,8 @@ import {callAgentWebUpdateTool as actuallyCallAgentWebUpdateTool} from "~/server
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {storeAgentWebPageLinkForTest} from "~/server/agents/web/test_helpers/store_agent_web_page_link_for_test.js";
 import {
-    ApiContentResponseWithoutKeys,
-    ApiTaskReferenceResponse,
+    ApiContentWithoutKeys,
+    ApiTaskReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
@@ -43,14 +43,14 @@ const botApiAccount = createApiAccountMock({
     botId,
 });
 
-const taskReference: ApiTaskReferenceResponse = {
+const taskReference: ApiTaskReference = {
     type: "Task",
     id: taskId,
     title: "Write Spec",
     status: {type: "Open", isActive: true},
 };
 
-const otherTaskReference: ApiTaskReferenceResponse = {
+const otherTaskReference: ApiTaskReference = {
     type: "Task",
     id: otherTaskId,
     title: "Review Spec",
@@ -94,7 +94,7 @@ beforeEach(async () => {
     assert(actualOtherTaskPathname === otherTaskPath);
 });
 
-function createTextContent(text: string): ApiContentResponseWithoutKeys {
+function createTextContent(text: string): ApiContentWithoutKeys {
     return {
         elements: [{type: "Paragraph", elements: [{type: "Text", text}]}],
     };

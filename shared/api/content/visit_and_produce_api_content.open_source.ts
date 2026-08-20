@@ -11,23 +11,23 @@ import {
 } from "~/shared/api/specification/types/api_content_response_with_optional_keys.open_source.js";
 import {ApiReference} from "~/shared/api/specification/types/api_reference.open_source.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
-    ApiContentInlineElement,
+    ApiContentBlockElementRequest,
     ApiContentInlineElementMark,
-    ApiContentMentionInlineElement,
-    ApiContentPreviewBlockElement,
+    ApiContentInlineElementRequest,
+    ApiContentMentionInlineElementRequest,
+    ApiContentPreviewBlockElementRequest,
+    ApiContentRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 export type ApiContentDraftVisitor = {
     readonly visitBlockElement?: (
-        element: Draft<ApiContentBlockElement>,
-        context: {elements: Draft<ReadonlyArray<ApiContentBlockElement>>; index: number},
+        element: Draft<ApiContentBlockElementRequest>,
+        context: {elements: Draft<ReadonlyArray<ApiContentBlockElementRequest>>; index: number},
     ) => void;
     readonly visitInlineElement?: (
-        element: Draft<ApiContentInlineElement>,
+        element: Draft<ApiContentInlineElementRequest>,
         context: {
-            elements: Draft<ReadonlyArray<ApiContentInlineElement>>;
+            elements: Draft<ReadonlyArray<ApiContentInlineElementRequest>>;
             index: number;
             // TODO: Replace this ad hoc flag with a `parent` or `parents` array once we have a
             // better idea of what callers need from this traversal.
@@ -41,7 +41,9 @@ export type ApiContentDraftVisitor = {
     readonly visitReference?: (
         reference: Draft<ApiReference>,
         context: {
-            element: Draft<ApiContentMentionInlineElement> | Draft<ApiContentPreviewBlockElement>;
+            element:
+                | Draft<ApiContentMentionInlineElementRequest>
+                | Draft<ApiContentPreviewBlockElementRequest>;
         },
     ) => void;
 };
@@ -51,11 +53,14 @@ export function visitAndProduceApiContent<Content extends ApiContentWithOptional
     visitor: ApiContentDraftVisitor,
 ): Content {
     return produce(content, content => {
-        visitApiContent(content as Draft<ApiContent>, visitor as ApiContentVisitor);
+        visitApiContent(content as Draft<ApiContentRequest>, visitor as ApiContentVisitor);
     });
 }
 
-export function visitDraftApiContent(content: Draft<ApiContent>, visitor: ApiContentDraftVisitor) {
+export function visitDraftApiContent(
+    content: Draft<ApiContentRequest>,
+    visitor: ApiContentDraftVisitor,
+) {
     visitApiContent(content, visitor as ApiContentVisitor);
 }
 
@@ -64,30 +69,29 @@ export function visitAndProduceApiContentBlockElement<
 >(element: Element, visitor: ApiContentDraftVisitor): Element {
     return produce(element, element => {
         visitApiContentBlockElement(
-            element as Draft<ApiContentBlockElement>,
+            element as Draft<ApiContentBlockElementRequest>,
             visitor as ApiContentVisitor,
         );
     });
 }
 
 export function visitDraftApiContentBlockElement(
-    element: Draft<ApiContentBlockElement>,
+    element: Draft<ApiContentBlockElementRequest>,
     visitor: ApiContentDraftVisitor,
 ) {
     visitApiContentBlockElement(element, visitor as ApiContentVisitor);
 }
 
-export function visitAndProduceApiContentInlineElements<Element extends ApiContentInlineElement>(
-    elements: ReadonlyArray<Element>,
-    visitor: ApiContentDraftVisitor,
-): ReadonlyArray<Element> {
+export function visitAndProduceApiContentInlineElements<
+    Element extends ApiContentInlineElementRequest,
+>(elements: ReadonlyArray<Element>, visitor: ApiContentDraftVisitor): ReadonlyArray<Element> {
     return produce(elements, elements => {
         visitApiContentInlineElements(elements, visitor as ApiContentVisitor);
     });
 }
 
 export function visitDraftApiContentInlineElements(
-    elements: Draft<ReadonlyArray<ApiContentInlineElement>>,
+    elements: Draft<ReadonlyArray<ApiContentInlineElementRequest>>,
     visitor: ApiContentDraftVisitor,
 ) {
     visitApiContentInlineElements(elements, visitor as ApiContentVisitor);

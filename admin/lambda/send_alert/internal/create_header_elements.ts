@@ -1,9 +1,9 @@
 import {
-    ApiContent,
-    ApiContentParagraphBlockElement,
+    ApiContentParagraphBlockElementRequest,
+    ApiContentRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
-type ApiContentElement = ApiContent["elements"][number];
+type ApiContentElement = ApiContentRequest["elements"][number];
 
 /**
  * Builds the common alert heading and optional action link row.
@@ -29,7 +29,8 @@ export function createHeaderElements(
     ];
 
     if (actions && actions.length > 0) {
-        const actionElements: Array<ApiContentParagraphBlockElement["elements"][number]> = [];
+        const actionElements: Array<ApiContentParagraphBlockElementRequest["elements"][number]> =
+            [];
 
         actions.forEach((action, index) => {
             if (index > 0) {

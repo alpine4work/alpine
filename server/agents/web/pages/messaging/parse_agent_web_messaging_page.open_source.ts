@@ -27,8 +27,8 @@ import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_mar
 import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markdown.open_source.js";
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiContentResponseWithoutKeys,
+    ApiAccountReference,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {createAggregateError} from "~/shared/error/aggregate_error.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
@@ -530,7 +530,7 @@ async function actuallyParseAgentWebMessagingPage<
                                         {deletedAttribute: true}
                                     >,
                                     {
-                                        author: Promise<ApiAccountReferenceResponse> | null;
+                                        author: Promise<ApiAccountReference> | null;
                                     }
                                 > = {
                                     ...blockBase,
@@ -547,8 +547,8 @@ async function actuallyParseAgentWebMessagingPage<
                                         {deletedAttribute: null}
                                     >,
                                     {
-                                        author: Promise<ApiAccountReferenceResponse> | null;
-                                        content: Promise<ApiContentResponseWithoutKeys>;
+                                        author: Promise<ApiAccountReference> | null;
+                                        content: Promise<ApiContentWithoutKeys>;
                                         parent: Promise<AgentWebMessagingPageMessageBlockParent> | null;
                                     }
                                 > = {

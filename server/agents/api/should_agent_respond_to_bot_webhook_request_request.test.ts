@@ -6,7 +6,7 @@ import {createApiAccountMock} from "~/server/agents/api/test_helpers/create_api_
 import {DurableObjectStorageCollection} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
     ApiBotWebhookEvent,
-    ApiChatResponse,
+    ApiChat,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -17,7 +17,7 @@ const {span} = testTracer.getRoot().startSpan("test-span");
 
 const apiClient = new ApiClientMock();
 
-const ApiChatCollection = new DurableObjectStorageCollection<ChatId, ApiChatResponse>("a0");
+const ApiChatCollection = new DurableObjectStorageCollection<ChatId, ApiChat>("a0");
 
 // Have to case as any here since Miniflare's DurableObjectStorage type is not
 // assignable to the global DurableObjectStorage type we use in the

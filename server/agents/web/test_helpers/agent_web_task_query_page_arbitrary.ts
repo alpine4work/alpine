@@ -12,7 +12,7 @@ import {
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
 import {
     ApiTaskPriority,
-    ApiTaskQueryFilterResponse,
+    ApiTaskQueryFilter,
     ApiTaskQuerySort,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
@@ -85,7 +85,7 @@ export const AgentWebTaskQueryPageUniqueSubtasksArbitrary =
         tasks.map(task => ({...task, parent: null})),
     );
 
-const ApiTaskQueryFilterResponsesArbitrary: Arbitrary<ReadonlyArray<ApiTaskQueryFilterResponse>> =
+const ApiTaskQueryFilterResponsesArbitrary: Arbitrary<ReadonlyArray<ApiTaskQueryFilter>> =
     fc.constantFrom(
         [],
         [

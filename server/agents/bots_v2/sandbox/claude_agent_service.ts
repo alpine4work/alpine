@@ -9,7 +9,7 @@ import {
 import {createClaudeAgentServiceTracer} from "~/server/agents/bots_v2/sandbox/create_claude_agent_service_tracer.js";
 import {runClaudeAgent} from "~/server/agents/bots_v2/sandbox/run_claude_agent.js";
 import {printErrorDisplayMessageToApiContent} from "~/shared/api/content/print_error_display_message_to_api_content.js";
-import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {isTransientError} from "~/shared/error/is_transient_error.open_source.js";
@@ -72,7 +72,7 @@ main()
             // eslint-disable-next-line no-console
             console.error("Main failed:", error);
 
-            const content: ApiContent = {
+            const content: ApiContentRequest = {
                 elements: [
                     {
                         type: "Paragraph",

@@ -9,13 +9,13 @@ import {
 } from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
     ApiBotWebhookEvent,
-    ApiChatResponse,
-    ApiMessageRoomReference,
+    ApiChat,
+    ApiMessageRoomReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {AccountId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
 
-const ApiChatCollection = new DurableObjectStorageCollection<ChatId, ApiChatResponse>("a0");
+const ApiChatCollection = new DurableObjectStorageCollection<ChatId, ApiChat>("a0");
 
 export async function shouldAgentRespondToApiBotWebhookRequestWithCache(
     tracer: TracerBase,
@@ -23,7 +23,7 @@ export async function shouldAgentRespondToApiBotWebhookRequestWithCache(
         apiClient: ApiClient;
         storage: DurableObjectStorageInterface;
         botAccountId: AccountId;
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
         event: Exclude<ApiBotWebhookEvent, {type: "UpdatedMessageStreamExperimentalApprovalsPart"}>;
     },
 ): Promise<boolean> {
@@ -45,7 +45,7 @@ export async function isOneOnOneChatWithCache(
         apiClient: ApiClient;
         storage: DurableObjectStorageInterface;
         botAccountId: AccountId;
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
     },
 ): Promise<boolean> {
     if (request.room.type !== "Chat") return false;
@@ -59,8 +59,8 @@ export async function isOneOnOneChatWithCache(
 async function withChatCache(
     storage: DurableObjectStorageInterface,
     chatId: ChatId,
-    action: () => Promise<ApiChatResponse>,
-): Promise<ApiChatResponse> {
+    action: () => Promise<ApiChat>,
+): Promise<ApiChat> {
     let chat = await ApiChatCollection.getOrPutDefault(storage, chatId, action);
 
     // NOTE(ifitzsimmons, 2026-06-22): There's no guarantee that our agents clear the

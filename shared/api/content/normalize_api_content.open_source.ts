@@ -8,13 +8,13 @@ import {ApiContentFileBlockElementResponseWithOptionalKeys} from "~/shared/api/s
 import {ApiReference} from "~/shared/api/specification/types/api_reference.open_source.js";
 import {ApiReferenceResponse} from "~/shared/api/specification/types/api_reference_response.open_source.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
-    ApiContentFileBlockElementResponse,
-    ApiContentFileGalleryBlockElement,
-    ApiContentInlineElement,
+    ApiContentBlockElementRequest,
+    ApiContentFileBlockElement,
+    ApiContentFileGalleryBlockElementRequest,
     ApiContentInlineElementMark,
-    ApiMentionReference,
+    ApiContentInlineElementRequest,
+    ApiContentRequest,
+    ApiMentionReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -27,23 +27,23 @@ import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.open_sour
 import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
 /**
- * If two `ApiContent` objects normalize to the same object (based on an
- * `isDeepEqual()` check) then the two `ApiContent`s are considered to be
+ * If two `ApiContentRequest` objects normalize to the same object (based on an
+ * `isDeepEqual()` check) then the two `ApiContentRequest`s are considered to be
  * equivalent.
  */
-export function normalizeApiContent(content: ApiContent): ApiContent {
+export function normalizeApiContent(content: ApiContentRequest): ApiContentRequest {
     return produce(content, normalizeDraftApiContent);
 }
 
-export function normalizeDraftApiContent(content: Draft<ApiContent>) {
+export function normalizeDraftApiContent(content: Draft<ApiContentRequest>) {
     ApiContentNormalizer.with(normalizer => {
         normalizer.normalize(content);
     });
 }
 
 export function normalizeApiContentBlockElement(
-    element: ApiContentBlockElement,
-): ApiContentBlockElement {
+    element: ApiContentBlockElementRequest,
+): ApiContentBlockElementRequest {
     return produce(element, element => {
         ApiContentNormalizer.with(normalizer => {
             normalizer.normalizeBlockElement(element);
@@ -52,8 +52,8 @@ export function normalizeApiContentBlockElement(
 }
 
 export function normalizeApiContentInlineElements(
-    elements: ReadonlyArray<ApiContentInlineElement>,
-): ReadonlyArray<ApiContentInlineElement> {
+    elements: ReadonlyArray<ApiContentInlineElementRequest>,
+): ReadonlyArray<ApiContentInlineElementRequest> {
     return produce(elements, elements => {
         ApiContentNormalizer.with(normalizer => {
             normalizer.normalizeInlineElements(elements);
@@ -61,7 +61,9 @@ export function normalizeApiContentInlineElements(
     });
 }
 
-export function normalizeApiReference(reference: ApiMentionReference): ApiMentionReference {
+export function normalizeApiReference(
+    reference: ApiMentionReferenceRequest,
+): ApiMentionReferenceRequest {
     return produce(reference, reference => {
         ApiContentNormalizer.with(normalizer => {
             normalizer.normalizeReference(reference);
@@ -132,11 +134,11 @@ export class ApiContentNormalizer {
         }
     }
 
-    normalize(content: Draft<ApiContent>) {
+    normalize(content: Draft<ApiContentRequest>) {
         this.normalizeBlockElements(content.elements);
     }
 
-    normalizeBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElement>>) {
+    normalizeBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElementRequest>>) {
         this.normalizePossiblyEmptyBlockElements(elements);
 
         // All block element lists in our underlying ProseMirror content are non-empty. So
@@ -152,7 +154,9 @@ export class ApiContentNormalizer {
         }
     }
 
-    normalizePossiblyEmptyBlockElements(elements: Draft<ReadonlyArray<ApiContentBlockElement>>) {
+    normalizePossiblyEmptyBlockElements(
+        elements: Draft<ReadonlyArray<ApiContentBlockElementRequest>>,
+    ) {
         let index = 0;
         while (index < elements.length) {
             const element = elements[index]!;
@@ -332,7 +336,7 @@ export class ApiContentNormalizer {
                 ) {
                     // Replace the current element with a FileGallery wrapping it, then fall through to
                     // the FileGallery merge logic below.
-                    const gallery = castDraft<ApiContentFileGalleryBlockElement>({
+                    const gallery = castDraft<ApiContentFileGalleryBlockElementRequest>({
                         type: "FileGallery",
                         rows: [{items: [{element}]}],
                     });
@@ -369,7 +373,7 @@ export class ApiContentNormalizer {
         }
     }
 
-    normalizeBlockElement(element: Draft<ApiContentBlockElement>) {
+    normalizeBlockElement(element: Draft<ApiContentBlockElementRequest>) {
         switch (element.type) {
             case "Paragraph": {
                 if (!this.#withKeys && hasOwnProperty(element, "key")) delete element.key;
@@ -524,7 +528,7 @@ export class ApiContentNormalizer {
                     // metadata from the last time the file is referenced (this matches the behavior of
                     // `printApiContentToAgentWebMarkdown()` which ends up with the last seen response
                     // data in storage.)
-                    const actualElement = element as Draft<ApiContentFileBlockElementResponse>;
+                    const actualElement = element as Draft<ApiContentFileBlockElement>;
                     const actualFile = actualElement.file;
 
                     const otherFileElements = this.#response.fileElementsById.getOrSetDefault(
@@ -596,9 +600,9 @@ export class ApiContentNormalizer {
         }
     }
 
-    normalizeInlineElements(elements: Draft<ReadonlyArray<ApiContentInlineElement>>) {
+    normalizeInlineElements(elements: Draft<ReadonlyArray<ApiContentInlineElementRequest>>) {
         let index = 0;
-        let lastElement: Draft<ApiContentInlineElement> | undefined;
+        let lastElement: Draft<ApiContentInlineElementRequest> | undefined;
 
         while (index < elements.length) {
             const element = elements[index]!;

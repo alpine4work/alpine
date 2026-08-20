@@ -9,25 +9,25 @@
 #
 # - Schema names may end with any number of underscore-separated
 #   "specializations", spelled in alphabetical order (e.g.
-#   `ContentParagraphBlockElement_Response_WithoutKeys` is the
-#   `{Response, WithoutKeys}` variant of `ContentParagraphBlockElement`).
+#   `ContentParagraphBlockElement_Request_WithoutKeys` is the
+#   `{Request, WithoutKeys}` variant of `ContentParagraphBlockElement`).
 #
 #   Specializations create entirely new type hierarchies that use the
 #   specialized type instead of the base type. For example, we generate
-#   `ContentInlineElement_Response` that references
-#   `ContentMentionInlineElement_Response` instead of
+#   `ContentInlineElement_Request` that references
+#   `ContentMentionInlineElement_Request` instead of
 #   `ContentMentionInlineElement`.
 #
 #   Specializations compose by set union and references resolve to the closest
 #   variant that exists: a reference to `Content_WithoutKeys` in a schema being
-#   specialized for `Response` becomes `Content_Response_WithoutKeys`, which
-#   uses `_Response_WithoutKeys` schemas where available, then `_Response`
-#   schemas, then the base schemas.
+#   specialized for `Request` becomes `Content_Request_WithoutKeys`, which uses
+#   `_Request_WithoutKeys` schemas where available, then `_Request` schemas, then
+#   the base schemas.
 #
 #   Request bodies use the `Request` specialization of every schema they
-#   reference and responses use the `Response` specialization. A variant is
-#   only generated when it's demanded and structurally different from the
-#   variant it would otherwise resolve to.
+#   reference and responses use the base schema. A variant is only generated
+#   when it's demanded and structurally different from the variant it would
+#   otherwise resolve to.
 #
 #   See `specialize()` in `generate_api_specification_main.ts` for the full
 #   model.
@@ -362,7 +362,7 @@ paths:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 chat:
-                                    $ref: "#/components/schemas/ChatCreateRequest"
+                                    $ref: "#/components/schemas/ChatCreate_Request"
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetChat"}
@@ -1462,7 +1462,7 @@ paths:
                                 spaceId:
                                     $ref: "#/components/schemas/SpaceId"
                                 task:
-                                    $ref: "#/components/schemas/TaskCreateRequest"
+                                    $ref: "#/components/schemas/TaskCreate_Request"
             responses:
                 default: {$ref: "#/components/responses/Error"}
                 "200": {$ref: "#/components/responses/GetTaskWithNotes"}
@@ -2798,7 +2798,7 @@ components:
         # =========================================================================== #
 
         # TODO(#public-api-not-blocking): There are many API types that should be
-        # assignable to our entity "References". For example, `PostReference_Response`,
+        # assignable to our entity "References". For example, `PostReference`,
         # `SearchPostResult`, `Post`, `PostPreview`, etc. should all be assignable to
         # `PostReference`. However, there's nothing in our API spec that clearly explains
         # this fact.
@@ -2811,7 +2811,7 @@ components:
         # without structural typing (e.g. Rust, Java), where a `SearchPostResult` won't be
         # assignable to a `PostReference` unless the relationship is spelled out.
 
-        AccountReference:
+        AccountReference_Request:
             type: object
             required: [type, id]
             properties:
@@ -2820,7 +2820,7 @@ components:
                 id:
                     $ref: "#/components/schemas/AccountId"
 
-        AccountReference_Response:
+        AccountReference:
             type: object
             required: [type, id, title, shortName]
             additionalProperties: false
@@ -2841,7 +2841,7 @@ components:
                         id:
                             $ref: "#/components/schemas/BotId"
 
-        ChannelReference:
+        ChannelReference_Request:
             type: object
             required: [type, id]
             properties:
@@ -2850,7 +2850,7 @@ components:
                 id:
                     $ref: "#/components/schemas/ChannelId"
 
-        ChannelReference_Response:
+        ChannelReference:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -2865,18 +2865,18 @@ components:
                     type: boolean
                 private:
                     type: boolean
+
+        ChatReference_Request:
+            type: object
+            required: [type, id]
+            properties:
+                type:
+                    const: Chat
+                id:
+                    $ref: "#/components/schemas/ChatId"
 
         ChatReference:
             type: object
-            required: [type, id]
-            properties:
-                type:
-                    const: Chat
-                id:
-                    $ref: "#/components/schemas/ChatId"
-
-        ChatReference_Response:
-            type: object
             required: [type, id, title]
             additionalProperties: false
             properties:
@@ -2891,7 +2891,7 @@ components:
                 private:
                     type: boolean
 
-        DocumentReference:
+        DocumentReference_Request:
             type: object
             required: [type, id]
             properties:
@@ -2900,7 +2900,7 @@ components:
                 id:
                     $ref: "#/components/schemas/DocumentId"
 
-        DocumentReference_Response:
+        DocumentReference:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -2927,7 +2927,7 @@ components:
                 id:
                     $ref: "#/components/schemas/DocumentThreadId"
 
-        PostReference:
+        PostReference_Request:
             type: object
             required: [type, id]
             properties:
@@ -2936,7 +2936,7 @@ components:
                 id:
                     $ref: "#/components/schemas/PostId"
 
-        PostReference_Response:
+        PostReference:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -2952,7 +2952,7 @@ components:
                 private:
                     type: boolean
 
-        TaskReference:
+        TaskReference_Request:
             type: object
             required: [type, id]
             properties:
@@ -2961,7 +2961,7 @@ components:
                 id:
                     $ref: "#/components/schemas/TaskId"
 
-        TaskReference_Response:
+        TaskReference:
             type: object
             required: [type, id, title, status]
             additionalProperties: false
@@ -2979,7 +2979,7 @@ components:
                 private:
                     type: boolean
 
-        TaskCollectionReference:
+        TaskCollectionReference_Request:
             type: object
             required: [type, id]
             properties:
@@ -2988,7 +2988,7 @@ components:
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
 
-        TaskCollectionReference_Response:
+        TaskCollectionReference:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -3010,7 +3010,7 @@ components:
         # id. Rerouting to the first entity in the site makes sense in the app since
         # we render the site chrome around the entity. For the API, that "reroute"
         # may be pretty confusing/jarring for clients.
-        SiteReference:
+        SiteReference_Request:
             type: object
             required: [type, id]
             properties:
@@ -3019,7 +3019,7 @@ components:
                 id:
                     $ref: "#/components/schemas/SiteId"
 
-        SiteReference_Response:
+        SiteReference:
             type: object
             required: [type, id, title]
             additionalProperties: false
@@ -3150,7 +3150,7 @@ components:
                     FileFloat: "#/components/schemas/ContentFileFloatBlockElement"
                     Preview: "#/components/schemas/ContentPreviewBlockElement"
 
-        ContentParagraphBlockElement:
+        ContentParagraphBlockElement_Request:
             type: object
             required: [type, elements]
             additionalProperties: false
@@ -3162,7 +3162,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
 
-        ContentParagraphBlockElement_Response:
+        ContentParagraphBlockElement:
             type: object
             required: [type, key, elements]
             additionalProperties: false
@@ -3174,9 +3174,9 @@ components:
                 elements:
                     type: array
                     items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
+                        $ref: "#/components/schemas/ContentInlineElement"
 
-        ContentParagraphBlockElement_Response_WithoutKeys:
+        ContentParagraphBlockElement_WithoutKeys:
             type: object
             required: [type, elements]
             additionalProperties: false
@@ -3186,7 +3186,7 @@ components:
                 elements:
                     type: array
                     items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
+                        $ref: "#/components/schemas/ContentInlineElement"
 
         ContentListBlockElement:
             oneOf:
@@ -3306,7 +3306,7 @@ components:
                     OrderedList: "#/components/schemas/ContentOrderedListBlockElement"
                     CheckList: "#/components/schemas/ContentCheckListBlockElement"
 
-        ContentHeadingBlockElement:
+        ContentHeadingBlockElement_Request:
             type: object
             required: [type, level, elements]
             additionalProperties: false
@@ -3322,7 +3322,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentInlineElement"
 
-        ContentHeadingBlockElement_Response:
+        ContentHeadingBlockElement:
             type: object
             required: [type, key, level, elements]
             additionalProperties: false
@@ -3338,9 +3338,9 @@ components:
                 elements:
                     type: array
                     items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
+                        $ref: "#/components/schemas/ContentInlineElement"
 
-        ContentHeadingBlockElement_Response_WithoutKeys:
+        ContentHeadingBlockElement_WithoutKeys:
             type: object
             required: [type, level, elements]
             additionalProperties: false
@@ -3354,9 +3354,9 @@ components:
                 elements:
                     type: array
                     items:
-                        $ref: "#/components/schemas/ContentInlineElement_Response"
+                        $ref: "#/components/schemas/ContentInlineElement"
 
-        ContentDividerBlockElement:
+        ContentDividerBlockElement_Request:
             type: object
             required: [type]
             additionalProperties: false
@@ -3364,7 +3364,7 @@ components:
                 type:
                     const: Divider
 
-        ContentDividerBlockElement_Response:
+        ContentDividerBlockElement:
             type: object
             required: [type, key]
             additionalProperties: false
@@ -3374,7 +3374,7 @@ components:
                 key:
                     $ref: "#/components/schemas/ContentKey"
 
-        ContentDividerBlockElement_Response_WithoutKeys:
+        ContentDividerBlockElement_WithoutKeys:
             type: object
             required: [type]
             additionalProperties: false
@@ -3470,7 +3470,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementLine"
 
-        ContentCodeBlockElementLine:
+        ContentCodeBlockElementLine_Request:
             type: object
             required: [elements]
             additionalProperties: false
@@ -3480,7 +3480,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
 
-        ContentCodeBlockElementLine_Response:
+        ContentCodeBlockElementLine:
             type: object
             required: [key, elements]
             additionalProperties: false
@@ -3492,7 +3492,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
 
-        ContentCodeBlockElementLine_Response_WithoutKeys:
+        ContentCodeBlockElementLine_WithoutKeys:
             type: object
             required: [elements]
             additionalProperties: false
@@ -3502,7 +3502,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCodeBlockElementTextInlineElement"
 
-        ContentFileBlockElement:
+        ContentFileBlockElement_Request:
             type: object
             required: [type, file]
             additionalProperties: false
@@ -3516,7 +3516,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
 
-        ContentFileBlockElement_Response:
+        ContentFileBlockElement:
             type: object
             required: [type, key, file]
             additionalProperties: false
@@ -3532,7 +3532,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
 
-        ContentFileBlockElement_Response_WithoutKeys:
+        ContentFileBlockElement_WithoutKeys:
             type: object
             required: [type, file]
             additionalProperties: false
@@ -3546,7 +3546,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
 
-        ContentFileBlockElementFile:
+        ContentFileBlockElementFile_Request:
             type: object
             required: [id]
             additionalProperties: false
@@ -3554,7 +3554,7 @@ components:
                 id:
                     $ref: "#/components/schemas/FileId"
 
-        ContentFileBlockElementFile_Response:
+        ContentFileBlockElementFile:
             type: object
             required: [id, contentType, contentLength]
             additionalProperties: false
@@ -3571,7 +3571,7 @@ components:
                     minLength: 1
                     maxLength: {{fileAnalysisCaptionMaxLength}}
 
-        ContentPreviewBlockElement:
+        ContentPreviewBlockElement_Request:
             type: object
             required: [type, reference]
             additionalProperties: false
@@ -3585,7 +3585,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
 
-        ContentPreviewBlockElement_Response:
+        ContentPreviewBlockElement:
             type: object
             required: [type, key, reference]
             additionalProperties: false
@@ -3601,7 +3601,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentCommentMark"
 
-        ContentPreviewBlockElement_Response_WithoutKeys:
+        ContentPreviewBlockElement_WithoutKeys:
             type: object
             required: [type, reference]
             additionalProperties: false
@@ -3644,7 +3644,7 @@ components:
                     items:
                         $ref: "#/components/schemas/ContentFileGalleryBlockElementRowItem"
 
-        ContentFileGalleryBlockElementRowItem:
+        ContentFileGalleryBlockElementRowItem_Request:
             type: object
             required: [element]
             additionalProperties: false
@@ -3659,7 +3659,7 @@ components:
                             File: "#/components/schemas/ContentFileBlockElement"
                             Preview: "#/components/schemas/ContentPreviewBlockElement"
 
-        ContentFileGalleryBlockElementRowItem_Response:
+        ContentFileGalleryBlockElementRowItem:
             type: object
             required: [width, element]
             additionalProperties: false
@@ -3953,7 +3953,7 @@ components:
         #                                  Entities                                   #
         # =========================================================================== #
 
-        AccountWithoutSpace:
+        AccountWithoutSpace_Request:
             type: object
             required: [id]
             additionalProperties: false
@@ -3961,12 +3961,12 @@ components:
                 id:
                     $ref: "#/components/schemas/AccountId"
                 # NOTE(calebmer): Optional `title` property so we can accept an
-                # `AccountReferenceResponse` to this type without `additionalProperties`
+                # `AccountReference` to this type without `additionalProperties`
                 # throwing an error. We should hide this from documentation!
                 title:
                     type: string
 
-        AccountWithoutSpace_Response:
+        AccountWithoutSpace:
             type: object
             required: [id, name, shortName]
             additionalProperties: false
@@ -3995,7 +3995,7 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
 
-        Account:
+        Account_Request:
             type: object
             required: [id]
             additionalProperties: false
@@ -4003,12 +4003,12 @@ components:
                 id:
                     $ref: "#/components/schemas/AccountId"
                 # NOTE(calebmer): Optional `title` property so we can accept an
-                # `AccountReferenceResponse` to this type without `additionalProperties`
+                # `AccountReference` to this type without `additionalProperties`
                 # throwing an error. We should hide this from documentation!
                 title:
                     type: string
 
-        Account_Response:
+        Account:
             type: object
             required: [id, name, shortName, space]
             additionalProperties: false
@@ -4029,13 +4029,13 @@ components:
                 space:
                     $ref: "#/components/schemas/AccountSpace"
 
-        BotAccount:
+        BotAccount_Request:
             $ref: "#/components/schemas/Account"
 
-        BotAccount_Response:
+        BotAccount:
             type: object
-            # The only difference between `BotAccount_Response` and `Account_Response` is
-            # that `bot` is required in `BotAccount_Response`.
+            # The only difference between `BotAccount` and `Account` is
+            # that `bot` is required in `BotAccount`.
             required: [id, name, shortName, bot, space]
             additionalProperties: false
             properties:
@@ -4234,7 +4234,7 @@ components:
                 type:
                     const: Chat
                 chat:
-                    $ref: "#/components/schemas/ChatReference_Response"
+                    $ref: "#/components/schemas/ChatReference"
                 previewMessage:
                     type: object
                     required: [index]
@@ -4253,7 +4253,7 @@ components:
                 type:
                     const: CreatedChannelPosts
                 channel:
-                    $ref: "#/components/schemas/ChannelReference_Response"
+                    $ref: "#/components/schemas/ChannelReference"
                 posts:
                     type: array
                     minItems: 1
@@ -4274,7 +4274,7 @@ components:
                 type:
                     const: Post
                 post:
-                    $ref: "#/components/schemas/PostReference_Response"
+                    $ref: "#/components/schemas/PostReference"
                 previewMessage:
                     # Present when the entry surfaces a specific comment (deep-linked
                     # via its index). Absent for post-body mentions, which link to the
@@ -4297,7 +4297,7 @@ components:
                 type:
                     const: CreatedDocumentThreads
                 document:
-                    $ref: "#/components/schemas/DocumentReference_Response"
+                    $ref: "#/components/schemas/DocumentReference"
                 threads:
                     type: array
                     minItems: 1
@@ -4329,7 +4329,7 @@ components:
                 type:
                     const: DocumentThread
                 document:
-                    $ref: "#/components/schemas/DocumentReference_Response"
+                    $ref: "#/components/schemas/DocumentReference"
                 thread:
                     type: object
                     required: [id]
@@ -4356,7 +4356,7 @@ components:
                 type:
                     const: TaskMessages
                 task:
-                    $ref: "#/components/schemas/TaskReference_Response"
+                    $ref: "#/components/schemas/TaskReference"
                 previewMessage:
                     type: object
                     required: [index]
@@ -4416,17 +4416,17 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
 
-        ChatCreateRequest:
+        ChatCreate_Request:
             oneOf:
-                - $ref: "#/components/schemas/DirectChatCreateRequest"
-                - $ref: "#/components/schemas/RoomChatCreateRequest"
+                - $ref: "#/components/schemas/DirectChatCreate_Request"
+                - $ref: "#/components/schemas/RoomChatCreate_Request"
             discriminator:
                 propertyName: type
                 mapping:
-                    Direct: "#/components/schemas/DirectChatCreateRequest"
-                    Room: "#/components/schemas/RoomChatCreateRequest"
+                    Direct: "#/components/schemas/DirectChatCreate_Request"
+                    Room: "#/components/schemas/RoomChatCreate_Request"
 
-        DirectChatCreateRequest:
+        DirectChatCreate_Request:
             type: object
             required: [type, members]
             additionalProperties: false
@@ -4445,7 +4445,7 @@ components:
                             account:
                                 $ref: "#/components/schemas/Account"
 
-        RoomChatCreateRequest:
+        RoomChatCreate_Request:
             type: object
             required: [type, name]
             additionalProperties: false
@@ -4876,7 +4876,7 @@ components:
                 type:
                     const: Project
 
-        TaskParent:
+        TaskParent_Request:
             type: object
             required: [task]
             additionalProperties: false
@@ -4889,7 +4889,7 @@ components:
                         id:
                             $ref: "#/components/schemas/TaskId"
 
-        TaskParent_Response:
+        TaskParent:
             type: object
             required: [task]
             additionalProperties: false
@@ -4914,7 +4914,7 @@ components:
                 collection:
                     $ref: "#/components/schemas/TaskCollectionPreview"
 
-        TaskCreateRequest:
+        TaskCreate_Request:
             type: object
             additionalProperties: false
             properties:
@@ -5281,7 +5281,7 @@ components:
                 type:
                     const: Create
                 task:
-                    $ref: "#/components/schemas/TaskCreateRequest"
+                    $ref: "#/components/schemas/TaskCreate_Request"
                 # Allows applying additional patches to the task at the same time as when we
                 # create the task. Importantly, we should be able to move the task using
                 # `MoveInCollection` or `MoveInParent` at the same time as we add the patch.
@@ -5401,7 +5401,7 @@ components:
                 type:
                     const: Closed
 
-        TaskCollection:
+        TaskCollection_Request:
             type: object
             required: [id, name]
             additionalProperties: false
@@ -5421,7 +5421,7 @@ components:
                 color:
                     $ref: "#/components/schemas/TaskCollectionColor"
 
-        TaskCollection_Response:
+        TaskCollection:
             type: object
             required: [id, name, defaults]
             additionalProperties: false
@@ -5442,7 +5442,7 @@ components:
                 defaults:
                     $ref: "#/components/schemas/TaskQueryDefaults"
 
-        TaskCollectionPreview:
+        TaskCollectionPreview_Request:
             type: object
             required: [id]
             additionalProperties: false
@@ -5450,7 +5450,7 @@ components:
                 id:
                     $ref: "#/components/schemas/TaskCollectionId"
 
-        TaskCollectionPreview_Response:
+        TaskCollectionPreview:
             type: object
             required: [id, name]
             additionalProperties: false
@@ -5460,7 +5460,7 @@ components:
                 name:
                     $ref: "#/components/schemas/LabelString"
 
-        TaskQueryDefaults:
+        TaskQueryDefaults_Request:
             type: object
             required: []
             additionalProperties: false
@@ -5474,7 +5474,7 @@ components:
                     items:
                         $ref: "#/components/schemas/TaskQuerySort"
 
-        TaskQueryDefaults_Response:
+        TaskQueryDefaults:
             type: object
             required: [filters, sorts]
             additionalProperties: false
@@ -6306,7 +6306,7 @@ components:
                     Content: "#/components/schemas/MessageContentPayload"
                     Deleted: "#/components/schemas/MessageDeletedPayload"
 
-        MessageContentPayload:
+        MessageContentPayload_Request:
             type: object
             required: [type, content]
             additionalProperties: false
@@ -6322,7 +6322,7 @@ components:
                     items:
                         $ref: "#/components/schemas/MessageContentPayloadFile"
 
-        MessageContentPayload_Response:
+        MessageContentPayload:
             type: object
             required: [type, content, files]
             additionalProperties: false
@@ -6338,7 +6338,7 @@ components:
                     items:
                         $ref: "#/components/schemas/MessageContentPayloadFile"
 
-        MessageContentPayloadFile:
+        MessageContentPayloadFile_Request:
             type: object
             required: [element]
             additionalProperties: false
@@ -6353,7 +6353,7 @@ components:
                             File: "#/components/schemas/ContentFileBlockElement"
                             Preview: "#/components/schemas/ContentPreviewBlockElement"
 
-        MessageContentPayloadFile_Response:
+        MessageContentPayloadFile:
             type: object
             required: [rowIndex, width, element]
             additionalProperties: false
@@ -6367,13 +6367,13 @@ components:
                     maximum: 1
                 element:
                     oneOf:
-                        - $ref: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
-                        - $ref: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+                        - $ref: "#/components/schemas/ContentFileBlockElement_WithoutKeys"
+                        - $ref: "#/components/schemas/ContentPreviewBlockElement_WithoutKeys"
                     discriminator:
                         propertyName: type
                         mapping:
-                            File: "#/components/schemas/ContentFileBlockElement_Response_WithoutKeys"
-                            Preview: "#/components/schemas/ContentPreviewBlockElement_Response_WithoutKeys"
+                            File: "#/components/schemas/ContentFileBlockElement_WithoutKeys"
+                            Preview: "#/components/schemas/ContentPreviewBlockElement_WithoutKeys"
 
         MessageContentPayloadParent:
             oneOf:
@@ -6385,7 +6385,7 @@ components:
                     Message: "#/components/schemas/MessageContentPayloadMessageParent"
                     Post: "#/components/schemas/MessageContentPayloadPostParent"
 
-        MessageContentPayloadMessageParent:
+        MessageContentPayloadMessageParent_Request:
             type: object
             required: [type, index]
             additionalProperties: false
@@ -6396,7 +6396,7 @@ components:
                     type: integer
                     minimum: 0
 
-        MessageContentPayloadMessageParent_Response:
+        MessageContentPayloadMessageParent:
             type: object
             required: [type, index, author, contentSnippet]
             additionalProperties: false
@@ -6418,7 +6418,7 @@ components:
                 contentSnippet:
                     $ref: "#/components/schemas/MessageContentPayloadParentContentSnippet"
 
-        MessageContentPayloadPostParent:
+        MessageContentPayloadPostParent_Request:
             type: object
             required: [type]
             additionalProperties: false
@@ -6433,7 +6433,7 @@ components:
         # In terms of our agents, we can use the `isTruncated` property to determine whether we
         # need to fetch the whole post. The full message and the truncated message should give
         # the agent enough context to reply to the request.
-        MessageContentPayloadPostParent_Response:
+        MessageContentPayloadPostParent:
             type: object
             required: [type, author, contentSnippet]
             additionalProperties: false
@@ -6589,7 +6589,7 @@ components:
                     Rejected: "#/components/schemas/MessageExperimentalApprovalDecisionRejectedValue"
                     ApprovedForSession: "#/components/schemas/MessageExperimentalApprovalDecisionApprovedForSessionValue"
 
-        MessageExperimentalApprovalDecisionApprovedValue:
+        MessageExperimentalApprovalDecisionApprovedValue_Request:
             type: object
             required: [type]
             additionalProperties: false
@@ -6597,7 +6597,7 @@ components:
                 type:
                     const: Approved
 
-        MessageExperimentalApprovalDecisionApprovedValue_Response:
+        MessageExperimentalApprovalDecisionApprovedValue:
             type: object
             required: [type, decider]
             additionalProperties: false
@@ -6606,17 +6606,17 @@ components:
                     const: Approved
                 decider:
                     $ref: "#/components/schemas/Actor"
+
+        MessageExperimentalApprovalDecisionRejectedValue_Request:
+            type: object
+            required: [type]
+            additionalProperties: false
+            properties:
+                type:
+                    const: Rejected
 
         MessageExperimentalApprovalDecisionRejectedValue:
             type: object
-            required: [type]
-            additionalProperties: false
-            properties:
-                type:
-                    const: Rejected
-
-        MessageExperimentalApprovalDecisionRejectedValue_Response:
-            type: object
             required: [type, decider]
             additionalProperties: false
             properties:
@@ -6625,7 +6625,7 @@ components:
                 decider:
                     $ref: "#/components/schemas/Actor"
 
-        MessageExperimentalApprovalDecisionApprovedForSessionValue:
+        MessageExperimentalApprovalDecisionApprovedForSessionValue_Request:
             type: object
             required: [type, scope, durationMinutes]
             additionalProperties: false
@@ -6642,7 +6642,7 @@ components:
                         # of the session.
                         - type: "null"
 
-        MessageExperimentalApprovalDecisionApprovedForSessionValue_Response:
+        MessageExperimentalApprovalDecisionApprovedForSessionValue:
             type: object
             required: [type, decider, scope, durationMinutes]
             additionalProperties: false
@@ -6767,7 +6767,7 @@ components:
                 type:
                     const: CreatedMessage
                 room:
-                    $ref: "#/components/schemas/MessageRoomReference"
+                    $ref: "#/components/schemas/MessageRoomReference_Request"
                 index:
                     type: integer
                     minimum: 0
@@ -6790,7 +6790,7 @@ components:
                     additionalProperties: false
                     properties:
                         reference:
-                            $ref: "#/components/schemas/MentionReference"
+                            $ref: "#/components/schemas/MentionReference_Request"
 
         BotWebhookCreatedMessageEventParent:
             oneOf:
@@ -6842,7 +6842,7 @@ components:
                 type:
                     const: CreatedPost
                 room:
-                    $ref: "#/components/schemas/PostReference"
+                    $ref: "#/components/schemas/PostReference_Request"
                 author:
                     type: object
                     required: [id]
@@ -6863,7 +6863,7 @@ components:
                 type:
                     const: UpdatedMessageStreamExperimentalApprovalsPart
                 room:
-                    $ref: "#/components/schemas/MessageRoomReference"
+                    $ref: "#/components/schemas/MessageRoomReference_Request"
                 messageIndex:
                     type: integer
                     minimum: 0
@@ -6906,7 +6906,7 @@ components:
                                 additionalProperties: false
                                 properties:
                                     value:
-                                        $ref: "#/components/schemas/MessageExperimentalApprovalDecisionValue_Response"
+                                        $ref: "#/components/schemas/MessageExperimentalApprovalDecisionValue"
 
         MessageContentPayloadParentContentSnippet:
             type: object
@@ -7337,7 +7337,7 @@ components:
         #                                  Common                                     #
         # =========================================================================== #
 
-        Actor:
+        Actor_Request:
             type: object
             required: [account]
             additionalProperties: false
@@ -7350,7 +7350,7 @@ components:
                         id:
                             $ref: "#/components/schemas/AccountId"
 
-        Actor_Response:
+        Actor:
             type: object
             required: [account]
             additionalProperties: false

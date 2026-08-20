@@ -12,8 +12,8 @@ import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_conte
 import {intoApiContent} from "~/shared/api/content/closed_source/into_api_content.js";
 import {prepareApiMentionTitle} from "~/shared/api/content/closed_source/prepare_api_mention_title.js";
 import {
-    ApiContentResponse,
-    ApiContentResponseWithoutKeys,
+    ApiContent,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSearchEntity} from "~/shared/content/content_references.js";
@@ -50,11 +50,7 @@ export async function intoApiContentWithReferences<
         contentKeyEncoder: ContentKeyEncoder;
         posOffset?: number;
     },
-): Promise<
-    ContentKeyEncoder extends ApiContentKeyEncoder
-        ? ApiContentResponse
-        : ApiContentResponseWithoutKeys
-> {
+): Promise<ContentKeyEncoder extends ApiContentKeyEncoder ? ApiContent : ApiContentWithoutKeys> {
     const {content} = await intoApiContentWithReferencesAndReturnReferences(context, options);
 
     // Can't safely assign to a conditional type in TypeScript so cast to `any`.
@@ -69,7 +65,7 @@ export async function intoApiMessageContentWithReferences(
         contentKeyEncoder: ApiContentKeyEncoder;
         posOffset?: number;
     },
-): Promise<ApiContentResponse> {
+): Promise<ApiContent> {
     const {content} = await intoApiContentWithReferencesAndReturnReferences(context, {
         ...options,
         fileAuthorizer: "AssertHasNoFiles",
@@ -95,9 +91,7 @@ export async function intoApiContentWithReferencesAndReturnReferences<
         posOffset?: number;
     },
 ): Promise<{
-    content: ContentKeyEncoder extends ApiContentKeyEncoder
-        ? ApiContentResponse
-        : ApiContentResponseWithoutKeys;
+    content: ContentKeyEncoder extends ApiContentKeyEncoder ? ApiContent : ApiContentWithoutKeys;
     references: {
         accountById: ReadonlyMap<AccountId, Omit<AccountModelWithoutSpaceData, "avatar">>;
         searchEntityById: ReadonlyMap<SearchMentionEntityId, ContentReferencesSearchEntity>;

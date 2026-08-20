@@ -7,8 +7,8 @@ import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_acc
 import {AccessPolicy} from "~/shared/access/access_policy.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
+    ApiContentBlockElementRequest,
+    ApiContentRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -88,7 +88,7 @@ export async function createNotionImportTeamspaceRootDocument(
     const userTimeZone = (await getAccountTimeZoneIfExists(context, creatorId)) ?? defaultTimeZone;
 
     // Build API content directly
-    const elements: Array<ApiContentBlockElement> = [];
+    const elements: Array<ApiContentBlockElementRequest> = [];
 
     // Add import note with account mention (italic text + mention + date)
     const today = new Date();
@@ -140,7 +140,7 @@ export async function createNotionImportTeamspaceRootDocument(
         })),
     });
 
-    const apiContent: ApiContent = {elements};
+    const apiContent: ApiContentRequest = {elements};
 
     // Convert API content to ProseMirror document
     const bodyContent = fromApiContent(DocumentContentProsemirrorSchema, apiContent);

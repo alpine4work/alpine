@@ -12,12 +12,12 @@ import {printApiContentToAgentWebMarkdownTree} from "~/server/agents/web/print_a
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {parseMarkdownTree} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
 import {
-    ApiAccountReferenceResponse,
+    ApiAccountReference,
+    ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiContentInlineElementResponse,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
+    ApiContentParagraphBlockElementWithoutKeys,
     ApiContentTextInlineElement,
+    ApiContentWithoutKeys,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
@@ -40,13 +40,7 @@ type TestCustomBlock = {
     readonly text: string;
 };
 
-function accountReference({
-    name,
-    botId,
-}: {
-    name: string;
-    botId?: BotId;
-}): ApiAccountReferenceResponse {
+function accountReference({name, botId}: {name: string; botId?: BotId}): ApiAccountReference {
     return {
         type: "Account",
         id: generateId<AccountId>(),
@@ -66,15 +60,13 @@ const escapedCarolDanTeamReference = accountReference({
     name: `Carol & Dan${apostrophe}s ${doubleQuote}Team${doubleQuote}`,
 });
 
-function content(
-    elements: ApiContentResponseWithoutKeys["elements"],
-): ApiContentResponseWithoutKeys {
+function content(elements: ApiContentWithoutKeys["elements"]): ApiContentWithoutKeys {
     return {elements};
 }
 
 function paragraph(
-    elements: ReadonlyArray<ApiContentInlineElementResponse>,
-): ApiContentParagraphBlockElementResponseWithoutKeys {
+    elements: ReadonlyArray<ApiContentInlineElement>,
+): ApiContentParagraphBlockElementWithoutKeys {
     return {type: "Paragraph", elements};
 }
 
@@ -87,10 +79,7 @@ function text(
 
 runAgentWebPageTests<
     true,
-    AgentWebMessagingPage<
-        {elements: ReadonlyArray<ApiContentInlineElementResponse>},
-        TestCustomBlock
-    >
+    AgentWebMessagingPage<{elements: ReadonlyArray<ApiContentInlineElement>}, TestCustomBlock>
 >({
     print: (storage, pageLink, page) =>
         printAgentWebMessagingPage(storage, pageLink, page, {
@@ -117,7 +106,7 @@ runAgentWebPageTests<
             parsePreamble: async (storage, preamble) => {
                 const {elements} = await parseApiContentFromAgentWebMarkdownTree(storage, preamble);
 
-                let actualElements: ReadonlyArray<ApiContentInlineElementResponse> = [];
+                let actualElements: ReadonlyArray<ApiContentInlineElement> = [];
 
                 if (elements.length === 0) {
                     // noop

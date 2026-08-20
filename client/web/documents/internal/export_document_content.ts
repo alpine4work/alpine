@@ -115,9 +115,9 @@ export async function exportDocumentContent({
     const markdownTree = printApiContentToMarkdownTree(apiContent);
 
     const traverse = (node: Parent) => {
-        // Headings from `ApiContent` should always start at level 2. That way we can add
-        // level 1 headings elsewhere in the agent context (e.g. document titles) without
-        // fear of conflict.
+        // Headings from `ApiContentRequest` should always start at level 2. That way we
+        // can add level 1 headings elsewhere in the agent context (e.g. document titles)
+        // without fear of conflict.
         if (node.type === "heading") {
             (node as Heading).depth += 1;
         }

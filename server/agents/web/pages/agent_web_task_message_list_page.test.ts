@@ -6,12 +6,12 @@ import {
 } from "~/server/agents/web/pages/agent_web_task_message_list_page.open_source.js";
 import {runAgentWebPageTests} from "~/server/agents/web/test_helpers/run_agent_web_page_tests.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiContentInlineElementResponse,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
-    ApiContentResponseWithoutKeys,
+    ApiAccountReference,
+    ApiContentInlineElement,
+    ApiContentParagraphBlockElementWithoutKeys,
     ApiContentTextInlineElement,
-    ApiTaskReferenceResponse,
+    ApiContentWithoutKeys,
+    ApiTaskReference,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {markdown} from "~/shared/helpers/string/markdown.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -19,7 +19,7 @@ import {AccountId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 
 const taskId = generateId<TaskId>();
 
-function accountReference({name}: {name: string}): ApiAccountReferenceResponse {
+function accountReference({name}: {name: string}): ApiAccountReference {
     return {
         type: "Account",
         id: generateId<AccountId>(),
@@ -28,7 +28,7 @@ function accountReference({name}: {name: string}): ApiAccountReferenceResponse {
     };
 }
 
-const taskReference: ApiTaskReferenceResponse = {
+const taskReference: ApiTaskReference = {
     type: "Task",
     id: taskId,
     title: "Write Spec",
@@ -37,15 +37,13 @@ const taskReference: ApiTaskReferenceResponse = {
 
 const aliceReference = accountReference({name: "Alice"});
 
-function content(
-    elements: ApiContentResponseWithoutKeys["elements"],
-): ApiContentResponseWithoutKeys {
+function content(elements: ApiContentWithoutKeys["elements"]): ApiContentWithoutKeys {
     return {elements};
 }
 
 function paragraph(
-    elements: ReadonlyArray<ApiContentInlineElementResponse>,
-): ApiContentParagraphBlockElementResponseWithoutKeys {
+    elements: ReadonlyArray<ApiContentInlineElement>,
+): ApiContentParagraphBlockElementWithoutKeys {
     return {type: "Paragraph", elements};
 }
 

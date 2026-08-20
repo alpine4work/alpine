@@ -1,7 +1,7 @@
 import {
-    ApiContentFileBlockElement,
-    ApiContentPreviewBlockElement,
-    ApiMentionReference,
+    ApiContentFileBlockElementRequest,
+    ApiContentPreviewBlockElementRequest,
+    ApiMentionReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {isId} from "~/shared/id/id.open_source.js";
 import {
@@ -18,7 +18,7 @@ import {
 
 export function parseApiMentionReferenceFromMarkdownUrlIfPossible(
     urlString: URL | string,
-): ApiMentionReference | null {
+): ApiMentionReferenceRequest | null {
     let url: URL;
     try {
         url = new URL(urlString);
@@ -49,8 +49,8 @@ export function parseApiMentionReferenceFromMarkdownUrlIfPossible(
  * `https://alpine.inc/...` file and preview URL patterns.
  */
 export type ApiContentFileOrPreviewBlockElement =
-    | ApiContentFileBlockElement
-    | ApiContentPreviewBlockElement;
+    | ApiContentFileBlockElementRequest
+    | ApiContentPreviewBlockElementRequest;
 
 export function parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossible(
     urlString: URL | string,
@@ -89,7 +89,7 @@ export function parseApiContentFileOrPreviewBlockElementFromMarkdownUrlIfPossibl
 
 export function parseApiMentionReferenceFromMarkdownPathnameSegmentsIfPossible(
     pathnameSegments: Array<string>,
-): Exclude<ApiMentionReference, {type: "Account"}> | null {
+): Exclude<ApiMentionReferenceRequest, {type: "Account"}> | null {
     if (pathnameSegments.length !== 2) return null;
 
     const pathnameSegment1 = pathnameSegments[0]!;

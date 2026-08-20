@@ -1,4 +1,4 @@
-import {ApiContentFileBlockElementResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentFileBlockElement} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {FileModelData} from "~/shared/files/file_model.js";
 import {FileId} from "~/shared/id/types/id_types.open_source.js";
 
@@ -8,7 +8,7 @@ import {FileId} from "~/shared/id/types/id_types.open_source.js";
 export function intoApiContentFileResponse(
     fileId: FileId,
     file: FileModelData | undefined,
-): ApiContentFileBlockElementResponse["file"] {
+): ApiContentFileBlockElement["file"] {
     const analysis = file?.analysis;
     const analysisResult =
         analysis === null || analysis === undefined || analysis.isProcessing || !analysis.ok

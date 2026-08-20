@@ -3,7 +3,7 @@ import {
     getApiMessageApprovals,
     patchApiMessageApprovals,
 } from "~/server/agents/api/api_client.open_source.js";
-import {ApiMessageRoomReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessageRoomReferenceRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.open_source.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
@@ -32,7 +32,7 @@ export async function rejectPendingClaudeAgentApprovalsIfPossible(
         messageIndex,
     }: {
         apiClient: ApiClient;
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
         messageIndex: number;
     },
 ): Promise<void> {
@@ -51,7 +51,7 @@ async function actuallyRejectPendingClaudeAgentApprovals(
         messageIndex,
     }: {
         apiClient: ApiClient;
-        room: ApiMessageRoomReference;
+        room: ApiMessageRoomReferenceRequest;
         messageIndex: number;
     },
 ): Promise<void> {

@@ -10,7 +10,7 @@ import {callAgentWebFindTool as actuallyCallAgentWebFindTool} from "~/server/age
 import {callAgentWebScrollTool as actuallyCallAgentWebScrollTool} from "~/server/agents/web/call_agent_web_scroll_tool.open_source.js";
 import {createAgentWebSessionStorageForTest} from "~/server/agents/web/test_helpers/create_agent_web_session_storage_for_test.js";
 import {addKeysToApiContentForTest} from "~/shared/api/content/test_helpers/add_keys_to_api_content_for_test.js";
-import {ApiContentResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
@@ -55,7 +55,7 @@ const context: AgentWebContext = {
     },
 };
 
-function createDocumentContentFromText(text: string): ApiContentResponse {
+function createDocumentContentFromText(text: string): ApiContent {
     return addKeysToApiContentForTest({
         elements: [
             {
@@ -74,7 +74,7 @@ function mockCreateDocument({
 }: {
     id?: DocumentId;
     title: string;
-    content: ApiContentResponse;
+    content: ApiContent;
     version?: number;
 }): DocumentId {
     api.mockPost("/documents", {

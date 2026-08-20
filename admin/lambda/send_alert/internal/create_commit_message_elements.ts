@@ -1,4 +1,4 @@
-import {ApiContentParagraphBlockElement} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiContentParagraphBlockElementRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 /**
  * Converts a GitHub commit message into inline content elements.
@@ -9,8 +9,8 @@ import {ApiContentParagraphBlockElement} from "~/shared/api/specification/types/
 export function createCommitMessageElements(
     commitMessage: string,
     repositoryFullName: string,
-): Array<ApiContentParagraphBlockElement["elements"][number]> {
-    const elements: Array<ApiContentParagraphBlockElement["elements"][number]> = [];
+): Array<ApiContentParagraphBlockElementRequest["elements"][number]> {
+    const elements: Array<ApiContentParagraphBlockElementRequest["elements"][number]> = [];
 
     const prRegex = /\(#(\d+)\)/g;
     const lines = commitMessage.split(/\r\n|\r|\n/);

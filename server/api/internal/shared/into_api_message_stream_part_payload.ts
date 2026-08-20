@@ -5,15 +5,17 @@ import {
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
 import {ApiContentKeyEncoder} from "~/shared/api/content/closed_source/api_content_key_encoder.js";
 import {
-    ApiContentBlockElementResponseWithoutKeys,
+    ApiContent,
+    ApiContentBlockElementWithoutKeys,
     ApiContentInlineElementMark,
-    ApiContentParagraphBlockElementResponseWithoutKeys,
+    ApiContentParagraphBlockElementWithoutKeys,
+    ApiLabelContent,
+    ApiLabelContentInlineElement,
     ApiLabelContentInlineElementMark,
-    ApiLabelContentInlineElementResponse,
-    ApiLabelContentResponse,
-    ApiMessageExperimentalApprovalDecisionOptionResponse,
-    ApiMessageExperimentalApprovalResponse,
-    ApiMessageStreamPartPayloadResponse,
+    ApiMessageExperimentalApproval,
+    ApiMessageExperimentalApprovalDecisionOption,
+    ApiMessageStreamPartPayloadRequest,
+    ApiMessageStreamToolCallPartPayloadCallRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
@@ -21,12 +23,36 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_sourc
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_source.js";
 import {quote} from "~/shared/helpers/string/quote.open_source.js";
+import {Replace} from "~/shared/helpers/types/replace.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {
     MessageExperimentalApproval,
     MessageExperimentalApprovalDecisionOption,
     MessageStreamPartPayload,
 } from "~/shared/messaging/message_schema.js";
+
+type ApiMessageStreamPartPayloadWithReferences =
+    | Replace<
+          Extract<ApiMessageStreamPartPayloadRequest, {readonly type: "Content"}>,
+          {readonly content: ApiContent}
+      >
+    | Replace<
+          Extract<ApiMessageStreamPartPayloadRequest, {readonly type: "Reasoning"}>,
+          {readonly content: ApiContent}
+      >
+    | Replace<
+          Extract<ApiMessageStreamPartPayloadRequest, {readonly type: "ToolCall"}>,
+          {
+              readonly call: Replace<
+                  ApiMessageStreamToolCallPartPayloadCallRequest,
+                  {readonly content: ApiLabelContent}
+              >;
+          }
+      >
+    | Replace<
+          Extract<ApiMessageStreamPartPayloadRequest, {readonly type: "ExperimentalApprovals"}>,
+          {readonly approvals: ReadonlyArray<ApiMessageExperimentalApproval>}
+      >;
 
 export async function intoApiMessageStreamPartPayload(
     context: ServerAccountActionContext,
@@ -41,7 +67,7 @@ export async function intoApiMessageStreamPartPayload(
         contentKeyEncoder: ApiContentKeyEncoder;
         posOffset?: number;
     },
-): Promise<ApiMessageStreamPartPayloadResponse> {
+): Promise<ApiMessageStreamPartPayloadWithReferences> {
     switch (payload.type) {
         case "ToolCall": {
             return {
@@ -100,7 +126,7 @@ export async function intoApiMessageExperimentalApproval(
         spaceId: SpaceId;
         approval: MessageExperimentalApproval;
     },
-): Promise<ApiMessageExperimentalApprovalResponse> {
+): Promise<ApiMessageExperimentalApproval> {
     return {
         summary: await intoApiLabelContentResponse(context, {
             spaceId,
@@ -131,7 +157,7 @@ async function intoApiMessageExperimentalApprovalDecisionOption(
         spaceId: SpaceId;
         option: MessageExperimentalApprovalDecisionOption;
     },
-): Promise<ApiMessageExperimentalApprovalDecisionOptionResponse> {
+): Promise<ApiMessageExperimentalApprovalDecisionOption> {
     switch (option.type) {
         case "Approved":
         case "Rejected":
@@ -160,7 +186,7 @@ async function intoApiLabelContentResponse(
         spaceId: SpaceId;
         content: MessageContent;
     },
-): Promise<ApiLabelContentResponse> {
+): Promise<ApiLabelContent> {
     const apiContent = await intoApiContentWithReferences(context, {
         spaceId,
         content,
@@ -178,8 +204,8 @@ async function intoApiLabelContentResponse(
 }
 
 function* intoApiLabelContent(
-    element: ApiContentBlockElementResponseWithoutKeys,
-): IterableIterator<ApiLabelContentInlineElementResponse> {
+    element: ApiContentBlockElementWithoutKeys,
+): IterableIterator<ApiLabelContentInlineElement> {
     switch (element.type) {
         case "Paragraph": {
             yield* intoApiLabelContentInlineElement(element);
@@ -198,7 +224,7 @@ function* intoApiLabelContent(
         case "Preview":
         case "Table":
             throw new InvalidArgumentError(
-                quote`Block element ${element.type} is not allowed in the ApiLabelContent elements`,
+                quote`Block element ${element.type} is not allowed in the ApiLabelContentRequest elements`,
             );
         default:
             throw exhaustive(element);
@@ -206,8 +232,8 @@ function* intoApiLabelContent(
 }
 
 function* intoApiLabelContentInlineElement(
-    element: ApiContentParagraphBlockElementResponseWithoutKeys,
-): IterableIterator<ApiLabelContentInlineElementResponse> {
+    element: ApiContentParagraphBlockElementWithoutKeys,
+): IterableIterator<ApiLabelContentInlineElement> {
     for (const inlineElement of element.elements) {
         switch (inlineElement.type) {
             case "Text": {
@@ -228,7 +254,7 @@ function* intoApiLabelContentInlineElement(
             }
             case "Break":
                 throw new InvalidArgumentError(
-                    quote`Breaks are not allowed in the ApiLabelContent`,
+                    quote`Breaks are not allowed in the ApiLabelContentRequest`,
                 );
             default:
                 throw exhaustive(inlineElement);
@@ -252,7 +278,7 @@ function intoApiLabelContentInlineElementMarks(
             case "Highlight":
             case "Comment":
                 throw new InvalidArgumentError(
-                    quote`Mark ${mark.type} is not allowed in the ApiLabelContent`,
+                    quote`Mark ${mark.type} is not allowed in the ApiLabelContentRequest`,
                 );
             default:
                 throw exhaustive(mark);

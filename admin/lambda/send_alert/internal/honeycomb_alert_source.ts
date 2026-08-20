@@ -23,18 +23,18 @@ import {
 } from "~/admin/lambda/send_alert/internal/send_alert_available_task_collections.js";
 import {nameToAlpineId} from "~/admin/lambda/send_alert/internal/send_alert_user_mappings.js";
 import {
-    ApiContent,
+    ApiContentRequest,
     ApiGetMessageResponse,
     ApiGetTaskWithNotesResponse,
     ApiPatchTaskResponse,
+    ApiTask,
     ApiTaskPriority,
-    ApiTaskResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import type {TaskCollectionId} from "~/shared/id/types/id_types.open_source.js";
 
-type ApiContentElement = ApiContent["elements"][number];
+type ApiContentElement = ApiContentRequest["elements"][number];
 type HoneycombPayloadType = NonNullable<HoneycombEventPayload["type"]>;
 type ApiGetTaskCollectionResponse =
     ApiSpecification.paths["/task-collections/{id}"]["get"]["responses"]["200"]["content"]["application/json"];
@@ -310,11 +310,11 @@ export class HoneycombAlertSource extends AlertSource {
     private async listOpenTasks(collectionId: TaskCollectionId): Promise<
         | {
               ok: true;
-              tasks: Array<ApiTaskResponse>;
+              tasks: Array<ApiTask>;
           }
         | SendAlertErrorResult
     > {
-        const tasks: Array<ApiTaskResponse> = [];
+        const tasks: Array<ApiTask> = [];
         let cursor: ApiTaskCollectionTasksResponse["nextCursor"] = null;
 
         do {
@@ -347,9 +347,9 @@ export class HoneycombAlertSource extends AlertSource {
         spaceId: ApiGetTaskCollectionResponse["spaceId"],
         collectionId: TaskCollectionId,
         title: string,
-        content: ApiContent,
+        content: ApiContentRequest,
         priority: ApiTaskPriority,
-    ): Promise<{ok: true; task: ApiTaskResponse} | SendAlertErrorResult> {
+    ): Promise<{ok: true; task: ApiTask} | SendAlertErrorResult> {
         const body = {
             spaceId,
             task: {
@@ -391,7 +391,7 @@ export class HoneycombAlertSource extends AlertSource {
     }
 
     private async updateTaskPriorityIfNeeded(
-        task: ApiTaskResponse,
+        task: ApiTask,
         data: HoneycombTaskPayload,
     ): Promise<{ok: true; updatedPriority: ApiTaskPriority | null} | SendAlertErrorResult> {
         const occurrenceCommentCount = await this.countTaskOccurrenceComments(task.id);
@@ -434,7 +434,7 @@ export class HoneycombAlertSource extends AlertSource {
     }
 
     private async countTaskOccurrenceComments(
-        taskId: ApiTaskResponse["id"],
+        taskId: ApiTask["id"],
     ): Promise<{ok: true; count: number} | SendAlertErrorResult> {
         let cursor: number | null = null;
         let count = 0;
@@ -472,7 +472,7 @@ export class HoneycombAlertSource extends AlertSource {
 
     private async postTaskPreviewToChannel(
         channel: SendAlertAvailableChannel,
-        task: ApiTaskResponse,
+        task: ApiTask,
         data: HoneycombTaskPayload,
     ): Promise<SendAlertResult> {
         return await this.postAlertToAlpine(channel, {
@@ -495,7 +495,7 @@ export class HoneycombAlertSource extends AlertSource {
 
     private async postTaskPriorityBumpToChannel(
         channel: SendAlertAvailableChannel,
-        task: ApiTaskResponse,
+        task: ApiTask,
         priority: ApiTaskPriority,
         data: HoneycombTaskPayload,
     ): Promise<SendAlertResult> {
@@ -532,7 +532,7 @@ export class HoneycombAlertSource extends AlertSource {
     }
 
     private async createTaskOccurrenceComment(
-        task: ApiTaskResponse,
+        task: ApiTask,
         count: number,
         resultUrl: string,
         row: HoneycombResultGroup,
@@ -854,8 +854,10 @@ function addTriggeredGroupsToElements(
 
 function createUserMentionElements(
     userNames: ReadonlySet<string>,
-): Array<ApiSpecification.components["schemas"]["ContentInlineElement"]> {
-    const userElements: Array<ApiSpecification.components["schemas"]["ContentInlineElement"]> = [];
+): Array<ApiSpecification.components["schemas"]["ContentInlineElement_Request"]> {
+    const userElements: Array<
+        ApiSpecification.components["schemas"]["ContentInlineElement_Request"]
+    > = [];
     Array.from(userNames).forEach((userName, index) => {
         if (index > 0) {
             userElements.push({type: "Text", text: " "});
@@ -948,7 +950,7 @@ function truncateHoneycombTaskTitle(title: string): string {
 function createHoneycombTaskContent(
     data: HoneycombEventPayload,
     row: HoneycombResultGroup,
-): ApiContent {
+): ApiContentRequest {
     const elements: Array<ApiContentElement> = createHeaderElements(`Honeycomb: ${data.name}`, [
         {label: "View Result", url: data.links.result},
     ]);

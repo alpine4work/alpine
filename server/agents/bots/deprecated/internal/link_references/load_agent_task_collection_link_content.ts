@@ -11,10 +11,10 @@ import {
 import {AgentWebhookRequest} from "~/server/agents/bots/internal/agent_durable_object_base.js";
 import {DurableObjectTransactionInterface} from "~/server/cloudflare/durable_object_storage_collection.js";
 import {
-    ApiAccountResponse,
+    ApiAccount,
+    ApiTask,
     ApiTaskCollection,
     ApiTaskPriority,
-    ApiTaskResponse,
     ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
@@ -242,7 +242,7 @@ function printTaskStatus(status: ApiTaskStatus): string {
 
 async function intoTaskMetadataList(
     transaction: DurableObjectTransactionInterface,
-    task: ApiTaskResponse,
+    task: ApiTask,
 ): Promise<List> {
     const assigneeListItem = await intoAssigneeListItem(transaction, task.assignee);
     const dueDateListItem = intoDueDateListItem(task.due);
@@ -272,7 +272,7 @@ async function intoTaskMetadataList(
 
 async function intoAssigneeListItem(
     transaction: DurableObjectTransactionInterface,
-    assignee: ApiAccountResponse | undefined,
+    assignee: ApiAccount | undefined,
 ): Promise<ListItem | undefined> {
     if (!assignee) return undefined;
 

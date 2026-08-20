@@ -1,10 +1,10 @@
 import {parseApiContentResponseFromMarkdownForTest} from "~/shared/api/content/test_helpers/parse_api_content_response_from_markdown_for_test.js";
 import {
-    ApiAccountResponse,
-    ApiContentResponse,
-    ApiMessageContentPayloadFileResponse,
+    ApiAccount,
+    ApiContent,
+    ApiMessage,
+    ApiMessageContentPayloadFile,
     ApiMessageContentPayloadParentContentSnippet,
-    ApiMessageResponse,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.open_source.js";
 import {
@@ -14,7 +14,7 @@ import {
 import {TimeZone, defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 
 export type ApiMessageMockParent = {
-    author: ApiAccountResponse;
+    author: ApiAccount;
     index: number;
     endIndex?: number;
     contentSnippet: ApiMessageContentPayloadParentContentSnippet | string;
@@ -30,13 +30,13 @@ export function createApiMessageMock({
     files = [],
 }: {
     index: number;
-    author: ApiAccountResponse | ReadonlyArray<ApiAccountResponse>;
-    content?: string | ApiContentResponse;
+    author: ApiAccount | ReadonlyArray<ApiAccount>;
+    content?: string | ApiContent;
     createdTime?: string | Date;
     createdTimeZone?: TimeZone;
     parent?: ApiMessageMockParent;
-    files?: ReadonlyArray<ApiMessageContentPayloadFileResponse>;
-}): ApiMessageResponse {
+    files?: ReadonlyArray<ApiMessageContentPayloadFile>;
+}): ApiMessage {
     return {
         index,
         author: isReadonlyArray(author) ? author[index % author.length]! : author,

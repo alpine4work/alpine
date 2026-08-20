@@ -2,10 +2,10 @@
 
 import {resolveNotionImportRelativePath} from "~/server/importer/notion/internal/resolve_notion_import_relative_path.js";
 import {
-    ApiContentFileBlockElement,
-    ApiContentInlineElement,
-    ApiContentTableBlockElement,
-    ApiContentTableBlockElementCell,
+    ApiContentFileBlockElementRequest,
+    ApiContentInlineElementRequest,
+    ApiContentTableBlockElementCellRequest,
+    ApiContentTableBlockElementRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {DocumentId, FileId} from "~/shared/id/types/id_types.open_source.js";
 
@@ -108,7 +108,7 @@ function extractFilePaths(cell: string): Array<string> | null {
 /**
  * Create a File element for a file in a table cell.
  */
-function createFileElement(fileId: FileId): ApiContentFileBlockElement {
+function createFileElement(fileId: FileId): ApiContentFileBlockElementRequest {
     return {
         type: "File",
         file: {id: fileId},
@@ -155,7 +155,7 @@ function createCellInlineElements(
     cell: string,
     isHeader: boolean,
     childTitleToDocumentId: Map<string, DocumentId>,
-): Array<ApiContentInlineElement> {
+): Array<ApiContentInlineElementRequest> {
     // Don't convert header cells to mentions or file links
     if (!isHeader) {
         const documentId = childTitleToDocumentId.get(cell);
@@ -187,8 +187,8 @@ function createCellInlineElements(
  * Create a table cell with a paragraph containing the inline elements.
  */
 function createTableCell(
-    inlineElements: Array<ApiContentInlineElement>,
-): ApiContentTableBlockElementCell {
+    inlineElements: Array<ApiContentInlineElementRequest>,
+): ApiContentTableBlockElementCellRequest {
     return {
         elements: [
             {
@@ -207,8 +207,8 @@ function createFilesTableCell(
     filePaths: Array<string>,
     csvDir: string,
     filesToUpload: Record<string, {id: FileId}>,
-): ApiContentTableBlockElementCell {
-    const fileElements: Array<ApiContentFileBlockElement> = [];
+): ApiContentTableBlockElementCellRequest {
+    const fileElements: Array<ApiContentFileBlockElementRequest> = [];
 
     for (const filePath of filePaths) {
         const fileId = resolveFilePathToId(filePath, csvDir, filesToUpload);
@@ -262,7 +262,7 @@ export function notionImportCsvToApiContent(
     csvContent: string,
     childTitleToDocumentId: Map<string, DocumentId> = new Map(),
     options: NotionImportCsvToApiContentOptions = {},
-): ApiContentTableBlockElement | null {
+): ApiContentTableBlockElementRequest | null {
     const {filesToUpload, csvDir} = options;
     const lines = csvContent.trim().split("\n");
     if (lines.length === 0) return null;
@@ -279,7 +279,7 @@ export function notionImportCsvToApiContent(
     const dataRows = parsedRows.slice(1).map(row => normalizeRowToColumnCount(row, columnCount));
 
     // Build the table structure
-    const rows: Array<{cells: Array<ApiContentTableBlockElementCell>}> = [];
+    const rows: Array<{cells: Array<ApiContentTableBlockElementCellRequest>}> = [];
 
     // Header row
     rows.push({

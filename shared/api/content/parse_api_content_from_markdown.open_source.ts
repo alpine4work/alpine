@@ -33,24 +33,24 @@ import {
 import {apiContentCodeBlockLanguageDefinition} from "~/shared/api/specification/api_content_code_block_language_definition.open_source.js";
 import {printApiReferenceKey} from "~/shared/api/specification/api_reference_key.open_source.js";
 import {
-    ApiContent,
-    ApiContentBlockElement,
-    ApiContentCheckListBlockElementItem,
-    ApiContentCodeBlockElement,
+    ApiContentBlockElementRequest,
+    ApiContentCheckListBlockElementItemRequest,
+    ApiContentCodeBlockElementRequest,
     ApiContentCodeBlockElementTextInlineElement,
     ApiContentCodeBlockElementTextInlineElementMark,
     ApiContentCommentMark,
-    ApiContentHeadingBlockElement,
+    ApiContentHeadingBlockElementRequest,
     ApiContentHighlightMarkColor,
-    ApiContentInlineElement,
     ApiContentInlineElementMark,
-    ApiContentListBlockElement,
-    ApiContentListBlockElementItem,
-    ApiContentParagraphBlockElement,
-    ApiContentQuoteBlockElementBlockElement,
-    ApiContentTableBlockElement,
-    ApiContentTableBlockElementCell,
-    ApiContentTableBlockElementCellBlockElement,
+    ApiContentInlineElementRequest,
+    ApiContentListBlockElementItemRequest,
+    ApiContentListBlockElementRequest,
+    ApiContentParagraphBlockElementRequest,
+    ApiContentQuoteBlockElementBlockElementRequest,
+    ApiContentRequest,
+    ApiContentTableBlockElementCellBlockElementRequest,
+    ApiContentTableBlockElementCellRequest,
+    ApiContentTableBlockElementRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {
     InternalError,
@@ -78,7 +78,7 @@ export type ApiContentMarkdownParserOptions = {
      * files equally within the row.
      *
      * This is used by `parseApiContentFromAgentWebMarkdown()` because the goal of that
-     * function is to return `ApiContentResponse` which requires the `width` property.
+     * function is to return `ApiContent` which requires the `width` property.
      * `parseApiContentFromAgentWebMarkdown()` can't add widths itself because it
      * doesn't save file gallery widths in storage (an agent doesn't care about file
      * gallery widths).
@@ -132,7 +132,7 @@ type ApiContentMarkdownPhrasingContent =
 function actuallyParseApiContentFromMarkdown(
     markdown: string,
     options?: ApiContentMarkdownParserOptions,
-): ApiContent {
+): ApiContentRequest {
     const root = parseMarkdownTree(markdown);
 
     // IMPORTANT: Do not call `normalizeApiContent()` on this return! The parser must
@@ -193,7 +193,7 @@ export function parseMarkdownTree(
 function parseApiContentFromMarkdown(
     root: Root,
     options: ApiContentMarkdownParserOptions = emptyObject,
-): ApiContent {
+): ApiContentRequest {
     const definitions: ApiContentMarkdownParserDefinitions = {
         futureDefinitionsByIdentifier: new Map(),
         pastDefinitionsByIdentifier: new Map(),
@@ -245,15 +245,17 @@ function* parseApiContentBlockElementsFromMarkdown(
     // Required option so caller must make a choice on whether to enable this property
     // or not.
     {withTableHtml}: {withTableHtml: boolean},
-): IterableIterator<ApiContentBlockElement> {
+): IterableIterator<ApiContentBlockElementRequest> {
     const tableState = withTableHtml ? new ApiContentBlockElementsMarkdownTableState() : null;
 
     // Buffer the last yielded element so we can merge adjacent FileGalleries that span
     // separate mdast blocks (e.g. two HTML divs separated by a blank line in the
     // markdown output).
-    let pending: ApiContentBlockElement | null = null;
+    let pending: ApiContentBlockElementRequest | null = null;
 
-    function* emit(element: ApiContentBlockElement): IterableIterator<ApiContentBlockElement> {
+    function* emit(
+        element: ApiContentBlockElementRequest,
+    ): IterableIterator<ApiContentBlockElementRequest> {
         if (pending?.type === "FileGallery") {
             // Merge adjacent FileGalleries.
             if (element.type === "FileGallery") {
@@ -308,7 +310,7 @@ function* parseApiContentBlockElementsFromMarkdown(
         pending = element;
     }
 
-    function* flush(): IterableIterator<ApiContentBlockElement> {
+    function* flush(): IterableIterator<ApiContentBlockElementRequest> {
         if (pending === null) return;
 
         const element = pending;
@@ -357,7 +359,10 @@ function* parseApiContentBlockElementsFromMarkdown(
     yield* flush();
 }
 
-const apiContentCodeBlockLanguageByName = new Map<string, ApiContentCodeBlockElement["language"]>();
+const apiContentCodeBlockLanguageByName = new Map<
+    string,
+    ApiContentCodeBlockElementRequest["language"]
+>();
 
 for (const [language, extensions] of getObjectEntriesWithKeyofType(
     apiContentCodeBlockLanguageDefinition,
@@ -374,7 +379,7 @@ function* parseApiContentBlockElementFromMarkdown(
     options: ApiContentMarkdownParserOptions,
     definitions: ApiContentMarkdownParserDefinitions,
     tableState: ApiContentBlockElementsMarkdownTableState | null,
-): IterableIterator<ApiContentBlockElement> {
+): IterableIterator<ApiContentBlockElementRequest> {
     switch (content.type) {
         case "paragraph": {
             yield* parseApiContentInlineElementsAsBlockElementsFromMarkdown(
@@ -502,7 +507,7 @@ function* parseApiContentBlockElementFromMarkdown(
             break;
         }
         case "html": {
-            let elements: Array<ApiContentBlockElement> | undefined;
+            let elements: Array<ApiContentBlockElementRequest> | undefined;
 
             let textElements: Array<{
                 type: "Text";
@@ -620,7 +625,7 @@ function* parseApiContentBlockElementFromMarkdown(
                 });
             };
 
-            const handleElement = (element: ApiContentBlockElement) => {
+            const handleElement = (element: ApiContentBlockElementRequest) => {
                 if (tableState?.onBlockElement(element)) return;
 
                 elements ??= [];
@@ -1551,7 +1556,7 @@ function* parseApiContentBlockElementFromMarkdown(
             const tableLayout = computeApiContentGfmTableLayout(content);
 
             const rows = content.children.map(row => {
-                const cells = row.children.map((cell): ApiContentTableBlockElementCell => {
+                const cells = row.children.map((cell): ApiContentTableBlockElementCellRequest => {
                     const elements = Array.from(
                         parseApiContentInlineElementsAsBlockElementsFromMarkdown(
                             cell.children,
@@ -1592,7 +1597,7 @@ function* parseApiContentBlockElementFromMarkdown(
             break;
         }
         case "math": {
-            // If we support math someday in `ApiContent` then we'll update this.
+            // If we support math someday in `ApiContentRequest` then we'll update this.
             yield {
                 type: "Paragraph",
                 elements: [
@@ -1677,12 +1682,12 @@ class ApiContentBlockElementsMarkdownTableState {
                 isTagOpen: boolean;
                 workingScope: string | null;
                 scope: string | null;
-                elements: Array<ApiContentBlockElement>;
+                elements: Array<ApiContentBlockElementRequest>;
             }>;
         }>;
     } | null = null;
 
-    public onBlockElement(element: ApiContentBlockElement): boolean {
+    public onBlockElement(element: ApiContentBlockElementRequest): boolean {
         if (this._state === null) return false;
 
         if (this._state.rows.length === 0) return false;
@@ -1772,7 +1777,7 @@ class ApiContentBlockElementsMarkdownTableState {
 
     public onCloseTagName(
         tagName: "table" | "thead" | "tbody" | "tr" | "th" | "td",
-    ): ApiContentTableBlockElement | null {
+    ): ApiContentTableBlockElementRequest | null {
         switch (tagName) {
             case "thead":
             case "tbody": {
@@ -1805,7 +1810,7 @@ class ApiContentBlockElementsMarkdownTableState {
 
                 const rows = state.rows.map((row, rowIndex) => {
                     const cells = row.cells.map(
-                        (cell, columnIndex): ApiContentTableBlockElementCell => {
+                        (cell, columnIndex): ApiContentTableBlockElementCellRequest => {
                             hasHeaderRow ??= true;
                             hasHeaderColumn ??= true;
 
@@ -1956,19 +1961,21 @@ class ApiContentBlockElementsMarkdownTableState {
 }
 
 type ApiContentInlineElementOrFileOrPreviewBlockElement =
-    | ApiContentInlineElement
+    | ApiContentInlineElementRequest
     | {type: "FileOrPreview"; element: ApiContentFileOrPreviewBlockElement};
 
 function* parseApiContentInlineElementsAsBlockElementsFromMarkdown<
-    BlockElement extends ApiContentParagraphBlockElement | ApiContentHeadingBlockElement,
+    BlockElement extends
+        | ApiContentParagraphBlockElementRequest
+        | ApiContentHeadingBlockElementRequest,
 >(
     contents: Array<PhrasingContent>,
     definitions: ApiContentMarkdownParserDefinitions,
-    createBlockElement: (elements: Array<ApiContentInlineElement>) => BlockElement,
+    createBlockElement: (elements: Array<ApiContentInlineElementRequest>) => BlockElement,
 ): IterableIterator<BlockElement | ApiContentFileOrPreviewBlockElement> {
     let hasYielded = false;
     let trimNextStart = false;
-    let elements: Array<ApiContentInlineElement> | null = null;
+    let elements: Array<ApiContentInlineElementRequest> | null = null;
 
     for (const element of parseAndMergeApiContentInlineElementsFromMarkdown(
         contents,
@@ -2950,7 +2957,7 @@ function* parseApiContentInlineElementFromMarkdown(
         case "inlineMath": {
             const marks = markStack.getMarks();
 
-            // If we support math someday in `ApiContent` then we'll update this.
+            // If we support math someday in `ApiContentRequest` then we'll update this.
             yield {
                 type: "Text",
                 text: `$${content.value}$`,
@@ -3018,9 +3025,9 @@ function* parseApiContentInlineElementFromMarkdown(
 
 function intoApiContentCheckListBlockElementItem(
     item: ListItem,
-    elements: ReadonlyArray<ApiContentBlockElement>,
-    nestedListElements: ReadonlyArray<ApiContentListBlockElement>,
-): ApiContentCheckListBlockElementItem {
+    elements: ReadonlyArray<ApiContentBlockElementRequest>,
+    nestedListElements: ReadonlyArray<ApiContentListBlockElementRequest>,
+): ApiContentCheckListBlockElementItemRequest {
     assert(item.checked !== null && item.checked !== undefined);
 
     const mappedElements = Array.from(
@@ -3039,9 +3046,9 @@ function intoApiContentCheckListBlockElementItem(
 
 function intoApiContentListBlockElementItem(
     item: ListItem,
-    elements: ReadonlyArray<ApiContentBlockElement>,
-    nestedListElements: ReadonlyArray<ApiContentListBlockElement>,
-): ApiContentListBlockElementItem {
+    elements: ReadonlyArray<ApiContentBlockElementRequest>,
+    nestedListElements: ReadonlyArray<ApiContentListBlockElementRequest>,
+): ApiContentListBlockElementItemRequest {
     const mappedElements = Array.from(
         flatMapIterable(elements, intoApiContentParagraphBlockElement),
     );
@@ -3057,21 +3064,23 @@ function intoApiContentListBlockElementItem(
 
 function parseContentListBlockElementItems<
     InputListItem extends ListItem,
-    OutputListItem extends ApiContentListBlockElementItem | ApiContentCheckListBlockElementItem,
+    OutputListItem extends
+        | ApiContentListBlockElementItemRequest
+        | ApiContentCheckListBlockElementItemRequest,
 >(
     inputListItems: ReadonlyArray<InputListItem>,
     options: ApiContentMarkdownParserOptions,
     definitions: ApiContentMarkdownParserDefinitions,
     createOutputListItem: (
         inputListItem: InputListItem,
-        elements: ReadonlyArray<ApiContentBlockElement>,
-        nestedListElements: ReadonlyArray<ApiContentListBlockElement>,
+        elements: ReadonlyArray<ApiContentBlockElementRequest>,
+        nestedListElements: ReadonlyArray<ApiContentListBlockElementRequest>,
     ) => OutputListItem,
 ): Array<OutputListItem> {
     return Array.from(
         flatMapIterable(inputListItems, function* (item): IterableIterator<OutputListItem> {
-            let elements: Array<ApiContentBlockElement> = [];
-            let nestedListElements: Array<ApiContentListBlockElement> = [];
+            let elements: Array<ApiContentBlockElementRequest> = [];
+            let nestedListElements: Array<ApiContentListBlockElementRequest> = [];
 
             for (const element of parseApiContentBlockElementsFromMarkdown(
                 item.children,
@@ -3124,8 +3133,8 @@ function parseApiContentInlineElementHighlightMarkColorIfPossible(
 }
 
 function* intoApiContentTableBlockElementCellElement(
-    element: ApiContentBlockElement,
-): IterableIterator<ApiContentTableBlockElementCellBlockElement> {
+    element: ApiContentBlockElementRequest,
+): IterableIterator<ApiContentTableBlockElementCellBlockElementRequest> {
     switch (element.type) {
         case "Paragraph":
         case "UnorderedList":
@@ -3196,8 +3205,8 @@ function* intoApiContentTableBlockElementCellElement(
 }
 
 function* intoApiContentQuoteBlockElementBlockElement(
-    actualElement: ApiContentBlockElement,
-): IterableIterator<ApiContentQuoteBlockElementBlockElement> {
+    actualElement: ApiContentBlockElementRequest,
+): IterableIterator<ApiContentQuoteBlockElementBlockElementRequest> {
     for (const element of intoApiContentTableBlockElementCellElement(actualElement)) {
         switch (element.type) {
             case "Paragraph":
@@ -3243,8 +3252,8 @@ function* intoApiContentQuoteBlockElementBlockElement(
 }
 
 export function* intoApiContentParagraphBlockElement(
-    actualElement: ApiContentBlockElement,
-): IterableIterator<ApiContentParagraphBlockElement> {
+    actualElement: ApiContentBlockElementRequest,
+): IterableIterator<ApiContentParagraphBlockElementRequest> {
     for (const element of intoApiContentQuoteBlockElementBlockElement(actualElement)) {
         switch (element.type) {
             case "Paragraph": {

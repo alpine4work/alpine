@@ -11,7 +11,7 @@ import {
 } from "~/shared/api/content/closed_source/into_api_task_query_filter.js";
 import {
     ApiTaskQueryFilter,
-    ApiTaskQueryFilterResponse,
+    ApiTaskQueryFilterRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {serializeDateString} from "~/shared/helpers/date/date_string.open_source.js";
 import {Id, generateId} from "~/shared/id/id.open_source.js";
@@ -67,7 +67,7 @@ function createNameFromIdForTest(id: Id): string {
  * account and task collection data which it uses to create agent web links on
  * demand.
  */
-function hydrateApiTaskQueryFilterForTest(filter: ApiTaskQueryFilter): ApiTaskQueryFilterResponse {
+function hydrateApiTaskQueryFilterForTest(filter: ApiTaskQueryFilterRequest): ApiTaskQueryFilter {
     switch (filter.type) {
         case "Collections": {
             const {operation} = filter;

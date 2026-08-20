@@ -1,16 +1,16 @@
 import {
     ApiContent,
     ApiContentBlockElement,
-    ApiContentBlockElementResponse,
-    ApiContentCheckListBlockElementItemResponse,
-    ApiContentFileBlockElementResponse,
-    ApiContentListBlockElementItemResponse,
-    ApiContentListBlockElementResponse,
-    ApiContentParagraphBlockElementResponse,
-    ApiContentPreviewBlockElementResponse,
-    ApiContentResponse,
-    ApiContentTableBlockElementCellResponse,
-    ApiContentTableBlockElementRowResponse,
+    ApiContentBlockElementRequest,
+    ApiContentCheckListBlockElementItem,
+    ApiContentFileBlockElement,
+    ApiContentListBlockElement,
+    ApiContentListBlockElementItem,
+    ApiContentParagraphBlockElement,
+    ApiContentPreviewBlockElement,
+    ApiContentRequest,
+    ApiContentTableBlockElementCell,
+    ApiContentTableBlockElementRow,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {JsonScalarValue} from "~/shared/helpers/types/json_value.open_source.js";
 
@@ -26,36 +26,36 @@ type MakeApiContentWithOptionalKeys<Value> = Value extends JsonScalarValue | und
           ? {readonly [K in keyof Value]: MakeApiContentWithOptionalKeys<Value[K]>}
           : Value;
 
-export type ApiContentWithOptionalKeys = MakeApiContentWithOptionalKeys<ApiContent>;
+export type ApiContentWithOptionalKeys = MakeApiContentWithOptionalKeys<ApiContentRequest>;
 
 export type ApiContentBlockElementWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentBlockElement>;
+    MakeApiContentWithOptionalKeys<ApiContentBlockElementRequest>;
 
-export type ApiContentResponseWithOptionalKeys = MakeApiContentWithOptionalKeys<ApiContentResponse>;
+export type ApiContentResponseWithOptionalKeys = MakeApiContentWithOptionalKeys<ApiContent>;
 
 export type ApiContentBlockElementResponseWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentBlockElementResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentBlockElement>;
 
 export type ApiContentParagraphBlockElementResponseWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentParagraphBlockElementResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentParagraphBlockElement>;
 
 export type ApiContentListBlockElementResponseWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentListBlockElementResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentListBlockElement>;
 
 export type ApiContentListBlockElementItemResponseWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentListBlockElementItemResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentListBlockElementItem>;
 
 export type ApiContentCheckListBlockElementItemResponseWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentCheckListBlockElementItemResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentCheckListBlockElementItem>;
 
 export type ApiContentTableBlockElementCellResponseWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentTableBlockElementCellResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentTableBlockElementCell>;
 
 export type ApiContentTableBlockElementRowResponseWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentTableBlockElementRowResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentTableBlockElementRow>;
 
 export type ApiContentFileBlockElementResponseWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentFileBlockElementResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentFileBlockElement>;
 
 export type ApiContentPreviewBlockElementResponseWithOptionalKeys =
-    MakeApiContentWithOptionalKeys<ApiContentPreviewBlockElementResponse>;
+    MakeApiContentWithOptionalKeys<ApiContentPreviewBlockElement>;

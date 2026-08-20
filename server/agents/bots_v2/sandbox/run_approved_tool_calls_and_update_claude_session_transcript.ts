@@ -21,7 +21,7 @@ import {callAgentWebCreateTool} from "~/server/agents/web/call_agent_web_create_
 import {callAgentWebDeleteTool} from "~/server/agents/web/call_agent_web_delete_tool.js";
 import {callAgentWebUpdateTool} from "~/server/agents/web/call_agent_web_update_tool.open_source.js";
 import {intoApiMessageStreamToolCallPart} from "~/server/agents/web/into_api_message_stream_tool_call_part.js";
-import {ApiMessageStreamToolCallPartPayloadCall} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiMessageStreamToolCallPartPayloadCallRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InternalError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
@@ -56,7 +56,7 @@ export type ResolveClaudeAgentApprovalDecisionsResult = {
 type ClaudeAgentApprovalExecutionOutcome = {
     readonly isError: boolean;
     readonly response: string;
-    readonly toolCall: ApiMessageStreamToolCallPartPayloadCall | null;
+    readonly toolCall: ApiMessageStreamToolCallPartPayloadCallRequest | null;
 };
 
 /**

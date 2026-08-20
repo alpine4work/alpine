@@ -53,10 +53,10 @@ import {
     printApiMessageRoomPath,
 } from "~/shared/api/specification/parse_api_path.js";
 import {
-    ApiContentBlockElement,
+    ApiContentBlockElementRequest,
     ApiContentTextInlineElement,
-    ApiMessageRoomReference,
-    ApiMessageStreamPartPayload,
+    ApiMessageRoomReferenceRequest,
+    ApiMessageStreamPartPayloadRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {getErrorDisplayMessage} from "~/shared/error/default_error_display_message.open_source.js";
 import {
@@ -116,7 +116,7 @@ type CursorCloudAgent = {
     readonly spaceId: SpaceId;
     readonly botId: BotId;
     readonly botAccountId: AccountId;
-    readonly room: ApiMessageRoomReference;
+    readonly room: ApiMessageRoomReferenceRequest;
     readonly startTime: Date;
     readonly timeZone: TimeZone;
     readonly launchMessageIndex: number;
@@ -347,7 +347,7 @@ async function withCursorAgentMessageStreamSession<Value>(
     request: AgentWebhookRequest,
     action: (launchMessageSession: {
         index: number;
-        createStreamPart: (payload: ApiMessageStreamPartPayload) => Promise<void>;
+        createStreamPart: (payload: ApiMessageStreamPartPayloadRequest) => Promise<void>;
     }) => Promise<Value>,
 ): Promise<Value> {
     const {
@@ -371,7 +371,7 @@ async function withCursorAgentMessageStreamSession<Value>(
     let pingInterval: Interval | null = null;
     pingInterval = createPingInterval();
 
-    const createStreamPart = async (payload: ApiMessageStreamPartPayload) => {
+    const createStreamPart = async (payload: ApiMessageStreamPartPayloadRequest) => {
         await mutex.withLock(async () => {
             // Pause the ping interval while creating a stream part.
             pingInterval?.clear();
@@ -564,7 +564,7 @@ async function handleCursorAgentLaunchFirstPartyWebhook({
                 });
             });
 
-            const elements: Array<ApiContentBlockElement> = [];
+            const elements: Array<ApiContentBlockElementRequest> = [];
 
             elements.push({
                 type: "Heading",
@@ -907,7 +907,7 @@ async function handleCursorAgentAddFollowUpFirstPartyWebhook({
                 });
             });
 
-            const elements: Array<ApiContentBlockElement> = [];
+            const elements: Array<ApiContentBlockElementRequest> = [];
 
             elements.push({
                 type: "Paragraph",
@@ -1173,7 +1173,7 @@ async function sendCursorCloudAgentsThirdPartyWebhookMessage({
     agentStatus: "FINISHED" | "ERROR" | "EXPIRED";
     body: CursorCloudAgentsWebhookRequestBody;
 }): Promise<CursorCloudAgent> {
-    const elements: Array<ApiContentBlockElement> = [];
+    const elements: Array<ApiContentBlockElementRequest> = [];
 
     const paragraphElements: Array<ApiContentTextInlineElement> = [];
     elements.push({type: "Paragraph", elements: paragraphElements});

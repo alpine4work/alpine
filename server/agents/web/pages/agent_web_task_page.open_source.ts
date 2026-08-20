@@ -33,15 +33,15 @@ import {unzipKeysFromApiContentResponse} from "~/shared/api/content/zip_or_unzip
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {ApiContentKey} from "~/shared/api/specification/types/api_content_key.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiContentResponseWithoutKeys,
-    ApiMentionReferenceResponse,
-    ApiTaskCollectionReferenceResponse,
+    ApiAccountReference,
+    ApiContentWithoutKeys,
+    ApiMentionReference,
+    ApiTaskCollectionReference,
     ApiTaskDue,
     ApiTaskLayout,
-    ApiTaskPatch,
+    ApiTaskPatchRequest,
     ApiTaskPriority,
-    ApiTaskReferenceResponse,
+    ApiTaskReference,
     ApiTaskStatus,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
@@ -62,12 +62,12 @@ export type AgentWebTaskPage = {
     readonly title: string;
     readonly status: ApiTaskStatus;
     readonly layout: ApiTaskLayout | null;
-    readonly parent: ApiTaskReferenceResponse | null;
-    readonly assignee: ApiAccountReferenceResponse | null;
-    readonly collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
+    readonly parent: ApiTaskReference | null;
+    readonly assignee: ApiAccountReference | null;
+    readonly collections: ReadonlyArray<ApiTaskCollectionReference>;
     readonly priority: ApiTaskPriority | null;
     readonly dueDateString: string | null;
-    readonly notes: ApiContentResponseWithoutKeys;
+    readonly notes: ApiContentWithoutKeys;
     readonly subtasks: AgentWebTaskPageSubtasks | null;
 };
 
@@ -199,7 +199,7 @@ export async function createAgentWebTaskPage(
     {addAdditionalOutput}: {addAdditionalOutput: (output: string) => void},
 ): Promise<{
     pageMetadata: AgentWebTaskPageMetadata;
-    pageLink: Extract<ApiMentionReferenceResponse, {readonly type: "Task"}>;
+    pageLink: Extract<ApiMentionReference, {readonly type: "Task"}>;
 }> {
     const contextTime = new Date();
     const contextDate = toCalendarDate(fromDate(contextTime, context.timeZone));
@@ -376,7 +376,7 @@ export async function updateAgentWebTaskPage(
         }
     }
 
-    const patches: Array<ApiTaskPatch> = [];
+    const patches: Array<ApiTaskPatchRequest> = [];
 
     if (oldPage.title !== newPage.title) {
         patches.push({type: "SetTitle", title: newPage.title});
@@ -738,7 +738,7 @@ export async function parseAgentWebTaskPage(
         if (subtasksChildren.length > 2) throw createUnexpectedError(subtasksChildren[2]!);
     }
 
-    let notesPromise: Promise<ApiContentResponseWithoutKeys> | null = null;
+    let notesPromise: Promise<ApiContentWithoutKeys> | null = null;
 
     if (notesChildren !== null) {
         const notesRoot: Root = {
@@ -841,7 +841,7 @@ async function parseAgentWebTaskPageSubtasksSeeMore(
     });
 }
 
-function isAgentWebTaskPageNotesEmpty(notes: ApiContentResponseWithoutKeys): boolean {
+function isAgentWebTaskPageNotesEmpty(notes: ApiContentWithoutKeys): boolean {
     const element = notes.elements[0];
 
     return (

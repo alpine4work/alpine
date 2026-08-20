@@ -4,22 +4,24 @@ import {
     MockAgentRecordingAction,
 } from "~/shared/agents/mock_agent_recording.js";
 import {
-    ApiContentBlockElement,
-    ApiContentInlineElement,
+    ApiContentBlockElementRequest,
     ApiContentInlineElementMark,
-    ApiContentListBlockElement,
-    ApiContentListBlockElementItem,
-    ApiContentMentionInlineElement,
-    ApiContentParagraphBlockElement,
+    ApiContentInlineElementRequest,
+    ApiContentListBlockElementItemRequest,
+    ApiContentListBlockElementRequest,
+    ApiContentMentionInlineElementRequest,
+    ApiContentParagraphBlockElementRequest,
     ApiContentTextInlineElement,
-    ApiContentUnorderedListBlockElement,
-    ApiMentionReference,
-    ApiMessageStreamPartPayload,
+    ApiContentUnorderedListBlockElementRequest,
+    ApiMentionReferenceRequest,
+    ApiMessageStreamPartPayloadRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {partitionArray} from "~/shared/helpers/array/partition_array.open_source.js";
 import {DocumentId} from "~/shared/id/types/id_types.open_source.js";
 
-function p(...elements: Array<string | ApiContentInlineElement>): ApiContentParagraphBlockElement {
+function p(
+    ...elements: Array<string | ApiContentInlineElementRequest>
+): ApiContentParagraphBlockElementRequest {
     return {
         type: "Paragraph",
         elements: elements.map(element => (typeof element === "string" ? text(element) : element)),
@@ -27,8 +29,8 @@ function p(...elements: Array<string | ApiContentInlineElement>): ApiContentPara
 }
 
 function ul(
-    ...items: Array<ApiContentParagraphBlockElement | ApiContentListBlockElementItem>
-): ApiContentUnorderedListBlockElement {
+    ...items: Array<ApiContentParagraphBlockElementRequest | ApiContentListBlockElementItemRequest>
+): ApiContentUnorderedListBlockElementRequest {
     if (items.length === 0) {
         return {type: "UnorderedList", items: [{elements: []}]};
     }
@@ -40,11 +42,11 @@ function ul(
 }
 
 function li(
-    ...elements: Array<ApiContentParagraphBlockElement | ApiContentListBlockElement>
-): ApiContentListBlockElementItem {
+    ...elements: Array<ApiContentParagraphBlockElementRequest | ApiContentListBlockElementRequest>
+): ApiContentListBlockElementItemRequest {
     const [actualElements, nestedListElements] = partitionArray(
         elements,
-        (element): element is ApiContentParagraphBlockElement =>
+        (element): element is ApiContentParagraphBlockElementRequest =>
             "type" in element && element.type === "Paragraph",
     );
 
@@ -61,7 +63,7 @@ function text(
     return {type: "Text", text, marks};
 }
 
-function mention(reference: ApiMentionReference): ApiContentMentionInlineElement {
+function mention(reference: ApiMentionReferenceRequest): ApiContentMentionInlineElementRequest {
     return {type: "Mention", reference};
 }
 
@@ -92,7 +94,7 @@ export function createMockAgentKingKongRecording(
         recording.push({type: "Ping"});
     }
 
-    function put(time: number, index: number, payload: ApiMessageStreamPartPayload) {
+    function put(time: number, index: number, payload: ApiMessageStreamPartPayloadRequest) {
         if (lastTime === null) {
             lastTime = time;
         } else {
@@ -107,7 +109,7 @@ export function createMockAgentKingKongRecording(
     function putReasoningPart(
         time: number,
         index: number,
-        ...elements: Array<ApiContentBlockElement>
+        ...elements: Array<ApiContentBlockElementRequest>
     ) {
         put(time, index, {
             type: "Reasoning",
@@ -118,7 +120,7 @@ export function createMockAgentKingKongRecording(
     function putContentPart(
         time: number,
         index: number,
-        ...elements: Array<ApiContentBlockElement>
+        ...elements: Array<ApiContentBlockElementRequest>
     ) {
         put(time, index, {
             type: "Content",
@@ -136,7 +138,11 @@ export function createMockAgentKingKongRecording(
         });
     }
 
-    function putReadToolCallPart(time: number, index: number, reference: ApiMentionReference) {
+    function putReadToolCallPart(
+        time: number,
+        index: number,
+        reference: ApiMentionReferenceRequest,
+    ) {
         put(time, index, {
             type: "ToolCall",
             call: {

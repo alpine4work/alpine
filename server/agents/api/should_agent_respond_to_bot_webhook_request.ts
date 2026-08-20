@@ -1,8 +1,8 @@
 import {ApiClient} from "~/server/agents/api/api_client.open_source.js";
 import {
     ApiBotWebhookEvent,
-    ApiChatReference,
-    ApiChatResponse,
+    ApiChat,
+    ApiChatReferenceRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {AccountId, ChatId} from "~/shared/id/types/id_types.open_source.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.open_source.js";
@@ -13,10 +13,7 @@ export async function shouldAgentRespondToApiBotWebhookRequest(
     botAccountId: AccountId,
     event: Extract<ApiBotWebhookEvent, {type: "CreatedMessage" | "CreatedPost"}>,
     options?: {
-        withChatCache?: (
-            chatId: ChatId,
-            action: () => Promise<ApiChatResponse>,
-        ) => Promise<ApiChatResponse>;
+        withChatCache?: (chatId: ChatId, action: () => Promise<ApiChat>) => Promise<ApiChat>;
     },
 ): Promise<boolean> {
     // Always respond if mentioned.
@@ -53,14 +50,11 @@ export async function isOneOnOneChat(
     tracer: TracerBase,
     apiClient: ApiClient,
     botAccountId: AccountId,
-    {id: chatId}: ApiChatReference,
+    {id: chatId}: ApiChatReferenceRequest,
     {
         withChatCache = (chatId, action) => action(),
     }: {
-        withChatCache?: (
-            chatId: ChatId,
-            action: () => Promise<ApiChatResponse>,
-        ) => Promise<ApiChatResponse>;
+        withChatCache?: (chatId: ChatId, action: () => Promise<ApiChat>) => Promise<ApiChat>;
     } = {},
 ): Promise<boolean> {
     const chat = await withChatCache(chatId, async () => {

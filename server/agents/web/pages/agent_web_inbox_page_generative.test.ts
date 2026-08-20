@@ -18,7 +18,7 @@ import {
     ApiDocumentReferenceArbitrary,
     createIdArbitrary,
 } from "~/shared/api/content/test_helpers/api_content_arbitrary.js";
-import {ApiAccountReferenceResponse} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
+import {ApiAccountReference} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
@@ -158,7 +158,7 @@ const AgentWebInboxPageEntriesArbitrary: Arbitrary<ReadonlyArray<AgentWebInboxPa
 
 // The inbox is always a human's (bots have no inbox, and the `/human/{name}/inbox`
 // routed link asserts a `/human/` pathname), so never a bot.
-const AgentWebInboxPageAccountArbitrary: Arbitrary<ApiAccountReferenceResponse> = fc.record({
+const AgentWebInboxPageAccountArbitrary: Arbitrary<ApiAccountReference> = fc.record({
     type: fc.constant("Account"),
     id: fc.constant(inboxAccountId),
     title: ApiContentTextArbitrary,

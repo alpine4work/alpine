@@ -62,11 +62,14 @@ async function main() {
 
     const parsedSpecification = Yaml.parse(specificationContent, {merge: true});
 
+    const specializedSpecification = specialize(parsedSpecification);
+    eliminateDeadApiSpecificationSchemas(specializedSpecification);
+
     specificationContent = Yaml.stringify(
         // Use `JSON.parse(JSON.stringify())` to get a deep copy of the schema so we don't
         // end up with YAML references like `&a2` + `*a2`. This improves readability for
         // the generated schema and makes the generated schema easier to code review.
-        JSON.parse(JSON.stringify(specialize(parsedSpecification))),
+        JSON.parse(JSON.stringify(specializedSpecification)),
         {indent: 4},
     );
 
@@ -395,6 +398,80 @@ main().catch(error => {
 /** The prefix of a JSON schema reference into `components.schemas`. */
 const schemaReferencePrefix = "#/components/schemas/";
 
+/** The prefix of a local OpenAPI reference into `components`. */
+const componentReferencePrefix = "#/components/";
+
+/**
+ * Removes component schemas that aren't transitively referenced by a path or
+ * webhook. References to other components are followed as part of the traversal,
+ * so a schema referenced by a reusable response or request body is preserved when
+ * that component is reachable from an API root.
+ */
+function eliminateDeadApiSpecificationSchemas(specification: unknown) {
+    assert(isObject(specification));
+    assert(isObject(specification.components));
+    assert(isObject(specification.components.schemas));
+    assert(isObject(specification.paths));
+    assert(isObject(specification.webhooks));
+
+    const reachableSchemaNames = new Set<string>();
+    const visitedValues = new Set<object>();
+    const valuesToVisit: Array<unknown> = [specification.paths, specification.webhooks];
+
+    while (valuesToVisit.length > 0) {
+        const value = valuesToVisit.pop();
+        if (!isObject(value)) continue;
+        if (visitedValues.has(value)) continue;
+        visitedValues.add(value);
+
+        for (const keyValue of Object.values(value)) {
+            if (typeof keyValue === "string" && keyValue.startsWith(componentReferencePrefix)) {
+                if (keyValue.startsWith(schemaReferencePrefix)) {
+                    const [encodedSchemaName] = keyValue
+                        .slice(schemaReferencePrefix.length)
+                        .split("/");
+
+                    assert(encodedSchemaName !== undefined && encodedSchemaName !== "");
+                    reachableSchemaNames.add(decodeJsonPointerPathPart(encodedSchemaName));
+                }
+
+                let referencedValue: unknown = specification;
+
+                for (const encodedPathPart of keyValue.slice(2).split("/")) {
+                    assert(
+                        isObject(referencedValue),
+                        quote`Cannot resolve API specification reference ${keyValue}`,
+                    );
+
+                    const pathPart = decodeJsonPointerPathPart(encodedPathPart);
+
+                    assert(
+                        hasOwnProperty(referencedValue, pathPart),
+                        quote`Cannot resolve API specification reference ${keyValue}`,
+                    );
+
+                    referencedValue = referencedValue[pathPart];
+                }
+
+                valuesToVisit.push(referencedValue);
+            }
+
+            valuesToVisit.push(keyValue);
+        }
+    }
+
+    for (const schemaName of Object.keys(specification.components.schemas)) {
+        if (!reachableSchemaNames.has(schemaName)) {
+            delete specification.components.schemas[schemaName];
+        }
+    }
+}
+
+/** Decodes a single RFC 6901 JSON Pointer path part. */
+function decodeJsonPointerPathPart(encodedPathPart: string) {
+    return encodedPathPart.replaceAll("~1", "/").replaceAll("~0", "~");
+}
+
 /**
  * API specification specialization is similar to C++ templates and Rust generic
  * monomorphization. It allows us to conveniently declare multiple versions
@@ -403,60 +480,61 @@ const schemaReferencePrefix = "#/components/schemas/";
  * # Example
  *
  * In our schema we have `ContentMentionInlineElement` and
- * `ContentMentionInlineElement_Response`. `ContentMentionInlineElement_Response`
- * contains data loaded from the mention reference (e.g. `title` and eventually
- * data like the task status). However when creating a mention the user won't have
- * this data available so they'll simply use `ContentMentionInlineElement` which
- * does not include this data.
+ * `ContentMentionInlineElement_Request`. `ContentMentionInlineElement` contains
+ * data loaded from the mention reference (e.g. `title` and eventually data like
+ * the task status). However when creating a mention the user won't have this data
+ * available so they'll use `ContentMentionInlineElement_Request`, which does not
+ * include this data.
  *
  * So this distinction needs to bubble all the way up the JSON schema. Ultimately
- * we need both a `Content` schema and a `Content_Response` schema. Where `Content`
- * references `ContentMentionInlineElement` and `Content_Response` references
- * `ContentMentionInlineElement_Response`. This function generates all the
+ * we need both a `Content` schema and a `Content_Request` schema. `Content`
+ * references `ContentMentionInlineElement` and `Content_Request` references
+ * `ContentMentionInlineElement_Request`. This function generates all the
  * intermediate variants even though only the leaf was written by hand.
  *
  * # The model
  *
  * - A schema name is a base name plus zero or more underscore-separated
- *   specializations. `ContentParagraphBlockElement_Response_WithoutKeys` is the
- *   `{Response, WithoutKeys}` variant of `ContentParagraphBlockElement`.
+ *   specializations. `ContentParagraphBlockElement_Request_WithoutKeys` is the
+ *   `{Request, WithoutKeys}` variant of `ContentParagraphBlockElement`.
  *
  * - A variant is identified by its _set_ of specializations. The variants of a
  *   base schema are ordered by subset inclusion which makes them a lattice with
  *   the base schema (the empty set) at the bottom. Names spell the set in
- *   alphabetical order, so we write `Content_Response_WithoutKeys` and never
- *   `Content_WithoutKeys_Response`.
+ *   alphabetical order, so we write `Content_Request_WithoutKeys` and never
+ *   `Content_WithoutKeys_Request`.
  *
  * - Resolution: a reference that asks for variant `v` of schema `S` resolves to
  *   the largest materialized variant that is a subset of `v` (ties broken by
- *   alphabetical order). So asking for `{Response, WithoutKeys}` uses
- *   `S_Response_WithoutKeys` if available, then `S_Response`, then
- *   `S_WithoutKeys`, and finally falls back to the base schema `S`.
+ *   alphabetical order). So asking for `{Request, WithoutKeys}` uses
+ *   `S_Request_WithoutKeys` if available, then `S_Request`, then `S_WithoutKeys`,
+ *   and finally falls back to the base schema `S`.
  *
  * - Application: the body of variant `v` of `S` starts from the closest written
  *   variant of `S` and rewrites every schema reference `C_u` to
  *   `resolve(C, u ∪ v)`. The set union is what makes specializations compose: a
  *   reference to `Content_WithoutKeys` inside a schema being specialized for
- *   `Response` becomes a reference to `Content_Response_WithoutKeys`.
+ *   `Request` becomes a reference to `Content_Request_WithoutKeys`.
  *
  * - Demand: variants are only generated on demand, starting from the roots. Every
- *   hand-written schema demands itself, request positions demand `u ∪ {Request}`
- *   and response positions demand `u ∪ {Response}` for every schema `C_u` they
- *   reference (both flavors are demanded for every schema reachable from the API
- *   surface, see the note on `rootReferencedSchemaNames` below), and rewriting a
- *   demanded variant demands `u ∪ v` for every reference. We iterate to the least
- *   fix point: the loop ends when no new variant materializes.
+ *   hand-written schema demands itself, inbound request positions demand
+ *   `u ∪ {Request}`, and response and outbound webhook positions demand `u` for
+ *   every schema `C_u` they reference (both flavors are demanded for every schema
+ *   reachable from the API surface when both can resolve, see the note on
+ *   `rootReferencedSchemaNames` below), and rewriting a demanded variant demands
+ *   `u ∪ v` for every reference. We iterate to the least fix point: the loop ends
+ *   when no new variant materializes.
  *
  * - Materialization: a demanded variant only gets its own schema if its rewritten
  *   body is structurally different from the variant it would otherwise resolve to.
- *   This keeps the combinatorial explosion of variants in check:
- *   `SpaceId_Response` is never generated because nothing in `SpaceId` changes in
- *   a response, and `ContentInlineElement_Response_WithoutKeys` is never generated
- *   because no inline element has a `WithoutKeys` variant so it would be identical
- *   to `ContentInlineElement_Response`.
+ *   This keeps the combinatorial explosion of variants in check: `SpaceId_Request`
+ *   is never generated because nothing in `SpaceId` changes in a request, and
+ *   `ContentInlineElement_Request_WithoutKeys` is never generated because no
+ *   inline element has a `WithoutKeys` variant so it would be identical to
+ *   `ContentInlineElement_Request`.
  *
- * Because generation is demand-driven from the request/response roots and from
- * hand-written schemas, a specialization combination that no reachable schema
+ * Because generation is demand-driven from the request/response/webhook roots and
+ * from hand-written schemas, a specialization combination that no reachable schema
  * distinguishes is never generated. Hand-written schemas are always preserved.
  */
 // NOTE(calebmer, 2026-07-01): This was entirely rewritten by Fable to support
@@ -493,14 +571,11 @@ function specialize(specification: unknown) {
         ).set(variant.specializationKey, variant);
     }
 
-    // Add any properties in `Response` variants as optional properties to the schemas
-    // used in request positions. This is needed to make sure we can accept a
-    // `_Response` object as request input. Otherwise a `_Response` object would be
-    // rejected by `additionalProperties: false`.
-    addResponseAdditionalPropertiesToBaseSchemaAndRequestSchema(
-        schemas,
-        writtenVariantsByBaseSchemaName,
-    );
+    // Add any properties in response schemas as optional properties to the schemas
+    // used in request positions. This is needed to make sure we can accept a response
+    // object as request input. Otherwise it would be rejected by
+    // `additionalProperties: false`.
+    addResponseAdditionalPropertiesToRequestSchema(schemas, writtenVariantsByBaseSchemaName);
 
     // Snapshot the written schema bodies. Variant bodies are always rewritten from
     // these pristine snapshots so reference rewrites from previous iterations never
@@ -566,10 +641,12 @@ function specialize(specification: unknown) {
         return resolvedVariant.schemaName;
     };
 
-    // Request positions demand the `Request` specialization of every schema they
-    // reference and response positions demand the `Response` specialization.
+    // Inbound API request positions demand the `Request` specialization of every
+    // schema they reference. API responses and outbound webhook payloads demand the
+    // base response schema. A webhook may explicitly reference a `_Request` schema
+    // when it intentionally sends the more primitive request representation.
     const requestSpecializations: ReadonlySet<string> = new Set(["Request"]);
-    const responseSpecializations: ReadonlySet<string> = new Set(["Response"]);
+    const responseSpecializations: ReadonlySet<string> = new Set();
 
     const specializationRoots: Array<SpecializationRoot> = [];
 
@@ -589,30 +666,40 @@ function specialize(specification: unknown) {
         });
     };
 
-    for (const pathValues of [specification.paths, specification.webhooks]) {
-        for (const pathValue of Object.values(pathValues)) {
-            assert(isObject(pathValue));
+    for (const pathValue of Object.values(specification.paths)) {
+        assert(isObject(pathValue));
 
-            for (const [method, methodValue] of Object.entries(pathValue)) {
-                if (method === "parameters") continue;
+        for (const [method, methodValue] of Object.entries(pathValue)) {
+            if (method === "parameters") continue;
 
-                assert(isObject(methodValue));
+            assert(isObject(methodValue));
 
-                addSpecializationRoot(methodValue, "requestBody", requestSpecializations);
-                addSpecializationRoot(methodValue, "responses", responseSpecializations);
-            }
+            addSpecializationRoot(methodValue, "requestBody", requestSpecializations);
+            addSpecializationRoot(methodValue, "responses", responseSpecializations);
+        }
+    }
+
+    for (const webhookValue of Object.values(specification.webhooks)) {
+        assert(isObject(webhookValue));
+
+        for (const [method, methodValue] of Object.entries(webhookValue)) {
+            if (method === "parameters") continue;
+
+            assert(isObject(methodValue));
+
+            addSpecializationRoot(methodValue, "requestBody", responseSpecializations);
+            addSpecializationRoot(methodValue, "responses", responseSpecializations);
         }
     }
 
     addSpecializationRoot(specification.components, "requestBodies", requestSpecializations);
     addSpecializationRoot(specification.components, "responses", responseSpecializations);
 
-    // The API surface is bidirectional: every schema reachable from a request or
-    // response position gets both its `Request` and its `Response` flavor (when
-    // they're structurally distinct), even if only one position references it today.
-    // For example, `MessageStreamPartPayload` is only referenced by a request body but
-    // internal code still uses `MessageStreamPartPayload_Response` for the data it
-    // reads back.
+    // The API surface is bidirectional: every schema reachable from a request,
+    // response, or webhook position gets both its base response flavor and its
+    // `Request` flavor (when both flavors can resolve and are structurally distinct),
+    // even if only one position references it today. Request-only schemas such as
+    // `ChatCreate_Request` intentionally have no base response flavor.
     const rootReferencedSchemaNames = new Set<string>();
 
     for (const specializationRoot of specializationRoots) {
@@ -622,11 +709,18 @@ function specialize(specification: unknown) {
     for (const referencedSchemaName of rootReferencedSchemaNames) {
         const reference = parseSpecializedSchemaName(referencedSchemaName);
 
-        for (const specializations of [requestSpecializations, responseSpecializations]) {
-            addSpecializationDemand(
-                reference.baseSchemaName,
-                new Set([...reference.specializations, ...specializations]),
-            );
+        for (const rootSpecializations of [requestSpecializations, responseSpecializations]) {
+            const specializations = new Set([...reference.specializations, ...rootSpecializations]);
+
+            if (
+                resolveSpecializationVariant(
+                    writtenVariantsByBaseSchemaName,
+                    reference.baseSchemaName,
+                    specializations,
+                ) !== undefined
+            ) {
+                addSpecializationDemand(reference.baseSchemaName, specializations);
+            }
         }
     }
 
@@ -643,9 +737,9 @@ function specialize(specification: unknown) {
         iterationCount++;
         if (iterationCount > 1000) throw new InternalError("Too many iterations");
 
-        // Rewrite the request/response roots from their pristine snapshots. This both
-        // records the request/response demands and, on the final iteration, writes the
-        // stable rewritten roots back into the specification.
+        // Rewrite the request/response/webhook roots from their pristine snapshots. This
+        // both records their demands and, on the final iteration, writes the stable
+        // rewritten roots back into the specification.
         for (const specializationRoot of specializationRoots) {
             specializationRoot.container[specializationRoot.containerKey] = rewriteSchemaReferences(
                 specializationRoot.body,
@@ -718,8 +812,8 @@ function specialize(specification: unknown) {
 
             // If the rewritten body is structurally identical to the variant this demand
             // currently resolves to then it doesn't need its own schema either. For example,
-            // `ContentInlineElement_Response_WithoutKeys` would be identical to
-            // `ContentInlineElement_Response` because no inline element has a `WithoutKeys`
+            // `ContentInlineElement_Request_WithoutKeys` would be identical to
+            // `ContentInlineElement_Request` because no inline element has a `WithoutKeys`
             // variant.
             const fallbackVariant = resolveSpecializationVariant(
                 materializedVariantsByBaseSchemaName,
@@ -759,7 +853,7 @@ function specialize(specification: unknown) {
  */
 type SpecializationVariant = {
     baseSchemaName: string;
-    /** The canonical schema name for this variant (e.g. `Content_Response`). */
+    /** The canonical schema name for this variant (e.g. `Content_Request`). */
     schemaName: string;
     specializations: ReadonlySet<string>;
     /**
@@ -775,8 +869,9 @@ type SpecializationVariantsByBaseSchemaName = Map<string, Map<string, Specializa
 
 /**
  * A place in the specification that demands specializations of the schemas it
- * references: a request or response position. `body` is a pristine deep copy of
- * the original value at `container[containerKey]` that rewrites start from.
+ * references: a request, response, or webhook position. `body` is a pristine deep
+ * copy of the original value at `container[containerKey]` that rewrites start
+ * from.
  */
 type SpecializationRoot = {
     container: {[key: string]: unknown};
@@ -800,8 +895,8 @@ function collectSchemaReferenceNames(value: unknown, schemaNames: Set<string>) {
 
 /**
  * Splits a schema name into its base name and its specializations (e.g.
- * `Content_Response_WithoutKeys` has the base name `Content` and the
- * specializations `Response` and `WithoutKeys`).
+ * `Content_Request_WithoutKeys` has the base name `Content` and the
+ * specializations `Request` and `WithoutKeys`).
  */
 function parseSpecializedSchemaName(schemaName: string) {
     const [baseSchemaName = "", ...specializations] = schemaName.split("_");
@@ -877,7 +972,7 @@ function resolveSpecializationVariant(
 
 /**
  * Orders variants for resolution: a variant with more specializations comes first,
- * ties are broken alphabetically so resolution is deterministic (e.g. `_Response`
+ * ties are broken alphabetically so resolution is deterministic (e.g. `_Request`
  * is preferred over `_WithoutKeys` when both match and their combination doesn't
  * exist).
  */
@@ -934,25 +1029,23 @@ function rewriteSchemaReferencesInPlace(
 }
 
 /**
- * Adds any properties in `Response` variants as optional properties to the schemas
+ * Adds any properties in response variants as optional properties to the schema
  * that the same object resolves to in request positions. This is needed to make
- * sure we can accept a `_Response` object as request input. Otherwise a
- * `_Response` object would be rejected by `additionalProperties: false`.
+ * sure we can accept a response object as request input. Otherwise it would be
+ * rejected by `additionalProperties: false`.
  *
- * A `Response` variant is accepted in the request position that resolves the same
- * specializations minus `Response` plus `Request`. For example, `Task_Response`
- * objects must be accepted by `Task_Request` (if written) and the base `Task`, and
- * `ContentFileBlockElement_Response_WithoutKeys` objects must be accepted by
- * whatever `{Request, WithoutKeys}` resolves to (the base
- * `ContentFileBlockElement` today).
+ * A response variant is accepted in the request position that resolves the same
+ * specializations plus `Request`. For example, `Task` objects must be accepted by
+ * `Task_Request`, and `ContentFileBlockElement_WithoutKeys` objects must be
+ * accepted by whatever `{Request, WithoutKeys}` resolves to.
  */
-function addResponseAdditionalPropertiesToBaseSchemaAndRequestSchema(
+function addResponseAdditionalPropertiesToRequestSchema(
     schemas: {[key: string]: unknown},
     writtenVariantsByBaseSchemaName: SpecializationVariantsByBaseSchemaName,
 ) {
     for (const [schemaName, responseSchema] of Object.entries(schemas)) {
         const {baseSchemaName, specializations} = parseSpecializedSchemaName(schemaName);
-        if (!specializations.includes("Response")) continue;
+        if (specializations.includes("Request")) continue;
 
         if (!isObject(responseSchema)) continue;
         if (responseSchema.type !== "object") continue;
@@ -960,44 +1053,27 @@ function addResponseAdditionalPropertiesToBaseSchemaAndRequestSchema(
 
         const responseSchemaProperties = responseSchema.properties;
 
-        const requestPositionSpecializations = specializations.filter(
-            specialization => specialization !== "Response",
+        const targetVariant = resolveSpecializationVariant(
+            writtenVariantsByBaseSchemaName,
+            baseSchemaName,
+            new Set([...specializations, "Request"]),
         );
 
-        const targetVariants = [
-            resolveSpecializationVariant(
-                writtenVariantsByBaseSchemaName,
-                baseSchemaName,
-                new Set(requestPositionSpecializations),
-            ),
-            resolveSpecializationVariant(
-                writtenVariantsByBaseSchemaName,
-                baseSchemaName,
-                new Set([...requestPositionSpecializations, "Request"]),
-            ),
-        ];
+        if (targetVariant === undefined || targetVariant.schemaName === schemaName) continue;
 
-        const targetSchemaNames = new Set<string>();
+        const targetSchema = schemas[targetVariant.schemaName];
 
-        for (const targetVariant of targetVariants) {
-            if (targetVariant === undefined) continue;
-            if (targetSchemaNames.has(targetVariant.schemaName)) continue;
-            targetSchemaNames.add(targetVariant.schemaName);
+        if (!isObject(targetSchema)) continue;
+        if (targetSchema.type !== "object") continue;
 
-            const targetSchema = schemas[targetVariant.schemaName];
+        assert(isObject(targetSchema.properties));
 
-            if (!isObject(targetSchema)) continue;
-            if (targetSchema.type !== "object") continue;
+        for (const [propertyKey, propertySchema] of Object.entries(responseSchemaProperties)) {
+            if (hasOwnProperty(targetSchema.properties, propertyKey)) continue;
 
-            assert(isObject(targetSchema.properties));
-
-            for (const [propertyKey, propertySchema] of Object.entries(responseSchemaProperties)) {
-                if (hasOwnProperty(targetSchema.properties, propertyKey)) continue;
-
-                // @ts-expect-error: TypeScript doesn't like the type narrowing from
-                // `hasOwnProperty()` above.
-                targetSchema.properties[propertyKey] = JSON.parse(JSON.stringify(propertySchema));
-            }
+            // @ts-expect-error: TypeScript doesn't like the type narrowing from
+            // `hasOwnProperty()` above.
+            targetSchema.properties[propertyKey] = JSON.parse(JSON.stringify(propertySchema));
         }
     }
 }

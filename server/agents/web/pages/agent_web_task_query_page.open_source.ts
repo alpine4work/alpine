@@ -35,16 +35,16 @@ import {printMarkdownTree} from "~/shared/api/content/print_api_content_to_markd
 import {printMarkdownPhrasingContentText} from "~/shared/api/content/print_markdown_phrasing_content_text.open_source.js";
 import {intoApiAccountReference} from "~/shared/api/specification/into_api_account_reference.open_source.js";
 import {
-    ApiAccountReferenceResponse,
-    ApiTaskBatchPatch,
-    ApiTaskCollectionReferenceResponse,
+    ApiAccountReference,
+    ApiTask,
+    ApiTaskBatchPatchRequest,
+    ApiTaskCollectionReference,
     ApiTaskCreateRequest,
     ApiTaskMoveInQueryPatchPosition,
-    ApiTaskPatch,
+    ApiTaskPatchRequest,
     ApiTaskPriority,
     ApiTaskQuerySort,
-    ApiTaskReferenceResponse,
-    ApiTaskResponse,
+    ApiTaskReference,
     ApiTaskStatus,
     ApiTaskSubtasks,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
@@ -150,10 +150,10 @@ export type AgentWebTaskQueryPageTask = {
     readonly taskId: TaskId | null;
     readonly title: string;
     readonly status: ApiTaskStatus;
-    readonly parent: ApiTaskReferenceResponse | null;
+    readonly parent: ApiTaskReference | null;
     readonly subtasks: ApiTaskSubtasks;
-    readonly assignee: ApiAccountReferenceResponse | null;
-    readonly collections: ReadonlyArray<ApiTaskCollectionReferenceResponse>;
+    readonly assignee: ApiAccountReference | null;
+    readonly collections: ReadonlyArray<ApiTaskCollectionReference>;
     readonly additionalCollectionsCount: number;
     readonly priority: ApiTaskPriority | null;
     readonly dueDateString: string | null;
@@ -201,11 +201,11 @@ export function intoAgentWebTaskQueryPageTask({
     contextDate: CalendarDate;
     omittedCollectionId?: TaskCollectionId;
     omittedParentTaskId?: TaskId;
-    task: ApiTaskResponse;
+    task: ApiTask;
 }): AgentWebTaskQueryPageTask {
     const taskCollections = filterMapArray(
         task.collections ?? emptyArray,
-        ({collection}): ApiTaskCollectionReferenceResponse | undefined => {
+        ({collection}): ApiTaskCollectionReference | undefined => {
             if (collection.id === omittedCollectionId) return;
 
             return {
@@ -274,11 +274,11 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             nextCursor: ApiTaskQueryCursor | null;
             tasks: ReadonlyArray<{
                 cursor: ApiTaskQueryCursor;
-                task: ApiTaskResponse;
+                task: ApiTask;
             }>;
         }>;
         intoPageTask: (options: {
-            task: ApiTaskResponse;
+            task: ApiTask;
             contextDate: CalendarDate;
         }) => AgentWebTaskQueryPageTask;
         buildPage: (options: {
@@ -332,7 +332,7 @@ export async function readAgentWebTaskQueryPage<Resource, Page extends AgentWebT
             task,
         }: {
             cursor: ApiTaskQueryCursor;
-            task: ApiTaskResponse;
+            task: ApiTask;
         }): void {
             tasks.push(intoPageTask({task, contextDate}));
             taskMetadata.push({cursor: taskCursor, newTaskId: null});
@@ -672,7 +672,7 @@ export async function printAgentWebTaskQueryPageTaskListItem(
     pageType: AgentWebTaskQueryPageType,
     pageTask: AgentWebTaskQueryPageTask,
 ): Promise<ListItem> {
-    const taskReference: ApiTaskReferenceResponse | null =
+    const taskReference: ApiTaskReference | null =
         pageTask.taskId === null
             ? null
             : {
@@ -834,12 +834,12 @@ export async function parseAgentWebTaskQueryPageTaskReference(
     pageType: AgentWebTaskQueryPageType,
 ): Promise<{
     // NOTE(calebmer): Intentionally returns this type that's not compatible with
-    // `ApiTaskReferenceResponse` because unlike when we usually parse
-    // `ApiTaskReferenceResponse` (via `routeAgentWebPageLinkPathname()`) we parse the
-    // title and status directly from the task label. Normally we ignore the link label
-    // and only parse using the link URL. This "exploded" format we hope helps the
-    // consuming code think about handling the `title`/`status` differently, as data
-    // instead of derived response properties.
+    // `ApiTaskReference` because unlike when we usually parse `ApiTaskReference` (via
+    // `routeAgentWebPageLinkPathname()`) we parse the title and status directly from
+    // the task label. Normally we ignore the link label and only parse using the link
+    // URL. This "exploded" format we hope helps the consuming code think about
+    // handling the `title`/`status` differently, as data instead of derived response
+    // properties.
     taskId: TaskId;
     status: ApiTaskStatus;
     title: string;
@@ -911,7 +911,7 @@ export function normalizeAgentWebTaskQueryPage(
             // title/status at the top-level since the top-level title/status is used to make
             // updates. But we do want parents of other tasks with the same `TaskId` to be
             // influenced by other references in the query to the same `TaskId`.
-            const referenceStub: ApiTaskReferenceResponse = {
+            const referenceStub: ApiTaskReference = {
                 type: "Task",
                 id: pageTask.taskId,
                 title: pageTask.title,
@@ -1165,7 +1165,7 @@ export async function updateAgentWebTaskQueryPage(
               type: "Update";
               taskIndex: number;
               taskId: TaskId;
-              patches: Array<ApiTaskPatch>;
+              patches: Array<ApiTaskPatchRequest>;
           };
 
     const nullableExecutions = await runAllPromises(
@@ -1397,7 +1397,7 @@ export async function updateAgentWebTaskQueryPage(
                 }
             }
 
-            const patches: Array<ApiTaskPatch> = [];
+            const patches: Array<ApiTaskPatchRequest> = [];
 
             if (oldPageTask.title !== newPageTask.title) {
                 patches.push({type: "SetTitle", title: newPageTask.title});
@@ -1539,7 +1539,7 @@ export async function updateAgentWebTaskQueryPage(
                 }
             }
 
-            const movementPatchByPageTaskIndex = new Map<number, ApiTaskPatch>();
+            const movementPatchByPageTaskIndex = new Map<number, ApiTaskPatchRequest>();
 
             // The batch tasks endpoint preserves request order for moves with identical
             // positions. Build movement patches in the page's new order so tasks moved between
@@ -1601,10 +1601,10 @@ export async function updateAgentWebTaskQueryPage(
 
             type TaskBatchExecution = {
                 readonly taskIndex: number;
-                readonly patch: ApiTaskBatchPatch;
+                readonly patch: ApiTaskBatchPatchRequest;
             };
 
-            const removePatches: Array<ApiTaskBatchPatch> = [];
+            const removePatches: Array<ApiTaskBatchPatchRequest> = [];
             const patches: Array<TaskBatchExecution> = [];
 
             for (const removedTaskId of removedTaskIds) {
@@ -1622,7 +1622,7 @@ export async function updateAgentWebTaskQueryPage(
 
             const createPatches: Array<{
                 patchIndex: number;
-                reference: Omit<ApiTaskReferenceResponse, "id">;
+                reference: Omit<ApiTaskReference, "id">;
             }> = [];
 
             for (let executionIndex = 0; executionIndex < executions.length; executionIndex++) {
@@ -1827,7 +1827,7 @@ export async function updateAgentWebTaskQueryPage(
                         );
                         assert(result.type === "Create");
 
-                        const reference: ApiTaskReferenceResponse = {
+                        const reference: ApiTaskReference = {
                             ...createPatch.reference,
                             id: result.task.id,
                         };

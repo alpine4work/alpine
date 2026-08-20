@@ -8,15 +8,15 @@ import {
     SuccessResponse,
 } from "openapi-typescript-helpers";
 import {
-    ApiContent,
+    ApiContentRequest,
     ApiErrorResponse,
     ApiMentionReference,
-    ApiMentionReferenceResponse,
-    ApiMessageContentPayloadFile,
-    ApiMessageContentPayloadParent,
-    ApiMessageExperimentalApprovalDecisionValue,
-    ApiMessageRoomReference,
-    ApiMessageStreamPartPayload,
+    ApiMentionReferenceRequest,
+    ApiMessageContentPayloadFileRequest,
+    ApiMessageContentPayloadParentRequest,
+    ApiMessageExperimentalApprovalDecisionValueRequest,
+    ApiMessageRoomReferenceRequest,
+    ApiMessageStreamPartPayloadRequest,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
@@ -229,7 +229,7 @@ export function createApiClient({
 export function getApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     index: number,
 ) {
     switch (room.type) {
@@ -267,7 +267,7 @@ export function getApiMessage(
 export function getApiMessagesFromStart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
     switch (room.type) {
@@ -314,7 +314,7 @@ export function getApiMessagesFromStart(
 export function getApiMessagesFromEnd(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     {limit, cursor}: {limit: number; cursor: number | null},
 ) {
     switch (room.type) {
@@ -361,12 +361,12 @@ export function getApiMessagesFromEnd(
 export function createApiMessage(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     body: {
         isStream?: boolean;
-        parent?: ApiMessageContentPayloadParent;
-        content: ApiContent;
-        files?: ReadonlyArray<ApiMessageContentPayloadFile>;
+        parent?: ApiMessageContentPayloadParentRequest;
+        content: ApiContentRequest;
+        files?: ReadonlyArray<ApiMessageContentPayloadFileRequest>;
         createdTimeZone?: TimeZone;
     },
 ) {
@@ -403,9 +403,9 @@ export function createApiMessage(
 export function createApiMessageStreamPart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     messageIndex: number,
-    body: {payload: ApiMessageStreamPartPayload},
+    body: {payload: ApiMessageStreamPartPayloadRequest},
 ) {
     switch (room.type) {
         case "Chat": {
@@ -454,10 +454,10 @@ export const putApiMessageStreamPartBeforeFetchTestCheckpoint = new TestCheckpoi
 export async function putApiMessageStreamPart(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     messageIndex: number,
     partIndex: number,
-    body: {payload: ApiMessageStreamPartPayload},
+    body: {payload: ApiMessageStreamPartPayloadRequest},
 ) {
     // Micro-optimization, `waitForTest()` is noops if `!import.meta.jest` anyway but
     // `response.output_text.delta` is a hot code path in production. So add an extra
@@ -526,9 +526,12 @@ export async function putApiMessageStreamPart(
 export async function patchApiMessageApprovals(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     messageIndex: number,
-    decisions: ReadonlyArray<{index: number; value: ApiMessageExperimentalApprovalDecisionValue}>,
+    decisions: ReadonlyArray<{
+        index: number;
+        value: ApiMessageExperimentalApprovalDecisionValueRequest;
+    }>,
 ) {
     const body = {
         patches: decisions.map(decision => ({
@@ -595,7 +598,7 @@ export async function patchApiMessageApprovals(
 export function getApiMessageApprovals(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     messageIndex: number,
 ) {
     switch (room.type) {
@@ -633,7 +636,7 @@ export function getApiMessageApprovals(
 export function completeApiMessageStream(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     messageIndex: number,
 ) {
     switch (room.type) {
@@ -675,7 +678,7 @@ export function completeApiMessageStream(
 export function pingApiMessageStream(
     tracer: TracerBase,
     apiClient: ApiClient,
-    room: ApiMessageRoomReference,
+    room: ApiMessageRoomReferenceRequest,
     messageIndex: number,
 ) {
     switch (room.type) {
@@ -723,8 +726,8 @@ export function pingApiMessageStream(
 export function getApiReference(
     tracer: TracerBase,
     apiClient: ApiClient,
-    reference: ApiMentionReference,
-): Promise<{data: {reference: ApiMentionReferenceResponse}}> {
+    reference: ApiMentionReferenceRequest,
+): Promise<{data: {reference: ApiMentionReference}}> {
     switch (reference.type) {
         case "Account": {
             return apiClient.get(tracer, "/accounts/{id}-reference", {

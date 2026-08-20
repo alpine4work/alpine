@@ -19,10 +19,10 @@ import {createTaskNotesCreateTransactionEntry} from "~/server/tasks/data/create_
 import {extractFileIdsFromApiContent} from "~/shared/api/content/closed_source/extract_file_ids_from_api_content.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {
-    ApiTaskBatchPatch,
+    ApiTaskBatchPatchRequest,
     ApiTaskBatchPatchResult,
     ApiTaskCreateRequest,
-    ApiTaskPatch,
+    ApiTaskPatchRequest,
     ApiTaskPatchResult,
 } from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
@@ -100,7 +100,7 @@ export async function commitTaskPatchesFromApi(
     }: {
         spaceId: SpaceId;
         actorId: AccountId | null;
-        patches: ReadonlyArray<ApiTaskBatchPatch>;
+        patches: ReadonlyArray<ApiTaskBatchPatchRequest>;
     },
 ): Promise<{
     /** The committed task models, one per unique task in first-patch order. */
@@ -1039,7 +1039,7 @@ type ApiTaskCommitStep =
     | {
           type: "ApplyPatch";
           taskId: TaskId;
-          patch: ApiTaskPatch;
+          patch: ApiTaskPatchRequest;
 
           // Where this step's patch result is recorded, or `null` for the field steps
           // derived from a create request's fields (the created task itself is their
@@ -1082,8 +1082,10 @@ type ApiTaskCommitTaskState = {
  * the same action generation as updates. The assignee patch comes before the
  * status patch so an active status sees the requested assignee.
  */
-function createApiTaskPatchesFromCreateRequest(task: ApiTaskCreateRequest): Array<ApiTaskPatch> {
-    const patches: Array<ApiTaskPatch> = [];
+function createApiTaskPatchesFromCreateRequest(
+    task: ApiTaskCreateRequest,
+): Array<ApiTaskPatchRequest> {
+    const patches: Array<ApiTaskPatchRequest> = [];
 
     if (task.title !== undefined) patches.push({type: "SetTitle", title: task.title});
     if (task.assignee !== undefined) patches.push({type: "SetAssignee", assignee: task.assignee});
@@ -1169,7 +1171,7 @@ function createApiTaskBatchPatchResults({
     patchResultsByPatchIndex,
     createTaskIdByPatchIndex,
 }: {
-    patches: ReadonlyArray<ApiTaskBatchPatch>;
+    patches: ReadonlyArray<ApiTaskBatchPatchRequest>;
     patchResultsByPatchIndex: ReadonlyArray<ReadonlyArray<ApiTaskPatchResult | null>>;
     createTaskIdByPatchIndex: ReadonlyMap<number, TaskId>;
 }): Array<ApiTaskBatchPatchResult> {

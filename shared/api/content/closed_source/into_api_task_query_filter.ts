@@ -3,9 +3,9 @@ import {intoApiTaskStatus} from "~/shared/api/content/closed_source/into_api_tas
 import {
     ApiTaskLayout,
     ApiTaskPriority,
-    ApiTaskQueryAccountFilterOperation,
-    ApiTaskQueryCreatorFilterOperation,
-    ApiTaskQueryFilter,
+    ApiTaskQueryAccountFilterOperationRequest,
+    ApiTaskQueryCreatorFilterOperationRequest,
+    ApiTaskQueryFilterRequest,
     ApiTaskQueryTimeFilterOperation,
     ApiTaskQueryTimeFilterOperationDuration,
     ApiTaskQueryTimeFilterOperationTime,
@@ -25,7 +25,7 @@ import {
     TaskQueryFilterDateOperationDuration,
 } from "~/shared/tasks/task_query_filter.js";
 
-export function intoApiTaskQueryFilter(filter: TaskQueryFilter): ApiTaskQueryFilter {
+export function intoApiTaskQueryFilter(filter: TaskQueryFilter): ApiTaskQueryFilterRequest {
     switch (filter.type) {
         case "DisplayStatus": {
             return {
@@ -156,7 +156,7 @@ function intoApiTaskLayout(layout: TaskLayout): ApiTaskLayout {
 
 function intoApiTaskQueryAccountFilterOperation(
     operation: TaskQueryFilterAccountOperation,
-): ApiTaskQueryAccountFilterOperation {
+): ApiTaskQueryAccountFilterOperationRequest {
     return {
         type: operation.type,
         accounts: operation.accounts.map(account => {
@@ -176,7 +176,7 @@ function intoApiTaskQueryAccountFilterOperation(
 
 function intoApiTaskQueryCreatorFilterOperation(
     operation: TaskQueryFilterCreatorAccountOperation,
-): ApiTaskQueryCreatorFilterOperation {
+): ApiTaskQueryCreatorFilterOperationRequest {
     return {
         type: operation.type,
         accounts: operation.accounts.map(account => {
@@ -243,7 +243,7 @@ function intoApiTaskQueryTimeFilterOperationDuration(
     }
 }
 
-export function fromApiTaskQueryFilter(filter: ApiTaskQueryFilter): TaskQueryFilter {
+export function fromApiTaskQueryFilter(filter: ApiTaskQueryFilterRequest): TaskQueryFilter {
     switch (filter.type) {
         case "Status": {
             return {
@@ -369,7 +369,7 @@ function fromApiTaskLayout(layout: ApiTaskLayout): TaskLayout {
 }
 
 function fromApiTaskQueryAccountFilterOperation(
-    operation: ApiTaskQueryAccountFilterOperation,
+    operation: ApiTaskQueryAccountFilterOperationRequest,
 ): TaskQueryFilterAccountOperation {
     return {
         type: operation.type,
@@ -389,7 +389,7 @@ function fromApiTaskQueryAccountFilterOperation(
 }
 
 function fromApiTaskQueryCreatorFilterOperation(
-    operation: ApiTaskQueryCreatorFilterOperation,
+    operation: ApiTaskQueryCreatorFilterOperationRequest,
 ): TaskQueryFilterCreatorAccountOperation {
     return {
         type: operation.type,

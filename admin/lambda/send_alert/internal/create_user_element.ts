@@ -3,8 +3,10 @@ import {
     nameToAlpineId,
     pagerDutyIdToAlpineId,
 } from "~/admin/lambda/send_alert/internal/send_alert_user_mappings.js";
-import {ApiContentMentionInlineElement} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
-import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {
+    ApiContentInlineElementRequest,
+    ApiContentMentionInlineElementRequest,
+} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 
 type CreateUserElementOptions = {
     tagUser?: boolean;
@@ -22,7 +24,7 @@ export function createUserElement(
     url: string,
     id: string,
     options: CreateUserElementOptions = {},
-): ApiSpecification.components["schemas"]["ContentInlineElement"] {
+): ApiContentInlineElementRequest {
     const {tagUser = shouldTagUsers()} = options;
     const alpineId =
         pagerDutyIdToAlpineId[id.toLowerCase()] ||
@@ -45,7 +47,7 @@ export function createUserElement(
             };
         }
 
-        const mention: ApiContentMentionInlineElement = {
+        const mention: ApiContentMentionInlineElementRequest = {
             type: "Mention",
             reference: {type: "Account", id: alpineId},
             isAccountShortName: true,
