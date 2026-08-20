@@ -1,4 +1,4 @@
-import {getClaudeAgentSessionStorePartNamesToLoad} from "~/server/agents/bots_v2/sandbox/get_claude_agent_session_store_part_names_to_load.js";
+import {getClaudeAgentSessionStorePartNamesToLoad} from "~/server/agents/bots_v2/shared/get_claude_agent_session_store_part_names_to_load.js";
 
 test("will load every append-only part before the first rewrite", () => {
     expect(

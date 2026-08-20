@@ -27,6 +27,7 @@ import {createClaudeAgentMcpServer} from "~/server/agents/bots_v2/sandbox/create
 import {mergeClaudeAgentApprovalDecisions} from "~/server/agents/bots_v2/sandbox/merge_claude_agent_approval_decisions.js";
 import {rejectPendingClaudeAgentApprovalsIfPossible} from "~/server/agents/bots_v2/sandbox/reject_pending_claude_agent_approvals_if_possible.js";
 import {runApprovedToolCallsAndUpdateClaudeSessionTranscript} from "~/server/agents/bots_v2/sandbox/run_approved_tool_calls_and_update_claude_session_transcript.js";
+import {claudeAgentBeforeErrorDirectoryName} from "~/server/agents/bots_v2/shared/claude_agent_before_error_directory_name.js";
 import {
     AgentWebSessionLmdbStorageKey,
     createAgentWebSessionLmdbStorage,
@@ -60,6 +61,8 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
  * post the approvals card. See the debounce in `actuallyRunClaudeAgent`.
  */
 const claudeAgentParkInterruptDebounceMs = 300;
+
+const claudeAgentBeforeErrorDirectory = `/workspace/bucket/${claudeAgentBeforeErrorDirectoryName}`;
 
 /**
  * How many decided approval batches we keep in `state.json`.
@@ -115,7 +118,17 @@ export async function runClaudeAgent(parentSpan: TracerSpan, options: RunClaudeA
             }),
         ]);
 
-        const sessionStore = new ClaudeAgentSessionStore(parentSpan);
+        const sessionStore = new ClaudeAgentSessionStore(parentSpan, {
+            // The SDK derives the project key and only ever reports it through the session
+            // store, so this is where we learn it. Recording it means an approval resume —
+            // which has to find and rewrite the transcript before `query()` reads it — can
+            // build the key straight from `state.json` instead of searching the bucket. It
+            // never changes for a conversation, so this writes once.
+            onMainSessionKey: async key => {
+                if (stateStore.get().projectKey === key.projectKey) return;
+                await stateStore.set(parentSpan, {projectKey: key.projectKey});
+            },
+        });
 
         const database = open<string, AgentWebSessionLmdbStorageKey>({
             path: "/workspace/agents-web.db",
@@ -155,60 +168,58 @@ export async function runClaudeAgent(parentSpan: TracerSpan, options: RunClaudeA
                 await promiseWaiter.wait();
             }
         } catch (error) {
-            try {
-                // **The nuclear option.**
-                //
-                // If an error was thrown, then remove ALL our stored data in the bucket so the
-                // next attempt starts from a clean slate. The reason being it seems like Claude
-                // won't use the session store to persist the session if an error is thrown. So we
-                // get into a bad state if we have a `sessionId` in `ClaudeAgentSessionStore` but
-                // that session doesn't exist in the R2 bucket because an error was thrown.
-                await parentSpan.withSpan(
-                    "Delete all Claude agent storage after error",
-                    async span => {
-                        await fs
-                            .copyFile(
-                                "/workspace/bucket/state.json",
-                                "/workspace/bucket/last-known-state.json",
-                            )
-                            .then(
-                                () => {},
-                                // Archiving is best-effort. Recording the exception on the span must never block
-                                // the reset below.
-                                copyError => {
-                                    // No `state.json` means there's nothing new to archive. Keep the previous archive,
-                                    // if any.
+            // **The nuclear option.**
+            //
+            // If an error was thrown, then remove ALL our stored data in the bucket so the
+            // next attempt starts from a clean slate. The reason being it seems like Claude
+            // won't use the session store to persist the session if an error is thrown. So we
+            // get into a bad state if we have a `sessionId` in `ClaudeAgentSessionStore` but
+            // that session doesn't exist in the R2 bucket because an error was thrown.
+            await parentSpan.withSpan("Delete all Claude agent storage after error", async span => {
+                try {
+                    // We keep `state.json` and the session transcripts for debugging, but we move them
+                    // into `before-error/` (overwriting any previous archive) rather than leaving them
+                    // where they are. Everything the agent reads normally lives at the root of the
+                    // bucket, so an archive off to the side costs the next run nothing: it doesn't
+                    // have to be listed around, filtered out, or pruned down to the one session worth
+                    // keeping. The only reader is the conversation state debugger (see
+                    // `read_claude_agent_conversation_state_from_bucket.ts`).
+                    //
+                    // Copied rather than renamed, and one directory at a time: the bucket is an
+                    // s3fs-style mount over R2, so a rename is a server-side copy anyway and a
+                    // recursive copy is a lot of round trips. That's fine here — this only runs after
+                    // a failed run, where being slow is better than being in the way.
+                    await fs.rm(claudeAgentBeforeErrorDirectory, {recursive: true, force: true});
+                    await fs.mkdir(claudeAgentBeforeErrorDirectory, {recursive: true});
+
+                    await runAllPromises(
+                        ["state.json", "sessions"].map(async name => {
+                            await fs
+                                .cp(
+                                    `/workspace/bucket/${name}`,
+                                    `${claudeAgentBeforeErrorDirectory}/${name}`,
+                                    {recursive: true},
+                                )
+                                .catch(copyError => {
+                                    // Archiving is best-effort, and a run that failed before it wrote anything has
+                                    // nothing to archive. Recording the exception on the span must never block the
+                                    // reset below.
                                     if (isObject(copyError) && copyError.code === "ENOENT") return;
                                     span.addException(copyError);
-                                },
-                            );
+                                });
+                        }),
+                    );
 
-                        await sessionStore.deleteSessionsExcept(stateStore.get().sessionId);
-
-                        await runAllPromises(
-                            (await fs.readdir("/workspace/bucket"))
-                                // We do keep two things for debugging. Neither is visible to the next attempt,
-                                // which only reads `state.json`:
-                                //
-                                // - `state.json` is archived as `last-known-state.json` (overwriting any previous
-                                //   archive) so the conversation state debugger can show what happened right
-                                //   before the error (see `read_claude_agent_conversation_state_from_bucket.ts`).
-                                // - The one `sessions/` transcript the archived `sessionId` points at. Older
-                                //   abandoned sessions were deleted above, and the next run starts fresh because
-                                //   `state.json` itself is removed here.
-                                .filter(
-                                    name => name !== "last-known-state.json" && name !== "sessions",
-                                )
-                                .map(name => fs.rm(`/workspace/bucket/${name}`, {recursive: true})),
-                        );
-                    },
-                );
-            } catch (deleteStateError) {
-                throw new AggregateError(
-                    [deleteStateError, error],
-                    "Failed to clean up after error",
-                );
-            }
+                    await runAllPromises(
+                        (await fs.readdir("/workspace/bucket"))
+                            .filter(name => name !== claudeAgentBeforeErrorDirectoryName)
+                            .map(name => fs.rm(`/workspace/bucket/${name}`, {recursive: true})),
+                    );
+                } catch (error) {
+                    // Throwing the error here will overshadow the original error so we log it instead.
+                    span.logException("Couldn\u2019t delete state", error);
+                }
+            });
 
             throw error;
         }
@@ -309,14 +320,18 @@ async function actuallyRunClaudeAgent(
 
         // `query()` reads the session transcript eagerly when it's called, so an approval
         // decision — which resolves by editing that transcript — has to be handled BEFORE
-        // the query starts, not from inside the prompt generator. Peek the waking event:
-        // if it's an approval decision, resolve it now; otherwise hand it back to the
-        // generator. (At wake time the queue holds exactly this one event; later steering
-        // events arrive via the socket during the run.)
+        // the query starts, not from inside the prompt generator. So peek the waking event
+        // and only take it off the queue if it's an approval decision. Anything else — a
+        // `CreatedMessage`/`CreatedPost` — is left where it is for the generator to
+        // consume in order. (If there's a pending approval batch, the generator's
+        // `CreatedMessage` case rejects and clears it, since a new message supersedes
+        // stale approvals, so we don't need to clear it here.)
         let initialNudge: string | null = null;
-        const wakingEvent = eventQueue.dequeue();
+        const wakingEvent = eventQueue.peek();
 
         if (wakingEvent !== undefined && wakingEvent.type === "ApprovalDecisionEvent") {
+            eventQueue.dequeue();
+
             const outcome = await resumeClaudeAgentAfterApprovalDecision(parentSpan, {
                 eventQueueEvent: wakingEvent,
                 stateStore,
@@ -334,18 +349,7 @@ async function actuallyRunClaudeAgent(
             if (outcome.type === "Exit") return;
 
             initialNudge = outcome.nudge;
-        } else if (wakingEvent !== undefined) {
-            // A `CreatedMessage`/`CreatedPost` waking event: hand it back to the generator. If
-            // there's a pending approval batch, the generator's `CreatedMessage` case rejects
-            // and clears it (a new message supersedes stale approvals) — so we don't need to
-            // clear it here.
-            eventQueue.enqueue(wakingEvent);
         }
-
-        // Handle to the running query so the approval gate can interrupt the turn to park
-        // it (see `create_claude_agent_can_use_tool.ts`). Set right after `query()`
-        // returns — before iteration starts, so it's populated by the time any tool runs.
-        const agentQueryRef: {current: ReturnType<typeof query> | null} = {current: null};
 
         const canUseTool = createClaudeAgentCanUseTool({
             stateStore,
@@ -367,9 +371,10 @@ async function actuallyRunClaudeAgent(
                     // the abort signal — so the turn hangs, the card is never pushed, and the stream
                     // stays open. Record it rather than swallowing it; the run then fails visibly
                     // instead of wedging the container.
-                    agentQueryRef.current
-                        ?.interrupt()
-                        .catch(error => parentSpan.addException(error));
+                    //
+                    // `agentQuery` is declared below, but the gate can't call this before the query is
+                    // iterating, so it's always initialized by the time we get here.
+                    agentQuery.interrupt().catch(error => parentSpan.addException(error));
                 }, claudeAgentParkInterruptDebounceMs);
             },
         });
@@ -437,7 +442,6 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
                 },
             },
         });
-        agentQueryRef.current = agentQuery;
 
         for await (const message of agentQuery) {
             // Stop consuming model output after a terminal stream error. Returning aborts the
@@ -720,13 +724,18 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
             // pending batch that doesn't actually exist. That's okay – the next time the agent
             // runs, it'll try to reject the pending batch, but that rejection is best effort
             // and a failure won't block the agent from responding.
-            messageRef.current.pushApprovalRequest(parentSpan, {
-                type: "ExperimentalApprovals",
-                approvals: persistedApprovals.map(approval => ({
-                    summary: approval.summaryContent,
-                    decision: {schema: {options: approval.decisionOptions}},
-                })),
-            });
+            //
+            // Pushing the card completes the stream, so this stands in for the `complete()`
+            // call below — which noops once the session is completed.
+            waitUntil(
+                messageRef.current.pushApprovalRequestAndComplete(parentSpan, {
+                    type: "ExperimentalApprovals",
+                    approvals: persistedApprovals.map(approval => ({
+                        summary: approval.summaryContent,
+                        decision: {schema: {options: approval.decisionOptions}},
+                    })),
+                }),
+            );
         }
 
         const message = messageRef.current;
@@ -945,6 +954,11 @@ async function resumeClaudeAgentAfterApprovalDecision(
             context: getContext(roomState),
             sessionStore,
             sessionId: assertExists(resumeSessionId, "resume session ID for approval decision"),
+            // The last turn wrote `state.json` and completed successfully (otherwise, we
+            // wouldn't have sent the approval request in the first place). During that turn,
+            // we recorded the project key in `state.json`, so we can build the session key
+            // directly from it rather than searching the bucket.
+            projectKey: assertExists(state.projectKey),
             messageRef,
         });
 

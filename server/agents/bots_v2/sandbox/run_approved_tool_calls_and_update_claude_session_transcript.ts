@@ -79,12 +79,14 @@ export async function runApprovedToolCallsAndUpdateClaudeSessionTranscript(
         context,
         sessionStore,
         sessionId,
+        projectKey,
         messageRef,
     }: {
         decisions: ReadonlyArray<ClaudeAgentApprovalDecision>;
         context: AgentWebContext;
         sessionStore: ClaudeAgentSessionStore;
         sessionId: string;
+        projectKey: string;
         messageRef: {current: AgentWebMessageStreamSession | null};
     },
 ): Promise<ResolveClaudeAgentApprovalDecisionsResult> {
@@ -92,10 +94,7 @@ export async function runApprovedToolCallsAndUpdateClaudeSessionTranscript(
     // we want to find out before touching the user's data — otherwise the writes land,
     // the assertion throws, the run errors, and `runClaudeAgent()` wipes the bucket,
     // so the user sees a failure for edits that actually happened.
-    const key = assertExists(
-        await sessionStore.findMainSessionKey(sessionId),
-        "Session transcript not found for approval resume",
-    );
+    const key = {projectKey, sessionId};
 
     const entries = assertExists(await sessionStore.load(key), "Session transcript is empty");
     const decisionsWithInput = hydrateClaudeAgentApprovalDecisionsFromTranscript(

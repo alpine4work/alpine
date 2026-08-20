@@ -123,6 +123,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//server/agents/bots_v2:bots_v2_lib",
     "//server/agents/bots_v2/dev:dev_lib",
     "//server/agents/bots_v2/sandbox:sandbox",
+    "//server/agents/bots_v2/shared:shared",
     "//server/agents/cli:cli_lib",
     "//server/agents/cli/integration_tests:integration_tests",
     "//server/agents/lmdb:lmdb",

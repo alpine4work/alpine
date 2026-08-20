@@ -181,22 +181,19 @@ export function MessageStreamViewApprovals({
         messageStreamApprovalsLoadingIndicatorDelayMs,
     );
 
+    // Only the timeout needs an effect. Everything else that ends the wait — the last
+    // decision landing, the agent's message arriving — is already derived in
+    // `isAwaitingResponse` above, so the card stops waiting in the same paint as the
+    // change instead of a paint later.
     useEffect(() => {
-        // `didClientCompleteApprovalDecisions` starts as false, so this `useEffect`
-        // returns early after mount.
-        if (!shouldShowLoadingStateAfterApprovalCompletion || !isFullyDecided) return;
-
-        if (!isLastMessage) {
-            setShouldShowLoadingStateAfterApprovalCompletion(false);
-            return;
-        }
+        if (!isAwaitingResponse) return;
 
         const timeout = createTimeout(
             () => setShouldShowLoadingStateAfterApprovalCompletion(false),
             messageStreamApprovalsResponseTimeoutMs,
         );
         return () => timeout.clear();
-    }, [isFullyDecided, isLastMessage, shouldShowLoadingStateAfterApprovalCompletion]);
+    }, [isAwaitingResponse]);
 
     async function putApprovalDecisionsAndTrackAwaitingResponse(
         decisions: ReadonlyArray<{

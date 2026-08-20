@@ -10,6 +10,7 @@ const sandboxId = "sandbox-1";
 const sessionId = "session-1";
 const stateKey = `sandbox/${sandboxId}/state.json`;
 const transcriptPrefix = `sandbox/${sandboxId}/sessions/-workspace-agent/${sessionId}`;
+const beforeErrorPrefix = `sandbox/${sandboxId}/before-error`;
 
 test("will read a snapshot before the parts appended after it", async () => {
     // The shape an approval resume leaves behind: one snapshot holding the
@@ -43,6 +44,44 @@ test("will ignore a part the snapshot superseded", async () => {
     const state = await readClaudeAgentConversationStateFromBucket(bucket, sandboxId);
 
     expect(state.items).toEqual([{uuid: "resolved"}]);
+});
+
+test("will fall back to the state and transcript a failed run archived", async () => {
+    // What the "nuclear option" leaves behind: the failed run's state and transcript
+    // moved under `before-error/`, and nothing at the root.
+    const bucket = createTestBucket(
+        new Map([
+            [`${beforeErrorPrefix}/state.json`, JSON.stringify({sessionId})],
+            [
+                `${beforeErrorPrefix}/sessions/-workspace-agent/${sessionId}/part-0001786000000000.jsonl`,
+                toJsonLines("before the error"),
+            ],
+        ]),
+    );
+
+    const state = await readClaudeAgentConversationStateFromBucket(bucket, sandboxId);
+
+    expect(state.items).toEqual([{uuid: "before the error"}]);
+});
+
+test("will read the live transcript rather than an older archived one", async () => {
+    // A run failed, then a later run started the conversation over. Both generations
+    // are in the bucket and the reader must not interleave them.
+    const bucket = createTestBucket(
+        new Map([
+            [stateKey, JSON.stringify({sessionId})],
+            [`${transcriptPrefix}/part-0001786000000001.jsonl`, toJsonLines("after the error")],
+            [`${beforeErrorPrefix}/state.json`, JSON.stringify({sessionId})],
+            [
+                `${beforeErrorPrefix}/sessions/-workspace-agent/${sessionId}/part-0001786000000000.jsonl`,
+                toJsonLines("before the error"),
+            ],
+        ]),
+    );
+
+    const state = await readClaudeAgentConversationStateFromBucket(bucket, sandboxId);
+
+    expect(state.items).toEqual([{uuid: "after the error"}]);
 });
 
 /**

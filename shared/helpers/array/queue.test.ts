@@ -67,3 +67,18 @@ test("should handle multiple enqueue and dequeue operations", () => {
     expect(queue.dequeue()).toBeUndefined();
     expect(queue.size).toEqual(0);
 });
+
+test("can peek at the front of the queue without dequeueing it", () => {
+    const queue = new Queue<number>();
+
+    expect(queue.peek()).toBeUndefined();
+    queue.enqueue(1);
+    queue.enqueue(2);
+    expect(queue.peek()).toBe(1);
+    expect(queue.size).toEqual(2);
+    expect(queue.peek()).toBe(1);
+    expect(queue.dequeue()).toBe(1);
+    expect(queue.peek()).toBe(2);
+    expect(queue.dequeue()).toBe(2);
+    expect(queue.peek()).toBeUndefined();
+});

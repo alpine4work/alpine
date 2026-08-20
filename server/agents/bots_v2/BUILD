@@ -40,10 +40,7 @@ ts_project(
     deps = [
         "//:node_modules/@cloudflare/sandbox",
         "//server/agents/api",
-        # For the approvals state types and decision merging shared with the sandbox
-        # service. Only import modules that are free of Node.js dependencies here —
-        # this code runs in a Cloudflare Worker.
-        "//server/agents/bots_v2/sandbox",
+        "//server/agents/bots_v2/shared",
         "//server/cloudflare",
         "//server/cloudflare/types",
         "//server/helpers",

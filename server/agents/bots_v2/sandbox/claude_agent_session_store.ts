@@ -1,7 +1,7 @@
 import {SessionKey, SessionStore, SessionStoreEntry} from "@anthropic-ai/claude-agent-sdk";
 import fs from "fs/promises";
 import {dirname} from "path";
-import {getClaudeAgentSessionStorePartNamesToLoad} from "~/server/agents/bots_v2/sandbox/get_claude_agent_session_store_part_names_to_load.js";
+import {getClaudeAgentSessionStorePartNamesToLoad} from "~/server/agents/bots_v2/shared/get_claude_agent_session_store_part_names_to_load.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
@@ -12,6 +12,8 @@ const sessionStoreFileConcurrency = 16;
 
 /**
  * Where the Claude Agent SDK keeps a conversation's transcript.
+ *
+ * See Claude's SDK documentation on persisting session storage [1].
  *
  * ## What the SDK wants from us
  *
@@ -40,15 +42,33 @@ const sessionStoreFileConcurrency = 16;
  * round trip.
  *
  * Everything is addressed by `SessionKey` — see `findMainSessionKey()` for what
- * `projectKey` is and why we have to go looking for it.
+ * `projectKey` is and where it comes from.
+ *
+ * [1] https://code.claude.com/docs/en/agent-sdk/session-storage
  */
 
 export class ClaudeAgentSessionStore implements SessionStore {
     #parentSpan: TracerSpan;
+    #onMainSessionKey: (key: SessionKey) => Promise<void>;
     #lastMs = 0;
 
-    constructor(parentSpan: TracerSpan) {
+    constructor(
+        parentSpan: TracerSpan,
+        {
+            onMainSessionKey,
+        }: {
+            /**
+             * Called with a conversation's main `SessionKey` as we write to it. The SDK
+             * derives `projectKey` itself and only ever hands it to us here, so this is the
+             * one place it can be observed — see `findMainSessionKey()` for why anyone wants
+             * it. Awaited, so a caller that persists it can't lose the race with the run
+             * ending.
+             */
+            onMainSessionKey: (key: SessionKey) => Promise<void>;
+        },
+    ) {
         this.#parentSpan = parentSpan;
+        this.#onMainSessionKey = onMainSessionKey;
     }
 
     /** Directory prefix for a session (or subpath). Always ends in '/'. */
@@ -84,6 +104,12 @@ export class ClaudeAgentSessionStore implements SessionStore {
         await this.#parentSpan.withSpan("Append Claude agent session store", async () => {
             await this.#writePart(key, entries);
         });
+
+        // A subpath is a subagent's own transcript, filed under the main one. Only the
+        // main key is worth reporting: it's the transcript approvals surgery rewrites.
+        if (!key.subpath) {
+            await this.#onMainSessionKey(key);
+        }
     }
 
     /**
@@ -108,7 +134,13 @@ export class ClaudeAgentSessionStore implements SessionStore {
         return await this.#parentSpan.withSpan("Load Claude agent session store", async span => {
             const prefix = this.#keyPrefix(key);
 
-            const keys = getClaudeAgentSessionStorePartNamesToLoad(await fs.readdir(prefix)).map(
+            // A session we've never written to has no directory and should return null.
+            const names = await fs.readdir(prefix).catch(error => {
+                if (isObject(error) && error.code === "ENOENT") return [];
+                throw error;
+            });
+
+            const keys = getClaudeAgentSessionStorePartNamesToLoad(names).map(
                 name => prefix + name,
             );
 
@@ -146,56 +178,6 @@ export class ClaudeAgentSessionStore implements SessionStore {
             }
 
             return allEntries.length > 0 ? allEntries : null;
-        });
-    }
-
-    /**
-     * Finds the `SessionKey` for a session's **main** transcript by its session ID.
-     *
-     * A `SessionKey` has two parts. `sessionId` identifies one conversation — that's
-     * the value we persist in `state.json` and hand back as `resume`. `projectKey`
-     * identifies the _workspace_ the conversation belongs to, and the SDK derives it
-     * itself by sanitizing the cwd (the same convention as Claude Code's
-     * `~/.claude/projects/-Users-you-some-repo/`). Ours is always `/workspace/agent`,
-     * so in practice there's one project key, but it's the SDK's format to define and
-     * re-deriving it here would mean copying a sanitization rule that could change
-     * under us.
-     *
-     * So instead of computing it we look for it: the main transcript is the directory
-     * at `sessions/{projectKey}/{sessionId}/`, so probe each project key for one that
-     * has this session under it.
-     *
-     * Returns `null` if no such session directory exists.
-     */
-    async findMainSessionKey(sessionId: string): Promise<SessionKey | null> {
-        return await this.#parentSpan.withSpan("Find Claude agent main session key", async span => {
-            const projectKeys = await fs.readdir(sessionsDirectory).catch(error => {
-                if (isObject(error) && error.code === "ENOENT") return [];
-                throw error;
-            });
-
-            // Probe the candidates together rather than one at a time: this runs on the
-            // interactive approval resume, over an R2-backed mount where each `stat` is a
-            // round trip.
-            const found = await runAllPromises(
-                projectKeys.map(async projectKey => {
-                    const exists = await fs
-                        .stat(`${sessionsDirectory}/${projectKey}/${sessionId}`)
-                        .then(stat => stat.isDirectory())
-                        .catch(error => {
-                            if (isObject(error) && error.code === "ENOENT") return false;
-                            throw error;
-                        });
-
-                    return exists ? projectKey : null;
-                }),
-            );
-
-            const projectKey = found.find(candidate => candidate !== null) ?? null;
-
-            span.addData({common: {didNothing: projectKey === null}});
-
-            return projectKey === null ? null : {projectKey, sessionId};
         });
     }
 
@@ -247,36 +229,5 @@ export class ClaudeAgentSessionStore implements SessionStore {
                 span.addData({common: {count: existingNames.length}});
             },
         );
-    }
-
-    /** Keeps only the transcript referenced by the archived failure state. */
-    async deleteSessionsExcept(sessionId: string | null): Promise<void> {
-        await this.#parentSpan.withSpan("Delete abandoned Claude agent sessions", async span => {
-            const projectKeys = await fs.readdir(sessionsDirectory).catch(error => {
-                if (isObject(error) && error.code === "ENOENT") return [];
-                throw error;
-            });
-
-            for (const projectKey of projectKeys) {
-                const projectDirectory = `${sessionsDirectory}/${projectKey}`;
-                const storedSessionIds = await fs.readdir(projectDirectory);
-                const abandonedSessionIds = storedSessionIds.filter(
-                    storedSessionId => storedSessionId !== sessionId,
-                );
-
-                for (let i = 0; i < abandonedSessionIds.length; i += sessionStoreFileConcurrency) {
-                    const batch = abandonedSessionIds.slice(i, i + sessionStoreFileConcurrency);
-                    await runAllPromises(
-                        batch.map(async abandonedSessionId => {
-                            await fs.rm(`${projectDirectory}/${abandonedSessionId}`, {
-                                recursive: true,
-                            });
-                        }),
-                    );
-                }
-
-                span.addData({common: {count: abandonedSessionIds.length}});
-            }
-        });
     }
 }

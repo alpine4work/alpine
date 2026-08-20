@@ -1,13 +1,13 @@
-import {getClaudeAgentSessionStorePartNamesToLoad} from "~/server/agents/bots_v2/sandbox/get_claude_agent_session_store_part_names_to_load.js";
+import {claudeAgentBeforeErrorDirectoryName} from "~/server/agents/bots_v2/shared/claude_agent_before_error_directory_name.js";
+import {getClaudeAgentSessionStorePartNamesToLoad} from "~/server/agents/bots_v2/shared/get_claude_agent_session_store_part_names_to_load.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
 
 export type ClaudeAgentConversationState = {
     /**
-     * The sandbox's persisted `state.json`, falling back to the
-     * `last-known-state.json` archived when a run errored, or `null` if it hasn't run
-     * yet.
+     * The sandbox's persisted `state.json`, falling back to the copy archived under
+     * `before-error/` when a run errored, or `null` if it hasn't run yet.
      */
     readonly state: unknown;
 
@@ -40,10 +40,11 @@ export type ClaudeAgentConversationState = {
  * two prefixes interleave in time but not lexically. Deeper paths under
  * `sessions/` are subagent transcripts, which we skip.
  *
- * When a run errors, the sandbox archives `state.json` as `last-known-state.json`
- * before resetting the bucket (see the "nuclear option" in `run_claude_agent.ts`),
- * so we fall back to the archive — the debugger is most useful right after an
- * error.
+ * When a run errors, the sandbox moves `state.json` and `sessions/` under
+ * `before-error/` before resetting the bucket (see the "nuclear option" in
+ * `run_claude_agent.ts`), so we fall back to that whole archive — the debugger is
+ * most useful right after an error, and the transcript has to come from the same
+ * generation as the state that names its session.
  *
  * Lenient by design (this backs a debug view): a missing `state.json` means
  * "hasn't run yet" and returns nulls rather than throwing, and unparseable
@@ -53,25 +54,18 @@ export async function readClaudeAgentConversationStateFromBucket(
     bucket: R2Bucket,
     sandboxId: string,
 ): Promise<ClaudeAgentConversationState> {
-    const prefix = `sandbox/${sandboxId}/`;
+    const sandboxPrefix = `sandbox/${sandboxId}/`;
+    const beforeErrorPrefix = `${sandboxPrefix}${claudeAgentBeforeErrorDirectoryName}/`;
 
-    // If an error was thrown during hte last execution, we delete the `state.json` to
-    // avoid corrupted state in future executions. Before we delete the `state.json`,
-    // we archive it as `last-known-state.json`. When we load the state for the
-    // conversation, we fallback to the last-known-state.json if the default state.json
-    // is not found.
-    const [defaultStateObject, lastKnownStateObject] = await runAllPromises([
-        (async () =>
-            (await bucket.get(`${prefix}state.json`)) ??
-            (await bucket.get(`/${prefix}state.json`)))(),
-        (async () =>
-            (await bucket.get(`${prefix}last-known-state.json`)) ??
-            (await bucket.get(`/${prefix}last-known-state.json`)))(),
+    // If an error was thrown during the last execution then the sandbox reset itself,
+    // moving what it had to `before-error/` on the way out. Fall back to that so the
+    // debugger can still show the conversation that failed.
+    const [defaultStateObject, beforeErrorStateObject] = await runAllPromises([
+        getBucketObject(bucket, `${sandboxPrefix}state.json`),
+        getBucketObject(bucket, `${beforeErrorPrefix}state.json`),
     ]);
 
-    // Try the object key both with and without the leading slash since the mount
-    // library's key mapping isn't documented.
-    const stateObject = defaultStateObject ?? lastKnownStateObject;
+    const stateObject = defaultStateObject ?? beforeErrorStateObject;
 
     const state = stateObject === null ? null : parseJsonOrNull(await stateObject.text());
     const sessionId =
@@ -81,7 +75,11 @@ export async function readClaudeAgentConversationStateFromBucket(
         return {state, sessionId: null, projectKey: null, items: []};
     }
 
-    const sessionsPrefix = `${prefix}sessions/`;
+    // Read the transcript from wherever the state came from. Mixing them would pair a
+    // live `state.json` with an archived transcript, or the reverse, and either way
+    // the debugger would be showing two different runs at once.
+    const sessionsPrefix =
+        defaultStateObject === null ? `${beforeErrorPrefix}sessions/` : `${sandboxPrefix}sessions/`;
 
     // Keyed by part name so the ordering helper below can map its answer back to
     // object keys. It works in names, the way the sandbox's own `load()` does, and a
@@ -145,6 +143,14 @@ export async function readClaudeAgentConversationStateFromBucket(
     }
 
     return {state, sessionId, projectKey, items};
+}
+
+/**
+ * Try the object key both with and without the leading slash since the mount
+ * library's key mapping isn't documented.
+ */
+async function getBucketObject(bucket: R2Bucket, key: string): Promise<R2ObjectBody | null> {
+    return (await bucket.get(key)) ?? (await bucket.get(`/${key}`));
 }
 
 function parseJsonOrNull(text: string): unknown {

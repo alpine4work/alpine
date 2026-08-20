@@ -94,11 +94,15 @@ interface AgentWebMessageStreamSessionInterface {
      * Push an interactive approval-request card: the agent paused, awaiting human
      * approval for a proposed action. Like other non-content parts, this flushes
      * buffered text first to preserve ordering.
+     *
+     * This also completes the session. Writing an `ExperimentalApprovals` part sets
+     * `completedTime` server-side, so the card is necessarily the last part of the
+     * message — there's no "push the card, then keep streaming" to offer.
      */
-    pushApprovalRequest(
+    pushApprovalRequestAndComplete(
         span: TracerSpan,
         payload: ApiMessageStreamExperimentalApprovalsPartPayload,
-    ): void;
+    ): Promise<void>;
 
     /**
      * These are non-content (semantic) parts that must be persisted with correct
@@ -160,18 +164,15 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     #apiClient: ApiClient;
     #room: ApiMessageRoomReference;
     #parser: AgentWebMarkdownStreamParser<TracerSpan>;
-    #isCompleted = false;
 
     /**
-     * Whether the stream is closed to new parts. `complete()` closes it, and so does
-     * `pushApprovalRequest()` — writing an `ExperimentalApprovals` part sets
-     * `completedTime` server-side, so nothing can follow it. Every `push*` asserts on
-     * this rather than trusting callers to know the rule.
-     *
-     * Importantly, the `complete()` call will succeed (noop) if called after the
-     * approval part completes the stream!
+     * Whether the stream is over. `complete()` sets it, and so does
+     * `pushApprovalRequestAndComplete()` — writing an `ExperimentalApprovals` part
+     * sets `completedTime` server-side, so nothing can follow it. Every `push*`
+     * asserts on this rather than trusting callers to know the rule, and `complete()`
+     * is a noop once it's set so callers don't have to know which path the turn took.
      */
-    #isClosedToNewParts = false;
+    #isCompleted = false;
     #pingInterval: Interval | null = null;
     #mutex = new Mutex();
     #updateThrottleMs = 100;
@@ -245,20 +246,24 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
         void this.#update(span, [{type: "ToolCall", call}]);
     }
 
-    pushApprovalRequest(
+    async pushApprovalRequestAndComplete(
         span: TracerSpan,
         payload: ApiMessageStreamExperimentalApprovalsPartPayload,
     ) {
         this.#assertCanPush();
-        this.#flushUpdateTextState();
-        void this.#update(span, [payload]);
 
         // Writing an `ExperimentalApprovals` part sets `completedTime` server-side, so the
         // stream is over the moment that update lands. Trying to send another part or ping
-        // the stream will throw. We mark it as closed now and stop pinging the stream.
-        this.#isClosedToNewParts = true;
+        // the stream will throw. So take the same shutdown path `complete()` does: refuse
+        // later pushes and stop pinging a stream that's about to close.
+        this.#isCompleted = true;
         this.#shouldRestartIntervalAfterUpdate = false;
         this.#clearPingInterval();
+
+        this.#flushUpdateTextState();
+        void this.#update(span, [payload]);
+
+        await this.#finishStream();
     }
 
     pushReasoningSummary(span: TracerSpan, summary: string) {
@@ -398,9 +403,10 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     }
 
     async complete(span: TracerSpan) {
-        assert(!this.#isCompleted);
+        // `pushApprovalRequestAndComplete()` already completed the stream, and its caller
+        // still runs the ordinary completion path afterwards.
+        if (this.#isCompleted) return;
         this.#isCompleted = true;
-        this.#isClosedToNewParts = true;
 
         // Let's say a stream part comes in a T0 and the stream is completed at T50 (ms)
         // the `update()` call won't run for another 50ms. When that update call runs we
@@ -413,6 +419,19 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
         this.#flushUpdateTextState();
         void this.#update(span);
 
+        await this.#finishStream();
+    }
+
+    /**
+     * Waits for the queued updates to drain and closes the stream out. Shared by both
+     * ways a session ends: `complete()` and `pushApprovalRequestAndComplete()`.
+     *
+     * The `PUT` to complete the stream is redundant on the approvals path — the
+     * approvals part already set `completedTime` server-side — but it's a noop there,
+     * and going through the same path means the terminal-error branch below still runs
+     * when the approvals part is what failed to land.
+     */
+    async #finishStream() {
         this.#clearPingInterval();
         await this.#mutex.waitForUnlock();
 
@@ -474,7 +493,7 @@ export class AgentWebMessageStreamSession implements AgentWebMessageStreamSessio
     }
 
     #assertCanPush() {
-        assert(!this.#isClosedToNewParts);
+        assert(!this.#isCompleted);
 
         if (this.#streamError === null) return;
 

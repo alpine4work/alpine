@@ -32,6 +32,13 @@ export class Queue<Value> {
         this._size++;
     }
 
+    /**
+     * Returns the first value in the queue without removing it.
+     */
+    public peek(): Value | undefined {
+        return this._head?.value;
+    }
+
     public dequeue(): Value | undefined {
         const node = this._head;
         if (node === null) return;

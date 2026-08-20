@@ -31,6 +31,13 @@ export class EventQueue<Event = void> {
     }
 
     /**
+     * Returns the first event in the queue without removing it.
+     */
+    public peek(): Event | undefined {
+        return this._queue.peek();
+    }
+
+    /**
      * Removes the first event from the queue and returns it.
      */
     public dequeue(): Event | undefined {

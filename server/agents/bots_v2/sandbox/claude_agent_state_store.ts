@@ -11,6 +11,19 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.open_source.js";
 
 export type ClaudeAgentState = {
     readonly sessionId: string | null;
+
+    /**
+     * The Claude Agent SDK project key `sessionId`'s transcript is filed under. The
+     * SDK derives it from the working directory and only ever reports it through the
+     * session store, so we record it as we see it — see
+     * `ClaudeAgentSessionStore.findMainSessionKey()` for what it costs to go find it
+     * instead.
+     *
+     * `null` for a conversation that hasn't written a transcript yet, or one whose
+     * state was written before we started recording this.
+     */
+    readonly projectKey: string | null;
+
     readonly room: ClaudeAgentRoomState | null;
     readonly approvals: ClaudeAgentApprovalsState;
 };
@@ -23,6 +36,7 @@ export type ClaudeAgentRoomState = {
 
 const initialClaudeAgentState: ClaudeAgentState = {
     sessionId: null,
+    projectKey: null,
     room: null,
     approvals: emptyClaudeAgentApprovalsState,
 };
