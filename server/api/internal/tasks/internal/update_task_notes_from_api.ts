@@ -78,11 +78,12 @@ export async function updateTaskNotesFromApi(
 
     if (!responseBody.ok) throw responseBody.error;
 
+    const referencesContext = context.dynamo.unexpectStrongReadConsistency();
     return {
         spaceId: responseBody.spaceId,
         notes: {
             version: responseBody.newVersion,
-            content: await intoApiContentWithReferences(context, {
+            content: await intoApiContentWithReferences(referencesContext, {
                 spaceId: responseBody.spaceId,
                 fileAuthorizer: FileTaskAuthorizer.bind({type: "TaskNotes", taskId}),
                 content: responseBody.newContent,

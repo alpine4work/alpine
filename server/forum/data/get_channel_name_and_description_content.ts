@@ -64,7 +64,7 @@ export async function getChannelNameAndDescriptionContentIfExists(
 
     if (!channelItem) return null;
 
-    await authorizeChannelItemAccess(context, channelItem, "View");
+    await authorizeChannelItemAccess(context, channelItem, "View", {consistency});
 
     return {
         spaceId: channelItem.spaceId,

@@ -891,12 +891,13 @@ async function intoApiChannelResponse(
         consistency: "StrongWithinCache",
     });
 
+    const referencesContext = context.dynamo.unexpectStrongReadConsistency();
     return {
         spaceId: channel.spaceId,
         channel: {
             id: channelId,
             name: channel.name,
-            description: await intoApiMessageContentWithReferences(context, {
+            description: await intoApiMessageContentWithReferences(referencesContext, {
                 spaceId: channel.spaceId,
                 content: channel.description,
                 contentKeyEncoder: new ApiContentKeyEncoder({

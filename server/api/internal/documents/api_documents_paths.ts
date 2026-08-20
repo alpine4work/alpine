@@ -126,6 +126,7 @@ export const apiDocumentsPaths: Pick<
                 );
             }
 
+            const referencesContext = context.dynamo.unexpectStrongReadConsistency();
             const [document, apiContentResponse] = await runAllPromises([
                 createDocument(context, {
                     spaceId,
@@ -134,7 +135,7 @@ export const apiDocumentsPaths: Pick<
                     creatorId: creator?.id,
                     consistency,
                 }),
-                intoApiContentWithReferences(context, {
+                intoApiContentWithReferences(referencesContext, {
                     spaceId,
                     fileAuthorizer: FileDocumentAuthorizer.bind({
                         type: "Document",
