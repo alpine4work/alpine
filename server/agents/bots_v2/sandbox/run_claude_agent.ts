@@ -280,7 +280,42 @@ async function actuallyRunClaudeAgent(
     const messageRef: {current: AgentWebMessageStreamSession | null} = {current: null};
     const outstandingMessageIds = new Set<string>();
 
-    const contentBlockSpanByIndex = new Map<number, {span: TracerSpan; finishSpan: () => void}>();
+    // NOTE(ifitzsimmons, 2026-08-20): When streaming is enabled, the agents "thoughts"
+    // will be streamed in chunks. However, there's no guarantee that those chunks will
+    // come in order. For example, we may get something like:
+    //
+    // ```
+    // [
+    //   {type: 'content_block_start', index: 0, content_block: {type: 'thinking'}};
+    //   {type: 'system', subtype: 'thinking_tokens'};
+    //   {
+    //     type: 'content_block_delta',
+    //     index: 0,
+    //     delta: { type: 'thinking_delta', thinking: 'I', estimated_tokens: null }
+    //   },
+    //   {type: 'system', subtype: 'thinking_tokens'};
+    //   {
+    //     type: 'content_block_delta',
+    //     index: 0,
+    //     delta: {
+    //       type: 'thinking_delta',
+    //       thinking: " actually have a WebSearch tool available, so I'll use that to get the 3-day forecast for NYC.",
+    //     }
+    //   },
+    //   {type: 'system', subtype: 'thinking_tokens'},
+    //   {type: 'content_block_stop', index: 0};
+    // ]
+    // ```
+    //
+    // So we need a way to track the agent's "thoughts" and push them to the UI as they
+    // come in. The way we do this is by tracking the index of the content block and
+    // the span for the content block. When the content block is complete, we finish
+    // the span.
+    const contentBlockSpanByIndex = new Map<
+        number,
+        {span: TracerSpan; finishSpan: () => void; isMaybeSuperseded: boolean}
+    >();
+
     const approvalsRuntime: ClaudeAgentApprovalsRuntime = {
         webDecisions: [],
         rejectedRequests: [],
@@ -391,6 +426,7 @@ async function actuallyRunClaudeAgent(
                 outstandingMessageIds,
                 approvalsRuntime,
                 initialNudge,
+                contentBlockSpanByIndex,
             }),
             options: {
                 cwd: "/workspace/agent",
@@ -504,7 +540,11 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
                                 `Claude content block ${event.content_block.type}`,
                             );
 
-                            contentBlockSpanByIndex.set(event.index, span);
+                            contentBlockSpanByIndex.set(event.index, {
+                                span: span.span,
+                                finishSpan: span.finishSpan,
+                                isMaybeSuperseded: false,
+                            });
 
                             if (event.content_block.type === "thinking") {
                                 thinkingContentBlock = {index: event.index, text: ""};
@@ -586,6 +626,23 @@ You don\u2019t have direct file system access. You\u2019ll work entirely within 
                             }
                             break;
                         }
+                    }
+                    break;
+                }
+
+                case "result": {
+                    // When an agent is superseded, it will send a `result` message for the current
+                    // turn. We check to see if there were any in-flight content blocks when the agent
+                    // was superseded, complete their spans, and remove them from the map.
+                    for (const [
+                        index,
+                        {span, finishSpan, isMaybeSuperseded},
+                    ] of contentBlockSpanByIndex.entries()) {
+                        if (!isMaybeSuperseded) continue;
+
+                        span.log("Agent completed the turn before the content block finished.");
+                        finishSpan();
+                        contentBlockSpanByIndex.delete(index);
                     }
                     break;
                 }
@@ -1009,6 +1066,7 @@ async function* generateClaudeAgentPrompt(
         outstandingMessageIds,
         approvalsRuntime,
         initialNudge,
+        contentBlockSpanByIndex,
     }: {
         apiClient: ApiClient;
         eventQueue: EventQueue<ClaudeAgentServiceEvent>;
@@ -1027,9 +1085,35 @@ async function* generateClaudeAgentPrompt(
          * to continue from the resolved transcript.
          */
         initialNudge: string | null;
+        contentBlockSpanByIndex: Map<
+            number,
+            {span: TracerSpan; finishSpan: () => void; isMaybeSuperseded: boolean}
+        >;
     },
 ): AsyncIterable<SDKUserMessage> {
     let hasSeenFirstEvent = false;
+
+    // NOTE(ifitzsimmons, 2026-08-20): Whenever we acknowledge a message, we mark all
+    // in-flight content blocks as potentially superseded.
+    //
+    // When the agent is steered and starts a new turn, it will start sending content
+    // blocks indexed at 0 once again. If the original turn was in the middle of
+    // sending a content block with index 0, we get confused.
+    //
+    // We mark the content block as potentially superseded here so that if/when we get
+    // a `content_block_start` event with an in-flight index, we can finish the span.
+    //
+    // If we get a `content_block_start` event with an in-flight index and
+    // `isMaybeSuperseded` is false, we throw an error.
+    //
+    // We don't finish the spans here because it's possible that the agent completes
+    // whatever it's doing on its own before it decides to steer, and we don't want it
+    // to throw if it cleans up its in-flight content organically.
+    function markContentBlocksAsMaybeSuperseded() {
+        for (const [index, {span, finishSpan}] of contentBlockSpanByIndex.entries()) {
+            contentBlockSpanByIndex.set(index, {span, finishSpan, isMaybeSuperseded: true});
+        }
+    }
 
     if (initialNudge !== null) {
         hasSeenFirstEvent = true;
@@ -1037,6 +1121,7 @@ async function* generateClaudeAgentPrompt(
         const messageId = uuidv4() as `${string}-${string}-${string}-${string}-${string}`;
         outstandingMessageIds.add(messageId);
 
+        markContentBlocksAsMaybeSuperseded();
         yield {
             type: "user",
             uuid: messageId,
@@ -1202,6 +1287,7 @@ async function* generateClaudeAgentPrompt(
                 const messageId = uuidv4() as `${string}-${string}-${string}-${string}-${string}`;
                 outstandingMessageIds.add(messageId);
 
+                markContentBlocksAsMaybeSuperseded();
                 yield {
                     type: "user",
                     uuid: messageId,
@@ -1264,6 +1350,7 @@ async function* generateClaudeAgentPrompt(
                 const messageId = uuidv4() as `${string}-${string}-${string}-${string}-${string}`;
                 outstandingMessageIds.add(messageId);
 
+                markContentBlocksAsMaybeSuperseded();
                 yield {
                     type: "user",
                     uuid: messageId,
