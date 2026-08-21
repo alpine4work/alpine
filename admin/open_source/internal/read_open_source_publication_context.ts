@@ -6,9 +6,14 @@ import {parseArgs} from "node:util";
 
 import {type OpenSourceDeclaredSource} from "~/admin/open_source/internal/collect_open_source_publication_manifest.js";
 
-/** Command-line data parsed at the Bazel action boundary. */
+/**
+ * Paths and policy parsed from the command-line arguments and JSON files Bazel
+ * writes.
+ */
 export type OpenSourceArchiveContext = Readonly<{
     allowedBazelPackages: ReadonlySet<string>;
+    cliPatchListPath: string;
+    cliPatchSources: ReadonlyArray<OpenSourceDeclaredSource>;
     inputSources: ReadonlyArray<OpenSourceDeclaredSource>;
     manifestOutputPath: string;
     outputArchivePath: string;
@@ -16,7 +21,7 @@ export type OpenSourceArchiveContext = Readonly<{
     zipperPath: string;
 }>;
 
-/** Reads the hermetic Bazel archive action boundary. */
+/** Reads the only inputs the Bazel archive action passes to the publisher. */
 function readOpenSourceArchiveContext({
     argv = process.argv.slice(2),
 }: {
@@ -71,10 +76,12 @@ function readOpenSourceArchiveContext({
 }
 
 /**
- * Validates the Starlark-generated source manifest before it reaches the
- * publication pipeline.
+ * Validates the JSON input manifest that `open_source_repository.bzl` writes
+ * before the publisher reads its paths.
  */
 function parseOpenSourceArchiveInputManifest(inputManifestJson: string): {
+    cliPatchListPath: string;
+    cliPatchSources: ReadonlyArray<OpenSourceDeclaredSource>;
     inputSources: ReadonlyArray<OpenSourceDeclaredSource>;
     stubDestinations: ReadonlySet<string>;
 } {
@@ -88,7 +95,16 @@ function parseOpenSourceArchiveInputManifest(inputManifestJson: string): {
         throw new Error("Invalid open-source archive input manifest: expected an object");
     }
 
-    const {stubDestinations, sources} = inputManifest;
+    const {cliPatchListPath, cliPatchSources, stubDestinations, sources} = inputManifest;
+    if (typeof cliPatchListPath !== "string" || cliPatchListPath.length === 0) {
+        throw new Error(
+            "Invalid open-source archive input manifest: `cliPatchListPath` must be a file path",
+        );
+    }
+    const parsedCliPatchSources = parseOpenSourceDeclaredSources({
+        fieldName: "cliPatchSources",
+        value: cliPatchSources,
+    });
     if (
         !Array.isArray(stubDestinations) ||
         stubDestinations.some(destinationPath => !isSafeOpenSourcePath(destinationPath)) ||
@@ -99,33 +115,52 @@ function parseOpenSourceArchiveInputManifest(inputManifestJson: string): {
                 "unique workspace-relative paths",
         );
     }
-    if (!Array.isArray(sources) || sources.length === 0) {
+    const inputSources = parseOpenSourceDeclaredSources({fieldName: "sources", value: sources});
+    if (inputSources.length === 0) {
+        throw new Error("Invalid open-source archive input manifest: `sources` must not be empty");
+    }
+    return {
+        cliPatchListPath,
+        cliPatchSources: parsedCliPatchSources,
+        inputSources,
+        stubDestinations: new Set(stubDestinations),
+    };
+}
+
+function parseOpenSourceDeclaredSources({
+    fieldName,
+    value,
+}: {
+    fieldName: string;
+    value: unknown;
+}): Array<OpenSourceDeclaredSource> {
+    if (!Array.isArray(value)) {
         throw new Error(
-            "Invalid open-source archive input manifest: `sources` must contain unique " +
+            `Invalid open-source archive input manifest: \`${fieldName}\` must contain unique ` +
                 "input and workspace-relative paths",
         );
     }
-    const inputSources: Array<OpenSourceDeclaredSource> = [];
-    for (const source of sources) {
+    const sources: Array<OpenSourceDeclaredSource> = [];
+    for (const source of value) {
         if (!isOpenSourceDeclaredSource(source)) {
             throw new Error(
-                "Invalid open-source archive input manifest: `sources` must contain unique " +
+                `Invalid open-source archive input manifest: \`${fieldName}\` must contain unique ` +
                     "input and workspace-relative paths",
             );
         }
-        inputSources.push(source);
+        sources.push(source);
     }
-    const sourceRelativePaths = inputSources.map(source => source.sourceRelativePath);
-    if (new Set(sourceRelativePaths).size !== inputSources.length) {
+    const sourceRelativePaths = sources.map(source => source.sourceRelativePath);
+    if (new Set(sourceRelativePaths).size !== sources.length) {
         throw new Error(
-            "Invalid open-source archive input manifest: `sources` must contain unique " +
+            `Invalid open-source archive input manifest: \`${fieldName}\` must contain unique ` +
                 "input and workspace-relative paths",
         );
     }
-    return {inputSources, stubDestinations: new Set(stubDestinations)};
+    return sources;
 }
 
-/** Parses the central configuration emitted by the package allowlist rule. */
+/** Parses the package allowlist JSON written by `open_source_configuration`. */
 function parseOpenSourceConfiguration(configurationJson: string): {
     allowedBazelPackages: ReadonlySet<string>;
 } {

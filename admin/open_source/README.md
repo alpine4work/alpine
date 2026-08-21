@@ -6,24 +6,25 @@ is eligible for publication.
 TODO(#open-source): Add the approved open-source license before using the generated repository for a
 production release.
 
-## Bazel-owned pipeline
+## How Bazel builds the public repository
 
-The public repository is a Bazel product, not a second checkout assembled by a script. The
-`open_source_repository()` macro creates these targets:
+Bazel builds a ZIP containing the public repository. It does not copy files into a second checkout.
+The `open_source_repository()` macro creates these targets:
 
 - `//admin/open_source:open_source_repository_sources` — the exact tagged source filegroup;
 - `//admin/open_source:open_source_repository_ci_inputs` — the workspace sources that can change the
   archive or its validation, including producers of generated public files;
-- `//admin/open_source:open_source_repository` — a cacheable ZIP plus a private audit manifest;
+- `//admin/open_source:open_source_repository` — the ZIP plus a private manifest listing the files
+  and imports it contains;
 - `//admin/open_source:open_source_repository_typescript_test` — type-checks the unzipped public
   ZIP; and
 - `//admin/open_source:open_source_repository_test` — runs the public typecheck, tests, and CLI
   build against that same ZIP.
 
 The archive action receives every selected file as a declared Bazel input. The TypeScript publisher
-only validates, rewrites, and archives those inputs; it never searches the worktree. Consequently,
-Bazel reruns public packaging only when public inputs or publication code change, and remote caching
-can reuse an unchanged public repository.
+only reads, validates, rewrites, and archives those inputs. It never searches the worktree. Bazel
+therefore rebuilds the ZIP only when an input or the publication code changes, and can reuse a prior
+ZIP when neither has changed.
 
 The source filegroup is assembled in two parts:
 
@@ -35,9 +36,8 @@ The source filegroup is assembled in two parts:
 
 The `ts_project()` macro also checks tagged TypeScript paths as Bazel loads their package. A
 `.open_source` file in a package absent from the central allowlist fails analysis immediately,
-before that package can build. This is intentionally separate from archive collection: the archive
-only traverses reviewed packages, so an unrelated private package does not become part of its
-dependency graph.
+before that package can build. This is intentionally separate from archive collection. The archive
+only traverses reviewed packages, so an unrelated private package never becomes an archive input.
 
 ## Selection and package approval
 
@@ -57,13 +57,13 @@ and npm imports absent from the public package manifests.
 
 `*.open_source.stub.*` is not a one-to-one public copy. It overwrites the corresponding untagged
 file in the generated repository while private development continues to use the real implementation.
-The central `stub_destination_files` target list declares the only canonical files that may be
-replaced. Bazel resolves those private file labels during analysis to prove the destinations exist,
-but their contents are not archive-action inputs.
+The central `stub_destination_files` target list declares the private files that stubs may replace.
+Bazel resolves those file labels during analysis to prove the destinations exist, but the private
+files themselves are not archive inputs.
 
 For example, `shared/tracer/types/tracer_service_name.open_source.stub.ts` replaces the private
 service-name union with the public CLI-only service name. This prevents internal service names from
-reaching the public repository while preserving one canonical import path for callers. Validation
+reaching the public repository while preserving the regular import path for callers. Validation
 requires every declared destination to have exactly one stub and forbids public source from
 importing stub filenames directly.
 
@@ -80,11 +80,29 @@ template repository. Examples:
 Use `name.open_source.test.ts` for a public test. It becomes `name.test.ts` and is picked up by the
 public test glob after packaging.
 
+## CLI dependency patches
+
+Private development uses pnpm patches from `admin/patches`. The public repository uses npm and
+`patch-package`, so the archive converts only the patches needed by the public CLI. It writes them
+to `packages/cli/patches` and rewrites their diff headers from package-relative paths to
+`node_modules/<package>` paths. The CLI's `postinstall` script applies those patches whether the CLI
+is installed as a workspace or from its npm tarball.
+
+`cli_patch_list.yaml` and the public root package's npm overrides are generated from the public CLI
+manifest and lockfile. When CLI dependencies or private patches change, refresh generated inputs in
+this order:
+
+```sh
+bazel run //admin/open_source:write_open_source_cli_patch_list
+bazel run //:write_open_source_cli_patch_files
+bazel run //:write_open_source_package_lock
+```
+
 ## CI
 
 The first unit-test runner asks Bazel for `open_source_repository_ci_inputs` after restoring its
 Bazel cache in both the pull request's base and current worktrees. It compares the union of those
-declared source sets with the pull request diff, so additions, changes, and deletions all schedule
+declared source inputs with the pull request diff, so additions, changes, and deletions all schedule
 the public jobs. The filegroup includes the archive's direct public sources, the source producers
 for generated public files, and the publication package's TypeScript, test, Starlark, and shell
 inputs. It schedules no public jobs for a pull request without a public-repository change. Comparing
@@ -94,7 +112,7 @@ an earlier commit in the same pull request.
 When scheduled, the CI chain is:
 
 1. **Open source archive** runs `bazel build` on the ZIP on an ASG runner. Import and stub
-   validation happen inside that cacheable action, and CI uploads the resulting ZIP unchanged.
+   validation run while Bazel builds the ZIP, then CI uploads that same ZIP unchanged.
 2. **Open source test** downloads and extracts only that ZIP on a GitHub-hosted runner. It does not
    check out this private repository, then executes the public `test` action from inside the
    extracted tree.
@@ -102,8 +120,8 @@ When scheduled, the CI chain is:
    replaces the target mirror's worktree while retaining its Git history, then commits with the
    current UTC timestamp.
 
-The isolated public CI intentionally stops before npm publication. npm publishing will be added
-separately and is expected to publish at most once per day when public changes exist.
+The generated repository's CI stops before npm publication. npm publishing will be added separately
+and is expected to publish at most once per day when public changes exist.
 
 ## Local development
 
@@ -115,7 +133,7 @@ bazel cquery --output=files //admin/open_source:open_source_repository_sources
 bazel cquery --output=files //admin/open_source:open_source_repository_ci_inputs
 ```
 
-Unpack the exact Bazel product into the ignored test directory:
+Unpack the exact ZIP Bazel built into the ignored test directory:
 
 ```sh
 bazel run //admin/open_source:publish_open_source_repository
@@ -130,10 +148,6 @@ bazel test \
   //admin/open_source:open_source_repository_test
 ```
 
-The public lockfile is a generated source file. Its `write_source_files` diff test runs in the
-open-source archive CI job whenever public repository inputs change, so it reports an update command
-instead of relying on developers to remember this step. To accept a changed lockfile locally, run:
-
-```sh
-bazel run //:write_open_source_package_lock
-```
+The patch list, public npm overrides, and public lockfile are generated source files. Their
+`write_source_files` diff tests run in the open-source archive CI job and print the update command
+when a checked-in file is stale.

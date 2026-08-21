@@ -69,7 +69,10 @@ function moduleLoaderDescription(expression: ts.Expression): string {
     return "require.resolve call";
 }
 
-/** Resolves one workspace import to its private TypeScript source path. */
+/**
+ * Finds the workspace file that a `~/` or relative import resolves to before
+ * publication.
+ */
 function resolveOpenSourceWorkspaceImport({
     moduleSpecifier,
     sourceRelativePath,
@@ -108,12 +111,11 @@ function resolveOpenSourceWorkspaceImport({
 }
 
 /**
- * Resolves a workspace import against the exact file set declared to Bazel.
+ * Resolves a workspace import against only the files Bazel declared.
  *
- * The archive action must not discover extra workspace files while it runs: doing
- * so would make its cache key depend on hidden filesystem state. When no declared
- * candidate exists, return the primary candidate so publication validation can
- * report it as an unselected import.
+ * Do not read another workspace file here. Bazel does not track it as an archive
+ * input. If none of the declared candidates match, return the first candidate so
+ * validation can report the import as unselected.
  */
 function resolveOpenSourceDeclaredImport({
     availableSourcePaths,

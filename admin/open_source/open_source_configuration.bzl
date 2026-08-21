@@ -23,7 +23,7 @@ OPEN_SOURCE_ALLOWED_BAZEL_PACKAGES = [
 ]
 
 OpenSourceConfigurationInfo = provider(
-    doc = """Private analysis data shared with the public archive rule.""",
+    doc = """Private stub destinations passed to the public archive rule.""",
     fields = {"stub_destinations": "Existing private files replaced by public stub files."},
 )
 OpenSourceTaggedSourcesInfo = provider(
@@ -100,9 +100,9 @@ def _open_source_configuration_impl(ctx):
                 ),
             )
 
-    # The archive accepts generated tagged files, but Git can compare only workspace source paths.
-    # Generated public outputs therefore contribute their declared source producers separately.
-    # This preserves the archive's exact output set while giving CI a source-level scheduling set.
+    # The archive may include generated tagged files, but Git can compare only source paths in the
+    # workspace. Add each generated file's source producers to the CI input group, without adding
+    # those producers to the archive itself.
     source_inputs = depset(
         [source for source in tagged_sources.to_list() if source.is_source],
         transitive = [depset(generated_source_inputs)],

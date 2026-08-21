@@ -1,9 +1,9 @@
-"""Builds the cacheable public-repository archive and its Bazel validation targets."""
+"""Builds the public-repository ZIP and the Bazel targets that verify it."""
 
 load(":open_source_configuration.bzl", "OpenSourceConfigurationInfo")
 
 OpenSourceRepositoryInfo = provider(
-    doc = """The generated public archive, its audit manifest, and the tagged source filegroup.""",
+    doc = """The generated public ZIP, its private manifest, and its tagged source files.""",
     fields = {
         "archive": "The generated public repository ZIP file.",
         "manifest": "The private publication manifest emitted beside the ZIP file.",
@@ -17,11 +17,20 @@ def _open_source_repository_impl(ctx):
     manifest = ctx.actions.declare_file("{}.manifest.json".format(ctx.label.name))
     input_manifest = ctx.actions.declare_file("{}.inputs.json".format(ctx.label.name))
     source_files = sorted(ctx.files.srcs, key = _source_short_path)
+    cli_patch_source_files = sorted(ctx.files.cli_patch_sources, key = _source_short_path)
     stub_destinations = sorted(ctx.attr.configuration[OpenSourceConfigurationInfo].stub_destinations)
 
     ctx.actions.write(
         output = input_manifest,
         content = json.encode({
+            "cliPatchListPath": ctx.file.cli_patch_list.path,
+            "cliPatchSources": [
+                {
+                    "inputPath": file.path,
+                    "sourceRelativePath": _source_short_path(file),
+                }
+                for file in cli_patch_source_files
+            ],
             "stubDestinations": stub_destinations,
             "sources": [
                 {
@@ -47,7 +56,11 @@ def _open_source_repository_impl(ctx):
         # output tree and making the declared input paths inaccessible.
         env = {"BAZEL_BINDIR": "."},
         executable = ctx.executable.publisher,
-        inputs = depset(ctx.files.srcs + [ctx.file.configuration, input_manifest]),
+        inputs = depset(
+            ctx.files.srcs +
+            ctx.files.cli_patch_sources +
+            [ctx.file.cli_patch_list, ctx.file.configuration, input_manifest],
+        ),
         mnemonic = "OpenSourceRepository",
         outputs = [archive, manifest],
         progress_message = "Packaging the open-source repository",
@@ -78,9 +91,19 @@ def _source_short_path(file):
     return file.short_path
 
 _open_source_repository = rule(
-    doc = """Produces a cacheable ZIP from the declared public source set.""",
+    doc = """Produces a ZIP from the declared public source files.""",
     implementation = _open_source_repository_impl,
     attrs = {
+        "cli_patch_list": attr.label(
+            doc = """Generated list of private pnpm patches required by the public CLI.""",
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "cli_patch_sources": attr.label_list(
+            doc = """Private pnpm patch files selected for copying into the published CLI package.""",
+            allow_files = True,
+            mandatory = True,
+        ),
         "configuration": attr.label(
             doc = """JSON configuration for the central package allowlist.""",
             allow_single_file = True,
@@ -98,7 +121,7 @@ _open_source_repository = rule(
             mandatory = True,
         ),
         "zipper": attr.label(
-            doc = """Bazel's hermetic ZIP writer used by the publisher.""",
+            doc = """Bazel's `zipper` executable, used to create the public ZIP.""",
             cfg = "exec",
             default = Label("@bazel_tools//tools/zip:zipper"),
             executable = True,
@@ -108,19 +131,22 @@ _open_source_repository = rule(
 
 def open_source_repository(
         name,
+        cli_patch_list,
+        cli_patch_sources,
         configuration,
         publisher,
         verification_script,
         npm,
         node,
         verification_data):
-    """Creates the public archive plus cacheable source and archive verification tests.
+    """Creates the public ZIP plus targets that type-check and test its extracted contents.
 
-    The tagged source filegroup is the single invalidation boundary for public code. The archive
-    action therefore reuses Bazel's cache whenever no tagged file or publisher input changed.
+    Bazel can reuse the ZIP when its tagged source files and publisher inputs have not changed.
 
     Args:
         name: Base name for the archive and verification targets.
+        cli_patch_list: Generated list of private pnpm patches required by the public CLI.
+        cli_patch_sources: Private pnpm patch files selected for copying into the published CLI package.
         configuration: Generated central open-source package configuration.
         publisher: Executable that packages the archive.
         verification_script: Script that validates the unpacked public archive.
@@ -143,6 +169,8 @@ def open_source_repository(
     )
     _open_source_repository(
         name = name,
+        cli_patch_list = cli_patch_list,
+        cli_patch_sources = [cli_patch_sources],
         configuration = configuration,
         publisher = publisher,
         srcs = [":{}".format(source_group_name)],
@@ -156,6 +184,7 @@ def open_source_repository(
             "$(rootpath {})".format(node),
         ],
         data = verification_data + [
+            cli_patch_list,
             ":{}".format(source_group_name),
             ":{}".format(name),
             node,
@@ -179,6 +208,7 @@ def open_source_repository(
             "$(rootpath {})".format(node),
         ],
         data = verification_data + [
+            cli_patch_list,
             ":{}".format(name),
             ":{}".format(manifest_name),
             npm,

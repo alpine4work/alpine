@@ -9,6 +9,13 @@ test("parses the Bazel-declared archive input manifest", () => {
     assert.deepEqual(
         parseOpenSourceArchiveInputManifest(
             JSON.stringify({
+                cliPatchListPath: "admin/open_source/cli_patch_list.yaml",
+                cliPatchSources: [
+                    {
+                        inputPath: "admin/patches/example@1.0.0.patch",
+                        sourceRelativePath: "admin/patches/example@1.0.0.patch",
+                    },
+                ],
                 stubDestinations: ["shared/tracer/types/tracer_event_data.ts"],
                 sources: [
                     {
@@ -19,6 +26,13 @@ test("parses the Bazel-declared archive input manifest", () => {
             }),
         ),
         {
+            cliPatchListPath: "admin/open_source/cli_patch_list.yaml",
+            cliPatchSources: [
+                {
+                    inputPath: "admin/patches/example@1.0.0.patch",
+                    sourceRelativePath: "admin/patches/example@1.0.0.patch",
+                },
+            ],
             inputSources: [
                 {
                     inputPath: "bazel-out/bin/shared/value.open_source.ts",

@@ -95,6 +95,44 @@ filegroup(
     visibility = ["//admin/open_source:__pkg__"],
 )
 
+filegroup(
+    name = "open_source_cli_patch_sources",
+    # Archive packaging receives all private pnpm patches. The checked-in CLI patch list selects
+    # the small subset that the public CLI needs.
+    srcs = ["//admin/patches:patches"],
+    visibility = ["//admin/open_source:__pkg__"],
+)
+
+# The private open-source generator reads these root-level public manifest inputs. The generator
+# itself lives in //admin/open_source; this group only provides the cross-package visibility Bazel
+# requires for those root source files.
+filegroup(
+    name = "open_source_cli_patch_generator_inputs",
+    srcs = [
+        "package.json",
+        "package.open_source.json",
+        "package-lock.open_source.json",
+        "packages/cli/package.open_source.json",
+    ],
+    visibility = ["//admin/open_source:__pkg__"],
+)
+
+filegroup(
+    name = "open_source_repository_workflow_inputs",
+    srcs = [".github/workflows/test.yaml"],
+    visibility = ["//admin/open_source:__pkg__"],
+)
+
+# The generator updates the public root package's npm overrides. The companion target in
+# //admin/open_source writes the private YAML list that selects which pnpm patches the archive
+# copies into the CLI package.
+write_source_files(
+    name = "write_open_source_cli_patch_files",
+    files = {
+        "package.open_source.json": "//admin/open_source:open_source_package.generated.json",
+    },
+)
+
 # The generated lock is checked automatically whenever the public repository changes. Running the
 # update target only writes the checked-in source file after the generated result has been reviewed.
 write_source_files(

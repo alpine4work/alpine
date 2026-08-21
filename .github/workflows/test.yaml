@@ -823,11 +823,15 @@ jobs:
 
             - name: Build validated open-source repository archive
               run: |
-                  # The write-source diff test regenerates the public lockfile from the same
-                  # archive inputs and fails with the update command if it is stale.
+                  # The write-source diff tests regenerate the CLI patch list and public lockfile
+                  # from the same archive inputs and fail with the update command if either is
+                  # stale.
                   admin/bin/bazel \
                       --bazelrc=admin/bazel/aspect_bazelrc/ci.bazelrc \
-                      test //:write_open_source_package_lock_tests \
+                      test \
+                      //admin/open_source:write_open_source_cli_patch_list_tests \
+                      //:write_open_source_cli_patch_files_tests \
+                      //:write_open_source_package_lock_tests \
                       --config=github-runner \
                       --remote_cache=
 

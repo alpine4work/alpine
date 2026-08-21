@@ -1,3 +1,4 @@
+import {appendOpenSourceCliPatchEntries} from "~/admin/open_source/internal/append_open_source_cli_patch_entries.js";
 import {
     type OpenSourcePublicationManifest,
     collectOpenSourcePublicationManifestFromDeclaredSources,
@@ -9,21 +10,27 @@ import {validateOpenSourcePublicationManifest} from "~/admin/open_source/interna
 /**
  * Builds the public archive from Bazel's declared tagged source inputs.
  *
- * The local result command only unpacks this archive. Keeping publication here
- * ensures the archive action never discovers untracked or untagged filesystem
- * files.
+ * The local result command only unpacks this archive. This function reads only the
+ * paths Bazel passes in, so it cannot add an untracked or untagged file to the
+ * ZIP.
  */
 function packageOpenSourceRepositoryArchive({
     allowedBazelPackages,
+    cliPatchListPath,
+    cliPatchSources,
     inputSources,
     manifestOutputPath,
     outputArchivePath,
     stubDestinations,
     zipperPath,
 }: OpenSourceArchiveContext): OpenSourcePublicationManifest {
-    const manifest = collectOpenSourcePublicationManifestFromDeclaredSources({
-        stubDestinations,
-        sourceInputs: inputSources,
+    const manifest = appendOpenSourceCliPatchEntries({
+        cliPatchListPath,
+        cliPatchSources,
+        manifest: collectOpenSourcePublicationManifestFromDeclaredSources({
+            stubDestinations,
+            sourceInputs: inputSources,
+        }),
     });
     validateOpenSourcePublicationManifest({
         allowedBazelPackages,

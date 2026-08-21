@@ -20,6 +20,9 @@ npm run build
 CLI_TEST_ALPINE_API_KEY=... npm run test:cli
 ```
 
+The install scripts apply the CLI's bundled dependency patches. Do not pass `--ignore-scripts` to
+`npm ci` or `npm install`, since the CLI may then run against unpatched dependencies.
+
 ## Run the CLI
 
 Set `ALPINE_DATA_PATH` to a directory containing your Alpine `auth.json`, then run a command:

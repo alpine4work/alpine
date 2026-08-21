@@ -26,9 +26,30 @@ fi
 
 test_repository_path="${TEST_TMPDIR}/repository"
 mkdir -p "${test_repository_path}"
-# The public ZIP is the exact artifact that GitHub Actions hands to the isolated public-repository
-# job. Unpacking it here keeps Bazel's typecheck, test, and build verification on that same output.
+# GitHub Actions gives this ZIP to the public-repository job. Extract it here so Bazel checks the
+# same files that job receives.
 unzip -q "${archive_path}" -d "${test_repository_path}"
+
+# The private YAML list selects pnpm patch files for the public CLI. The archive contains only the
+# converted patch-package copies, not the private list.
+test ! -e "${test_repository_path}/admin/open_source/cli_patch_list.yaml"
+
+# The archive must contain a patch-package copy for every private patch selected in the YAML. Its
+# filename follows patch-package's package-and-version convention. Public CI applies these files
+# during a clean `npm ci`.
+while IFS=$'\t' read -r source_file_name public_file_name; do
+    test -f "${TEST_SRCDIR}/${TEST_WORKSPACE}/admin/patches/${source_file_name}"
+    test -f "${test_repository_path}/packages/cli/patches/${public_file_name}"
+done < <(
+    "${node_path}" -e '
+        const Yaml = require("yaml");
+        const openSourceCliPatchList = Yaml.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+        for (const patch of openSourceCliPatchList) {
+            const fileName = `${patch.packageName.replaceAll("/", "+")}+${patch.version}.dev.patch`;
+            console.log(`${patch.sourceFileName}\t${fileName}`);
+        }
+    ' "${TEST_SRCDIR}/${TEST_WORKSPACE}/admin/open_source/cli_patch_list.yaml"
+)
 
 # Use Bazel's pinned dependency tree. The generated repository's lockfile is tested separately by
 # target-repository CI with a clean `npm ci`. Build a shallow symlink tree so the test can add the
@@ -66,17 +87,16 @@ diff -u "${manifest_test_paths}" "${repository_test_paths}"
 "${npm_path}" --prefix "${test_repository_path}" test
 "${npm_path}" --prefix "${test_repository_path}" run build --workspace @alpine/cli
 
-# `test:cli` creates and updates real Alpine resources using the GitHub Actions-only
-# `CLI_TEST_ALPINE_API_KEY` secret. The public CI action runs it after this archive is published;
-# this hermetic verifier deliberately has no access to production credentials.
+# `test:cli` creates and updates real Alpine resources with the GitHub Actions-only
+# `CLI_TEST_ALPINE_API_KEY` secret. The public CI action runs it after this ZIP is published. This
+# Bazel test has no production credentials.
 
 test -x "${test_repository_path}/packages/cli/dist/alpine.js"
 test -f "${test_repository_path}/packages/cli/dist/cli_tracer_background_main.js"
 test ! -e "${test_repository_path}/admin"
 
-# The generated repository is the product developers see. Publication mechanics belong only in
-# this source repository, except for explicitly retained TODOs that track the remaining release
-# work.
+# The generated repository must not describe the private publishing system. Keep that text in this
+# repository, except for `TODO(#open-source)` entries that describe pending public release work.
 published_repository_terminology="$(
     find "${test_repository_path}" \
         \( -path "${test_repository_path}/.git" -o -path "${test_repository_path}/node_modules" -o -path "${test_repository_path}/packages/cli/dist" \) -prune -o \

@@ -7,6 +7,7 @@ import {
     type OpenSourceOutputKind,
     type OpenSourcePublicationManifest,
     type OpenSourcePublicationManifestEntry,
+    type OpenSourcePublicationManifestEntryContentTransform,
 } from "~/admin/open_source/internal/collect_open_source_publication_manifest.js";
 import {
     createTemporaryDirectory,
@@ -141,16 +142,68 @@ test("replaces stale worktree files while preserving git history", () => {
     );
 });
 
+test("converts pnpm patches to patch-package paths", () => {
+    const workspacePath = createTemporaryDirectory();
+    const outputRepositoryPath = path.join(workspacePath, "admin", "open_source", "result");
+    const patchPath = writeFile(
+        workspacePath,
+        "admin/patches/example@1.0.0.patch",
+        "diff --git a/index.js b/index.js\n" +
+            "index 0000000..1111111 100644\n" +
+            "--- a/index.js\n" +
+            "+++ b/index.js\n" +
+            "@@ -1 +1 @@\n" +
+            "-before\n" +
+            "+after\n",
+    );
+    const manifest: OpenSourcePublicationManifest = {
+        entries: [
+            entry(
+                patchPath,
+                "packages/cli/patches.open_source/example+1.0.0.dev.patch",
+                "packages/cli/patches/example+1.0.0.dev.patch",
+                {
+                    contentTransform: {kind: "patch-package", packageName: "example"},
+                    outputKind: "repository",
+                },
+            ),
+        ],
+        importEdges: [],
+    };
+
+    packageOpenSourcePublicationManifest({manifest, outputRepositoryPath, workspacePath});
+
+    assert.equal(
+        fs.readFileSync(
+            path.join(outputRepositoryPath, "packages/cli/patches/example+1.0.0.dev.patch"),
+            "utf8",
+        ),
+        "diff --git a/node_modules/example/index.js b/node_modules/example/index.js\n" +
+            "index 0000000..1111111 100644\n" +
+            "--- a/node_modules/example/index.js\n" +
+            "+++ b/node_modules/example/index.js\n" +
+            "@@ -1 +1 @@\n" +
+            "-before\n" +
+            "+after\n",
+    );
+});
+
 function entry(
     inputPath: string,
     sourceRelativePath: string,
     outputPath: string,
     {
+        contentTransform = {kind: "copy"},
         isTest = false,
         outputKind = "source",
-    }: {isTest?: boolean; outputKind?: OpenSourceOutputKind} = {},
+    }: {
+        contentTransform?: OpenSourcePublicationManifestEntryContentTransform;
+        isTest?: boolean;
+        outputKind?: OpenSourceOutputKind;
+    } = {},
 ): OpenSourcePublicationManifestEntry {
     return {
+        contentTransform,
         inputPath,
         isTest,
         outputKind,

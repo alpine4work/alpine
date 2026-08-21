@@ -6,7 +6,10 @@ import * as path from "node:path";
 
 import * as ts from "typescript";
 
-import {type OpenSourcePublicationManifest} from "~/admin/open_source/internal/collect_open_source_publication_manifest.js";
+import {
+    type OpenSourcePublicationManifest,
+    type OpenSourcePublicationManifestEntry,
+} from "~/admin/open_source/internal/collect_open_source_publication_manifest.js";
 import {
     type OpenSourceRenameEntry,
     replaceOpenSourceRepositoryContents,
@@ -53,8 +56,8 @@ function stripOpenSourceTagsFromPath(filePath: string): string {
 }
 
 /**
- * Materializes exactly one validated manifest and atomically replaces the
- * destination.
+ * Writes the validated manifest to a staging directory, then replaces the
+ * destination only after every file was written.
  */
 function packageOpenSourcePublicationManifest({
     buildOutputRootPath,
@@ -83,7 +86,8 @@ function packageOpenSourcePublicationManifest({
 }
 
 /**
- * Writes the validated public repository into a deterministic Bazel ZIP artifact.
+ * Writes the validated public files to a staging directory, then adds those files
+ * to the ZIP with Bazel's zipper.
  */
 function archiveOpenSourcePublicationManifest({
     archivePath,
@@ -151,7 +155,10 @@ function materializeOpenSourceManifest({
     }
 }
 
-/** Writes transformed manifest entries into an empty repository directory. */
+/**
+ * Writes every manifest entry into an empty directory, applying its declared
+ * transform.
+ */
 function writeOpenSourceRepositoryFiles({
     manifest,
     outputRepositoryPath,
@@ -159,37 +166,107 @@ function writeOpenSourceRepositoryFiles({
     for (const entry of manifest.entries) {
         const destinationPath = path.join(outputRepositoryPath, ...entry.outputPath.split("/"));
         fs.mkdirSync(path.dirname(destinationPath), {recursive: true});
-        if (isJavaScriptOrTypeScriptPath(entry.outputPath)) {
-            fs.writeFileSync(
-                destinationPath,
-                stripOpenSourceTagsFromModuleReferences(
-                    fs.readFileSync(entry.inputPath, "utf8"),
-                    entry.sourceRelativePath,
-                ),
-                {flag: "wx"},
-            );
-        } else if (isJsonPath(entry.outputPath)) {
-            fs.writeFileSync(
-                destinationPath,
-                stripOpenSourceTagsFromJsonReferences(fs.readFileSync(entry.inputPath, "utf8")),
-                {flag: "wx"},
-            );
-        } else if (isYamlPath(entry.outputPath)) {
-            fs.writeFileSync(
-                destinationPath,
-                stripOpenSourceTagsFromWorkflowReferences(fs.readFileSync(entry.inputPath, "utf8")),
-                {flag: "wx"},
-            );
-        } else {
-            fs.copyFileSync(entry.inputPath, destinationPath, fs.constants.COPYFILE_EXCL);
-        }
+        writeOpenSourceManifestEntry({destinationPath, entry});
         fs.chmodSync(destinationPath, fs.statSync(entry.inputPath).mode & 0o777);
     }
 }
 
+function writeOpenSourceManifestEntry({
+    destinationPath,
+    entry,
+}: {
+    destinationPath: string;
+    entry: OpenSourcePublicationManifestEntry;
+}): void {
+    switch (entry.contentTransform.kind) {
+        case "copy":
+            writeOpenSourceManifestCopy({destinationPath, entry});
+            return;
+        case "patch-package":
+            fs.writeFileSync(
+                destinationPath,
+                transformOpenSourcePnpmPatchForPatchPackage({
+                    packageName: entry.contentTransform.packageName,
+                    source: fs.readFileSync(entry.inputPath, "utf8"),
+                }),
+                {flag: "wx"},
+            );
+            return;
+        default: {
+            const exhaustiveContentTransform: never = entry.contentTransform;
+            throw new Error(`Unknown open-source content transform: ${exhaustiveContentTransform}`);
+        }
+    }
+}
+
+function writeOpenSourceManifestCopy({
+    destinationPath,
+    entry,
+}: {
+    destinationPath: string;
+    entry: OpenSourcePublicationManifestEntry;
+}): void {
+    if (isJavaScriptOrTypeScriptPath(entry.outputPath)) {
+        fs.writeFileSync(
+            destinationPath,
+            stripOpenSourceTagsFromModuleReferences(
+                fs.readFileSync(entry.inputPath, "utf8"),
+                entry.sourceRelativePath,
+            ),
+            {flag: "wx"},
+        );
+    } else if (isJsonPath(entry.outputPath)) {
+        fs.writeFileSync(
+            destinationPath,
+            stripOpenSourceTagsFromJsonReferences(fs.readFileSync(entry.inputPath, "utf8")),
+            {flag: "wx"},
+        );
+    } else if (isYamlPath(entry.outputPath)) {
+        fs.writeFileSync(
+            destinationPath,
+            stripOpenSourceTagsFromWorkflowReferences(fs.readFileSync(entry.inputPath, "utf8")),
+            {flag: "wx"},
+        );
+    } else {
+        fs.copyFileSync(entry.inputPath, destinationPath, fs.constants.COPYFILE_EXCL);
+    }
+}
+
 /**
- * Uses Bazel's ZIP tool so the archive is hermetic and preserves executable file
- * modes.
+ * Converts pnpm patch headers from package-relative paths to patch-package's
+ * `node_modules/<package>` paths. The changed-file bodies remain byte-for-byte
+ * unchanged.
+ */
+function transformOpenSourcePnpmPatchForPatchPackage({
+    packageName,
+    source,
+}: {
+    packageName: string;
+    source: string;
+}): string {
+    const nodeModulesPackagePath = `node_modules/${packageName}/`;
+    return source
+        .split("\n")
+        .map(line => {
+            if (line.startsWith("diff --git a/")) {
+                return line
+                    .replace("diff --git a/", `diff --git a/${nodeModulesPackagePath}`)
+                    .replace(" b/", ` b/${nodeModulesPackagePath}`);
+            }
+            if (line.startsWith("--- a/")) {
+                return line.replace("--- a/", `--- a/${nodeModulesPackagePath}`);
+            }
+            if (line.startsWith("+++ b/")) {
+                return line.replace("+++ b/", `+++ b/${nodeModulesPackagePath}`);
+            }
+            return line;
+        })
+        .join("\n");
+}
+
+/**
+ * Uses Bazel's `zipper` executable to archive the staging directory while
+ * preserving executable file modes.
  */
 function createOpenSourceArchive({
     archivePath,

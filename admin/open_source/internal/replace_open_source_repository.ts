@@ -1,4 +1,4 @@
-/* eslint-disable cyberworlds/no-global-error -- Filesystem boundary errors retain native messages. */
+/* eslint-disable cyberworlds/no-global-error -- Filesystem errors retain the operating-system message. */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -20,7 +20,10 @@ export type OpenSourceRepositoryReplacementResult =
           preserveBackup: boolean;
       }>;
 
-/** Canonicalizes the destination before any generated file is written. */
+/**
+ * Resolves symlinks and allows only the local result, Bazel output, or an existing
+ * Git checkout.
+ */
 function resolveSafeOpenSourceOutput({
     buildOutputRootPath,
     outputRepositoryPath,
@@ -78,7 +81,8 @@ function resolveSafeOpenSourceOutput({
 }
 
 /**
- * Replaces a repository worktree and rolls back in reverse order on failure.
+ * Moves old files to the backup, moves staged files into place, and restores the
+ * old files if either move fails. The `.git` directory stays in place.
  */
 function replaceOpenSourceRepositoryContents({
     backupPath,

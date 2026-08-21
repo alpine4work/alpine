@@ -8,7 +8,6 @@ import {fileURLToPath} from "node:url";
 
 const scriptDirectoryPath = dirname(fileURLToPath(import.meta.url));
 const repositoryPath = resolve(scriptDirectoryPath, "..");
-const cliPath = join(repositoryPath, "packages/cli/dist/alpine.js");
 const cliTestAlpineApiKey = process.env.CLI_TEST_ALPINE_API_KEY;
 const githubRepository = process.env.GITHUB_REPOSITORY;
 const githubRunId = process.env.GITHUB_RUN_ID;
@@ -18,12 +17,18 @@ assert.ok(cliTestAlpineApiKey, "CLI_TEST_ALPINE_API_KEY must be set to run the C
 assert.ok(githubRepository, "GITHUB_REPOSITORY must be set to run the CLI test.");
 assert.ok(githubRunId, "GITHUB_RUN_ID must be set to run the CLI test.");
 assert.ok(githubRunAttempt, "GITHUB_RUN_ATTEMPT must be set to run the CLI test.");
+assert.ok(process.env.npm_execpath, "npm must run the CLI test.");
 
 const dataDirectoryPath = await mkdtemp(join(tmpdir(), "alpine-cli-integration-"));
 const apiDataDirectoryPath = await mkdtemp(join(tmpdir(), "alpine-cli-api-integration-"));
+const cliArchiveDirectoryPath = await mkdtemp(join(tmpdir(), "alpine-cli-archive-"));
+const cliInstallationDirectoryPath = await mkdtemp(join(tmpdir(), "alpine-cli-installation-"));
 const tracerServer = await createTracerServer();
+let cliPath;
 
 try {
+    cliPath = await installCli();
+
     // Discovery commands do not need the API, but the CLI initializes its authenticated session
     // before dispatching every command. A future expiration keeps this test fully offline.
     await writeFile(
@@ -58,38 +63,94 @@ try {
     // It refreshes the authenticated account using the real API before the first command.
     await writeFile(join(apiDataDirectoryPath, "auth.json"), "{}");
 
-    const testId = `${githubRepository} #${githubRunId}-${githubRunAttempt}`;
+    const testTitle = `${githubRunId}-${githubRunAttempt}`;
+    const testContent = `${githubRepository} #${testTitle}`;
+    const updatedTestContent = `Updated ${testContent}`;
 
     await testApiEntityLifecycle({
         type: "document",
         pathPrefix: "/document/",
-        content: `# Document ${testId}\n\nInitial document body.`,
-        old: "Initial document body.",
-        new: "Updated document body.",
+        content: `# ${testTitle}\n\n${testContent}`,
+        old: testContent,
+        new: updatedTestContent,
     });
 
     await testApiEntityLifecycle({
         type: "task",
         pathPrefix: "/task/",
-        content: `# Task ${testId}\n\n## Notes\n\nInitial task notes.`,
-        old: "Initial task notes.",
-        new: "Updated task notes.",
+        content: `# ${testTitle}\n\n## Notes\n\n${testContent}`,
+        old: testContent,
+        new: updatedTestContent,
     });
 
     await testApiEntityLifecycle({
         type: "task-collection",
         pathPrefix: "/task-collection/",
-        content: `# ${testId}`,
-        old: testId,
-        new: `Updated ${testId}`,
+        content: `# ${testTitle}`,
+        old: testTitle,
+        new: `Updated ${testTitle}`,
     });
 } finally {
     await closeTracerServer(tracerServer.server);
     await rm(dataDirectoryPath, {force: true, recursive: true});
     await rm(apiDataDirectoryPath, {force: true, recursive: true});
+    await rm(cliArchiveDirectoryPath, {force: true, recursive: true});
+    await rm(cliInstallationDirectoryPath, {force: true, recursive: true});
 }
 
-/** Runs the built executable with the isolated data directory used by this integration check. */
+/**
+ * Packs and installs the exact npm artifact that consumers receive. The install runs the CLI's
+ * postinstall hook, so this catches missing patch files and patches that fail outside a workspace.
+ */
+async function installCli() {
+    const [cliArchive] = JSON.parse(
+        await runNpm(
+            [
+                "pack",
+                "--json",
+                "--pack-destination",
+                cliArchiveDirectoryPath,
+                "--workspace",
+                "@alpine/cli",
+            ],
+            repositoryPath,
+        ),
+    );
+    const cliArchivePath = join(cliArchiveDirectoryPath, cliArchive.filename);
+
+    await writeFile(
+        join(cliInstallationDirectoryPath, "package.json"),
+        JSON.stringify({name: "alpine-cli-integration-test", private: true}),
+    );
+    await runNpm(["install", "--no-audit", "--no-fund", cliArchivePath], cliInstallationDirectoryPath);
+
+    return join(cliInstallationDirectoryPath, "node_modules/.bin/alpine");
+}
+
+/** Runs npm and includes all command output if a package lifecycle script fails. */
+async function runNpm(args, cwd) {
+    const subprocess = spawn(process.execPath, [process.env.npm_execpath, ...args], {cwd});
+    let stdout = "";
+    let stderr = "";
+    subprocess.stdout.setEncoding("utf8");
+    subprocess.stderr.setEncoding("utf8");
+    subprocess.stdout.on("data", data => {
+        stdout += data;
+    });
+    subprocess.stderr.on("data", data => {
+        stderr += data;
+    });
+
+    const exitCode = await new Promise((resolveExitCode, rejectExitCode) => {
+        subprocess.once("error", rejectExitCode);
+        subprocess.once("close", resolveExitCode);
+    });
+    assert.equal(exitCode, 0, `npm ${args[0]} failed.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
+
+    return stdout;
+}
+
+/** Runs the packed-and-installed executable with the integration check's isolated data directory. */
 async function runCli(args, {apiKey, apiUrl, baseUrl, dataDirectory} = {}) {
     const subprocess = spawn(process.execPath, [cliPath, ...args], {
         cwd: repositoryPath,

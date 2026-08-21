@@ -1,4 +1,5 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load(":open_source_configuration.bzl", "OPEN_SOURCE_ALLOWED_BAZEL_PACKAGES", "open_source_configuration")
 load(":open_source_repository.bzl", "open_source_repository")
 load("//admin/typescript:typescript.bzl", "ts_lint_and_format_test", "ts_project")
@@ -7,6 +8,7 @@ exports_files(
     [
         "open_source_configuration.bzl",
         "open_source_repository.bzl",
+        "generate_cli_patch_list.mjs",
     ],
     visibility = ["//visibility:public"],
 )
@@ -34,6 +36,32 @@ ts_lint_and_format_test(
     ),
 )
 
+# Keep the private pnpm patches out of the published source files. This checked-in YAML lists the
+# patches that the archive converts and copies into the published CLI for patch-package.
+write_source_files(
+    name = "write_open_source_cli_patch_list",
+    files = {
+        "cli_patch_list.yaml": ":open_source_cli_patch_list.generated.yaml",
+    },
+)
+
+# Generate the YAML patch list and public npm overrides from the public CLI manifest and lockfile.
+# This runs privately because it reads the private pnpm patch configuration.
+genrule(
+    name = "open_source_cli_patch_files_generated",
+    srcs = [
+        "//:open_source_cli_patch_generator_inputs",
+        "generate_cli_patch_list.mjs",
+    ],
+    outs = [
+        "open_source_cli_patch_list.generated.yaml",
+        "open_source_package.generated.json",
+    ],
+    cmd = "$(location //:node) $(location generate_cli_patch_list.mjs) --patch-list-output \"$$(pwd)/$(location :open_source_cli_patch_list.generated.yaml)\" --public-package-output \"$$(pwd)/$(location :open_source_package.generated.json)\"",
+    tools = ["//:node"],
+    visibility = ["//:__pkg__", "//admin/open_source:__pkg__"],
+)
+
 open_source_typescript_srcs = glob(
     ["**/*.ts"],
     exclude = [
@@ -55,6 +83,7 @@ ts_project(
     # repository. It is deliberately not part of this internal TypeScript project.
     srcs = open_source_typescript_srcs,
     test_srcs = open_source_typescript_test_srcs,
+    lint_and_format_srcs = open_source_typescript_srcs,
     # Fixture tests create and inspect temporary worktrees, including symlinked paths. They must
     # access those paths directly rather than through rules_js's runfiles symlink guard.
     all_tests = {"patch_node_fs": False},
@@ -62,27 +91,33 @@ ts_project(
         "//:node_modules/@types/jest",
         "//:node_modules/@types/node",
         "//:node_modules/typescript",
+        "//:node_modules/yaml",
     ],
 )
 
-# This filegroup is the source-level scheduling boundary for the public-repository CI. The
-# workflow queries it with Bazel before comparing a PR to its base, so changing a private source
-# outside this declared set cannot start the archive, test, or publish jobs.
+# The CI workflow queries this group before it compares a pull request with its base. List every
+# private input that can change the generated repository or its verification, so unrelated private
+# changes do not run the archive, test, or publish jobs.
 #
-# Keep the TypeScript sources shared with `open_source_typescript`: they implement and test the
-# archive action itself. The remaining files are Starlark or shell inputs that can change which
-# files are selected or how the generated repository is verified.
+# `open_source_typescript` compiles and tests the publisher. The remaining Starlark and shell files
+# choose public inputs or verify the generated repository.
 filegroup(
     name = "open_source_repository_ci_inputs",
     srcs = [
         ":open_source_repository_source_inputs",
+        "cli_patch_list.yaml",
+        "generate_cli_patch_list.mjs",
         "generate_open_source_package_lock.sh",
         "open_source_configuration.bzl",
         "open_source_repository.bzl",
         "open_source_repository_test.sh",
         "open_source_repository_typecheck_test.sh",
         "//admin/typescript:typescript.bzl",
+        "//admin/patches:open_source_patch_source_configuration_inputs",
+        "//:open_source_cli_patch_generator_inputs",
+        "//:open_source_cli_patch_sources",
         "//:open_source_repository_configuration_inputs",
+        "//:open_source_repository_workflow_inputs",
     ] + open_source_typescript_srcs + open_source_typescript_test_srcs,
     visibility = ["//visibility:public"],
 )
@@ -93,13 +128,13 @@ js_binary(
         ":open_source_typescript",
         ":open_source_configuration",
         "//:node_modules/typescript",
+        "//:node_modules/yaml",
     ],
     entry_point = "publish_open_source_main.js",
 )
 
-# This is intentionally a separate local command from the archive-producing action above. Bazel
-# owns the archive; the command only unpacks that verified product into the ignored result folder
-# for a developer to inspect.
+# This local command reads the ZIP from `open_source_repository` and unpacks it into the ignored
+# result directory. It does not collect or package source files again.
 js_binary(
     name = "publish_open_source_repository",
     args = ["$(rootpath :open_source_repository)"],
@@ -107,6 +142,7 @@ js_binary(
         ":open_source_repository",
         ":open_source_typescript",
         "//:node_modules/typescript",
+        "//:node_modules/yaml",
     ],
     entry_point = "publish_open_source_result_main.js",
 )
@@ -116,9 +152,8 @@ sh_binary(
     srcs = ["generate_open_source_package_lock.sh"],
 )
 
-# npm resolves the lock from the same ZIP that public CI tests and publishes. It stays local
-# because npm's registry resolution is an intentional external boundary, not a cacheable remote
-# action.
+# npm resolves the lockfile from the same ZIP that public CI tests and publishes. Bazel runs this
+# action locally because npm needs the external package registry.
 genrule(
     name = "open_source_package_lock_generated",
     srcs = [":open_source_repository"],
@@ -194,10 +229,15 @@ open_source_repository_npm_packages = [
 
 open_source_repository(
     name = "open_source_repository",
+    cli_patch_list = "cli_patch_list.yaml",
+    cli_patch_sources = "//:open_source_cli_patch_sources",
     node = "//:node",
     npm = ":npm",
     publisher = ":package_open_source_repository",
     configuration = ":open_source_configuration",
-    verification_data = open_source_repository_npm_packages,
+    verification_data = open_source_repository_npm_packages + [
+        "//:open_source_cli_patch_sources",
+        "//:node_modules/yaml",
+    ],
     verification_script = "open_source_repository_test.sh",
 )

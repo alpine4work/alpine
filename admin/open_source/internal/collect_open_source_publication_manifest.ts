@@ -1,4 +1,4 @@
-/* eslint-disable cyberworlds/no-global-error -- Collection errors describe Bazel input boundaries. */
+/* eslint-disable cyberworlds/no-global-error -- Errors name invalid or undeclared source inputs. */
 
 import * as fs from "node:fs";
 
@@ -7,22 +7,34 @@ import {
     resolveOpenSourceDeclaredImport,
 } from "~/admin/open_source/internal/open_source_source_graph.js";
 
-/** One tagged source file declared as an input to the Bazel archive action. */
+/**
+ * A tagged file Bazel passes to the archive action, with its workspace-relative
+ * path.
+ */
 export type OpenSourceDeclaredSource = Readonly<{
     inputPath: string;
     sourceRelativePath: string;
 }>;
 
 /**
- * The destination category determines whether a file is source, metadata, or a
- * replacement stub.
+ * `source` is implementation code, `repository` is root metadata, and `stub`
+ * replaces a private file at the same public path.
  */
 export type OpenSourceOutputKind = "repository" | "source" | "stub";
 
 /**
- * A single source file and the public path it creates in the generated repository.
+ * Describes how archive creation writes one declared input to the public
+ * repository.
+ */
+export type OpenSourcePublicationManifestEntryContentTransform =
+    | Readonly<{kind: "copy"}>
+    | Readonly<{kind: "patch-package"; packageName: string}>;
+
+/**
+ * A file the publisher reads and the path it writes in the generated repository.
  */
 export type OpenSourcePublicationManifestEntry = Readonly<{
+    contentTransform: OpenSourcePublicationManifestEntryContentTransform;
     inputPath: string;
     isTest: boolean;
     outputKind: OpenSourceOutputKind;
@@ -52,7 +64,10 @@ export type OpenSourceWorkspaceImportEdge = Readonly<{
 
 export type OpenSourceImportEdge = OpenSourceBareImportEdge | OpenSourceWorkspaceImportEdge;
 
-/** The complete, fixed input and output record for one archive action. */
+/**
+ * The archive's complete output-file plan and the import records used to validate
+ * it.
+ */
 export type OpenSourcePublicationManifest = Readonly<{
     entries: ReadonlyArray<OpenSourcePublicationManifestEntry>;
     importEdges: ReadonlyArray<OpenSourceImportEdge>;
@@ -70,12 +85,10 @@ const sourceRootNames = new Set(["app", "client", "native", "server", "shared", 
 const taggedPathSelectionReason = "tagged path";
 
 /**
- * Builds an immutable publication manifest from the files declared by the Bazel
- * rule.
+ * Builds an immutable publication manifest from the files that Bazel declared.
  *
- * The input list is complete by construction. This function must never inspect the
- * worktree to find another source: doing so would make the archive's cache key
- * depend on hidden state.
+ * The declared list is complete. Do not inspect the worktree for another source,
+ * because Bazel would not know that file needs to invalidate this archive.
  */
 function collectOpenSourcePublicationManifestFromDeclaredSources({
     stubDestinations,
@@ -113,6 +126,7 @@ function createOpenSourceManifestEntry({
 }): OpenSourcePublicationManifestEntry {
     const outputKind = openSourceOutputKind({reasons, sourceRelativePath});
     return {
+        contentTransform: {kind: "copy"},
         inputPath,
         isTest: isOpenSourceTestPath(sourceRelativePath),
         outputKind,
@@ -188,8 +202,8 @@ function listDeclaredManifestImportEdges({
 }
 
 /**
- * Classifies source files separately from public repository metadata in the audit
- * manifest.
+ * Marks root metadata as `repository` and implementation files as `source` in the
+ * private manifest.
  */
 function openSourceOutputKind({
     reasons,

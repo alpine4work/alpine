@@ -20,9 +20,8 @@ runfiles_path="${TEST_SRCDIR}/${TEST_WORKSPACE}"
 test_repository_path="${TEST_TMPDIR}/repository"
 mkdir -p "${test_repository_path}"
 
-# Type-check the exact public output rather than private sources. The ZIP is the product of the
-# public-source filegroup, so this test remains cacheable and catches path-rewrite mistakes that a
-# private TypeScript invocation cannot see.
+# Extract and type-check the public ZIP, not the private sources. This catches a broken rewritten
+# import path that type-checking the private tree cannot see.
 unzip -q "${archive_path}" -d "${test_repository_path}"
 ln -s "${runfiles_path}/node_modules" "${test_repository_path}/node_modules"
 "${node_path}" "${runfiles_path}/node_modules/typescript/bin/tsc" \

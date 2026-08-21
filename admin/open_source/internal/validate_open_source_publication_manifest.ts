@@ -1,4 +1,4 @@
-/* eslint-disable cyberworlds/no-global-error -- Validation errors are boundary diagnostics. */
+/* eslint-disable cyberworlds/no-global-error -- Validation errors identify forbidden paths and imports. */
 
 import * as fs from "node:fs";
 import {isBuiltin} from "node:module";
@@ -18,7 +18,7 @@ type ValidateOpenSourcePublicationManifestArguments = Readonly<{
     workspacePath?: string;
 }>;
 
-/** Validates the fixed publication manifest without selecting another file. */
+/** Validates the entries Bazel selected without scanning for any other file. */
 function validateOpenSourcePublicationManifest({
     allowedBazelPackages,
     manifest,
@@ -294,9 +294,9 @@ function bazelPackageForWorkspaceSource({
 /**
  * Finds the configured package root for a Bazel-declared public source.
  *
- * The Starlark aspect has already selected files from reviewed package roots. The
- * manifest records only paths, so this boundary check uses the same roots without
- * reopening the private worktree.
+ * The Starlark aspect already selected files from reviewed package roots. The
+ * manifest has paths but not `BUILD` files, so use the same configured roots
+ * instead of reading the private worktree again.
  */
 function bazelPackageForDeclaredSource({
     allowedBazelPackages,

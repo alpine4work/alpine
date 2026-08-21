@@ -2,12 +2,15 @@
     "name": "alpine",
     "private": true,
     "type": "module",
-    "workspaces": ["packages/cli"],
+    "workspaces": [
+        "packages/cli"
+    ],
     "scripts": {
         "build": "npm run build --workspace @alpine/cli",
+        "postinstall": "patch-package --patch-dir packages/cli/patches --error-on-fail",
         "start": "npm run start --workspace @alpine/cli --",
         "test": "node scripts/test.mjs",
-        "test:cli": "node scripts/test_cli.mjs",
+        "test:cli": "node .github/test_cli.mjs",
         "typecheck": "tsc --project tsconfig.json"
     },
     "devDependencies": {
@@ -18,5 +21,17 @@
     },
     "engines": {
         "node": ">=22"
+    },
+    "overrides": {
+        "mdast-util-from-markdown": "2.0.0",
+        "mdast-util-gfm-strikethrough": "2.0.0",
+        "mdast-util-gfm-table": "2.0.0",
+        "mdast-util-to-markdown": "2.1.2",
+        "micromark": "4.0.0",
+        "micromark-core-commonmark": "2.0.0",
+        "micromark-extension-gfm-strikethrough": "2.0.0",
+        "micromark-util-character": "2.0.1",
+        "psl": "1.9.0",
+        "tough-cookie": "4.1.3"
     }
 }

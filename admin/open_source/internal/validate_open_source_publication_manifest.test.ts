@@ -469,6 +469,7 @@ function entry(
     }: {isTest?: boolean; outputKind?: OpenSourceOutputKind} = {},
 ): OpenSourcePublicationManifestEntry {
     return {
+        contentTransform: {kind: "copy"},
         inputPath: path.resolve(inputPath),
         isTest,
         outputKind,

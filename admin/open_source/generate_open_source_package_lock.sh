@@ -14,6 +14,10 @@ public_repository_path="${temporary_directory_path}/public-repository"
 mkdir -p "${public_repository_path}"
 unzip -q "${archive_path}" -d "${public_repository_path}"
 
+# The generated public package JSON pins every version with a patch. Remove the old lockfile so npm
+# resolves those pinned versions instead of retaining compatible versions from the previous lock.
+rm "${public_repository_path}/package-lock.json"
+
 (
     cd "${public_repository_path}"
     "${npm_path}" install --package-lock-only --ignore-scripts --no-audit --no-fund
