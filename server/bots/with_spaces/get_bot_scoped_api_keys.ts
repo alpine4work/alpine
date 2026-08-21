@@ -2,7 +2,6 @@ import {BotApiKeysIndex, BotsTable} from "~/server/bots/internal/bots_table.js";
 import {ServerAuthenticatedActionContext} from "~/server/context/server_action_context.js";
 import {authorizeBotOperation} from "~/server/spaces/authorize_bot_operation.js";
 import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {ApiKey} from "~/shared/id/api_key.js";
 import {BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -36,8 +35,10 @@ export async function getBotScopedApiKeys(
 
         if (!apiKeyItem) return null;
 
-        // `space` must exist for this to be a scoped API key.
-        const space = assertExists(apiKeyItem.space);
+        // The item decides which space a key is scoped to, not the index entry that led us
+        // here. `BotApiKeysIndex` is a GSI, so its sort key can lag a re-scope.
+        const {space} = apiKeyItem;
+        if (space === null || apiKeyItem.spaceId !== spaceId) return null;
 
         return {
             name: apiKeyItem.name,

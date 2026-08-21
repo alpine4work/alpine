@@ -1,7 +1,6 @@
 import {BotApiKeysIndex, BotsTable} from "~/server/bots/internal/bots_table.js";
 import {ServerAuthenticatedActionContext} from "~/server/context/server_action_context.js";
 import {authorizeBotOperation} from "~/server/spaces/authorize_bot_operation.js";
-import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {ApiKey} from "~/shared/id/api_key.js";
 import {BotId} from "~/shared/id/types/id_types.open_source.js";
@@ -34,8 +33,11 @@ export async function getBotUnscopedApiKeys(
 
         if (!apiKeyItem) return null;
 
-        // Unscoped keys should not have a space
-        assert(apiKeyItem.space === null);
+        // The item decides whether a key is unscoped, not the index entry that led us
+        // here. `BotApiKeysIndex` is a GSI, so its sort key can lag a re-scope, and keys
+        // written before the index's `spaceId` sort key was populated correctly still read
+        // back as unscoped.
+        if (apiKeyItem.space !== null) return null;
 
         return {
             name: apiKeyItem.name,
