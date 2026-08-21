@@ -1,4 +1,4 @@
-import {getBotIfExists} from "~/server/bots/get_bot.js";
+import {dangerouslyGetBotIfExistsWithoutAuthorization} from "~/server/bots/dangerously_get_bot_without_authorization.js";
 import {
     chatGptKnownBotId,
     cursorKnownBotId,
@@ -6,7 +6,7 @@ import {
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {internalDangerouslyCreateChannelTransactionEntries} from "~/server/forum/data/internal_dangerously_create_channel_transaction_entries.js";
-import {internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries} from "~/server/spaces/instantiate_bot_space_account.js";
+import {internalDangerouslyCreateInstallBotInSpaceTransactionEntries} from "~/server/spaces/install_bot_in_space.js";
 import {SpaceWelcomePackageItem, SpacesTable} from "~/server/spaces/internal/spaces_table.js";
 import {createSimpleMessageContent} from "~/shared/content/message_content_schema.js";
 import {Context} from "~/shared/context/context.js";
@@ -77,8 +77,8 @@ export async function createSpaceWelcomePackageTransactionEntries(
             // If the known bots exist in our test environment, use them! For example, they'll
             // exist in `auth_screenshot_test.ts`.
             const [chatGptKnownBot, cursorKnownBot] = await runAllPromises([
-                getBotIfExists(context, chatGptKnownBotId),
-                getBotIfExists(context, cursorKnownBotId),
+                dangerouslyGetBotIfExistsWithoutAuthorization(context, chatGptKnownBotId),
+                dangerouslyGetBotIfExistsWithoutAuthorization(context, cursorKnownBotId),
             ]);
 
             chatGptBotId = chatGptBotIdForTest ?? (chatGptKnownBot ? chatGptKnownBotId : null);
@@ -93,7 +93,7 @@ export async function createSpaceWelcomePackageTransactionEntries(
         chatGptBotAccountId = generateId<AccountId>();
 
         transactionEntries.push(
-            await internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries(context, {
+            await internalDangerouslyCreateInstallBotInSpaceTransactionEntries(context, {
                 currentTime,
                 spaceId,
                 botId: chatGptBotId,
@@ -108,7 +108,7 @@ export async function createSpaceWelcomePackageTransactionEntries(
         cursorBotAccountId = generateId<AccountId>();
 
         transactionEntries.push(
-            await internalDangerouslyCreateInstantiateBotSpaceAccountTransactionEntries(context, {
+            await internalDangerouslyCreateInstallBotInSpaceTransactionEntries(context, {
                 currentTime,
                 spaceId,
                 botId: cursorBotId,

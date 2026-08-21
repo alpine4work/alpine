@@ -113,6 +113,7 @@ import {
     withIndexSearchEntityEmbeddingChunksJobLock,
 } from "~/server/search/data/table/search_entity_actions.js";
 import {getSitePreviewIfPossible} from "~/server/sites/data/get_site_preview.js";
+import {hasBotOperationAccess} from "~/server/spaces/authorize_bot_operation.js";
 import {authorizeNotBotSpaceAccount} from "~/server/spaces/authorize_not_bot_space_account.js";
 import {
     authorizeSpaceAccess,
@@ -128,7 +129,6 @@ import {isBotSpaceAccount} from "~/server/spaces/is_bot_space_account.js";
 import {spaceWelcomePackageSearchEntityMaxCount} from "~/server/spaces/space_welcome_package_search_entity_max_count.js";
 import {getTaskCollectionSearchResultBodyTextSnippetIfPossible} from "~/server/tasks/data/get_task_collection_search_result_body_text_snippet_if_possible.js";
 import {getTaskCollectionSearchResultIfPossible} from "~/server/tasks/data/get_task_collection_search_result_if_possible.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
     type AccessPolicy,
     AccessPolicyAccountGrantWithoutGeneration,
@@ -137,6 +137,7 @@ import {
     type EffectiveAccessPolicy,
 } from "~/shared/access/access_policy.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {getContentReferencedIdsForNode} from "~/shared/content/content_referenced_ids.js";
 import {
     ContentReferencesSearchEntity,
@@ -1532,7 +1533,7 @@ export async function searchByKeywords(
         timeZone: TimeZone;
         currentTime: Date;
         debugOptions?: SearchOptions;
-        botScope?: BotTokenPayloadScope;
+        botScope?: BotTokenScope;
     },
 ): Promise<Array<SearchEntityResultModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1953,7 +1954,7 @@ export async function searchByKeywords(
     });
 
     const results = await runAllPromises(
-        hits.map(async (hit): Promise<SearchEntityResultModel> => {
+        hits.map(async (hit): Promise<SearchEntityResultModel | null> => {
             const entityId = fromSearchEntityIdForKeywordIndex(hit.id);
 
             // IMPORTANT: OpenSearch doesn't contain the source of truth for entity
@@ -2041,7 +2042,13 @@ export async function searchByKeywords(
                 // account media object.
                 assert(hitMedia?.type === "Account");
 
-                model = await getAccount(context, spaceId, hitMedia.accountId);
+                const account = await getSearchAccountIfPossible(
+                    context,
+                    spaceId,
+                    hitMedia.accountId,
+                );
+                if (!account) return null;
+                model = account;
             } else {
                 model = await prepareSearchEntityForResult(context, spaceId, entityId, {
                     title: hit.fields.title?.[0] ?? null,
@@ -2066,7 +2073,7 @@ export async function searchByKeywords(
         }),
     );
 
-    return results;
+    return results.filter(isNonNullable);
 }
 
 /**
@@ -2507,7 +2514,13 @@ export async function searchBySemantics(
                 // account media object.
                 assert(hitMedia?.type === "Account");
 
-                model = await getAccount(context, spaceId, hitMedia.accountId);
+                const account = await getSearchAccountIfPossible(
+                    context,
+                    spaceId,
+                    hitMedia.accountId,
+                );
+                if (!account) return null;
+                model = account;
             } else {
                 model = await prepareSearchEntityForResult(context, spaceId, entityId, {
                     title: hit.fields["entity.title"]?.[0] ?? null,
@@ -3449,6 +3462,20 @@ async function fallbackGetSearchContentReferencesForPostTitle(
  * exists and the account has access to the search entity. The media will be
  * returned as `SearchChatEntityMediaModel` to be `SearchEntityModel` ready.
  */
+async function getSearchAccountIfPossible(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+    accountId: AccountId,
+    options?: {consistency?: DynamoCacheReadConsistency},
+): Promise<AccountModel | null> {
+    const account = await getAccountIfExists(context, spaceId, accountId, options);
+    if (!account?.botId) return account;
+
+    return (await hasBotOperationAccess(context, account.botId, {type: "View"}, options))
+        ? account
+        : null;
+}
+
 async function getSearchEntityBaseIfPossible(
     context: ServerActionContext,
     spaceId: SpaceId,
@@ -3480,9 +3507,10 @@ async function getSearchEntityBaseIfPossible(
                 const accountId = entityId.slice(8);
                 assert(isId<AccountId>(accountId));
 
-                const account = await getAccount(context, spaceId, accountId, {
+                const account = await getSearchAccountIfPossible(context, spaceId, accountId, {
                     consistency: "Strong",
                 });
+                if (!account) return {isPrivate: true};
 
                 return {
                     isPrivate: false,
@@ -3625,7 +3653,8 @@ async function getSearchEntityBaseIfPossible(
 
     const idObject = parseSearchDynamicEntityId(entityId);
     if (idObject.type === "Account") {
-        const account = await getAccount(context, spaceId, idObject.accountId);
+        const account = await getSearchAccountIfPossible(context, spaceId, idObject.accountId);
+        if (!account) return {isPrivate: true};
         return {
             type: "Account",
             isPrivate: false,

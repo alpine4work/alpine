@@ -14,7 +14,7 @@ export function createApiAccountMock({id, name, botId}: ApiAccountMockOptions): 
     const account = createTestAccountModel({
         id,
         name,
-        botId,
+        bot: botId !== undefined ? {id: botId, owner: {type: "System"}} : undefined,
     });
     return intoApiAccount(omitObject(account.initialData, ["avatar"]));
 }

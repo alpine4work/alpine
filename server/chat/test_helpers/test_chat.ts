@@ -29,8 +29,8 @@ import {
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {CreateOrUpdateAccessPolicy} from "~/shared/access/model/create_or_update_access_policy_schema.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {FileEntityId} from "~/shared/files/file_entity_id.js";
@@ -148,7 +148,7 @@ export class TestChat extends TestMessageRoomBase {
         return this.id;
     }
 
-    public override getBotScope(): BotTokenPayloadScope {
+    public override getBotScope(): BotTokenScope {
         return {type: "Chat", chatId: this.id};
     }
 

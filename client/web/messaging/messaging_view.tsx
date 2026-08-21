@@ -214,6 +214,8 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         header,
         randomSeedForShimmer,
         isMessageCreationDisabled,
+        isMessageInputDisabled,
+        messageInputDisabledMessage,
         fileAttachmentTarget,
         withAttachFileBeforeCreateMessage,
         accessPolicy,
@@ -301,6 +303,12 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
          * this prop switches to true the user can send the message they typed.
          */
         isMessageCreationDisabled?: boolean;
+
+        /** Disable all interaction with the message input. */
+        isMessageInputDisabled?: boolean;
+
+        /** Explanation rendered immediately above a disabled message input. */
+        messageInputDisabledMessage?: ReactNode;
 
         /**
          * Target which files in this messaging room are attached to.
@@ -606,11 +614,11 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             setScrollOffset: scrollOffset =>
                 assertExists(viewRef.current).setScrollOffset(scrollOffset),
             focusInput: () => {
-                if (isReadOnly) return;
+                if (isReadOnly || isMessageInputDisabled) return;
                 assertExists(inputRef.current).focus();
             },
         }),
-        [jumpToMessageRange, isReadOnly],
+        [isMessageInputDisabled, jumpToMessageRange, isReadOnly],
     );
 
     useMessagingRealtime({
@@ -814,57 +822,82 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                     scrollbarInsetTop={scrollbarInsetTop}
                 />
                 {!isReadOnly && (
-                    <MessageInput
-                        ref={inputRef}
-                        data-testid="MessageInput"
-                        messageNoun={messageNoun}
-                        messages={state.messages}
-                        isMessageCreationDisabled={isMessageCreationDisabled}
-                        onUpdateMessages={setMessages}
-                        createMessage={async input => {
-                            await createMessage({
-                                ...input,
-                                createdTimeZone: getClientInfo().timeZone,
-                                dangerousCurrentlyViewingSearchEntityId:
-                                    dangerousCurrentlyViewingSearchEntityId ?? undefined,
-                            });
-                        }}
-                        fileAttachmentTarget={fileAttachmentTarget}
-                        withAttachFileBeforeCreateMessage={withAttachFileBeforeCreateMessage}
-                        messageEditing={messageEditing}
-                        parent={inputParent}
-                        onParentClear={() => setInputParent(null)}
-                        onParentChange={setInputParent}
-                        onJumpToMessageRange={jumpToMessageRange}
-                        onDeleteMessage={async messageIndex => {
-                            await deleteMessage({messageIndex});
-                        }}
-                        onShowTypingIndicator={() => {
-                            startTypingInMessageInput({})
-                                // Don't show an error updating typing indicators to the user. We will see an error
-                                // in our logs but the user won't see any weird behavior if the request fails.
-                                .catch(error =>
-                                    reporter.logErrorWithoutDisplaying(
-                                        "Couldn\u2019t update typing indicator",
-                                        error,
-                                    ),
-                                );
-                        }}
-                        onHideTypingIndicator={() => {
-                            stopTypingInMessageInput({})
-                                // Don't show an error updating typing indicators to the user. We will see an error
-                                // in our logs but the user won't see any weird behavior if the request fails.
-                                .catch(error =>
-                                    reporter.logErrorWithoutDisplaying(
-                                        "Couldn\u2019t update typing indicator",
-                                        error,
-                                    ),
-                                );
-                        }}
-                        restoreStateRef={inputRestoreStateRef}
-                        messageDraftSurface={messageDraftSurface}
-                        messageDraft={messageDraft}
-                    />
+                    <>
+                        {messageInputDisabledMessage && (
+                            <div
+                                data-testid="MessageInputDisabledMessage"
+                                className={sprinkles({
+                                    paddingX: "4",
+                                    paddingY: "2",
+                                    color: "grey-70",
+                                    fontSize: "75",
+                                    textAlign: "center",
+                                })}
+                            >
+                                {messageInputDisabledMessage}
+                            </div>
+                        )}
+                        <div
+                            inert={isMessageInputDisabled ? true : undefined}
+                            aria-disabled={isMessageInputDisabled || undefined}
+                            className={sprinkles({flexShrink: "0"})}
+                            style={isMessageInputDisabled ? {opacity: 0.6} : undefined}
+                        >
+                            <MessageInput
+                                ref={inputRef}
+                                data-testid="MessageInput"
+                                messageNoun={messageNoun}
+                                messages={state.messages}
+                                isMessageCreationDisabled={isMessageCreationDisabled}
+                                onUpdateMessages={setMessages}
+                                createMessage={async input => {
+                                    await createMessage({
+                                        ...input,
+                                        createdTimeZone: getClientInfo().timeZone,
+                                        dangerousCurrentlyViewingSearchEntityId:
+                                            dangerousCurrentlyViewingSearchEntityId ?? undefined,
+                                    });
+                                }}
+                                fileAttachmentTarget={fileAttachmentTarget}
+                                withAttachFileBeforeCreateMessage={
+                                    withAttachFileBeforeCreateMessage
+                                }
+                                messageEditing={messageEditing}
+                                parent={inputParent}
+                                onParentClear={() => setInputParent(null)}
+                                onParentChange={setInputParent}
+                                onJumpToMessageRange={jumpToMessageRange}
+                                onDeleteMessage={async messageIndex => {
+                                    await deleteMessage({messageIndex});
+                                }}
+                                onShowTypingIndicator={() => {
+                                    startTypingInMessageInput({})
+                                        // Don't show an error updating typing indicators to the user. We will see an error
+                                        // in our logs but the user won't see any weird behavior if the request fails.
+                                        .catch(error =>
+                                            reporter.logErrorWithoutDisplaying(
+                                                "Couldn\u2019t update typing indicator",
+                                                error,
+                                            ),
+                                        );
+                                }}
+                                onHideTypingIndicator={() => {
+                                    stopTypingInMessageInput({})
+                                        // Don't show an error updating typing indicators to the user. We will see an error
+                                        // in our logs but the user won't see any weird behavior if the request fails.
+                                        .catch(error =>
+                                            reporter.logErrorWithoutDisplaying(
+                                                "Couldn\u2019t update typing indicator",
+                                                error,
+                                            ),
+                                        );
+                                }}
+                                restoreStateRef={inputRestoreStateRef}
+                                messageDraftSurface={messageDraftSurface}
+                                messageDraft={messageDraft}
+                            />
+                        </div>
+                    </>
                 )}
             </div>
         </>

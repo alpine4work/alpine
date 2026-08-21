@@ -13,6 +13,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//shared/bots/owners",
         "//:node_modules/date-fns",
         "//server/context",
         "//server/dynamo/core",

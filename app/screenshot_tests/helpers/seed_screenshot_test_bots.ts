@@ -2,8 +2,8 @@ import {uploadDemoSpaceBotAvatar} from "~/admin/environment/demo_space/upload_de
 import {TestServices} from "~/admin/environment/test/integration/with_integration_test_environment.js";
 import {TestActualContext} from "~/admin/environment/test/unit/with_unit_test_environment.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
-import {getBotWithAvatarIfExists} from "~/server/bots/get_bot_with_avatar.js";
-import {seedTestBots} from "~/server/bots/seed_test_bots.js";
+import {dangerouslyGetBotWithAvatarWithoutAuthorizationIfExists} from "~/server/bots/dangerously_get_bot_with_avatar_without_authorization.js";
+import {seedTestBots} from "~/server/bots/test_helpers/seed_test_bots.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -17,11 +17,20 @@ export async function seedScreenshotTestBots(context: TestActualContext, service
     // If all the bots and their avatars already exist, we don't need to seed them
     // again. This performance optimization is meaningful since avatar upload can be
     // slow.
+    const cacheContext = context.withCache();
     if (
-        (await getBotWithAvatarIfExists(context, chatGptBotId))?.avatar &&
-        (await getBotWithAvatarIfExists(context, claudeBotId))?.avatar &&
-        (await getBotWithAvatarIfExists(context, cursorBotId))?.avatar &&
-        (await getBotWithAvatarIfExists(context, mockChatGptBotId))?.avatar
+        (await dangerouslyGetBotWithAvatarWithoutAuthorizationIfExists(cacheContext, chatGptBotId))
+            ?.avatar &&
+        (await dangerouslyGetBotWithAvatarWithoutAuthorizationIfExists(cacheContext, claudeBotId))
+            ?.avatar &&
+        (await dangerouslyGetBotWithAvatarWithoutAuthorizationIfExists(cacheContext, cursorBotId))
+            ?.avatar &&
+        (
+            await dangerouslyGetBotWithAvatarWithoutAuthorizationIfExists(
+                cacheContext,
+                mockChatGptBotId,
+            )
+        )?.avatar
     ) {
         return;
     }
@@ -32,7 +41,7 @@ export async function seedScreenshotTestBots(context: TestActualContext, service
     const internalSession = await TestSession.create(internalAccount);
 
     // Seed our bots in the database so they can show up in screenshots.
-    await seedTestBots(context, {
+    await seedTestBots(cacheContext, {
         agentServiceLocalPort: services.getAgentServicePort(),
         mockChatGptLocalUnscopedApiKey: await services.getMockChatGptLocalUnscopedApiKey(),
 

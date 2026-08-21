@@ -53,7 +53,7 @@ export function SpaceInviteContent({
                 account =>
                     (account.space.state.type === "Active" ||
                         account.space.state.type === "InvitePending") &&
-                    !account.botId,
+                    !account.bot,
             )
             .sort((account1, account2) => {
                 const isAccount1InvitePending = account1.space.state.type === "InvitePending";

@@ -3,14 +3,13 @@ import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {isBotSpaceSettingsPropertyValueEmptySecret} from "~/server/bots/internal/is_bot_space_settings_property_value_empty_secret.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
-import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
+import {
+    authorizeBotOperation,
+    hasBotOperationAccess,
+} from "~/server/spaces/authorize_bot_operation.js";
+import {getSpaceAccountBotIdIfExistsWithoutAuthorization} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentWithReferences} from "~/shared/content/simple_content_schema.js";
-import {PermissionDeniedError} from "~/shared/error/error.open_source.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -38,26 +37,17 @@ export async function getBotSpaceAndSpaceAccountSettingsValues(
     spaceValues: ReadonlyMap<string, SchemaSerializedValue>;
     spaceSecretPropertyKeysWithValues: Set<string>;
 }> {
-    const [
-        ,
-        ,
-        isSpaceAccount,
-        hasAdminAccess,
-        actorBotId,
-        settings,
-        spaceSettingsItem,
-        accountSettingsItem,
-    ] = await runAllPromises([
-        authorizeSpaceAccess(context, spaceId),
-        // Bots are allowed to read the bot settings for all accounts. In Alpine you can
-        // only read your own bot settings but the third-party bot creator can decide a
-        // different permissions scheme.
-        context.actor.type !== "Bot" ? authorizeOwnSpaceAccountAccess(context, accountId) : null,
-        isAccountMemberOfSpace(context, spaceId, accountId),
-        isAccountMemberOfSpace(context, spaceId, context.actor.getPossiblyBotAccountId(), "Admin"),
-        context.actor.type === "Bot"
-            ? getSpaceAccountBotIdIfExists(context, spaceId, context.actor.getBotAccountId())
-            : null,
+    await runAllPromises([
+        authorizeBotOperation(context, botId, {type: "ViewSpaceSettings", spaceId}, {consistency}),
+        authorizeBotOperation(
+            context,
+            botId,
+            {type: "ViewSpaceSettingsForActor", spaceId, accountId},
+            {consistency},
+        ),
+    ]);
+
+    const [settings, spaceSettingsItem, accountSettingsItem, actorBotId] = await runAllPromises([
         getBotSettingsSchema(context, botId, {consistency}),
         BotsTable.getItemIfExists(
             context,
@@ -80,19 +70,17 @@ export async function getBotSpaceAndSpaceAccountSettingsValues(
             },
             {consistency},
         ),
+
+        // Bots may read their own secret space settings even though they can't manage
+        // them. Resolve the acting bot id up front so we can check that case below.
+        context.actor.type === "Bot"
+            ? getSpaceAccountBotIdIfExistsWithoutAuthorization(
+                  context,
+                  spaceId,
+                  context.actor.getBotAccountId(),
+              )
+            : null,
     ]);
-
-    if (!isSpaceAccount) {
-        throw new PermissionDeniedError("Account is not a member of the space", {
-            displayMessage: errorDisplayMessage`Account is not a member of the space.`,
-        });
-    }
-
-    if (context.actor.type === "Bot" && actorBotId !== botId) {
-        throw new PermissionDeniedError("Bot can only access account settings for its own bot", {
-            displayMessage: errorDisplayMessage`Bot can only access account settings for its own bot.`,
-        });
-    }
 
     const spaceValues = new Map<string, SchemaSerializedValue>();
     const spaceSecretPropertyKeysWithValues = new Set<string>();
@@ -146,7 +134,18 @@ export async function getBotSpaceAndSpaceAccountSettingsValues(
         }
     }
 
-    if (hasAdminAccess || (context.actor.type === "Bot" && actorBotId === botId)) {
+    // Admins who can manage space settings see all values. A bot reading its own
+    // settings can also see secrets even though `ManageSpaceSettings` is intentionally
+    // not granted to bot actors.
+    if (
+        actorBotId === botId ||
+        (await hasBotOperationAccess(
+            context,
+            botId,
+            {type: "ManageSpaceSettings", spaceId},
+            {consistency},
+        ))
+    ) {
         return {
             ...settings,
             spaceValuesVersion: spaceSettingsItem?.updateLockVersion ?? 0,

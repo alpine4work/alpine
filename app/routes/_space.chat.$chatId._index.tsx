@@ -17,6 +17,7 @@ import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_s
 import {useSearchAffinityViewEntityInteraction} from "~/client/web/search/use_search_affinity_view_entity_interaction.js";
 import {useSpaceContext} from "~/client/web/spaces/context/space_context.js";
 import {contentStyles} from "~/client/web/styles/styles.js";
+import {getDirectChatBotMessagingDisabledReason} from "~/server/bots/with_spaces/get_direct_chat_bot_messaging_disabled_reason.js";
 import {authorizeChatAccess} from "~/server/chat/data/authorize_chat_access.js";
 import {createRoomChat} from "~/server/chat/data/create_room_chat.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/get_chat_and_initial_messages.js";
@@ -27,6 +28,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {isSearchFavoriteEntity} from "~/server/search/data/table/search_entity_actions.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {ChatMessagingDisabledReasonSchema} from "~/shared/chat/chat_messaging_disabled_reason.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {joinPrettyConjunctionList} from "~/shared/design/join_pretty_conjunction_list.open_source.js";
 import {createRynamoItemSchema} from "~/shared/dynamo/rynamo_types.js";
@@ -56,6 +58,7 @@ const LoaderSchema = Schema.object({
     inboxEntry: createRynamoItemSchema(InboxEntryModelSchema).nullable(),
     isFavorite: Schema.boolean,
     messageDraft: MessageDraftWithFilesSchema,
+    messagingDisabledReason: ChatMessagingDisabledReasonSchema.nullable(),
 });
 
 function parseChatCreateSearchParam(createSearchParam: string): {
@@ -140,6 +143,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
             inboxEntry,
             isFavorite,
             messageDraft,
+            messagingDisabledReason,
         ],
         siteLoaderData,
     } = await loadWithSpaceAndSiteDiscovery(context, {
@@ -207,6 +211,14 @@ export async function loader({context: unauthenticatedContext, request, params}:
                           })
                         : emptyMessageDraftWithFiles,
                 ),
+                chatPromiseResolver.promise.then(chat =>
+                    context.actor.type === "Session"
+                        ? getDirectChatBotMessagingDisabledReason(
+                              context.actor.authorizeSession(),
+                              chat,
+                          )
+                        : null,
+                ),
             ]);
         },
         load2: async () => {},
@@ -224,6 +236,7 @@ export async function loader({context: unauthenticatedContext, request, params}:
             inboxEntry,
             isFavorite,
             messageDraft,
+            messagingDisabledReason,
         },
         {siteLoaderData},
     );
@@ -311,6 +324,7 @@ function ChatRouteInner() {
         inboxEntry,
         isFavorite,
         messageDraft,
+        messagingDisabledReason,
     } = useLoaderDataWithSchema(LoaderSchema);
 
     const {currentAccount} = useSpaceContext();
@@ -382,6 +396,7 @@ function ChatRouteInner() {
                 initialScrollToMessageIndex={messageIndex}
                 initialIsFavorite={isFavorite}
                 initiallyFocus={initiallyFocus}
+                messagingDisabledReason={messagingDisabledReason}
             />
         </Box>
     );

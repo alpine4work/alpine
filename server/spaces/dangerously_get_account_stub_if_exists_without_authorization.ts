@@ -76,7 +76,7 @@ export async function dangerouslyGetAccountStubIfExistsWithoutAuthorization(
         version: accountData.version + smiMinValue,
         name: accountData.name,
         nameVersion: accountData.nameVersion + smiMinValue,
-        botId: accountData.botId,
+        bot: accountData.bot,
         // The account's reaction character is available publicly via entities shared by
         // URL when there's no avatar set. Since the character is used to determine the
         // avatar.

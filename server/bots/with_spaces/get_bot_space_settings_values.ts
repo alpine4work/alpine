@@ -3,9 +3,11 @@ import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {isBotSpaceSettingsPropertyValueEmptySecret} from "~/server/bots/internal/is_bot_space_settings_property_value_empty_secret.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
-import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
-import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
+import {
+    authorizeBotOperation,
+    hasBotOperationAccess,
+} from "~/server/spaces/authorize_bot_operation.js";
+import {getSpaceAccountBotIdIfExistsWithoutAuthorization} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {BotSettingsSchema} from "~/shared/bots/bot_settings_schema.js";
 import {SimpleContentWithReferences} from "~/shared/content/simple_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -37,14 +39,8 @@ export async function getBotSpaceSettingsValues(
     values: ReadonlyMap<string, SchemaSerializedValue>;
     secretPropertyKeysWithValues: Set<string>;
 }> {
-    const [, hasAdminAccess, actorBotId, settings, spaceSettingsItem] = await runAllPromises([
-        // These three requests should all check the same cache and so should only make ~1
-        // database request for the account data.
-        authorizeSpaceAccess(context, spaceId),
-        isAccountMemberOfSpace(context, spaceId, context.actor.getPossiblyBotAccountId(), "Admin"),
-        context.actor.type === "Bot"
-            ? getSpaceAccountBotIdIfExists(context, spaceId, context.actor.getBotAccountId())
-            : null,
+    const [, settings, spaceSettingsItem, actorBotId] = await runAllPromises([
+        authorizeBotOperation(context, botId, {type: "ViewSpaceSettings", spaceId}, {consistency}),
 
         getBotSettingsSchema(context, botId, {consistency}),
 
@@ -58,6 +54,16 @@ export async function getBotSpaceSettingsValues(
             },
             {consistency},
         ),
+
+        // Bots may read their own secret space settings even though they can't manage
+        // them. Resolve the acting bot id up front so we can check that case below.
+        context.actor.type === "Bot"
+            ? getSpaceAccountBotIdIfExistsWithoutAuthorization(
+                  context,
+                  spaceId,
+                  context.actor.getBotAccountId(),
+              )
+            : null,
     ]);
 
     const values = new Map<string, SchemaSerializedValue>();
@@ -90,7 +96,18 @@ export async function getBotSpaceSettingsValues(
         }
     }
 
-    if (hasAdminAccess || (context.actor.type === "Bot" && actorBotId === botId)) {
+    // Admins who can manage space settings see all values. A bot reading its own
+    // settings can also see secrets even though `ManageSpaceSettings` is intentionally
+    // not granted to bot actors.
+    if (
+        actorBotId === botId ||
+        (await hasBotOperationAccess(
+            context,
+            botId,
+            {type: "ManageSpaceSettings", spaceId},
+            {consistency},
+        ))
+    ) {
         return {
             ...settings,
             valuesVersion: spaceSettingsItem?.updateLockVersion ?? 0,

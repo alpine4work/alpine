@@ -1,6 +1,8 @@
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {attachFileFromAttachment} from "~/server/files/data/files_actions.js";
+import {hasBotOperationAccess} from "~/server/spaces/authorize_bot_operation.js";
+import {getSpaceAccountBotIdIfExistsWithoutAuthorization} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {FileTaskAuthorizer} from "~/server/tasks/data/authorization/file_task_authorizer.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {
@@ -26,6 +28,7 @@ import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.open_
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.open_source.js";
 import {FileId, SpaceId, TaskId} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {assertTaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 /**
@@ -182,6 +185,11 @@ export function duplicateTaskAndAllChildren(
                     parentTaskId,
                     withTitleUpdate: !parentTaskId,
                     variableValues: !parentTaskId ? variableValues : undefined,
+                    withAssignee: await canDuplicateKeepAssignee(
+                        context,
+                        taskItem.spaceId,
+                        currentTask,
+                    ),
                 },
             );
 
@@ -240,6 +248,11 @@ export function duplicateTaskAndAllChildren(
                                 actionTime,
                                 creatorTimeZone: timeZone,
                                 parentTaskId: newCurrentTaskId,
+                                withAssignee: await canDuplicateKeepAssignee(
+                                    context,
+                                    taskItem.spaceId,
+                                    childTask.task,
+                                ),
                             });
 
                         actions.push(...newActions);
@@ -327,4 +340,28 @@ export function duplicateTaskAndAllChildren(
             spaceId: taskItem.spaceId,
         };
     });
+}
+
+/**
+ * May the duplicate keep the source task's assignee?
+ *
+ * Bots are only assignable by actors who may view them, so a bot assignee the
+ * actor can't view is left off the duplicate.
+ */
+async function canDuplicateKeepAssignee(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+    task: TaskModel,
+): Promise<boolean> {
+    const assignee = task.getAssignee();
+    if (!assignee) return true;
+
+    const botId = await getSpaceAccountBotIdIfExistsWithoutAuthorization(
+        context,
+        spaceId,
+        assignee.assignee.accountId,
+    );
+    if (botId === null) return true;
+
+    return await hasBotOperationAccess(context, botId, {type: "View"});
 }

@@ -140,7 +140,7 @@ test("transient errors do not poison the cache", async () => {
                 throw new InternalError("Transient session lookup error");
             }
 
-            return getItemIfExists(...args);
+            return await getItemIfExists(...args);
         });
 
     try {

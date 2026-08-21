@@ -15,7 +15,7 @@ import {
     addSearchAffinityEntityPointsForTest,
     favoriteSearchEntity,
 } from "~/server/search/data/table/search_entity_actions.js";
-import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
+import {installBotInSpace} from "~/server/spaces/install_bot_in_space.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {updateSpaceAccountSettings} from "~/server/spaces/update_space_account_settings.js";
@@ -154,11 +154,11 @@ export async function run(context: TestActualContext, runner: ScreenshotTestRunn
     });
 
     await runAllPromises([
-        instantiateBotSpaceAccount(session.action(), {
+        installBotInSpace(session.action(), {
             spaceId: session.space.id,
             botId: chatGptKnownBotId,
         }),
-        instantiateBotSpaceAccount(session.action(), {
+        installBotInSpace(session.action(), {
             spaceId: session.space.id,
             botId: cursorKnownBotId,
         }),
@@ -431,6 +431,9 @@ tincidunt. Proin vulputate volutpat enim quis gravida. Integer nec nulla lorem.
             });
 
             return {path: `/channel/${channel.id}/files`};
+        },
+        "routes/_space.bot.new.$spaceId": async () => {
+            return {path: `/bot/new/${space.id}`};
         },
         "routes/_space.channel.new.$spaceId": async () => {
             return {path: `/channel/new/${space.id}`};
@@ -1263,6 +1266,8 @@ maximus volutpat ullamcorper.
     assert(screenshotEntries[0]![0] === "routes/_space.inbox.$spaceId");
 
     for (const [name, setup] of screenshotEntries) {
+        if (name !== "routes/_space.settings.$spaceId.bots._index") continue;
+
         assert(name.startsWith("routes/_space."));
 
         const screenshotName = convertToUrlPathnameSlug(

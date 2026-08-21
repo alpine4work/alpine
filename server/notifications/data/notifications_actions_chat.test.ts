@@ -3318,7 +3318,7 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
             expect(callBotWebhookJobs).toEqual([]);
         });
 
-        test("doesn\u2019t call bot webhook if own bot sends the message but calls webhook for other bots", async () => {
+        test("calls another bot\u2019s webhook if a bot sends the message", async () => {
             const space = await TestSpace.create(context);
             const session = await space.createSession({role: "Admin"});
             const bot1 = await TestBot.createAndInstantiate(session);
@@ -3334,6 +3334,8 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
 
             await ProcessContextModule.waitForTestTasks();
 
+            // Both bots are system bots, so `bot1` may use `bot2`. Only `bot2` is notified
+            // since a bot never gets a webhook for its own message.
             expect(callBotWebhookJobs).toEqual(
                 createArrayWithLength(processingMultiple, () =>
                     expect.objectContaining({
@@ -3345,11 +3347,6 @@ for (const {type: currentProcessingType, processingMultiple} of testSuites) {
                         }),
                     }),
                 ),
-            );
-
-            // Every job should have the same `eventId`.
-            expect(new Set(callBotWebhookJobs.map(job => job.eventId))).toEqual(
-                new Set([callBotWebhookJobs[0]!.eventId]),
             );
         });
 

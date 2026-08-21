@@ -36,9 +36,9 @@ import {
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {MessageContent} from "~/shared/content/message_content_schema.js";
 import {RynamoItem} from "~/shared/dynamo/rynamo_types.js";
 import {UnimplementedError} from "~/shared/error/error.open_source.js";
@@ -235,7 +235,7 @@ export class TestPost extends TestCommentRoomBase {
         return this.id;
     }
 
-    public override getBotScope(): BotTokenPayloadScope {
+    public override getBotScope(): BotTokenScope {
         return {type: "Post", postId: this.id};
     }
 

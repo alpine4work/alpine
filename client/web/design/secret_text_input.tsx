@@ -100,8 +100,6 @@ export const SecretTextInputWithoutLabel = forwardRef(function SecretTextInputWi
                 // Make sure the secret content doesn't overlap with the reveal icon button.
                 paddingRight={isRevealButtonVisible ? revealButtonContainerWidth : undefined}
                 inputMode={isRevealed ? "text" : "password"}
-                // Disable autocomplete entirely for secret inputs.
-                autoComplete="off"
             />
             {isRevealButtonVisible && (
                 <Box

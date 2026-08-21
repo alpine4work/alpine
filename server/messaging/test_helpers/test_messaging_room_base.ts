@@ -17,9 +17,9 @@ import {
 } from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {fromApiContent} from "~/shared/api/content/closed_source/from_api_content.js";
 import {parseApiContentFromMarkdown} from "~/shared/api/content/parse_api_content_from_markdown.open_source.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
@@ -69,7 +69,7 @@ export abstract class TestMessagingRoomBase {
      * All messaging rooms must also have valid bot scopes. Since you should be able to
      * send/receive messages as a bot scoped to that room.
      */
-    public abstract getBotScope(): BotTokenPayloadScope;
+    public abstract getBotScope(): BotTokenScope;
 
     protected abstract _createMessage(
         context: TestAccountActionContext,

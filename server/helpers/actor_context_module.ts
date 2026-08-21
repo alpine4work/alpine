@@ -1,6 +1,7 @@
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {BotTokenPayloadScope, TokenPayload} from "~/server/tokens/token_payload.js";
+import {TokenPayload} from "~/server/tokens/token_payload.js";
 import {TokenServiceName} from "~/server/tokens/token_service_name.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -604,7 +605,7 @@ export class BotActorContextModule
 
     private readonly _spaceId: SpaceId;
     private readonly _accountId: AccountId;
-    private readonly _scope: BotTokenPayloadScope;
+    private readonly _scope: BotTokenScope;
 
     /**
      * Name of the service which initiated the current action. Only services that can
@@ -616,7 +617,7 @@ export class BotActorContextModule
         serviceName: ActorServiceName,
         spaceId: SpaceId,
         accountId: AccountId,
-        scope: BotTokenPayloadScope,
+        scope: BotTokenScope,
     ) {
         super(() => Promise.resolve(this));
         this.serviceName = serviceName;
@@ -634,7 +635,7 @@ export class BotActorContextModule
         serviceName: ActorServiceName,
         spaceId: SpaceId,
         accountId: AccountId,
-        scope: BotTokenPayloadScope,
+        scope: BotTokenScope,
     ) {
         return new BotActorContextModule(serviceName, spaceId, accountId, scope);
     }
@@ -718,7 +719,7 @@ export class BotActorContextModule
      * need to know what accounts are in the scope to know what else the bot actor has
      * access to.
      */
-    public getScope(): BotTokenPayloadScope {
+    public getScope(): BotTokenScope {
         return this._scope;
     }
 

@@ -81,8 +81,8 @@ import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/router/task_realtime_service_local_router.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {TokenAgentAppServicePrivateSide} from "~/server/tokens/token_agent_private_side.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {createServerTracerAndHoneycombClient} from "~/server/tracer/server_tracer.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ConstantsContextModule} from "~/shared/context/constants_context_module.js";
@@ -390,7 +390,7 @@ export async function withDevelopmentEnvironment<Value>(
     const createBotContext = (
         spaceId: SpaceId,
         botAccountId: AccountId,
-        scope: BotTokenPayloadScope = {type: "Space"},
+        scope: BotTokenScope = {type: "Space"},
         {
             // Dangerously allow pretending to be from any service in tests.
             serviceName = "Admin",

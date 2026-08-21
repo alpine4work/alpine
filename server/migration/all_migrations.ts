@@ -1,4 +1,5 @@
 import {runBackfillAccountEmailCreationTimeMigration} from "~/server/accounts/migrations/backfill_account_email_creation_time.js";
+import {runBackfillBotOwnerAndCreatorMigration} from "~/server/bots/migrations/run_backfill_bot_owner_and_creator_migration.js";
 import {runUpdateKnownBotSettingsMigration} from "~/server/bots/run_update_known_bot_settings_migration.js";
 import {
     ChatInjectionContextModule,
@@ -61,6 +62,7 @@ export const allMigrations: {
     UpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries:
         runUpdateAllInboxChannelPostsAndDocumentNewCommentThreadsEntries,
     UpdateKnownBotSettings: runUpdateKnownBotSettingsMigration,
+    BackfillBotOwnerAndCreator: runBackfillBotOwnerAndCreatorMigration,
     MigrateFilesToGlobalPartition: runMigrateFilesToGlobalPartitionMigration,
     IndexChannelPosts2: runIndexChannelPosts2Migration,
 };

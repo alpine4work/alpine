@@ -18,11 +18,47 @@ import {Spacing} from "~/shared/design/core/spacing.js";
 export function SpaceBotListSettingsRouteShimmer() {
     return (
         <SpaceSettingsRouteLayoutShimmer>
-            <TextShimmer fontSize={spaceListSettingsHeadingFontSize} width="16" />
+            {/* "Installed" */}
+            <SpaceBotListSettingsRouteShimmerSectionHeading
+                titleWidth="24"
+                subtitleWidth="64"
+                subtitleRagRight="2"
+            />
             <Spacer space={spaceListSettingsHeadingMarginBottom} />
-            <SpaceBotListSettingsRouteShimmerSettingsRow titleRagRight="0" taglineRagRight="6" />
-            <SpaceBotListSettingsRouteShimmerSettingsRow titleRagRight="2" taglineRagRight="0" />
+            <SpaceBotListSettingsRouteShimmerSettingsRow titleRagRight="4" taglineRagRight="0" />
+            <SpaceBotListSettingsRouteShimmerSettingsRow titleRagRight="0" taglineRagRight="2" />
+
+            <Spacer space="10" />
+
+            {/* "Recommended" */}
+            <SpaceBotListSettingsRouteShimmerSectionHeading
+                titleWidth="28"
+                subtitleWidth="128"
+                subtitleRagRight="16"
+            />
+            <Spacer space={spaceListSettingsHeadingMarginBottom} />
+            <SpaceBotListSettingsRouteShimmerSettingsRow titleRagRight="6" taglineRagRight="1" />
+            <SpaceBotListSettingsRouteShimmerCreateGhostRow />
         </SpaceSettingsRouteLayoutShimmer>
+    );
+}
+
+// A section heading pairs a bold title with a lighter one-line subtitle, matching
+// the "Installed" / "Recommended" headers in the loaded page.
+function SpaceBotListSettingsRouteShimmerSectionHeading({
+    titleWidth,
+    subtitleWidth,
+    subtitleRagRight,
+}: {
+    titleWidth: Spacing;
+    subtitleWidth: Spacing;
+    subtitleRagRight: Spacing;
+}) {
+    return (
+        <Box display="flex" flexDirection="column" gap="1">
+            <TextShimmer fontSize={spaceListSettingsHeadingFontSize} width={titleWidth} />
+            <TextShimmer fontSize="75" width={subtitleWidth} ragRight={subtitleRagRight} />
+        </Box>
     );
 }
 
@@ -63,6 +99,28 @@ function SpaceBotListSettingsRouteShimmerSettingsRow({
                     ragRight={taglineRagRight}
                 />
             </Box>
+        </Box>
+    );
+}
+
+// The "Create a new custom bot" row at the end of the recommended list. It has no
+// divider lines and only a single line of text, unlike a bot row.
+function SpaceBotListSettingsRouteShimmerCreateGhostRow() {
+    return (
+        <Box
+            display="flex"
+            alignItems="center"
+            gap={spaceListSettingsHeadingSettingsRowGap}
+            paddingY={spaceListSettingsHeadingSettingsRowPaddingY}
+        >
+            <Box
+                className={pulseAnimationClassName}
+                backgroundColor="grey-10"
+                borderRadius="full"
+                width={spaceListSettingsHeadingSettingsRowAvatarSize}
+                height={spaceListSettingsHeadingSettingsRowAvatarSize}
+            />
+            <TextShimmer fontSize={spaceListSettingsHeadingSettingsRowTitleFontSize} width="48" />
         </Box>
     );
 }

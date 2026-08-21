@@ -1,8 +1,7 @@
 import {getBotSettingsSchema} from "~/server/bots/get_bot_settings_schema.js";
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {ServerAccountActionContext} from "~/server/context/server_action_context.js";
-import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {authorizeBotOperation} from "~/server/spaces/authorize_bot_operation.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
 import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -39,9 +38,12 @@ export async function updateBotSpaceAccountSettingsPropertyValue(
         throw new PermissionDeniedError("Bot accounts don\u2019t have space account settings");
     }
 
-    const [, , botAccountId, settings, accountSettingsItem] = await runAllPromises([
-        authorizeSpaceAccess(context, spaceId),
-        authorizeOwnSpaceAccountAccess(context, accountId),
+    const [, botAccountId, settings, accountSettingsItem] = await runAllPromises([
+        authorizeBotOperation(context, botId, {
+            type: "ManageSpaceSettingsForActor",
+            spaceId,
+            accountId,
+        }),
         getBotAccountIdForSpaceIfExists(context, botId, spaceId),
         getBotSettingsSchema(context, botId),
         BotsTable.getItemIfExists(context, {

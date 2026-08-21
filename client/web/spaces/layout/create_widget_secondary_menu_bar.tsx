@@ -328,7 +328,7 @@ export function CreateWidgetSecondaryMenuBar({
             onPress: async () => {
                 // Start preloading all space accounts to avoid showing a loading spinner in case
                 // all space accounts haven't already been loaded. This is a noop if we've loaded
-                // all space accounts before.
+                // all space accounts before. Match the chat picker's input so the preload hits.
                 preloadRpc(context, expensivelyGetAllSpaceAccounts, {spaceId: space.id});
 
                 await navigate(`/chat/new/${space.id}?focus=picker`);

@@ -965,7 +965,7 @@ function intoApiContentInlineElement(
                         id: mention.accountId,
                         title: account.name,
                         shortName: getAccountShortNameWithoutFullNameTooltip(account),
-                        ...(account.botId !== undefined ? {bot: {id: account.botId}} : {}),
+                        ...(account.bot !== undefined ? {bot: {id: account.bot.id}} : {}),
                     },
                     ...(mention.isShort ? {isAccountShortName: true} : {}),
                     ...(marks !== undefined ? {marks} : {}),

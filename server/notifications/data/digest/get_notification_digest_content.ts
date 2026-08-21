@@ -118,8 +118,8 @@ async function getAccountDataWithSignedAvatarUrl(
     }
     const signedAvatarUrl = await context.files.dangerouslySignAvatarUrlWithoutAuthorization({
         avatarId: accountData.avatar.avatarId,
-        avatarEntityPath: accountData.botId
-            ? `bot/${accountData.botId}`
+        avatarEntityPath: accountData.bot
+            ? `bot/${accountData.bot.id}`
             : `account/${accountData.id}`,
         variant,
         // Avatars are viewable for 30 days

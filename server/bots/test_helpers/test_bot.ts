@@ -2,17 +2,17 @@ import {
     createScopedApiKeyForTest,
     createUnscopedApiKeyForTest,
 } from "~/server/bots/create_api_key_for_test.js";
-import {createBotForTest} from "~/server/bots/create_bot_for_test.js";
-import {getBot} from "~/server/bots/get_bot.js";
-import {getBotItemForTest} from "~/server/bots/get_bot_item_for_test.js";
+import {createBotForTest} from "~/server/bots/test_helpers/create_bot_for_test.js";
+import {getBotItemForTest} from "~/server/bots/test_helpers/get_bot_item_for_test.js";
 import {ActorServiceName} from "~/server/helpers/actor_context_module.js";
-import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
+import {installBotInSpace} from "~/server/spaces/install_bot_in_space.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestContext} from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
+import {BotOwnerEntity} from "~/shared/bots/owners/bot_owner_entity.js";
 import {ApiKey} from "~/shared/id/api_key.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId} from "~/shared/id/types/id_types.open_source.js";
@@ -37,13 +37,17 @@ export class TestBot {
     public static async create(
         context: TestContext,
         {
+            id,
             name,
             webhookUrl,
             webhookSecret,
+            ownerEntity,
         }: {
+            id?: BotId;
             name?: string;
             webhookUrl?: string | null;
             webhookSecret?: string | null;
+            ownerEntity?: BotOwnerEntity;
         } = {},
     ) {
         const count = name === undefined || webhookUrl === undefined ? testBotCount++ : 0;
@@ -57,21 +61,23 @@ export class TestBot {
                       secret: webhookSecret ?? null,
                   };
 
-        const {id} = await createBotForTest(context, {
+        const {id: createdId} = await createBotForTest(context, {
+            id,
             name: initialName,
             webhook,
+            ownerEntity,
         });
 
-        return new TestBot(context, id, initialName);
+        return new TestBot(context, createdId, initialName);
     }
 
     /**
      * Get a `TestBot` instance for an existing bot instead of creating a new bot.
      */
     public static async get(context: TestContext, botId: BotId) {
-        const bot = await getBot(context, botId);
+        const {name} = await getBotItemForTest(context, botId);
 
-        return new TestBot(context, botId, bot.name);
+        return new TestBot(context, botId, name);
     }
 
     public getItem() {
@@ -82,7 +88,7 @@ export class TestBot {
         session: TestSpaceSession,
         {id = generateId<AccountId>()}: {id?: AccountId} = {},
     ) {
-        const account = await instantiateBotSpaceAccount(session.action(), {
+        const account = await installBotInSpace(session.action(), {
             spaceId: session.space.id,
             botId: this.id,
             accountId: id,
@@ -129,7 +135,7 @@ export class TestBotAccount extends TestAccount {
     }
 
     public action(
-        scope: BotTokenPayloadScope | TestAccount | TestSession = {type: "Space"},
+        scope: BotTokenScope | TestAccount | TestSession = {type: "Space"},
         options?: {serviceName?: ActorServiceName},
     ) {
         scope =
@@ -147,7 +153,7 @@ export class TestBotAccount extends TestAccount {
     }
 
     public createApiKey(
-        scope: BotTokenPayloadScope | TestAccount | TestSession = {type: "Space"},
+        scope: BotTokenScope | TestAccount | TestSession = {type: "Space"},
     ): Promise<ApiKey> {
         scope =
             scope instanceof TestAccount

@@ -258,6 +258,7 @@ WORKSPACE_TYPESCRIPT_PROJECTS = [
     "//shared/avatar:avatar",
     "//shared/avatar/protocol:protocol",
     "//shared/bots:bots",
+    "//shared/bots/owners:owners",
     "//shared/chat:chat",
     "//shared/content:content",
     "//shared/content/code:code",

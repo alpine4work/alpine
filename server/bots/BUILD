@@ -5,6 +5,7 @@ ts_project(
     test_deps = [
         "//:node_modules/get-port",
         "//server/bots/test_helpers",
+        "//server/bots/with_spaces",
         "//server/dynamo/test_helpers",
         "//server/spaces",
         "//server/spaces/test_helpers",
@@ -24,6 +25,7 @@ ts_project(
         "//server/context",
         "//server/dynamo/core",
         "//shared/bots",
+        "//shared/bots/owners",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

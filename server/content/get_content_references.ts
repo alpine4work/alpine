@@ -7,6 +7,7 @@ import {FileAuthorizer} from "~/server/files/data/file_authorizer.js";
 import {getFileIfExistsFromAttachment} from "~/server/files/data/files_actions.js";
 import {getFileEntityIfPossible} from "~/server/files/data/get_file_entity_if_possible.js";
 import {filesBucketName} from "~/server/helpers/files_cloudflare_r2_bucket_name.js";
+import {hasBotOperationAccessForOwnerEntity} from "~/server/spaces/authorize_bot_operation.js";
 import {getAccountIfExists} from "~/server/spaces/get_account.js";
 import {
     ContentReferencedIds,
@@ -247,6 +248,28 @@ export async function getContentReferences(
         }),
     );
 
+    const inaccessibleBotAccountIds = new Set(
+        filterMapIterable(
+            await runAllPromises(
+                accounts.map(async account => {
+                    const botOwner = account?.botOwner;
+                    if (!account || botOwner === undefined) return null;
+
+                    // Bots the actor can't view shouldn't appear as a reference. The bot's owner is on
+                    // the account itself, so resolving this doesn't read the bots table once per
+                    // mentioned bot. It also still holds for a deleted bot's soft-removed account,
+                    // which old content can reference while cleanup catches up.
+                    return (await hasBotOperationAccessForOwnerEntity(context, botOwner, {
+                        type: "View",
+                    }))
+                        ? null
+                        : account.id;
+                }),
+            ),
+            accountId => accountId ?? undefined,
+        ),
+    );
+
     const searchEntityById = new Map(
         filterMapIterable(searchEntities, (searchEntity, index) => {
             if (!searchEntity) return;
@@ -266,6 +289,10 @@ export async function getContentReferences(
 
     return {
         accountById,
+        inaccessibleBotAccountIds:
+            inaccessibleBotAccountIds && inaccessibleBotAccountIds.size > 0
+                ? inaccessibleBotAccountIds
+                : undefined,
         searchEntityById,
         fileById: fileById.size > 0 ? fileById : undefined,
         fileEntityById: fileEntityById.size > 0 ? fileEntityById : undefined,

@@ -188,7 +188,7 @@ function SpacePeopleSettingsRouteAccounts({
         for (const account of allAccountsDatas) {
             // Don't render bots in the people settings page. They'll be managed in the bots
             // settings page.
-            if (account.botId) continue;
+            if (account.bot) continue;
 
             if (account.space.state.type === "Removed") {
                 if (account.space.state.reason === "InviteRejectedAsSpam") {

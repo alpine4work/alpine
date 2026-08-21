@@ -24,13 +24,10 @@ import {ShutdownManager} from "~/server/node/shutdown_manager.js";
 import {getSpaceAccountBotIdIfExistsWithoutAuthorization} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {isAccountMemberOfSpaceWithoutAuthorization} from "~/server/spaces/is_account_member_of_space.js";
 import {TokenAgent} from "~/server/tokens/token_agent.js";
-import {
-    BotTokenPayload,
-    BotTokenPayloadScope,
-    TokenPayload,
-} from "~/server/tokens/token_payload.js";
+import {BotTokenPayload, TokenPayload} from "~/server/tokens/token_payload.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {ApiSpecification} from "~/shared/api/specification/types/api_specification_types.open_source.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -773,7 +770,7 @@ export async function createApiServiceRequestListener(
 
                 let spaceId: SpaceId;
                 let accountId: AccountId;
-                let scope: BotTokenPayloadScope;
+                let scope: BotTokenScope;
 
                 if (apiKeyAttributes.space === null) {
                     if (accessTokenPayload === null) {

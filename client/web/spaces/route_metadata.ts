@@ -22,6 +22,9 @@ const metadataByRouteId: Record<
     "routes/_space.home.$spaceId._index": {
         errorTitle: "Couldn\u2019t open space",
     },
+    "routes/_space.bot.new.$spaceId": {
+        errorTitle: "Couldn\u2019t create bot",
+    },
     "routes/_space.channel.$channelId._index": {
         errorTitle: "Couldn\u2019t open channel",
     },

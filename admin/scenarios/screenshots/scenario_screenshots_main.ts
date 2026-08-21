@@ -7,7 +7,7 @@ import {uploadDemoSpaceBotAvatar} from "~/admin/environment/demo_space/upload_de
 import {withIntegrationTestEnvironment} from "~/admin/environment/test/integration/with_integration_test_environment.js";
 import {createDebug} from "~/admin/helpers/create_debug.js";
 import {createLandingPageScenario} from "~/admin/scenarios/landing_page_scenario.js";
-import {seedTestMockChatGptBot} from "~/server/bots/seed_test_bots.js";
+import {seedTestMockChatGptBot} from "~/server/bots/test_helpers/seed_test_bots.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";

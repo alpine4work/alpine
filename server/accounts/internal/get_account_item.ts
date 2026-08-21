@@ -80,7 +80,7 @@ export async function getAccountItemWithoutAvatarIfExists(
 export async function getAccountItemWithoutAvatar(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     accountId: AccountId,
-    options?: {consistency?: DynamoReadConsistency},
+    options?: {consistency?: DynamoCacheReadConsistency},
 ): Promise<AccountItemWithoutAvatar> {
     const item = await getAccountItemWithoutAvatarIfExists(context, accountId, options);
     if (!item) throw new NotFoundError("Account not found");

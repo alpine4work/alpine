@@ -1,4 +1,6 @@
 import {BotSchema, BotWebhookSchema} from "~/shared/bots/bot_schema.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
+import {BotOwnerEntityIdSchema} from "~/shared/bots/owners/bot_owner_entity.js";
 import {AvatarId} from "~/shared/id/types/id_types.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
@@ -11,9 +13,10 @@ export const createBot = defineRpc({
     isIdempotent: false,
     input: {
         name: LabelStringSchema,
-        // The secret is write-only. Bot admin read models expose only whether one is
-        // configured.
+        description: Schema.string.nullable().optional(),
         webhook: BotWebhookSchema.nullable(),
+        ownerEntity: BotOwnerEntityIdSchema,
+        spaceId: Schema.id<SpaceId>().optional(),
     },
     output: {
         botId: Schema.id<BotId>(),
@@ -25,6 +28,21 @@ export const deleteBot = defineRpc({
     isIdempotent: true,
     input: {
         botId: Schema.id<BotId>(),
+    },
+    output: {},
+});
+
+export const updateBot = defineRpc({
+    name: "updateBot",
+    isIdempotent: true,
+    input: {
+        botId: Schema.id<BotId>(),
+        name: LabelStringSchema,
+        description: Schema.string.nullable().optional(),
+        webhook: Schema.object({
+            url: Schema.string,
+            secret: Schema.string.nullable().optional(),
+        }).nullable(),
     },
     output: {},
 });
@@ -47,12 +65,12 @@ export const createScopedApiKeyForBot = defineRpc({
     input: {
         botId: Schema.id<BotId>(),
         spaceId: Schema.id<SpaceId>(),
-        accountId: Schema.id<AccountId>(),
         name: LabelStringSchema.nullable(),
-        scope: Schema.unknown(),
+        scope: Schema.unknown<BotTokenScope>(),
     },
     output: {
         apiKey: Schema.string,
+        scope: Schema.unknown<BotTokenScope>(),
     },
 });
 

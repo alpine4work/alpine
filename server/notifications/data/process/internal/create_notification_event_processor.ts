@@ -1,4 +1,4 @@
-import {getBot} from "~/server/bots/get_bot.js";
+import {dangerouslyGetBotWithoutAuthorization} from "~/server/bots/dangerously_get_bot_without_authorization.js";
 import {PushContextModules} from "~/server/context/push_context_modules.js";
 import {
     ServerImpersonatedAccountActionContext,
@@ -12,7 +12,14 @@ import {NotificationEvent} from "~/server/notifications/core/notification_event.
 import {InboxEntryItem} from "~/server/notifications/data/internal/inbox_table.js";
 import {sendPushNotificationToAccountTargets} from "~/server/notifications/data/internal/push/send_push_notification_to_account_targets.js";
 import {UpdateInboxEntryResult} from "~/server/notifications/data/internal/update_inbox_entry.js";
-import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
+import {
+    hasBotOperationAccess,
+    hasBotOperationAccessForBot,
+} from "~/server/spaces/authorize_bot_operation.js";
+import {
+    getSpaceAccountBotIdIfExists,
+    getSpaceAccountBotIdIfExistsWithoutAuthorization,
+} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {impersonateAccountAsSystemContext} from "~/server/spaces/impersonate_account_as_system_context.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {ApiBotWebhookEvent} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
@@ -271,10 +278,47 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
         const botId = await getSpaceAccountBotIdIfExists(context, event.spaceId, accountId);
 
         if (botId !== null) {
+            // A bot never gets a webhook for an event it authored itself, which would feed a
+            // bot back into its own messages.
+            if (accountId === event.authorId) return;
+
+            const authorBotId = await getSpaceAccountBotIdIfExistsWithoutAuthorization(
+                context,
+                event.spaceId,
+                event.authorId,
+            );
+
+            // We can't impersonate bot space accounts, so we check bot-to-bot access
+            // specifically instead of using `hasBotOperationAccess` which uses `context.actor`
+            // to determine access.
+            const hasMessageAccess =
+                authorBotId !== null
+                    ? await hasBotOperationAccessForBot(
+                          context,
+                          {
+                              type: "Message",
+                              spaceId: event.spaceId,
+                          },
+                          {
+                              actorBotId: authorBotId,
+                              botId,
+                              spaceId: event.spaceId,
+                          },
+                      )
+                    : await impersonateAccountAsSystemContext(context, event.authorId, context =>
+                          hasBotOperationAccess(context, botId, {
+                              type: "Message",
+                              spaceId: event.spaceId,
+                          }),
+                      );
+
+            if (!hasMessageAccess) return;
+
             // If the account is a Bot and that bot has a webhook URL, then we want to call
             // `processForBot()`, which will eventually notify the bot via its webhook. If the
-            // bot doe snot have a webhook, then we can't send it a notification, so don't try.
-            const {hasWebhookUrl} = await getBot(context, botId);
+            // bot does not have a webhook, then we can't send it a notification, so don't try.
+            const {hasWebhookUrl} = await dangerouslyGetBotWithoutAuthorization(context, botId);
+
             if (hasWebhookUrl) await processForBot(context, botId, accountId, options);
 
             return;
@@ -395,9 +439,6 @@ export function createNotificationEventProcessor<Event extends NotificationEvent
             decodeEventId: () => {bytes: Uint8Array; time: number};
         },
     ) {
-        // Don't send a webhook call for message sent by our bot.
-        if (event.authorId === botAccountId) return;
-
         const webhookEvent = getBotWebhookEvent(event, {info, accountId: botAccountId});
         if (webhookEvent === null) return;
 

@@ -6,6 +6,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "realtime_lib",
     test_deps = [
+        "//server/bots/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/sites/test_helpers",
         "//server/spaces/test_helpers",

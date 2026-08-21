@@ -142,6 +142,26 @@ test("throws PermissionDeniedError when non-admin calls", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
+test("throws when admin can\u2019t manage bot", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Member"});
+    const adminSession = await space.createSession({role: "Admin"});
+    const bot = await TestBot.create(context, {
+        ownerEntity: {type: "Account", accountId: ownerSession.account.id},
+    });
+
+    await bot.instantiate(ownerSession);
+
+    await expect(
+        updateBotSpaceSettingsPropertyValue(adminSession.action(), {
+            spaceId: space.id,
+            botId: bot.id,
+            propertyKey: "apiKey",
+            propertyValue: "my-value",
+        }),
+    ).rejects.toThrow("Account may not manage the space settings for this bot (and 1 other error)");
+});
+
 test("throws FailedPreconditionError when bot is not installed in the space", async () => {
     const bot = await TestBot.create(context, {name: "Test Bot"});
 

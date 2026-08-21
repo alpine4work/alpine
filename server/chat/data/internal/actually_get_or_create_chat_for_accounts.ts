@@ -16,6 +16,7 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
+import {authorizeBotOperation} from "~/server/spaces/authorize_bot_operation.js";
 import {authorizeOwnSpaceAccountAccess} from "~/server/spaces/authorize_own_space_account_access.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccount, getAccountIfExists} from "~/server/spaces/get_account.js";
@@ -187,23 +188,33 @@ export function actuallyGetOrCreateChatForAccounts(
                     isBotSpaceAccount(context, spaceId, actorAccountId),
 
                     // Make sure all accounts we are sending a message to are a part of the provided
-                    // space.
+                    // space and that any bot recipients are allowed to be messaged.
                     //
                     // We first try to load the account with eventual consistency and if that fails we
                     // try strong consistency.
                     runAllPromises(
-                        Array.from(otherAccountIds, accountId =>
-                            consistency !== "Eventual"
-                                ? getAccount(context, spaceId, accountId, {consistency})
-                                : getAccountIfExists(context, spaceId, accountId, {
-                                      consistency: "Eventual",
-                                  }).then(account => {
-                                      if (account) return account;
-                                      return getAccount(context, spaceId, accountId, {
+                        Array.from(otherAccountIds, async accountId => {
+                            const account =
+                                consistency !== "Eventual"
+                                    ? await getAccount(context, spaceId, accountId, {consistency})
+                                    : ((await getAccountIfExists(context, spaceId, accountId, {
+                                          consistency: "Eventual",
+                                      })) ??
+                                      (await getAccount(context, spaceId, accountId, {
                                           consistency: "StrongWithinCache",
-                                      });
-                                  }),
-                        ),
+                                      })));
+
+                            if (account.botId) {
+                                await authorizeBotOperation(
+                                    context,
+                                    account.botId,
+                                    {type: "Message", spaceId},
+                                    {consistency},
+                                );
+                            }
+
+                            return account;
+                        }),
                     ),
                 ]);
 

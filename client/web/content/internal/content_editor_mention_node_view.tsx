@@ -63,7 +63,10 @@ export function createContentEditorMentionNodeViewConstructor({
 
         // When rendering account mentions, only allow them to be clicked if we're
         // currently logged in.
-        const isInert = mention.type === "Account" && currentAccount === null;
+        const isInert =
+            mention.type === "Account" &&
+            (currentAccount === null ||
+                references.inaccessibleBotAccountIds?.has(mention.accountId) === true);
 
         const htmlStore = computeStore(get => {
             return renderContentMentionToHtml(get, {

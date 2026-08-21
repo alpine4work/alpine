@@ -2,6 +2,7 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {AccountSettingsSchema} from "~/shared/accounts/accounts_settings.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
+import {BotOwnerEntityIdSchema} from "~/shared/bots/owners/bot_owner_entity.js";
 import {SessionId} from "~/shared/id/types/id_types.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
@@ -105,6 +106,21 @@ export const AccountsTable = DynamoTableSchema.new({
                         bot: Schema.object({
                             spaceId: Schema.id<SpaceId>(),
                             botId: Schema.id<BotId>(),
+
+                            /**
+                             * The entity that owns the bot, copied from the bot when it was installed in the
+                             * space. Denormalized so that everywhere we render or filter a bot account
+                             * (mention lists, content references, search results) can tell whether the bot is
+                             * private to an owner without reading the bots table for every account.
+                             *
+                             * A bot's owner can't change today. If that changes, propagate the new owner to
+                             * the bot's accounts with `processUpdateBotAccountsJob()` the way a rename does.
+                             *
+                             * Accounts installed before this field existed read back as `System`, the same
+                             * fallback the bot itself uses. `runBackfillBotOwnerAndCreatorMigration()`
+                             * enqueues the job that gives them their real owner.
+                             */
+                            ownerEntity: BotOwnerEntityIdSchema.default("System"),
                         }).optional(),
 
                         /**

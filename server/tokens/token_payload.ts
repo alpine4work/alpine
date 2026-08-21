@@ -1,3 +1,4 @@
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {isObject} from "~/shared/helpers/object/is_object.open_source.js";
@@ -44,26 +45,8 @@ export type BotTokenPayload = {
     readonly type: "Bot";
     readonly spaceId: SpaceId;
     readonly accountId: AccountId;
-    readonly scope: BotTokenPayloadScope;
+    readonly scope: BotTokenScope;
 };
-
-// TODO(calebmer, #api): Don't allow bots to be added to `AccessPolicy`'s
-// `accountGrantById`. Bots get access to stuff in different ways.
-export type BotTokenPayloadScope =
-    // The bot has access to everything this account has access to.
-    //
-    // Theoretically, this is the same as `Chat` for a 1:1 chat between just the bot
-    // and the account.
-    | {readonly type: "Account"; readonly accountId: AccountId}
-    // The bot has access to everything that everyone with view access to these
-    // entities has access to.
-    | {readonly type: "Chat"; readonly chatId: ChatId}
-    | {readonly type: "Document"; readonly documentId: DocumentId}
-    | {readonly type: "Post"; readonly postId: PostId}
-    | {readonly type: "Task"; readonly taskId: TaskId}
-    // The bot has access to only things that are shared with everyone in the space. So
-    // only what's been shared with `AccessPolicy`'s `defaultGrant`.
-    | {readonly type: "Space"};
 
 export type TokenPayload =
     | SessionTokenPayload
@@ -182,7 +165,7 @@ export const TokenPayloadSchema = Schema.object({
         },
     });
 
-function serializeBotTokenPayloadScope(scope: BotTokenPayloadScope): string {
+function serializeBotTokenPayloadScope(scope: BotTokenScope): string {
     switch (scope.type) {
         case "Account":
             return `a-${scope.accountId}`;
@@ -201,7 +184,7 @@ function serializeBotTokenPayloadScope(scope: BotTokenPayloadScope): string {
     }
 }
 
-function deserializeBotTokenPayloadScope(scope: string): BotTokenPayloadScope | null {
+function deserializeBotTokenPayloadScope(scope: string): BotTokenScope | null {
     if (scope === "s") {
         return {type: "Space"};
     } else {

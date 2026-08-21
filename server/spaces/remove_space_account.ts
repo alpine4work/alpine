@@ -1,6 +1,9 @@
 import {createAccountVersionConditionCheckTransactionEntry} from "~/server/accounts/create_account_version_condition_check_transaction_entry.js";
 import {dangerouslyGetAccountIfExistsWithoutAuthorization} from "~/server/accounts/dangerously_get_account_if_exists_without_authorization.js";
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {
+    ServerActionContext,
+    ServerActionContextModules,
+} from "~/server/context/server_action_context.js";
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {createSpaceAccountNotFoundError} from "~/server/spaces/get_account.js";
@@ -8,6 +11,7 @@ import {createAccountModelFromItem} from "~/server/spaces/internal/create_accoun
 import {getSpaceAccountItemIfExists} from "~/server/spaces/internal/get_space_account_item.js";
 import {getSpaceItem} from "~/server/spaces/internal/get_space_item.js";
 import {SpacesTable} from "~/server/spaces/internal/spaces_table.js";
+import {Context} from "~/shared/context/context.js";
 import {FailedPreconditionError, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
@@ -41,7 +45,7 @@ export async function removeSpaceAccount(
             throw exhaustive(context.actor);
     }
 
-    return await removeSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
+    return await dangerouslyRemoveSpaceAccountWithoutAuthorization(context, {spaceId, accountId});
 }
 
 export const removeSpaceAccountBeforeExecuteTestCheckpoint =
@@ -50,9 +54,13 @@ export const removeSpaceAccountBeforeExecuteTestCheckpoint =
 /**
  * Removes an account to a space without authorizing the actor has permission to
  * remove accounts from the space.
+ *
+ * Dangerous because it skips authorization. Callers must authorize first. Doesn't
+ * read `context.actor` so it may also be called from an actor-less context (e.g. a
+ * maintenance job cleaning up a deleted bot's accounts).
  */
-function removeSpaceAccountWithoutAuthorization(
-    context: ServerActionContext,
+export function dangerouslyRemoveSpaceAccountWithoutAuthorization(
+    context: Context<Omit<ServerActionContextModules, "actor">>,
     {spaceId, accountId}: {spaceId: SpaceId; accountId: AccountId},
 ): Promise<AccountModel> {
     return context.dynamo.retryTransaction(async context => {

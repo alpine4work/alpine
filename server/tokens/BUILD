@@ -11,6 +11,7 @@ ts_project(
     deps = [
         "//:node_modules/cookie",
         "//:node_modules/jose",
+        "//shared/bots",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

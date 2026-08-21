@@ -469,6 +469,21 @@ test("throws PermissionDeniedError for non-members", async () => {
     ).rejects.toThrow(PermissionDeniedError);
 });
 
+test("throws when account may not view the bot\u2019s space settings", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Member"});
+    const otherSession = await space.createSession({role: "Member"});
+    const bot = await TestBot.create(context, {
+        ownerEntity: {type: "Account", accountId: ownerSession.account.id},
+    });
+
+    await bot.instantiate(ownerSession);
+
+    await expect(
+        getBotSpaceSettingsValues(otherSession.action(), space.id, bot.id),
+    ).rejects.toThrow("Account may not view the space settings for this bot");
+});
+
 test("returns non-secret values for members correctly", async () => {
     const bot = await TestBot.create(context, {name: "Test Bot"});
 

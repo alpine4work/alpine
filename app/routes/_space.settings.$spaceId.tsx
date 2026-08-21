@@ -1,9 +1,10 @@
 import {Outlet, useLocation, useNavigation} from "@remix-run/react";
-import {Bell, IconContext, Robot, SquaresFour, User, Users} from "phosphor-react";
+import {ArrowLeft, Bell, IconContext, Robot, SquaresFour, User, Users} from "phosphor-react";
 import {ReactNode} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
 import {FocusRing} from "~/client/web/design/focus_ring.js";
+import {IconButton} from "~/client/web/design/icon_button.js";
 import {navigationBarHeight} from "~/client/web/design/navigation_bar_helpers.js";
 import {OverlayScopeContextProvider} from "~/client/web/design/overlay_scope_context_provider.js";
 import {useScrollbar} from "~/client/web/design/scrollbar.js";
@@ -145,6 +146,11 @@ export default function SettingsLayout() {
     const title = titleBySettingsRoute[currentRoute];
 
     const {space} = useSpaceContextAndRequireSpaceAccess();
+
+    const botDetailBackRoute = /^\/settings\/[^/]+\/bots\/[^/]+/.test(currentPathname)
+        ? `/settings/${space.id}/bots`
+        : null;
+
     const defaultPreviousRoute = isMobile
         ? `/more/settings/${space.id}`
         : `/settings/${space.id}/general`;
@@ -155,7 +161,7 @@ export default function SettingsLayout() {
                 title={title}
                 titleJustifyContent="center"
                 desktopMaxWidth={spaceSettingsMaxDesktopContentWidth}
-                defaultPreviousRoute={defaultPreviousRoute}
+                defaultPreviousRoute={botDetailBackRoute ?? defaultPreviousRoute}
                 withoutDisappearingTitle
             >
                 <Box width="full" paddingX={screenPaddingX}>
@@ -166,10 +172,20 @@ export default function SettingsLayout() {
         );
     }
 
-    return <SettingsDesktopLayout nextRoute={nextRoute} title={title} />;
+    return (
+        <SettingsDesktopLayout nextRoute={nextRoute} title={title} backRoute={botDetailBackRoute} />
+    );
 }
 
-function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; title: string}) {
+function SettingsDesktopLayout({
+    nextRoute,
+    title,
+    backRoute,
+}: {
+    nextRoute: SettingsRoute;
+    title: string;
+    backRoute: string | null;
+}) {
     const {space} = useSpaceContextAndRequireSpaceAccess();
     const rootNavigate = useRootNavigate();
 
@@ -210,14 +226,25 @@ function SettingsDesktopLayout({nextRoute, title}: {nextRoute: SettingsRoute; ti
                         null,
                         <Box
                             position="relative"
-                            fontSize="400"
-                            fontStyle="bold"
                             height="14"
                             display="flex"
                             alignItems="center"
-                            userSelect="text"
+                            gap="2"
                         >
-                            {title}
+                            {backRoute !== null && (
+                                <IconButton
+                                    description="Back to bots"
+                                    variant="quiet"
+                                    size="sm"
+                                    onPress={() => rootNavigate(backRoute)}
+                                    pressErrorTitle="Couldn&#x2019;t navigate to bots page"
+                                >
+                                    <ArrowLeft />
+                                </IconButton>
+                            )}
+                            <Box fontSize="400" fontStyle="bold" userSelect="text">
+                                {title}
+                            </Box>
                             <Box
                                 pointerEvents="none"
                                 position="absolute"

@@ -5,16 +5,16 @@ import {
     BotWebhookEventsTable,
     botWebhookMaxRetryCount,
 } from "~/server/bots/internal/bot_webhook_events_table.js";
-import {BotsTable} from "~/server/bots/internal/bots_table.js";
+import {getBotItemForAuthorizationIfExists} from "~/server/bots/internal/get_bot_item_for_authorization.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {CallBotWebhookJobDescription} from "~/server/jobs/core/job_description.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {
     botWebhookSignatureHeader,
     signBotWebhookRequest,
 } from "~/shared/api/specification/sign_bot_webhook_request.js";
 import {ApiBotWebhookRequestBody} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
 import {BotWebhook} from "~/shared/bots/bot_schema.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, UnknownError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -48,11 +48,7 @@ export async function processCallBotWebhookJob(
     let hasLease = false;
 
     const [botItem, eventItem] = await runAllPromises([
-        BotsTable.getItem(context, {
-            partitionType: "Bot",
-            sortRangeType: "Attributes",
-            botId: job.botId,
-        }),
+        getBotItemForAuthorizationIfExists(context, job.botId),
         BotWebhookEventsTable.updateItem(
             context,
             {
@@ -73,9 +69,9 @@ export async function processCallBotWebhookJob(
     // We always create an event item if one doesn't already exist.
     assert(eventItem);
 
-    if (!botItem.webhook) {
-        // If the bot has no webhook then we shouldn't proceed with webhook event
-        // processing.
+    if (!botItem?.webhook) {
+        // If the bot doesn't exist or has no webhook then we shouldn't proceed with
+        // webhook event processing.
         return;
     }
 
@@ -209,7 +205,7 @@ async function actuallyCallBotWebhook(
 
     const {room} = job.event;
 
-    let scope: BotTokenPayloadScope;
+    let scope: BotTokenScope;
 
     switch (room.type) {
         case "Chat":

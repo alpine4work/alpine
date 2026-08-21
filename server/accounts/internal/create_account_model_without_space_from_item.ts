@@ -4,6 +4,7 @@ import {
     AccountModelWithoutSpaceData,
 } from "~/shared/accounts/account_model_without_space.js";
 import {createAvatarModelFromItem} from "~/shared/avatar/create_avatar_model_from_item.js";
+import {parseBotOwnerEntityId} from "~/shared/bots/owners/bot_owner_entity.js";
 
 export function createAccountModelWithoutSpaceFromItem(accountItem: AccountItem) {
     return new AccountModelWithoutSpace({
@@ -20,7 +21,10 @@ export function createAccountModelDataWithoutSpaceAndWithoutAvatarFromItem(
         version: accountItem.updateLockVersion ?? 0,
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
-        botId: accountItem.bot?.botId,
+        bot: accountItem.bot && {
+            id: accountItem.bot.botId,
+            owner: parseBotOwnerEntityId(accountItem.bot.ownerEntity),
+        },
         plan: accountItem.plan,
         reactionCharacter: accountItem.reactionCharacter,
     };

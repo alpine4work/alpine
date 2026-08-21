@@ -12,8 +12,10 @@ import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consi
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {addFeedAccountCandidateEntry, addFeedCandidateEntry} from "~/server/feed/feed_actions.js";
 import {RynamoTableSchema} from "~/server/rynamo/rynamo_table_schema.js";
+import {authorizeBotOperation} from "~/server/spaces/authorize_bot_operation.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {getAccountIfExists} from "~/server/spaces/get_account.js";
+import {getSpaceAccountBotIdIfExistsWithoutAuthorization} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/is_account_member_of_space.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/after_commit_task_action_transaction_event_emitter_for_test.js";
 import {commitTaskActionTransactionBeforeExecuteTestCheckpoint} from "~/server/tasks/data/commit_task_action_transaction_before_execute_test_checkpoint.js";
@@ -899,6 +901,31 @@ class TaskActionTransactionCommitState {
 
     public isAccountMemberOfSpace(accountId: AccountId): Promise<boolean> {
         return isAccountMemberOfSpace(this._context, this._spaceId, accountId);
+    }
+
+    /**
+     * If the assignee account is a bot, authorize that the actor may view the bot. A
+     * bot's "View" access determines who's allowed to assign a task to it: personal
+     * bots (`Account` owner) are owner-only, space bots are open to space members, and
+     * system bots are open to everyone. Does nothing for non-bot accounts.
+     *
+     * Unassigning (a `null` assignee) never reaches this check, so anyone with edit
+     * access can still remove a bot assignee.
+     */
+    public async authorizeAssigneeBotAccessIfBot(assigneeAccountId: AccountId): Promise<void> {
+        const botId = await getSpaceAccountBotIdIfExistsWithoutAuthorization(
+            this._context,
+            this._spaceId,
+            assigneeAccountId,
+        );
+        if (botId === null) return;
+
+        await authorizeBotOperation(
+            this._context,
+            botId,
+            {type: "View"},
+            {consistency: this._consistency},
+        );
     }
 
     /**
@@ -2109,6 +2136,14 @@ async function actuallyCommitTaskActionTransaction(
                                 ) {
                                     throw new FailedPreconditionError(
                                         "Can\u2019t assign a task to an account outside of the current space",
+                                    );
+                                }
+
+                                // If the assignee is a bot, only actors allowed to use the bot may assign a task
+                                // to it. In particular this makes personal bots assignable only by their owner.
+                                if (taskAction.assignee) {
+                                    await state.authorizeAssigneeBotAccessIfBot(
+                                        taskAction.assignee.assigneeId,
                                     );
                                 }
 

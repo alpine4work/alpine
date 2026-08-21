@@ -74,7 +74,23 @@ export const MaintenanceJobDescriptionSchema = Schema.union({
             Avatar: Schema.object({
                 type: Schema.value("Avatar"),
             }),
+            Owner: Schema.object({
+                type: Schema.value("Owner"),
+            }),
         }),
+    }),
+
+    /**
+     * Removes a deleted bot's instantiated space account from every space it's a
+     * member of. Enqueued when a bot is deleted so it stops appearing in account lists
+     * (e.g. the new chat suggestions and mention menu) and can no longer be chatted
+     * with.
+     *
+     * Idempotent. Accounts already removed on a previous run are skipped.
+     */
+    RemoveBotAccounts: Schema.object({
+        type: Schema.value("RemoveBotAccounts"),
+        botId: Schema.id<BotId>(),
     }),
 
     SendTryOnDesktopEmail: Schema.object({

@@ -119,7 +119,16 @@ export class AccountModel implements AccountModelWithoutSpace {
         // `account.botId` instead of going through `AccountRegistry`.
         //
         // eslint-disable-next-line cyberworlds/no-model-initial-data
-        return this.initialData.botId;
+        return this.initialData.bot?.id;
+    }
+
+    /**
+     * Who owns the bot this account is an instantiation of, or undefined when the
+     * account isn't a bot. See `AccountModelWithoutSpace.botOwner`.
+     */
+    public get botOwner() {
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
+        return this.initialData.bot?.owner;
     }
 
     /**

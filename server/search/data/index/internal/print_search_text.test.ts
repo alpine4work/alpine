@@ -24,7 +24,7 @@ const mockGetAccountIfExists = (accountId: AccountId): AccountModelWithoutSpaceD
             name: "Test User",
             nameVersion: 0,
             reactionCharacter: null,
-            botId: undefined,
+            bot: undefined,
             avatar: null,
         };
 

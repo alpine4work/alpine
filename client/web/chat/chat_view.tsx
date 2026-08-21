@@ -14,6 +14,7 @@ import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
 import {IconButton} from "~/client/web/design/icon_button.js";
+import {Link} from "~/client/web/design/link.js";
 import {MenuAction} from "~/client/web/design/menu.js";
 import {MobileFullScreenModal} from "~/client/web/design/mobile_full_screen_modal.js";
 import {ModalDialog} from "~/client/web/design/modal_dialog.js";
@@ -64,6 +65,7 @@ import {
     hasAccessLevel,
 } from "~/shared/access/access_policy.js";
 import {chatPermissionDeniedErrorDisplayMessageByAccessLevel} from "~/shared/chat/chat_error_messages.js";
+import {ChatMessagingDisabledReason} from "~/shared/chat/chat_messaging_disabled_reason.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeEvent, ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {screenPaddingX, spacing} from "~/shared/design/core/spacing.js";
@@ -108,6 +110,7 @@ export function ChatView({
     initialScrollToMessageIndex,
     initiallyFocus,
     initialIsFavorite,
+    messagingDisabledReason,
 }: {
     withInboxBanner: boolean;
     chat: ChatModel;
@@ -120,6 +123,7 @@ export function ChatView({
     initialScrollToMessageIndex: number | null;
     initiallyFocus: boolean;
     initialIsFavorite: boolean;
+    messagingDisabledReason: ChatMessagingDisabledReason | null;
 }) {
     const context = useAppContext();
     const {currentAccount} = useSpaceContext();
@@ -234,6 +238,7 @@ export function ChatView({
                 initialOtherReferencedMessages={initialOtherReferencedMessages}
                 initialScrollToMessageIndex={initialScrollToMessageIndex}
                 initiallyFocus={initiallyFocus}
+                messagingDisabledReason={messagingDisabledReason}
             />
         </Box>
     );
@@ -921,6 +926,7 @@ function ChatMessagingView({
     initialScrollToMessageIndex,
     initiallyFocus,
     chatAccessPolicy,
+    messagingDisabledReason,
 }: {
     chat: ChatModel;
     messageDraft?: MessageDraftWithFiles;
@@ -936,6 +942,7 @@ function ChatMessagingView({
     chatAccessPolicy:
         | {type: "Direct"}
         | {type: "Room"; accessPolicy: ResolvedAccessPolicyWithGenerations};
+    messagingDisabledReason: ChatMessagingDisabledReason | null;
 }) {
     const context = useAppContext();
     const messagingRef = useRef<MessagingViewRef<ChatId>>(null);
@@ -1026,6 +1033,23 @@ function ChatMessagingView({
             stopTypingInMessageInput={procedures.stopTypingInMessageInput}
             messageDraftSurface={messageDraftSurface}
             messageDraft={messageDraft}
+            isMessageCreationDisabled={messagingDisabledReason !== null}
+            isMessageInputDisabled={messagingDisabledReason !== null}
+            messageInputDisabledMessage={
+                messagingDisabledReason !== null ? (
+                    <>
+                        {messagingDisabledReason.message}
+                        {messagingDisabledReason.link !== null && (
+                            <>
+                                {" "}
+                                <Link color="theme" url={messagingDisabledReason.link.url}>
+                                    {messagingDisabledReason.link.label}
+                                </Link>
+                            </>
+                        )}
+                    </>
+                ) : undefined
+            }
             isConnected={isConnected}
             // There's a strange TypeScript error here that only shows up when Bazel runs
             // TypeScript where it thinks the type of `subscribeToEvents` should include

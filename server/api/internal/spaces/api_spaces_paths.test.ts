@@ -664,7 +664,7 @@ test("can\u2019t read bot account settings for a different bot", async () => {
 
     expect(response.status).toEqual(403);
     expect(response.body.error.message).toContain(
-        "Bot can only access account settings for its own bot",
+        "You don\u2019t have permission to view the settings for this bot for another account",
     );
 });
 

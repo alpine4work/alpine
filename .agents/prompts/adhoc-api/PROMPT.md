@@ -62,7 +62,7 @@ reads and writes match the real schema:
 - `server/bots/internal/bots_table.ts`
 - `server/accounts/internal/accounts_table.ts`
 - `server/spaces/internal/spaces_table.ts`
-- `server/spaces/instantiate_bot_space_account.ts`
+- `server/spaces/install_bot_in_space.ts`
 
 At minimum, the local write flow needs all of these records to line up:
 

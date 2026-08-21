@@ -1,4 +1,5 @@
 import {processSendTryOnDesktopEmail} from "~/server/accounts/process_send_try_on_desktop_email.js";
+import {processRemoveAllSpaceAccountsForBotJob} from "~/server/bots/with_spaces/process_remove_all_space_accounts_for_bot_job.js";
 import {processUpdateBotAccountsJob} from "~/server/bots/with_spaces/process_update_bot_accounts_job.js";
 import {scheduleDeploy} from "~/server/deploy/data/deploy_actions.js";
 import {processSendEmail} from "~/server/emails/process_send_email.js";
@@ -35,6 +36,10 @@ export async function processMaintenanceJob(
         }
         case "UpdateBotAccounts": {
             await processUpdateBotAccountsJob(context, job);
+            return;
+        }
+        case "RemoveBotAccounts": {
+            await processRemoveAllSpaceAccountsForBotJob(context, job);
             return;
         }
         case "SendTryOnDesktopEmail": {

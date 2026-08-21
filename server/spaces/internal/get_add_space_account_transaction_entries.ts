@@ -308,7 +308,7 @@ export async function getAddSpaceAccountTransactionEntries(
         // space that was removed. Then it's ok to add the bot account back to the space.
         if (accountInput.type === "Existing" && accountInput.account.botId) {
             throw new FailedPreconditionError(
-                "Can\u2019t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
+                "Can\u2019t add existing bot account to space, must use `installBotInSpace()` to create a new bot account for the space",
             );
         }
 

@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/prosemirror-model",
         "//:node_modules/prosemirror-transform",
         "//server/accounts",
+        "//server/bots",
         "//server/context",
         "//server/files/data",
         "//server/spaces",

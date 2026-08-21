@@ -34,8 +34,8 @@ import {
 } from "~/server/spaces/test_helpers/test_context.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {agentToolAnnotations} from "~/shared/agents/agent_tool_annotations.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {
     MessageContent,
     MessageContentProsemirrorSchema,
@@ -453,7 +453,7 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     /**
      * Get a bot scope for the provided room key.
      */
-    getRoomBotScope: (key: RoomKey) => BotTokenPayloadScope;
+    getRoomBotScope: (key: RoomKey) => BotTokenScope;
 
     /**
      * Create a new message in a room.

@@ -20,6 +20,7 @@ ts_project(
     ],
     deps = [
         "//server/accounts",
+        "//server/bots",
         "//server/context",
         "//server/forum/data",
         "//server/spaces",

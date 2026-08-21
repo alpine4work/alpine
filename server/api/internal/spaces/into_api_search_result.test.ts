@@ -60,7 +60,7 @@ describe("intoApiSearchResult", () => {
         test("converts bot AccountModel to API Account result", () => {
             const accountModel = new AccountModel({
                 id: accountId,
-                botId: generateId<BotId>(),
+                bot: {id: generateId<BotId>(), owner: {type: "System"}},
                 name: "Test Bot",
                 version: 1,
                 avatar: null,

@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import {addHours} from "date-fns";
+import {createBotForTest} from "~/server/bots/test_helpers/create_bot_for_test.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     TestSessionItem,
@@ -8,10 +9,12 @@ import {
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {addSpaceAccountForTest} from "~/server/spaces/create_space_for_test.js";
+import {installBotInSpace} from "~/server/spaces/install_bot_in_space.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
 import {commitTaskActionTransaction} from "~/server/tasks/data/commit_task_action_transaction.js";
 import {commitTaskActionTransactionBeforeExecuteTestCheckpoint} from "~/server/tasks/data/commit_task_action_transaction_before_execute_test_checkpoint.js";
 import {tasksInjection} from "~/server/tasks/data/tasks_injection.js";
+import {getTaskItemForTest} from "~/server/tasks/data/test_helpers/get_task_item_for_test.js";
 import {AccessLevel} from "~/shared/access/access_policy.js";
 import {
     FailedPreconditionError,
@@ -29,7 +32,12 @@ import {defaultTimeZone} from "~/shared/helpers/intl/time_zone.open_source.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.open_source.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.open_source.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {wordTaskTitleTestScenario} from "~/shared/tasks/test_helpers/task_title_test_scenarios.js";
@@ -10302,6 +10310,108 @@ describe("old style", () => {
                 "Can\u2019t assign a task to an account outside of the current space",
             ),
         );
+    });
+
+    async function createPersonalBotAccountOwnedBy(
+        ownerSession: TestSessionItem,
+    ): Promise<AccountId> {
+        const bot = await createBotForTest(context.action(ownerSession), {
+            name: "Personal Bot",
+            webhook: null,
+            ownerEntity: {type: "Account", accountId: ownerSession.accountId},
+        });
+
+        const botAccountId = generateId<AccountId>();
+        await installBotInSpace(context.action(ownerSession), {
+            spaceId: space.id,
+            botId: bot.id,
+            accountId: botAccountId,
+        });
+
+        return botAccountId;
+    }
+
+    test("the owner of a personal bot can assign a task to it", async () => {
+        const {taskId} = await createPublicTask(session1, space.id);
+        const botAccountId = await createPersonalBotAccountOwnedBy(session1);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: {
+                        assigneeId: botAccountId,
+                        assignerId: session1.accountId,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                },
+            },
+        ]);
+
+        const taskItem = await getTaskItemForTest(context.action(session1), taskId);
+        expect(taskItem.assigneeId.value).toEqual(botAccountId);
+    });
+
+    test("a non-owner cannot assign a task to a personal bot", async () => {
+        const {taskId} = await createPublicTask(session1, space.id);
+        const botAccountId = await createPersonalBotAccountOwnedBy(session1);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session2), space.id, [
+                {
+                    type: "UpdateTask",
+                    time: clock.now(),
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: {
+                            assigneeId: botAccountId,
+                            assignerId: session2.accountId,
+                            assignedTime: getCurrentTaskTime(),
+                        },
+                    },
+                },
+            ]),
+        ).rejects.toThrow(new PermissionDeniedError("Account may not view this bot"));
+    });
+
+    test("a non-owner can unassign a personal bot from a task", async () => {
+        const {taskId} = await createPublicTask(session1, space.id);
+        const botAccountId = await createPersonalBotAccountOwnedBy(session1);
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: {
+                        assigneeId: botAccountId,
+                        assignerId: session1.accountId,
+                        assignedTime: getCurrentTaskTime(),
+                    },
+                },
+            },
+        ]);
+
+        await commitTaskActionTransaction(context.action(session2), space.id, [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: null,
+                },
+            },
+        ]);
+
+        const taskItem = await getTaskItemForTest(context.action(session1), taskId);
+        expect(taskItem.assigneeId.value).toBeNull();
     });
 
     test("can update task assignee status", async () => {

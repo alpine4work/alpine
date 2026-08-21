@@ -10,6 +10,7 @@ ts_project(
     deps = [
         "//server/bots",
         "//server/spaces/test_helpers",
+        "//shared/bots/owners",
         "//shared/context",
         "//shared/helpers",
         "//shared/id",

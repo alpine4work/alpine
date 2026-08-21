@@ -143,7 +143,7 @@ function ShareOverlayAccountInput(
                             if (accountData.space.state.type === "Removed") return;
 
                             // Don't allow sharing with bot accounts.
-                            if (accountData.botId) return;
+                            if (accountData.bot) return;
 
                             return {
                                 type: "Account",

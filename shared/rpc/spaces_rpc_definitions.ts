@@ -225,8 +225,8 @@ export const createSpace = defineRpc({
     },
 });
 
-export const instantiateBotSpaceAccount = defineRpc({
-    name: "instantiateBotSpaceAccount",
+export const installBotInSpace = defineRpc({
+    name: "installBotInSpace",
     // Throws an error if bot has already been instantiated in the space.
     isIdempotent: false,
     input: {

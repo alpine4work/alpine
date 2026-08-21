@@ -2,6 +2,7 @@ import {getAccountItemWithoutAvatarIfExists} from "~/server/accounts/internal/ge
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
+import {parseBotOwnerEntityId} from "~/shared/bots/owners/bot_owner_entity.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {AccountId} from "~/shared/id/types/id_types.open_source.js";
@@ -27,7 +28,10 @@ export async function dangerouslyGetAccountWithoutAvatarIfExistsWithoutAuthoriza
         version: accountItem.updateLockVersion ?? 0,
         name: accountItem.name,
         nameVersion: accountItem.nameVersion ?? 0,
-        botId: accountItem.bot?.botId,
+        bot: accountItem.bot && {
+            id: accountItem.bot.botId,
+            owner: parseBotOwnerEntityId(accountItem.bot.ownerEntity),
+        },
         reactionCharacter: accountItem.reactionCharacter,
     };
 }

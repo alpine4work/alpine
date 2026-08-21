@@ -4226,6 +4226,30 @@ test("can\u2019t create a chat with only bot accounts", async () => {
     ).toMatch(idRegExp);
 });
 
+test("can\u2019t create a chat with a bot the actor can\u2019t use", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Member"});
+    const otherSession = await space.createSession({role: "Member"});
+    const bot = await TestBot.create(context, {
+        ownerEntity: {type: "Account", accountId: ownerSession.account.id},
+    });
+    const botAccount = await bot.instantiate(ownerSession);
+
+    await expect(
+        getOrCreateChatForAccounts(otherSession.action(), {
+            spaceId: space.id,
+            otherAccountIds: [botAccount.id],
+        }),
+    ).rejects.toThrow("Account may not message this bot");
+
+    await expect(
+        getOrCreateChatForAccounts(ownerSession.action(), {
+            spaceId: space.id,
+            otherAccountIds: [botAccount.id],
+        }),
+    ).resolves.toMatch(idRegExp);
+});
+
 test("bot can read messages in a chat if it\u2019s scope allows", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession({role: "Admin"});

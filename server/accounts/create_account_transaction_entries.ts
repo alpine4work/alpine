@@ -2,6 +2,7 @@ import {AccountsTable} from "~/server/accounts/internal/accounts_table.js";
 import {createAccountModelWithoutSpaceFromItem} from "~/server/accounts/internal/create_account_model_without_space_from_item.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {AccountModelWithoutSpace} from "~/shared/accounts/account_model_without_space.js";
+import {BotOwnerEntityId} from "~/shared/bots/owners/bot_owner_entity.js";
 import {EmailAddress} from "~/shared/helpers/string/email_address.js";
 import {AvatarId} from "~/shared/id/types/id_types.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -52,17 +53,23 @@ export function createAccountTransactionEntries({
     name: string;
 
     /**
-     * This is set when instantiating a bot to mark the account as a bot account. This
-     * is dangerous since when creating a bot account we need to make sure there's no
+     * This is set when installing a bot to mark the account as a bot account. This is
+     * dangerous since when creating a bot account we need to make sure there's no
      * other account for the bot in the space (and that the `BotId` exists). This
      * function doesn't make those checks.
      *
-     * Only the `instantiateBotSpaceAccount()` function in `spaces_table.ts` should use
-     * this.
+     * Only the `installBotInSpace()` function in `spaces_table.ts` should use this.
      */
     dangerouslyInstantiateBot?: {
         botId: BotId;
         spaceId: SpaceId;
+
+        /**
+         * The bot's owner, copied onto the account so we can tell who a bot account
+         * belongs to without reading the bot. See `accounts_table.ts`.
+         */
+        ownerEntity: BotOwnerEntityId;
+
         avatar?: {
             avatarId: AvatarId;
             content: Uint8Array;

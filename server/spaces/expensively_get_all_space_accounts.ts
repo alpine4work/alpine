@@ -1,10 +1,15 @@
 import {ServerActionContext} from "~/server/context/server_action_context.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {
+    DynamoCacheReadConsistency,
+    DynamoReadConsistency,
+} from "~/server/dynamo/core/dynamo_read_consistency.js";
+import {hasBotOperationAccess} from "~/server/spaces/authorize_bot_operation.js";
 import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
 import {
     getAllSpaceAccountsWithoutCachingAndWithoutAuthorization,
     spaceAccountsCache,
 } from "~/server/spaces/internal/space_accounts_cache.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
 import {SpaceId} from "~/shared/id/types/id_types.open_source.js";
 import {AccountModel} from "~/shared/spaces/account_model.js";
 
@@ -43,12 +48,35 @@ export async function expensivelyGetAllSpaceAccounts(
         // internally, so only check for strong consistency block.
         await authorizeSpaceAccess(context, spaceId, undefined, {allowInvitePending});
 
-        return await getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(context, spaceId, {
-            isBlocking: true,
-            consistency: "Strong",
+        const accounts = await getAllSpaceAccountsWithoutCachingAndWithoutAuthorization(
+            context,
+            spaceId,
+            {
+                isBlocking: true,
+                consistency: "Strong",
+            },
+        );
+        return await filterSpaceAccountsByBotViewAccess(context, accounts, {
+            consistency: "StrongWithinCache",
         });
     }
 
     const {accounts} = await spaceAccountsCache.getData(context, spaceId, {allowInvitePending});
-    return accounts;
+    return await filterSpaceAccountsByBotViewAccess(context, accounts);
+}
+
+async function filterSpaceAccountsByBotViewAccess(
+    context: ServerActionContext,
+    accounts: ReadonlyArray<AccountModel>,
+    {consistency = "Eventual"}: {consistency?: DynamoCacheReadConsistency} = {},
+): Promise<ReadonlyArray<AccountModel>> {
+    const canUseAccount = await runAllPromises(
+        accounts.map(async account =>
+            account.botId
+                ? await hasBotOperationAccess(context, account.botId, {type: "View"}, {consistency})
+                : true,
+        ),
+    );
+
+    return accounts.filter((_, index) => canUseAccount[index]);
 }

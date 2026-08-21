@@ -30,6 +30,8 @@ ts_project(
         "//server/tokens",
         "//shared/accounts",
         "//shared/avatar",
+        "//shared/bots",
+        "//shared/bots/owners",
         "//shared/context",
         "//shared/error:error_core",
         "//shared/helpers",

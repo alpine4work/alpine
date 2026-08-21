@@ -1,10 +1,9 @@
 import {useNavigate} from "@remix-run/react";
 import {Copy} from "phosphor-react";
 import {useState} from "react";
-import {accountAvatarClassName} from "~/client/web/accounts/account_avatar_html.js";
-import {AvatarDefault} from "~/client/web/avatar/avatar_default.js";
-import {AvatarImage} from "~/client/web/avatar/avatar_image.js";
 import {AvatarUploader} from "~/client/web/avatar/avatar_uploader.js";
+import {BotAvatar} from "~/client/web/bots/bot_avatar.js";
+import {uploadBotAvatar} from "~/client/web/bots/upload_bot_avatar.js";
 import {useAppContext} from "~/client/web/context/app_context.js";
 import {Box} from "~/client/web/design/box.js";
 import {Button} from "~/client/web/design/button.js";
@@ -13,26 +12,25 @@ import {SecretTextInputWithoutLabel} from "~/client/web/design/secret_text_input
 import {Spacer} from "~/client/web/design/spacer.js";
 import {TextInput} from "~/client/web/design/text_input.js";
 import {writeTextToClipboard} from "~/client/web/helpers/write_text_to_clipboard.js";
-import {BotIcon} from "~/client/web/icons/bot_icon.js";
-import {useSpacingScale} from "~/client/web/remix/spacing_scale_context.js";
 import {useLoaderDataWithSchema} from "~/client/web/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/web/remix/use_update_meta_title.js";
-import {backgroundColorVar, colorSchemeVars} from "~/client/web/styles/styles.js";
-import {expensivelyGetAllBotsForAdminSettingsPage} from "~/server/bots/expensively_get_all_bots_for_admin_settings_page.js";
+import {colorSchemeVars} from "~/client/web/styles/styles.js";
+import {getSystemBotsForAdminSettingsPage} from "~/server/bots/get_system_bots_for_admin_settings_page.js";
 import {settingsDefaultKnownBotAccountModelDataById} from "~/server/bots/settings_default_known_bot_account_model_data.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
-import {UploadAvatarResponseSchema} from "~/shared/avatar/protocol/upload_avatar_response_schema.js";
-import {Bot, BotForAdmin, BotForAdminSchema} from "~/shared/bots/bot_schema.js";
-import {borderRadius} from "~/shared/design/core/border_radius.js";
-import {colors} from "~/shared/design/core/colors.js";
-import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/core/spacing.js";
-import {ThemeColor} from "~/shared/design/core/theme_colors.js";
-import {InternalError} from "~/shared/error/error.open_source.js";
+import {Bot, BotSecrets, BotSecretsSchema} from "~/shared/bots/bot_schema.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
+import {
+    BotOwnerEntityId,
+    BotOwnerType,
+    botOwnerEntityIdForAccount,
+    botOwnerEntityIdForSpace,
+    botOwnerEntityIdForSystem,
+} from "~/shared/bots/owners/bot_owner_entity.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
-import {quote} from "~/shared/helpers/string/quote.open_source.js";
 import {assertId} from "~/shared/id/id.open_source.js";
 import {
     AccountId,
@@ -43,20 +41,15 @@ import {
     SpaceId,
     TaskId,
 } from "~/shared/id/types/id_types.open_source.js";
-import {Reaction} from "~/shared/reactions/reaction.js";
 import {
     createBot,
     createScopedApiKeyForBot,
     createUnscopedApiKeyForBot,
     deleteApiKeyForBot,
     deleteBot,
-    getBotAccountIdForSpaceIfExists,
     rotateApiKeyForBot,
 } from "~/shared/rpc/bots_rpc_definitions.js";
-import {instantiateBotSpaceAccount} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {getAvatarDefaultDesign} from "~/shared/spaces/get_avatar_default_design.js";
-import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.open_source.js";
 
 export function meta() {
     return [{title: `Bot Account Management${metaTitlePostfix}`}];
@@ -64,13 +57,11 @@ export function meta() {
 
 const LoaderSchema = Schema.object({
     knownBotIds: Schema.set(Schema.id<BotId>()),
-    bots: Schema.array(BotForAdminSchema),
+    bots: Schema.array(BotSecretsSchema),
 });
 
 export async function loader({context}: LoaderArgs) {
-    const bots = await expensivelyGetAllBotsForAdminSettingsPage(
-        await context.actor.authenticate(),
-    );
+    const bots = await getSystemBotsForAdminSettingsPage(await context.actor.authenticate());
     bots.sort((a, b) => b.createdTime.getTime() - a.createdTime.getTime());
     return jsonWithSchema(LoaderSchema, {
         knownBotIds: new Set(settingsDefaultKnownBotAccountModelDataById.get().keys()),
@@ -84,43 +75,18 @@ export default function BotsManagementPage() {
     const navigate = useNavigate();
 
     const handleUploadAvatar = async (bot: Bot, file: File): Promise<AvatarModel> => {
-        return await fetchWithTracer(
-            context.tracer.getTracer(),
-            new URL(`/api/avatar/bot/${bot.id}`, window.location.href),
-            {
-                serviceName: "EdgeService",
-                route: "/api/avatar/bot/:botId",
-                method: "POST",
-                headers: {
-                    "content-type": file.type,
-                    "content-length": file.size.toString(),
-                },
-                body: file,
-            },
-            async response => {
-                const responseData = await response.json();
-                const responseBody = UploadAvatarResponseSchema.deserialize(responseData);
-                if (!responseBody.ok) throw responseBody.error;
-
-                if (responseBody.type !== "UploadBotAvatar") {
-                    throw new InternalError(
-                        quote`Unexpected response type \u201C${responseBody.type}\u201D`,
-                    );
-                }
-
-                return assertExists(responseBody.bot.avatar);
-            },
-        );
+        return await uploadBotAvatar(context, bot.id, file);
     };
 
     return (
         <Box display="flex" width="full" height="full" maxWidth="128" marginX="6">
             <Box width="full">
                 <Box fontSize="300" fontStyle="bold">
-                    Bots that you own
+                    System bots
                 </Box>
                 <Box fontSize="75" color="grey-60" paddingTop="1">
-                    Manage bots that you own.
+                    Manage the global bots that Alpine owns. Bots owned by an account or a space are
+                    managed from that space&#x2019;s bot settings.
                 </Box>
                 <Spacer space="6" />
                 <Box border="grey-5" borderRadius="3" padding="6" backgroundColor="grey-20">
@@ -156,6 +122,7 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
     const [keyName, setKeyName] = useState("");
     const [webhookUrl, setWebhookUrl] = useState("");
     const [webhookSecret, setWebhookSecret] = useState("");
+    const [ownerState, setOwnerState] = useState<OwnerState>({type: "Space", ownerId: ""});
     const [scopeState, setScopeState] = useState<ScopeState>({type: "Unscoped"});
 
     return (
@@ -164,6 +131,7 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
                 Create a new bot
             </Box>
             <TextInput label="Name" value={name} onChange={setName} placeholder="My Bot" />
+            <OwnerForm ownerState={ownerState} onChange={setOwnerState} />
             <TextInput
                 label="Webhook URL"
                 value={webhookUrl}
@@ -186,7 +154,11 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
             <Box>
                 <Button
                     variant="accent"
-                    isDisabled={name.trim().length === 0 || webhookUrl.trim().length === 0}
+                    isDisabled={
+                        name.trim().length === 0 ||
+                        webhookUrl.trim().length === 0 ||
+                        ownerState.ownerId.trim().length === 0
+                    }
                     pressErrorTitle="Couldn&#x2019;t create bot"
                     onPress={async () => {
                         const {botId} = await createBot(context, {
@@ -195,6 +167,8 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
                                 url: webhookUrl.trim(),
                                 secret: webhookSecret.trim() || null,
                             },
+                            description: null,
+                            ownerEntity: buildOwnerEntityId(ownerState),
                         });
 
                         switch (scopeState.type) {
@@ -211,15 +185,9 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
                             case "Post":
                             case "Task":
                                 const spaceId = assertId<SpaceId>(scopeState.spaceId);
-                                const accountId = await getOrInstantiateBotAccountId(
-                                    context,
-                                    botId,
-                                    spaceId,
-                                );
                                 await createScopedApiKeyForBot(context, {
                                     botId,
                                     spaceId,
-                                    accountId,
                                     name: keyName.trim() || null,
                                     scope: buildScope(scopeState),
                                 });
@@ -230,6 +198,7 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
 
                         setName("");
                         setWebhookUrl("");
+                        setOwnerState({type: "Space", ownerId: ""});
                         setScopeState({type: "Unscoped"});
                         onCreated();
                     }}
@@ -237,6 +206,65 @@ function CreateBotForm({onCreated}: {onCreated: () => void}) {
                     Create Bot
                 </Button>
             </Box>
+        </Box>
+    );
+}
+
+type OwnerState = {type: BotOwnerType; ownerId: string};
+
+const ownerTypes: ReadonlyArray<BotOwnerType> = ["Space", "Account", "System"];
+
+const ownerIdLabel: Record<BotOwnerType, string> = {
+    Space: "Owner Space ID",
+    Account: "Owner Account ID",
+    System: "System",
+};
+
+function buildOwnerEntityId(ownerState: OwnerState): BotOwnerEntityId {
+    switch (ownerState.type) {
+        case "Space":
+            return botOwnerEntityIdForSpace(assertId<SpaceId>(ownerState.ownerId));
+        case "Account":
+            return botOwnerEntityIdForAccount(assertId<AccountId>(ownerState.ownerId));
+        case "System":
+            return botOwnerEntityIdForSystem();
+        default:
+            throw exhaustive(ownerState.type);
+    }
+}
+
+function OwnerForm({
+    ownerState,
+    onChange,
+}: {
+    ownerState: OwnerState;
+    onChange: (state: OwnerState) => void;
+}) {
+    return (
+        <Box display="flex" flexDirection="column" gap="2">
+            <Box fontSize="75" fontStyle="semi-bold">
+                Owner
+            </Box>
+            <select
+                value={ownerState.type}
+                onChange={e =>
+                    onChange({...ownerState, type: e.currentTarget.value as BotOwnerType})
+                }
+            >
+                {ownerTypes.map(t => (
+                    <option key={t} value={t}>
+                        {t}
+                    </option>
+                ))}
+            </select>
+            {ownerState.type !== "System" && (
+                <TextInput
+                    label={ownerIdLabel[ownerState.type]}
+                    value={ownerState.ownerId}
+                    onChange={ownerId => onChange({...ownerState, ownerId})}
+                    placeholder={ownerIdLabel[ownerState.type]}
+                />
+            )}
         </Box>
     );
 }
@@ -252,21 +280,7 @@ type ScopeState =
 
 type ScopedScopeType = Exclude<ScopeState["type"], "Unscoped">;
 
-async function getOrInstantiateBotAccountId(
-    context: ReturnType<typeof useAppContext>,
-    botId: BotId,
-    spaceId: SpaceId,
-): Promise<AccountId> {
-    const {accountId: existingAccountId} = await getBotAccountIdForSpaceIfExists(context, {
-        botId,
-        spaceId,
-    });
-    if (existingAccountId !== null) return existingAccountId;
-    const {account} = await instantiateBotSpaceAccount(context, {botId, spaceId});
-    return account.id;
-}
-
-function buildScope(scopeState: Exclude<ScopeState, {type: "Unscoped"}>) {
+function buildScope(scopeState: Exclude<ScopeState, {type: "Unscoped"}>): BotTokenScope {
     switch (scopeState.type) {
         case "Space":
             return {type: "Space"};
@@ -381,7 +395,7 @@ function BotRow({
     isKnownBot,
     onUploadAvatar,
 }: {
-    bot: BotForAdmin;
+    bot: BotSecrets;
     isKnownBot: boolean;
     onUploadAvatar: (bot: Bot, file: File) => Promise<AvatarModel>;
 }) {
@@ -465,13 +479,13 @@ function BotRow({
                         <Box flexGrow="1" position="relative">
                             <TextInput
                                 label="Webhook URL"
-                                value={bot.webhook.url ?? ""}
+                                value={bot.webhook?.url ?? ""}
                                 fontSize="75"
                                 onChange={() => {}}
                                 isReadOnly={true}
                                 placeholder="No webhook URL configured"
                             />
-                            {bot.webhook.url && (
+                            {bot.webhook?.url && (
                                 <Box
                                     position="absolute"
                                     display="flex"
@@ -485,7 +499,7 @@ function BotRow({
                                         height="8"
                                         paddingX="3"
                                         onPress={() =>
-                                            writeTextToClipboard(assertExists(bot.webhook.url))
+                                            writeTextToClipboard(assertExists(bot.webhook?.url))
                                         }
                                         pressErrorTitle="Couldn&#x2019;t copy webhook URL"
                                     >
@@ -717,15 +731,9 @@ function GenerateApiKeyForm({botId, onGenerated}: {botId: BotId; onGenerated: ()
                             await createUnscopedApiKeyForBot(context, {botId, name});
                         } else {
                             const spaceId = assertId<SpaceId>(scopeState.spaceId);
-                            const accountId = await getOrInstantiateBotAccountId(
-                                context,
-                                botId,
-                                spaceId,
-                            );
                             await createScopedApiKeyForBot(context, {
                                 botId,
                                 spaceId,
-                                accountId,
                                 name,
                                 scope: buildScope(scopeState),
                             });
@@ -740,115 +748,5 @@ function GenerateApiKeyForm({botId, onGenerated}: {botId: BotId; onGenerated: ()
                 </Button>
             </Box>
         </Box>
-    );
-}
-
-function BotAvatar({
-    bot,
-    size,
-    backgroundBorderWidth,
-}: {
-    bot: Bot;
-    size: Spacing;
-    backgroundBorderWidth?: 1 | 1.5 | 2 | 3;
-}) {
-    const spacingScale = useSpacingScale();
-
-    const avatarPx = convertRemLengthToPx(size, spacingScale);
-    const avatarDesign = getBotAvatarDesign(bot);
-
-    return (
-        <span
-            className={accountAvatarClassName}
-            style={{
-                width: spacing[size],
-                height: spacing[size],
-                borderRadius: borderRadius["full"],
-                backgroundColor:
-                    avatarDesign.type === "Default"
-                        ? colors[`${avatarDesign.backgroundColor}-20`]
-                        : undefined,
-                boxShadow:
-                    backgroundBorderWidth !== undefined
-                        ? `0px 0px 0px ${backgroundBorderWidth}px ${backgroundColorVar}`
-                        : undefined,
-            }}
-        >
-            <BotAvatarDesignView size={size} avatarDesign={avatarDesign} />
-            <BotIconOverlay avatarPx={avatarPx} />
-        </span>
-    );
-}
-
-function BotAvatarDesignView({size, avatarDesign}: {size: Spacing; avatarDesign: BotAvatarDesign}) {
-    switch (avatarDesign.type) {
-        case "Image": {
-            return <BotImageAvatarDesignView avatarDesign={avatarDesign} />;
-        }
-        case "Default": {
-            return <AvatarDefault size={size} reaction={avatarDesign.reaction} />;
-        }
-        default:
-            throw exhaustive(avatarDesign);
-    }
-}
-
-function BotImageAvatarDesignView({avatarDesign}: {avatarDesign: BotImageAvatarDesign}) {
-    return <AvatarImage content={avatarDesign.content} borderRadius="full" />;
-}
-
-type BotImageAvatarDesign = {
-    type: "Image";
-    content: Uint8Array;
-};
-type BotDefaultAvatarDesign = {
-    type: "Default";
-    reaction: Reaction;
-    backgroundColor: ThemeColor;
-};
-type BotAvatarDesign = BotImageAvatarDesign | BotDefaultAvatarDesign;
-
-function getBotAvatarDesign(bot: Bot): BotAvatarDesign {
-    return bot.avatar?.content
-        ? {type: "Image", content: bot.avatar.content}
-        : {
-              type: "Default",
-              ...getAvatarDefaultDesign(bot.id, null),
-          };
-}
-
-export function BotIconOverlay({avatarPx}: {avatarPx: number}) {
-    const iconSize = avatarPx / 1.618033988749; // golden ratio
-    const iconStyleBase = {
-        position: "absolute",
-        width: iconSize,
-        height: iconSize,
-        // Position the SVG container just past the bounding box so that the ghost icon
-        // itself is drawn almost exactly at the bottom right corner of the box. This looks
-        // correct at all (tested) scales
-        bottom: "-1px",
-        right: "-1px",
-    } as const;
-
-    return (
-        <>
-            <BotIcon
-                color={backgroundColorVar}
-                style={{
-                    ...iconStyleBase,
-                    overflow: "hidden",
-                }}
-                // The stroke width gets scaled according to the ghost icons size, so this
-                // hardcoded value looks good at all (tested) scales.
-                strokeWidth={96}
-            />
-            <BotIcon
-                color={colorSchemeVars["grey-60"]}
-                style={{
-                    ...iconStyleBase,
-                    overflow: "visible",
-                }}
-            />
-        </>
     );
 }

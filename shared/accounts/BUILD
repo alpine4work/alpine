@@ -8,6 +8,7 @@ ts_project(
     deps = [
         "//:node_modules/free-email-domains",
         "//shared/avatar",
+        "//shared/bots/owners",
         "//shared/helpers",
         "//shared/id",
         "//shared/reactions",

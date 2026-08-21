@@ -317,6 +317,35 @@ describe("getCloneActions", () => {
         expect(assigneeAction?.taskAction.assignee?.assigneeId).toBe(assigneeId);
     });
 
+    test("leaves the duplicate unassigned when `withAssignee` is false", () => {
+        const assigneeId = generateId<AccountId>();
+        task = task.applyAction(
+            {
+                type: "UpdateTask",
+                taskId: task.id,
+                time: clock.now(),
+                taskAction: {
+                    type: "UpdateAssignee",
+                    assignee: {
+                        assigneeId,
+                        assignerId: accountId,
+                        assignedTime: filterableTime,
+                    },
+                },
+            },
+            getActionReferencedSortableAccount,
+        );
+
+        const {actions} = task.getDuplicateActions({
+            creatorId: accountId,
+            actionTime: clock.now(),
+            creatorTimeZone: timeZone,
+            withAssignee: false,
+        });
+
+        findActions<TaskUpdateAssigneeAction>(actions, "UpdateAssignee", 0);
+    });
+
     test("copies collection ids", () => {
         const collectionId1 = generateId<TaskCollectionId>();
         const collectionId2 = generateId<TaskCollectionId>();

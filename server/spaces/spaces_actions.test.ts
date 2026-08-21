@@ -19,7 +19,7 @@ import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.j
 import {getOwnAccountIfExists} from "~/server/spaces/get_own_account_if_exists.js";
 import {getSpace, getSpaceIfPossible} from "~/server/spaces/get_space.js";
 import {getSpaceAccountNameSearchIndex} from "~/server/spaces/get_space_account_name_search_index.js";
-import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
+import {installBotInSpace} from "~/server/spaces/install_bot_in_space.js";
 import {addSpaceAccountBeforeExecuteTestCheckpoint} from "~/server/spaces/internal/get_add_space_account_transaction_entries.js";
 import {spaceAccountsCache} from "~/server/spaces/internal/space_accounts_cache.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
@@ -5168,113 +5168,97 @@ test("`getSpaceIfPossible()` returns an error for an anonymous actor", async () 
     });
 });
 
-test("can instantiate a bot in a space as an admin", async () => {
+test("a space admin can install a bot in their space", async () => {
     const bot = await TestBot.create(context, {name: "Test Bot"});
-
     const space = await TestSpace.create(context);
-    const otherSpace = await TestSpace.create(context);
-
-    const ownerSession = await space.createSession({role: "Owner"});
     const adminSession = await space.createSession({role: "Admin"});
-    const memberSession = await space.createSession({role: "Member"});
-    const otherSession = await otherSpace.createSession({role: "Admin"});
 
-    await expect(
-        instantiateBotSpaceAccount(otherSession.action(), {spaceId: space.id, botId: bot.id}),
-    ).rejects.toThrow("Account doesn\u2019t have `Admin` access to space");
-
-    await expect(
-        instantiateBotSpaceAccount(memberSession.action(), {spaceId: space.id, botId: bot.id}),
-    ).rejects.toThrow("Account doesn\u2019t have `Admin` access to space");
-
-    const {id: accountId} = await instantiateBotSpaceAccount(adminSession.action(), {
+    const {id: accountId} = await installBotInSpace(adminSession.action(), {
         spaceId: space.id,
-        botId: bot.id,
-    });
-
-    expect((await getAccount(memberSession.action(), space.id, accountId)).initialData).toEqual(
-        expect.objectContaining({
-            name: "Test Bot",
-            botId: bot.id,
-            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
-        }),
-    );
-
-    await expect(
-        instantiateBotSpaceAccount(adminSession.action(), {spaceId: space.id, botId: bot.id}),
-    ).rejects.toThrow("Can\u2019t instantiate bot twice in the same space");
-
-    await expect(
-        instantiateBotSpaceAccount(ownerSession.action(), {spaceId: space.id, botId: bot.id}),
-    ).rejects.toThrow("Can\u2019t instantiate bot twice in the same space");
-
-    const {id: otherAccountId} = await instantiateBotSpaceAccount(otherSession.action(), {
-        spaceId: otherSpace.id,
         botId: bot.id,
     });
 
     expect(
-        (await getAccount(otherSession.action(), otherSpace.id, otherAccountId)).initialData,
-    ).toEqual(
-        expect.objectContaining({
-            name: "Test Bot",
-            botId: bot.id,
-            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
-        }),
-    );
+        (await getAccount(adminSession.action(), space.id, accountId)).initialData,
+    ).toMatchObject({
+        name: "Test Bot",
+        bot: {id: bot.id},
+        space: {state: {type: "Active"}},
+    });
 });
 
-test("can instantiate a bot in a space as an owner", async () => {
+test("a space owner can install a bot in their space", async () => {
     const bot = await TestBot.create(context, {name: "Test Bot"});
-
     const space = await TestSpace.create(context);
-    const otherSpace = await TestSpace.create(context);
-
     const ownerSession = await space.createSession({role: "Owner"});
-    const adminSession = await space.createSession({role: "Admin"});
-    const memberSession = await space.createSession({role: "Member"});
-    const otherSession = await otherSpace.createSession({role: "Admin"});
 
-    await expect(
-        instantiateBotSpaceAccount(otherSession.action(), {spaceId: space.id, botId: bot.id}),
-    ).rejects.toThrow("Account doesn\u2019t have `Admin` access to space");
-
-    await expect(
-        instantiateBotSpaceAccount(memberSession.action(), {spaceId: space.id, botId: bot.id}),
-    ).rejects.toThrow("Account doesn\u2019t have `Admin` access to space");
-
-    const {id: accountId} = await instantiateBotSpaceAccount(ownerSession.action(), {
+    const {id: accountId} = await installBotInSpace(ownerSession.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
 
-    expect((await getAccount(memberSession.action(), space.id, accountId)).initialData).toEqual(
-        expect.objectContaining({
-            name: "Test Bot",
-            botId: bot.id,
-            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
-        }),
-    );
-
-    await expect(
-        instantiateBotSpaceAccount(adminSession.action(), {spaceId: space.id, botId: bot.id}),
-    ).rejects.toThrow("Can\u2019t instantiate bot twice in the same space");
-
-    await expect(
-        instantiateBotSpaceAccount(ownerSession.action(), {spaceId: space.id, botId: bot.id}),
-    ).rejects.toThrow("Can\u2019t instantiate bot twice in the same space");
+    expect(
+        (await getAccount(ownerSession.action(), space.id, accountId)).initialData,
+    ).toMatchObject({
+        name: "Test Bot",
+        bot: {id: bot.id},
+        space: {state: {type: "Active"}},
+    });
 });
 
-test("can\u2019t add a bot instantiated in one space to another space", async () => {
+test("a bot can\u2019t be installed twice in the same space", async () => {
     const bot = await TestBot.create(context);
+    const space = await TestSpace.create(context);
+    const adminSession = await space.createSession({role: "Admin"});
 
+    await installBotInSpace(adminSession.action(), {spaceId: space.id, botId: bot.id});
+
+    await expect(
+        installBotInSpace(adminSession.action(), {spaceId: space.id, botId: bot.id}),
+    ).rejects.toThrow("Bot has already been installed in this space");
+});
+
+test("a bot can be installed in more than one space", async () => {
+    const bot = await TestBot.create(context, {name: "Test Bot"});
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
-
     const session = await space.createSession({role: "Admin"});
     const otherSession = await otherSpace.createSession({role: "Admin"});
 
-    const {id: accountId} = await instantiateBotSpaceAccount(session.action(), {
+    const {id: accountId} = await installBotInSpace(session.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+    const {id: otherAccountId} = await installBotInSpace(otherSession.action(), {
+        spaceId: otherSpace.id,
+        botId: bot.id,
+    });
+
+    expect(accountId).not.toEqual(otherAccountId);
+
+    expect((await getAccount(session.action(), space.id, accountId)).initialData).toMatchObject({
+        name: "Test Bot",
+        bot: {id: bot.id},
+        space: {state: {type: "Active"}},
+    });
+
+    expect(
+        (await getAccount(otherSession.action(), otherSpace.id, otherAccountId)).initialData,
+    ).toMatchObject({
+        name: "Test Bot",
+        bot: {id: bot.id},
+        space: {state: {type: "Active"}},
+    });
+});
+
+test("can\u2019t add a bot installed in one space to another space", async () => {
+    const bot = await TestBot.create(context);
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+
+    const {id: accountId} = await installBotInSpace(session.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5286,66 +5270,37 @@ test("can\u2019t add a bot instantiated in one space to another space", async ()
             withoutInviteForTest: true,
         }),
     ).rejects.toThrow(
-        "Can\u2019t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
+        "Can\u2019t add existing bot account to space, must use `installBotInSpace()` to create a new bot account for the space",
     );
 });
 
-test("can remove bot from space it was instantiated in and can add it back", async () => {
+test("can remove a bot from the space it was installed in", async () => {
     const bot = await TestBot.create(context, {name: "Test Bot"});
-
     const space = await TestSpace.create(context);
-    const otherSpace = await TestSpace.create(context);
-
     const session = await space.createSession({role: "Admin"});
-    const otherSession = await otherSpace.createSession({role: "Admin"});
-
-    const {id: accountId} = await instantiateBotSpaceAccount(session.action(), {
+    const {id: accountId} = await installBotInSpace(session.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
 
-    expect((await getAccount(session.action(), space.id, accountId)).initialData).toEqual(
-        expect.objectContaining({
-            name: "Test Bot",
-            botId: bot.id,
-            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
-        }),
-    );
+    await removeSpaceAccount(session.action(), {spaceId: space.id, accountId});
 
-    await removeSpaceAccount(session.action(), {
-        spaceId: space.id,
-        accountId,
+    expect((await getAccount(session.action(), space.id, accountId)).initialData).toMatchObject({
+        name: "Test Bot",
+        bot: {id: bot.id},
+        space: {state: {type: "Removed"}},
     });
+});
 
-    expect((await getAccount(session.action(), space.id, accountId)).initialData).toEqual(
-        expect.objectContaining({
-            name: "Test Bot",
-            botId: bot.id,
-            space: expect.objectContaining({
-                state: expect.objectContaining({type: "Removed"}),
-            }),
-        }),
-    );
-
-    await expect(
-        addSpaceAccount(otherSession.action(), {
-            spaceId: otherSpace.id,
-            accountId,
-            withoutInviteForTest: true,
-        }),
-    ).rejects.toThrow(
-        "Can\u2019t add existing bot account to space, must use `instantiateBotSpaceAccount()` to create a new bot account for the space",
-    );
-
-    expect((await getAccount(session.action(), space.id, accountId)).initialData).toEqual(
-        expect.objectContaining({
-            name: "Test Bot",
-            botId: bot.id,
-            space: expect.objectContaining({
-                state: expect.objectContaining({type: "Removed"}),
-            }),
-        }),
-    );
+test("can add a removed bot back to the space it was installed in", async () => {
+    const bot = await TestBot.create(context, {name: "Test Bot"});
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const {id: accountId} = await installBotInSpace(session.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+    await removeSpaceAccount(session.action(), {spaceId: space.id, accountId});
 
     await addSpaceAccount(session.action(), {
         spaceId: space.id,
@@ -5353,13 +5308,40 @@ test("can remove bot from space it was instantiated in and can add it back", asy
         withoutInviteForTest: true,
     });
 
-    expect((await getAccount(session.action(), space.id, accountId)).initialData).toEqual(
-        expect.objectContaining({
-            name: "Test Bot",
-            botId: bot.id,
-            space: expect.objectContaining({state: expect.objectContaining({type: "Active"})}),
+    expect((await getAccount(session.action(), space.id, accountId)).initialData).toMatchObject({
+        name: "Test Bot",
+        bot: {id: bot.id},
+        space: {state: {type: "Active"}},
+    });
+});
+
+test("can\u2019t add a bot removed from one space to another space", async () => {
+    const bot = await TestBot.create(context, {name: "Test Bot"});
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session = await space.createSession({role: "Admin"});
+    const otherSession = await otherSpace.createSession({role: "Admin"});
+    const {id: accountId} = await installBotInSpace(session.action(), {
+        spaceId: space.id,
+        botId: bot.id,
+    });
+    await removeSpaceAccount(session.action(), {spaceId: space.id, accountId});
+
+    await expect(
+        addSpaceAccount(otherSession.action(), {
+            spaceId: otherSpace.id,
+            accountId,
+            withoutInviteForTest: true,
         }),
+    ).rejects.toThrow(
+        "Can\u2019t add existing bot account to space, must use `installBotInSpace()` to create a new bot account for the space",
     );
+
+    expect((await getAccount(session.action(), space.id, accountId)).initialData).toMatchObject({
+        name: "Test Bot",
+        bot: {id: bot.id},
+        space: {state: {type: "Removed"}},
+    });
 });
 
 test("can\u2019t make a bot account a space admin", async () => {
@@ -5370,7 +5352,7 @@ test("can\u2019t make a bot account a space admin", async () => {
     const session1 = await space.createSession({role: "Admin"});
     const [session2, session3] = await space.createSessions(2);
 
-    const {id: accountId} = await instantiateBotSpaceAccount(session1.action(), {
+    const {id: accountId} = await installBotInSpace(session1.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5378,7 +5360,7 @@ test("can\u2019t make a bot account a space admin", async () => {
     expect((await getAccount(session1.action(), space.id, accountId)).initialData).toEqual(
         expect.objectContaining({
             name: "Test Bot",
-            botId: bot.id,
+            bot: {id: bot.id, owner: {type: "System"}},
             space: expect.objectContaining({
                 role: "Member",
                 state: {type: "Active", activatedTime: expect.any(Date)},
@@ -5409,7 +5391,7 @@ test("can\u2019t make a bot account a space admin", async () => {
     expect((await getAccount(session1.action(), space.id, accountId)).initialData).toEqual(
         expect.objectContaining({
             name: "Test Bot",
-            botId: bot.id,
+            bot: {id: bot.id, owner: {type: "System"}},
             space: expect.objectContaining({
                 role: "Member",
                 state: {type: "Active", activatedTime: expect.any(Date)},
@@ -5426,7 +5408,7 @@ test("can\u2019t make a bot account a space owner", async () => {
     const session1 = await space.createSession({role: "Owner"});
     const session2 = await space.createSession();
 
-    const {id: accountId} = await instantiateBotSpaceAccount(session1.action(), {
+    const {id: accountId} = await installBotInSpace(session1.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5434,7 +5416,7 @@ test("can\u2019t make a bot account a space owner", async () => {
     expect((await getAccount(session1.action(), space.id, accountId)).initialData).toEqual(
         expect.objectContaining({
             name: "Test Bot",
-            botId: bot.id,
+            bot: {id: bot.id, owner: {type: "System"}},
             space: expect.objectContaining({
                 role: "Member",
                 state: {type: "Active", activatedTime: expect.any(Date)},
@@ -5457,7 +5439,7 @@ test("can\u2019t make a bot account a space owner", async () => {
     expect((await getAccount(session1.action(), space.id, accountId)).initialData).toEqual(
         expect.objectContaining({
             name: "Test Bot",
-            botId: bot.id,
+            bot: {id: bot.id, owner: {type: "System"}},
             space: expect.objectContaining({
                 role: "Member",
                 state: {type: "Active", activatedTime: expect.any(Date)},
@@ -5476,7 +5458,7 @@ test("can check whether an account is a bot or not", async () => {
     const session2 = await space.createSession();
     const otherSession = await otherSpace.createSession();
 
-    const {id: accountId} = await instantiateBotSpaceAccount(session1.action(), {
+    const {id: accountId} = await installBotInSpace(session1.action(), {
         spaceId: space.id,
         botId: bot.id,
     });
@@ -5560,7 +5542,7 @@ test("`isBotSpaceAccount()` after `authorizeSpaceAccess()` is cached", async () 
 
     const session1 = await space.createSession({role: "Owner"});
 
-    const {id: accountId} = await instantiateBotSpaceAccount(session1.action(), {
+    const {id: accountId} = await installBotInSpace(session1.action(), {
         spaceId: space.id,
         botId: bot.id,
     });

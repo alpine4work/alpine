@@ -31,6 +31,7 @@ ts_project(
         "//server/helpers/node",
         "//server/node",
         "//server/opensearch",
+        "//shared/bots/owners",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",

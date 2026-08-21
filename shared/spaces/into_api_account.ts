@@ -8,7 +8,7 @@ export function intoApiAccount(account: Omit<AccountModelData, "avatar">): ApiAc
         id: account.id,
         name: account.name,
         shortName: getAccountShortNameWithoutFullNameTooltip(account),
-        bot: account.botId !== undefined ? {id: account.botId} : undefined,
+        bot: account.bot !== undefined ? {id: account.bot.id} : undefined,
         space: {
             role: account.space.role,
             addedTime: serializeDateString(account.space.addedTime),

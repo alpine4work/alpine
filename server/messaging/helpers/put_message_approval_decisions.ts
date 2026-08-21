@@ -1,10 +1,11 @@
-import {getBot} from "~/server/bots/get_bot.js";
+import {dangerouslyGetBotWithoutAuthorization} from "~/server/bots/dangerously_get_bot_without_authorization.js";
 import {ServerActionContext} from "~/server/context/server_action_context.js";
 import {DynamoCacheReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {MessageItem} from "~/server/messaging/helpers/process_messages_query.js";
+import {hasBotOperationAccess} from "~/server/spaces/authorize_bot_operation.js";
 import {getSpaceAccountBotIdIfExists} from "~/server/spaces/get_space_account_bot_id_if_exists.js";
 import {ApiMessageRoomReferenceRequest} from "~/shared/api/specification/types/api_specification_convenience_types.open_source.js";
-import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
+import {FailedPreconditionError, PermissionDeniedError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
@@ -111,7 +112,26 @@ export async function putMessageApprovalDecisions(
             await getSpaceAccountBotIdIfExists(context, spaceId, requestedByBotAccountId),
         );
 
-        const {hasWebhookUrl} = await getBot(context, botId, {consistency});
+        // If you can't message a bot then you can't decide its approval either. Checked
+        // with `hasBotOperationAccess()` so the error is about the approval instead of the
+        // generic "you can't message this bot", which reads as a non sequitur to someone
+        // who was just asked to approve something.
+        if (
+            !(await hasBotOperationAccess(
+                context,
+                botId,
+                {type: "Message", spaceId},
+                {consistency},
+            ))
+        ) {
+            throw new PermissionDeniedError("Account may not decide this message approval", {
+                displayMessage: errorDisplayMessage`You don\u2019t have permission to approve or reject this request.`,
+            });
+        }
+
+        const {hasWebhookUrl} = await dangerouslyGetBotWithoutAuthorization(context, botId, {
+            consistency,
+        });
 
         // If the bot doesn't have a webhook URL, then we can't send the approval decision
         // back to the bot. Instead, we throw an error with a display message so that the

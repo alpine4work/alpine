@@ -9,6 +9,7 @@ ts_project(
         "//shared/accounts",
         "//shared/alpha",
         "//shared/bots",
+        "//shared/bots/owners",
         "//shared/chat",
         "//shared/databases",
         "//shared/content",

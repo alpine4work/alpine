@@ -8,6 +8,7 @@ ts_project(
         "//shared/accounts",
         "//shared/api/specification",
         "//shared/avatar",
+        "//shared/bots/owners",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",

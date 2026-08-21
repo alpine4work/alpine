@@ -5,6 +5,7 @@ import {
     BotWebhookContextModule,
     BotWebhookContextModuleTokenAgentInterface,
 } from "~/server/bots/bot_webhook_context_module.js";
+import {deleteBotIfExistsWithoutAuthorization} from "~/server/bots/internal/delete_bot_if_exists_without_authorization.js";
 import {
     processCallBotWebhookJob,
     setIsProcessCallBotWebhookJobCrashSimulatedForTest,
@@ -211,6 +212,40 @@ test("if webhook is successful it\u2019s only called once", async () => {
 
     // Make sure there are no pending timers at the end of the test
     expect(import.meta.jest.getTimerCount()).toEqual(0);
+});
+
+test("does not call the webhook for a soft-deleted bot", async () => {
+    let serverRequestCount = 0;
+
+    const server = await createTestServer((_req, res) => {
+        serverRequestCount++;
+        res.statusCode = 200;
+        res.end();
+    });
+
+    const bot = await TestBot.create(context, {webhookUrl: server.baseUrl});
+    const space = await TestSpace.create(context);
+    const session = await space.createSession({role: "Owner"});
+    const botAccount = await bot.instantiate(session);
+
+    await deleteBotIfExistsWithoutAuthorization(session.action(), {botId: bot.id});
+
+    await testProcessCallBotWebhookJob(space, {
+        type: "CallBotWebhook",
+        spaceId: space.id,
+        botId: bot.id,
+        botAccountId: botAccount.id,
+        eventId: generateChronologicalId<BotWebhookEventId>(),
+        event: {
+            type: "CreatedMessage",
+            author: {id: generateId<AccountId>()},
+            room: {type: "Chat", id: generateId<ChatId>()},
+            index: 0,
+            createdTimeZone: defaultTimeZone,
+        },
+    });
+
+    expect(serverRequestCount).toEqual(0);
 });
 
 test("webhook requests are signed when the bot has a webhook secret", async () => {

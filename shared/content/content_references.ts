@@ -48,6 +48,14 @@ export const ContentReferencesSchema = Schema.object({
     accountById: Schema.map(Schema.id<AccountId>(), AccountModel.schema),
 
     /**
+     * Mentioned bot accounts the current actor isn't allowed to interact with.
+     *
+     * We still include their account reference so historical mentions can render, but
+     * the client renders those mentions as unavailable.
+     */
+    inaccessibleBotAccountIds: Schema.set(Schema.id<AccountId>()).minSize(1).optional(),
+
+    /**
      * Search entities referenced in mentions.
      */
     searchEntityById: Schema.map(SearchMentionEntityIdSchema, ContentReferencesSearchEntitySchema),
@@ -119,11 +127,16 @@ export function isEmptyContentReferences(references: ContentReferences): boolean
     // back and update this function.
     assertEqualTypes<
         keyof ContentReferences,
-        "accountById" | "searchEntityById" | "fileById" | "fileEntityById"
+        | "accountById"
+        | "inaccessibleBotAccountIds"
+        | "searchEntityById"
+        | "fileById"
+        | "fileEntityById"
     >();
 
     return (
         references.accountById.size === 0 &&
+        (references.inaccessibleBotAccountIds?.size ?? 0) === 0 &&
         references.searchEntityById.size === 0 &&
         (references.fileById?.size ?? 0) === 0 &&
         (references.fileEntityById?.size ?? 0) === 0
@@ -177,6 +190,10 @@ export function mergeContentReferences(
 
     return {
         accountById,
+        inaccessibleBotAccountIds: mergeOptionalSets(
+            references1.inaccessibleBotAccountIds,
+            references2.inaccessibleBotAccountIds,
+        ),
         searchEntityById,
         fileById: mergeContentReferencesFileById(references1.fileById, references2.fileById),
         fileEntityById: mergeContentReferencesFileEntityById(
@@ -184,6 +201,15 @@ export function mergeContentReferences(
             references2.fileEntityById,
         ),
     };
+}
+
+function mergeOptionalSets<Value>(
+    set1: ReadonlySet<Value> | undefined,
+    set2: ReadonlySet<Value> | undefined,
+): Set<Value> | undefined {
+    if (set1 === undefined) return set2 === undefined ? undefined : new Set(set2);
+    if (set2 === undefined) return new Set(set1);
+    return new Set(concatIterables(set1, set2));
 }
 
 function mergeContentReferencesFileById(

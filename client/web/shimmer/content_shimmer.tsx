@@ -50,3 +50,7 @@ export function ContentParagraphShimmer3() {
         </>
     );
 }
+
+export function ContentParagraphShimmer4() {
+    return <TextShimmer width="full" fontSize={contentParagraphShimmerFontSize} ragRight="4" />;
+}

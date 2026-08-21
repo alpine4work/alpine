@@ -33,10 +33,10 @@ export type AccountModelDataForAvatarDesign = {
             | {readonly type: "InvitePending"; readonly wasPreviouslyRemoved: boolean};
     };
 } & (
-    | {readonly botId: BotId; readonly id?: AccountId}
-    // If `botId` is undefined then `id` is required since we need it to figure out the
+    | {readonly bot: {readonly id: BotId}; readonly id?: AccountId}
+    // If `bot` is undefined then `id` is required since we need it to figure out the
     // avatar's default design.
-    | {readonly botId?: BotId; readonly id: AccountId}
+    | {readonly bot?: {readonly id: BotId}; readonly id: AccountId}
 );
 
 // Should be able to pass in `AccountModelData` for the `AccountAvatarData` type.
@@ -56,8 +56,8 @@ export function getAccountAvatarDesign(
         : {
               type: "Default",
               ...getAvatarDefaultDesign(
-                  accountData.botId !== undefined
-                      ? accountData.botId
+                  accountData.bot !== undefined
+                      ? accountData.bot.id
                       : // `id` should always exist in this branch according to the type definition. Seems
                         // like TypeScript doesn't understand this.
                         accountData.id!,
@@ -87,7 +87,7 @@ function getAccountAvatarIconOverlayType(
 ) {
     // If the account is a bot, we should ALWAYS show the bot icon, even if the bot
     // account was removed from the space.
-    if (accountData.botId) {
+    if (accountData.bot) {
         return "bot";
     }
 

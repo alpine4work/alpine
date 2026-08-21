@@ -1,6 +1,6 @@
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 import {ApiKey, generateApiKey} from "~/shared/id/api_key.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -26,6 +26,8 @@ export async function createUnscopedApiKeyForTest(
         name: null,
     });
 
+    await incrementBotApiKeyCountForTest(context, botId);
+
     return apiKey;
 }
 
@@ -44,7 +46,7 @@ export async function createScopedApiKeyForTest(
     }: {
         spaceId: SpaceId;
         accountId: AccountId;
-        scope: BotTokenPayloadScope;
+        scope: BotTokenScope;
     },
 ): Promise<ApiKey> {
     assert(process.env.NODE_ENV === "test");
@@ -62,5 +64,22 @@ export async function createScopedApiKeyForTest(
         name: null,
     });
 
+    await incrementBotApiKeyCountForTest(context, botId);
+
     return apiKey;
+}
+
+/**
+ * These helpers write the key item directly instead of going through
+ * `getBotApiKeyWriteLockTransactionEntry()`, which is deliberate: tests use them
+ * to plant keys on bots the real creation path would refuse, like one that's
+ * already deleted. Keep the bot's `apiKeyCount` in step by hand so a test that
+ * mixes these helpers with the real path still sees an accurate count.
+ */
+async function incrementBotApiKeyCountForTest(context: DynamoContext, botId: BotId): Promise<void> {
+    await BotsTable.updateItem(
+        context,
+        {partitionType: "Bot", sortRangeType: "Attributes", botId},
+        item => (item ? {...item, apiKeyCount: item.apiKeyCount + 1} : item),
+    );
 }

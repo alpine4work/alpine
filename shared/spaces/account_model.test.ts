@@ -1,6 +1,7 @@
 import {AccountModelWithoutSpaceData} from "~/shared/accounts/account_model_without_space.js";
 import {AvatarModel} from "~/shared/avatar/avatar_schema.js";
 import {createTestAvatarModel} from "~/shared/avatar/test_helpers/avatar_model_test_helpers.js";
+import {BotOwnerEntity} from "~/shared/bots/owners/bot_owner_entity.js";
 import {generateChronologicalId} from "~/shared/id/chronological_id.open_source.js";
 import {generateId} from "~/shared/id/id.open_source.js";
 import {AvatarId} from "~/shared/id/types/id_types.js";
@@ -30,7 +31,7 @@ function createTestAccountModelWithoutSpaceData(
         version: number;
         name: string;
         nameVersion: number;
-        botId: BotId | undefined;
+        bot: {id: BotId; owner: BotOwnerEntity} | undefined;
         avatar: AvatarModel | null;
     }> = {},
 ): AccountModelWithoutSpaceData {
@@ -39,7 +40,7 @@ function createTestAccountModelWithoutSpaceData(
         version: 1,
         name: "Test User",
         nameVersion: 1,
-        botId: undefined,
+        bot: undefined,
         avatar: null,
         reactionCharacter: null,
         ...options,
@@ -255,14 +256,14 @@ describe("mergeData", () => {
             const data1 = createTestAccountModel({
                 version: 2,
                 id: testAccountId1,
-                botId: testBotId,
+                bot: {id: testBotId, owner: {type: "System"}},
                 space: space1,
                 avatar: avatar1,
             }).initialData;
             const data2 = createTestAccountModel({
                 version: 1,
                 id: testAccountId1,
-                botId: undefined,
+                bot: undefined,
                 space: space2,
                 avatar: avatar2,
             }).initialData;
@@ -273,7 +274,7 @@ describe("mergeData", () => {
                 createTestAccountModel({
                     id: testAccountId1,
                     version: 2,
-                    botId: testBotId,
+                    bot: {id: testBotId, owner: {type: "System"}},
                     space: space2,
                     avatar: avatar2,
                 }).initialData,
@@ -409,7 +410,7 @@ describe("mergeDataWithoutSpace", () => {
                 name: "User 1",
                 nameVersion: 2,
                 space: originalSpace,
-                botId: undefined,
+                bot: undefined,
                 avatar: createTestAvatarModel({version: 3, avatarId: avatarId1}),
             }).initialData;
 
@@ -417,7 +418,7 @@ describe("mergeDataWithoutSpace", () => {
                 version: 4,
                 name: "User 2",
                 nameVersion: 5,
-                botId: testBotId,
+                bot: {id: testBotId, owner: {type: "System"}},
                 avatar: createTestAvatarModel({version: 1, avatarId: avatarId2}),
             });
 
@@ -428,7 +429,7 @@ describe("mergeDataWithoutSpace", () => {
             expect(result.name).toEqual("User 2"); // From data2 (higher version)
             expect(result.version).toEqual(4); // From data2 (higher version)
             expect(result.nameVersion).toEqual(5); // From data2 (higher version)
-            expect(result.botId).toEqual(testBotId); // From data2 (higher version)
+            expect(result.bot?.id).toEqual(testBotId); // From data2 (higher version)
             expect(result.space).toEqual(originalSpace); // Space data preserved from data1
             expect(result.avatar?.avatarId).toEqual(avatarId1); // From data1 (newer avatar)
             expect(result.avatar?.version).toEqual(3); // From data1 (newer avatar)

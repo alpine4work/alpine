@@ -1,7 +1,8 @@
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
+import {isBotItemDeleted} from "~/server/bots/internal/is_bot_item_deleted.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {ApiKey} from "~/shared/id/api_key.js";
 import {AccountId, BotId, SpaceId} from "~/shared/id/types/id_types.open_source.js";
@@ -24,7 +25,7 @@ export async function getApiKeyAttributesIfExists(
     readonly space: {
         readonly spaceId: SpaceId;
         readonly accountId: AccountId;
-        readonly scope: BotTokenPayloadScope;
+        readonly scope: BotTokenScope;
     } | null;
 } | null> {
     const botApiKeyItem = await BotsTable.getItemIfExists(
@@ -33,6 +34,20 @@ export async function getApiKeyAttributesIfExists(
         {consistency},
     );
     if (!botApiKeyItem) return null;
+
+    // The API key index used during bot deletion is eventually consistent. Confirm the
+    // bot is still active so a recently created key that cleanup missed cannot
+    // authenticate.
+    const botItem = await BotsTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Bot",
+            sortRangeType: "Attributes",
+            botId: botApiKeyItem.botId,
+        },
+        {consistency},
+    );
+    if (!botItem || isBotItemDeleted(botItem)) return null;
 
     return {
         botId: botApiKeyItem.botId,

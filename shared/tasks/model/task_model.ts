@@ -274,7 +274,9 @@ export class TaskModel {
      * actor. @param parentTaskId - The ID of the parent task, defaulted to the cloned
      * task's parent. @param titleSuffix - A suffix to append to the cloned task's
      * title. @param variableValues - Values for template variable substitution in the
-     * title.
+     * title. @param withAssignee - Whether to carry over the assignee, defaulting to
+     * `true`. Pass `false` to leave the duplicate unassigned when the creator may not
+     * assign the source task's assignee.
      */
     public getDuplicateActions({
         creatorId,
@@ -283,6 +285,7 @@ export class TaskModel {
         parentTaskId,
         withTitleUpdate,
         variableValues,
+        withAssignee = true,
     }: {
         creatorId: AccountId;
         actionTime: HybridLogicalTime;
@@ -290,6 +293,7 @@ export class TaskModel {
         parentTaskId?: TaskId;
         withTitleUpdate?: boolean;
         variableValues?: ContentDuplicationVariableValues;
+        withAssignee?: boolean;
     }): {taskId: TaskId; actions: Array<TaskAction>} {
         const actions: Array<TaskAction> = [];
 
@@ -396,7 +400,7 @@ export class TaskModel {
         });
 
         // Assignee
-        const assignee = this.getAssignee();
+        const assignee = withAssignee ? this.getAssignee() : null;
         if (assignee) {
             actions.push({
                 type: "UpdateTask",
@@ -415,7 +419,7 @@ export class TaskModel {
 
         // Assignee Status
         const assigneeStatus = this.getAssigneeStatus();
-        if (assigneeStatus.type === "Active") {
+        if (withAssignee && assigneeStatus.type === "Active") {
             actions.push({
                 type: "UpdateTask",
                 time: getActionTime(),

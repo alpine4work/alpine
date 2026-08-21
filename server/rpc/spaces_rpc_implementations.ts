@@ -1,4 +1,5 @@
 import {createAlphaSpaceAsAdmin} from "~/server/alpha/alpha_access_table.js";
+import {removeUnmessageableBotAccounts} from "~/server/bots/with_spaces/remove_unmessageable_bot_accounts.js";
 import {getOurAccountInboxes} from "~/server/notifications/data/get_our_account_inboxes.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getPossiblyStaleAccountSearchAffinityEntityIds} from "~/server/search/data/table/search_entity_actions.js";
@@ -9,7 +10,7 @@ import {expensivelyGetAllSpaceAccounts} from "~/server/spaces/expensively_get_al
 import {finishUploadingSpaceAvatar} from "~/server/spaces/finish_uploading_space_avatar.js";
 import {getOurAccountSpaceIds} from "~/server/spaces/get_our_account_space_ids.js";
 import {getSpaceIfPossible} from "~/server/spaces/get_space.js";
-import {instantiateBotSpaceAccount} from "~/server/spaces/instantiate_bot_space_account.js";
+import {installBotInSpace} from "~/server/spaces/install_bot_in_space.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {loadSpaceInviteContent} from "~/server/spaces/load_space_invite_content.js";
 import {moveSpaceAccountOwnerRole} from "~/server/spaces/move_space_account_owner_role.js";
@@ -45,7 +46,15 @@ export default implementRpcs(definitions, {
                 pointsByAccountId.set(id, points);
             }
 
-            const sortedAccounts = [...accounts].sort((account1, account2) => {
+            // `expensivelyGetAllSpaceAccounts()` already applies bot view access. Every caller
+            // of this RPC offers the accounts as somewhere to send a message, so we also drop
+            // the bots that can't receive one.
+            const visibleAccounts = await removeUnmessageableBotAccounts(
+                context.actor.authorizeSession(),
+                accounts,
+            );
+
+            const sortedAccounts = [...visibleAccounts].sort((account1, account2) => {
                 const points1 = pointsByAccountId.get(account1.id);
                 const points2 = pointsByAccountId.get(account2.id);
 
@@ -303,13 +312,10 @@ export default implementRpcs(definitions, {
         },
     },
 
-    instantiateBotSpaceAccount: {
+    installBotInSpace: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const account = await instantiateBotSpaceAccount(
-                context.actor.authorizeSession(),
-                input,
-            );
+            const account = await installBotInSpace(context.actor.authorizeSession(), input);
 
             return {account};
         },

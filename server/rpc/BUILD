@@ -21,6 +21,7 @@ ts_project(
         "//server/remix:__subpackages__",
     ],
     deps = [
+        "//shared/bots/owners",
         ":all_rpc_implementations",
         "//server/accounts",
         "//server/alpha",
@@ -67,6 +68,7 @@ ts_project(
         "//shared/rpc",
         "//shared/rpc:all_rpc_definitions",
         "//shared/schema",
+        "//shared/search",
         "//shared/tasks",
         "//shared/tracer",
     ],

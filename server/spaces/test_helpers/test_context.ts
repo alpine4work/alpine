@@ -18,7 +18,7 @@ import {ImporterServiceContextModuleBase} from "~/server/importer/importer_servi
 import {LanguageModelsContextModuleBase} from "~/server/language_models/language_models_context_module_base.js";
 import {LogoDevContextModuleBase} from "~/server/spaces/logo_dev_context_module.js";
 import {LoopsContextModuleBase} from "~/server/spaces/loops_context_module.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
 import {BatchContextModule} from "~/shared/context/batch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context, ContextWithDestroy} from "~/shared/context/context.js";
@@ -130,7 +130,7 @@ export type TestContextHelpers<Modules extends {[key: string]: ContextModuleBase
     botAction(
         spaceId: SpaceId,
         botAccountId: AccountId,
-        scope?: BotTokenPayloadScope,
+        scope?: BotTokenScope,
         options?: {serviceName?: ActorServiceName},
     ): TestBotActionContext;
 

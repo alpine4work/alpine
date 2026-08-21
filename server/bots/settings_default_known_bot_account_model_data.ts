@@ -27,7 +27,7 @@ export const cursorKnownBotId =
 export const settingsDefaultKnownBotAccountModelDatas = {
     chatGpt: new Lazy(() => ({
         name: "ChatGPT",
-        botId: chatGptKnownBotId,
+        bot: {id: chatGptKnownBotId, ownerEntity: {type: "System"}},
         space: {state: {type: "Removed"}},
         reactionCharacter: null,
         avatar: {
@@ -44,7 +44,7 @@ export const settingsDefaultKnownBotAccountModelDatas = {
     })),
     claude: new Lazy(() => ({
         name: "Claude",
-        botId: claudeKnownBotId,
+        bot: {id: claudeKnownBotId, ownerEntity: {type: "System"}},
         space: {state: {type: "Removed"}},
         reactionCharacter: null,
         avatar: {
@@ -58,7 +58,7 @@ export const settingsDefaultKnownBotAccountModelDatas = {
     })),
     cursor: new Lazy(() => ({
         name: "Cursor",
-        botId: cursorKnownBotId,
+        bot: {id: cursorKnownBotId, ownerEntity: {type: "System"}},
         space: {state: {type: "Removed"}},
         reactionCharacter: null,
         avatar: {
@@ -80,7 +80,7 @@ export const settingsDefaultKnownBotAccountModelDataById = new Lazy<
     return new Map(
         Object.values(settingsDefaultKnownBotAccountModelDatas).map(lazyData => {
             const data = lazyData.get();
-            return [data.botId, data];
+            return [data.bot.id, data];
         }),
     );
 });

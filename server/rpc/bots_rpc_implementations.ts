@@ -1,15 +1,17 @@
-import {createBot} from "~/server/bots/create_bot.js";
-import {createScopedApiKeyForBot} from "~/server/bots/create_scoped_api_key_for_bot.js";
-import {createUnscopedApiKeyForBot} from "~/server/bots/create_unscoped_api_key_for_bot.js";
-import {deleteApiKeyForBotIfExists} from "~/server/bots/delete_api_key_for_bot.js";
-import {deleteBotIfExists} from "~/server/bots/delete_bot.js";
-import {finishUploadingBotAvatar} from "~/server/bots/finish_uploading_bot_avatar.js";
-import {rotateApiKeyForBot} from "~/server/bots/rotate_api_key_for_bot.js";
+import {createBot} from "~/server/bots/with_spaces/create_bot.js";
+import {createScopedApiKeyForBot} from "~/server/bots/with_spaces/create_scoped_api_key_for_bot.js";
+import {createUnscopedApiKeyForBot} from "~/server/bots/with_spaces/create_unscoped_api_key_for_bot.js";
+import {deleteApiKeyForBotIfExists} from "~/server/bots/with_spaces/delete_api_key_for_bot.js";
+import {deleteBotIfExists} from "~/server/bots/with_spaces/delete_bot_if_exists.js";
+import {finishUploadingBotAvatar} from "~/server/bots/with_spaces/finish_uploading_bot_avatar.js";
+import {rotateApiKeyForBot} from "~/server/bots/with_spaces/rotate_api_key_for_bot.js";
+import {updateBot} from "~/server/bots/with_spaces/update_bot.js";
 import {updateBotSpaceAccountSettingsPropertyValue} from "~/server/bots/with_spaces/update_bot_space_account_settings_property_value.js";
 import {updateBotSpaceSettingsPropertyValue} from "~/server/bots/with_spaces/update_bot_space_settings_property_value.js";
 import {implementRpcs} from "~/server/rpc/internal/implement_rpcs.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
+import {parseBotOwnerEntityId} from "~/shared/bots/owners/bot_owner_entity.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
 import {assertApiKey} from "~/shared/id/api_key.js";
 import * as definitions from "~/shared/rpc/bots_rpc_definitions.js";
 
@@ -17,23 +19,38 @@ export default implementRpcs(definitions, {
     createBot: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            return await createBot(context, {
+            return await createBot(context.actor.authorizeSession(), {
                 name: input.name,
                 webhook: input.webhook,
+                description: input.description,
+                ownerEntity: assertExists(parseBotOwnerEntityId(input.ownerEntity)),
+                spaceId: input.spaceId,
             });
         },
     },
     deleteBot: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            await deleteBotIfExists(context, {botId: input.botId});
+            await deleteBotIfExists(context.actor.authorizeSession(), {botId: input.botId});
+            return {};
+        },
+    },
+    updateBot: {
+        visibility: ["AppClient"],
+        execute: async (context, input) => {
+            await updateBot(context.actor.authorizeSession(), {
+                botId: input.botId,
+                name: input.name,
+                description: input.description,
+                webhook: input.webhook,
+            });
             return {};
         },
     },
     createUnscopedApiKeyForBot: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const apiKey = await createUnscopedApiKeyForBot(context, {
+            const apiKey = await createUnscopedApiKeyForBot(context.actor.authorizeSession(), {
                 botId: input.botId,
                 name: input.name,
             });
@@ -43,14 +60,16 @@ export default implementRpcs(definitions, {
     createScopedApiKeyForBot: {
         visibility: ["AppClient"],
         execute: async (context, input) => {
-            const apiKey = await createScopedApiKeyForBot(context, {
-                botId: input.botId,
-                spaceId: input.spaceId,
-                accountId: input.accountId,
-                name: input.name,
-                scope: input.scope as BotTokenPayloadScope,
-            });
-            return {apiKey};
+            const {apiKey, scope} = await createScopedApiKeyForBot(
+                context.actor.authorizeSession(),
+                {
+                    botId: input.botId,
+                    spaceId: input.spaceId,
+                    name: input.name,
+                    scope: input.scope,
+                },
+            );
+            return {apiKey, scope};
         },
     },
     deleteApiKeyForBot: {

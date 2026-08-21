@@ -116,10 +116,7 @@ import {
     updateOurAccountName,
 } from "~/shared/rpc/accounts_rpc_definitions.js";
 import {registerOurAccountWebPushSubscription} from "~/shared/rpc/notifications_rpc_definitions.js";
-import {
-    createAlphaSpaceAsAdmin,
-    instantiateBotSpaceAccount,
-} from "~/shared/rpc/spaces_rpc_definitions.js";
+import {createAlphaSpaceAsAdmin, installBotInSpace} from "~/shared/rpc/spaces_rpc_definitions.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchOptions,
@@ -612,8 +609,8 @@ export default function SpaceLayoutRoute() {
             const output = await createAlphaSpaceAsAdmin(context, input);
             return output;
         },
-        instantiateBotSpaceAccount: async (input: {botId: BotId; botAccountId?: AccountId}) => {
-            const {account} = await instantiateBotSpaceAccount(context, {
+        installBotInSpace: async (input: {botId: BotId; botAccountId?: AccountId}) => {
+            const {account} = await installBotInSpace(context, {
                 spaceId,
                 botId: input.botId,
                 accountId: input.botAccountId,

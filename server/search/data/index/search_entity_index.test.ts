@@ -1,6 +1,7 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {updateOurAccountName} from "~/server/accounts/update_our_account_name.js";
+import {createBotForTest} from "~/server/bots/test_helpers/create_bot_for_test.js";
 import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {chatInjection} from "~/server/chat/data/chat_injection.js";
 import {createChatForTest} from "~/server/chat/data/create_chat_for_test.js";
@@ -42,6 +43,7 @@ import {
 } from "~/server/search/data/table/search_entity_actions.js";
 import {acceptSpaceAccountInvite} from "~/server/spaces/accept_space_account_invite.js";
 import {addSpaceAccount} from "~/server/spaces/add_space_account.js";
+import {installBotInSpace} from "~/server/spaces/install_bot_in_space.js";
 import {inviteEmailAddressesToSpace} from "~/server/spaces/invite_email_addresses_to_space.js";
 import {removeSpaceAccount} from "~/server/spaces/remove_space_account.js";
 import {spacesInjection} from "~/server/spaces/spaces_injection.js";
@@ -1715,6 +1717,37 @@ test("search by keywords only sees entities the account has access to", async ()
             `TaskCollection:${collection2.id}`,
             `TaskCollection:${collection3.id}`,
         ].sort(defaultCompareStrings),
+    );
+});
+
+test("search by keywords only returns a personal bot account to its owner", async () => {
+    const space = await TestSpace.create(context);
+    const owner = await space.createSession({role: "Member"});
+    const otherMember = await space.createSession({role: "Member"});
+    const {id: botId} = await createBotForTest(context, {
+        name: "Private Robot Search",
+        webhook: null,
+        ownerEntity: {type: "Account", accountId: owner.account.id},
+    });
+    const botAccount = await installBotInSpace(owner.action(), {spaceId: space.id, botId});
+
+    await runAllTimersAndWaitForTestTasks();
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    const search = (session: TestSpaceSession) =>
+        searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "Private Robot Search",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        });
+
+    await expect(search(owner)).resolves.toEqual(
+        expect.arrayContaining([expect.objectContaining({id: `Account:${botAccount.id}`})]),
+    );
+    await expect(search(otherMember)).resolves.not.toEqual(
+        expect.arrayContaining([expect.objectContaining({id: `Account:${botAccount.id}`})]),
     );
 });
 

@@ -91,6 +91,27 @@ test("allows a member to update their own account settings", async () => {
     expect(result.values).toEqual(new Map([["apiKey", "member-api-key"]]));
 });
 
+test("throws when account can\u2019t use bot", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Member"});
+    const otherSession = await space.createSession({role: "Member"});
+    const bot = await TestBot.create(context, {
+        ownerEntity: {type: "Account", accountId: ownerSession.account.id},
+    });
+
+    await bot.instantiate(ownerSession);
+
+    await expect(
+        updateBotSpaceAccountSettingsPropertyValue(otherSession.action(), {
+            spaceId: space.id,
+            accountId: otherSession.account.id,
+            botId: bot.id,
+            propertyKey: "apiKey",
+            propertyValue: "other-api-key",
+        }),
+    ).rejects.toThrow("Account may not manage the settings for this bot for another account");
+});
+
 test("throws PermissionDeniedError when a member updates another account\u2019s settings", async () => {
     const bot = await createBotWithSchema(new Map([["apiKey", createAccountSettingsProperty()]]));
     const space = await TestSpace.create(context);
@@ -108,7 +129,7 @@ test("throws PermissionDeniedError when a member updates another account\u2019s 
             propertyKey: "apiKey",
             propertyValue: "other-api-key",
         }),
-    ).rejects.toThrow("Can\u2019t access account that\u2019s not the actor\u2019s");
+    ).rejects.toThrow("Account may not manage the settings for this bot for another account");
 });
 
 test("throws PermissionDeniedError when an admin updates another account\u2019s settings", async () => {
@@ -127,7 +148,7 @@ test("throws PermissionDeniedError when an admin updates another account\u2019s 
             propertyKey: "apiKey",
             propertyValue: "other-api-key",
         }),
-    ).rejects.toThrow("Can\u2019t access account that\u2019s not the actor\u2019s");
+    ).rejects.toThrow("Account may not manage the settings for this bot for another account");
 });
 
 test("throws PermissionDeniedError when a bot updates account settings", async () => {

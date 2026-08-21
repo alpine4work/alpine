@@ -360,7 +360,7 @@ test("throws PermissionDeniedError when accessing another account\u2019s setting
             otherSession.account.id,
             bot.id,
         ),
-    ).rejects.toThrow("Can\u2019t access account that\u2019s not the actor\u2019s");
+    ).rejects.toThrow("Account may not view the settings for this bot for another account");
 });
 
 test("throws PermissionDeniedError when an admin accesses another account\u2019s settings", async () => {
@@ -386,7 +386,7 @@ test("throws PermissionDeniedError when an admin accesses another account\u2019s
             memberSession.account.id,
             bot.id,
         ),
-    ).rejects.toThrow("Can\u2019t access account that\u2019s not the actor\u2019s");
+    ).rejects.toThrow("Account may not view the settings for this bot for another account");
 });
 
 test("throws PermissionDeniedError when account is outside the space", async () => {
@@ -405,7 +405,7 @@ test("throws PermissionDeniedError when account is outside the space", async () 
             otherSession.account.id,
             bot.id,
         ),
-    ).rejects.toThrow("Account is not a member of the space");
+    ).rejects.toThrow("Account may not view the settings for this bot for another account");
 });
 
 test("allows a bot to access another account\u2019s settings", async () => {
@@ -477,5 +477,25 @@ test("throws PermissionDeniedError when a bot accesses another bot\u2019s settin
             memberSession.account.id,
             otherBot.id,
         ),
-    ).rejects.toThrow("Bot can only access account settings for its own bot");
+    ).rejects.toThrow("Account may not view the settings for this bot for another account");
+});
+
+test("throws when account may not view any of the bot\u2019s settings", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession({role: "Member"});
+    const otherSession = await space.createSession({role: "Member"});
+    const bot = await TestBot.create(context, {
+        ownerEntity: {type: "Account", accountId: ownerSession.account.id},
+    });
+
+    await bot.instantiate(ownerSession);
+
+    await expect(
+        getBotSpaceAndSpaceAccountSettingsValues(
+            otherSession.action(),
+            space.id,
+            otherSession.account.id,
+            bot.id,
+        ),
+    ).rejects.toThrow("Account may not view the space settings for this bot (and 1 other error)");
 });

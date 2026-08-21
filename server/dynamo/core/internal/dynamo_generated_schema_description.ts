@@ -88,6 +88,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                         "type": "Id"
                                                     },
                                                     "optional": false
+                                                },
+                                                "ownerEntity": {
+                                                    "valueSchema": {
+                                                        "type": "String"
+                                                    },
+                                                    "optional": true
                                                 }
                                             }
                                         },
@@ -927,11 +933,105 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "updatedTime": {
+                                        "valueSchema": {
+                                            "type": "Date"
+                                        },
+                                        "optional": true
+                                    },
+                                    "createdByAccount": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "deleted": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Object",
+                                                "propertySchemaByKey": {
+                                                    "time": {
+                                                        "valueSchema": {
+                                                            "type": "Date"
+                                                        },
+                                                        "optional": false
+                                                    },
+                                                    "deletor": {
+                                                        "valueSchema": {
+                                                            "type": "Object",
+                                                            "propertySchemaByKey": {
+                                                                "id": {
+                                                                    "valueSchema": {
+                                                                        "type": "Nullable",
+                                                                        "schema": {
+                                                                            "type": "Id"
+                                                                        }
+                                                                    },
+                                                                    "optional": true
+                                                                },
+                                                                "from": {
+                                                                    "valueSchema": {
+                                                                        "type": "Nullable",
+                                                                        "schema": {
+                                                                            "type": "Union",
+                                                                            "typeKey": "type",
+                                                                            "variantSchemaByTypeValue": {
+                                                                                "Bot": {
+                                                                                    "type": "Object",
+                                                                                    "propertySchemaByKey": {
+                                                                                        "type": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "Value",
+                                                                                                "value": "Bot"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        },
+                                                                                        "accountId": {
+                                                                                            "valueSchema": {
+                                                                                                "type": "Id"
+                                                                                            },
+                                                                                            "optional": false
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "optional": true
+                                                                }
+                                                            }
+                                                        },
+                                                        "optional": false
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
+                                    "isDeleted": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "name": {
                                         "valueSchema": {
                                             "type": "String"
                                         },
                                         "optional": false
+                                    },
+                                    "ownerEntity": {
+                                        "valueSchema": {
+                                            "type": "String"
+                                        },
+                                        "optional": true
                                     },
                                     "webhookUrl": {
                                         "valueSchema": {
@@ -956,6 +1056,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "optional": false
                                                 }
                                             }
+                                        },
+                                        "optional": true
+                                    },
+                                    "apiKeyCount": {
+                                        "valueSchema": {
+                                            "type": "Integer"
                                         },
                                         "optional": true
                                     },
@@ -1879,6 +1985,31 @@ export const dynamoGeneratedSchemaDescription: {
                                     "nullsOrder": "First",
                                     "schema": {
                                         "type": "Id"
+                                    }
+                                }
+                            }
+                        },
+                        "BotsByOwner": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "Bot",
+                                    "sortRangeType": "Attributes"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "ownerEntity": {
+                                    "type": "LabelString"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "name": {
+                                    "type": "LabelString"
+                                },
+                                "isDeleted": {
+                                    "type": "Nullable",
+                                    "nullsOrder": "First",
+                                    "schema": {
+                                        "type": "Date"
                                     }
                                 }
                             }
@@ -14657,6 +14788,71 @@ export const dynamoGeneratedSchemaDescription: {
                                                                         "botId": {
                                                                             "valueSchema": {
                                                                                 "type": "Id"
+                                                                            },
+                                                                            "optional": true
+                                                                        },
+                                                                        "bot": {
+                                                                            "valueSchema": {
+                                                                                "type": "Object",
+                                                                                "propertySchemaByKey": {
+                                                                                    "owner": {
+                                                                                        "valueSchema": {
+                                                                                            "type": "Union",
+                                                                                            "typeKey": "type",
+                                                                                            "variantSchemaByTypeValue": {
+                                                                                                "Account": {
+                                                                                                    "type": "Object",
+                                                                                                    "propertySchemaByKey": {
+                                                                                                        "type": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Value",
+                                                                                                                "value": "Account"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        },
+                                                                                                        "accountId": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Id"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        }
+                                                                                                    }
+                                                                                                },
+                                                                                                "Space": {
+                                                                                                    "type": "Object",
+                                                                                                    "propertySchemaByKey": {
+                                                                                                        "type": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Value",
+                                                                                                                "value": "Space"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        },
+                                                                                                        "spaceId": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Id"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        }
+                                                                                                    }
+                                                                                                },
+                                                                                                "System": {
+                                                                                                    "type": "Object",
+                                                                                                    "propertySchemaByKey": {
+                                                                                                        "type": {
+                                                                                                            "valueSchema": {
+                                                                                                                "type": "Value",
+                                                                                                                "value": "System"
+                                                                                                            },
+                                                                                                            "optional": false
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "optional": false
+                                                                                    }
+                                                                                }
                                                                             },
                                                                             "optional": true
                                                                         },

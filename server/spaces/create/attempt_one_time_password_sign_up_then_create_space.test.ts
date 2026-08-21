@@ -110,7 +110,7 @@ async function testWorkSignUp(options?: {name?: string}) {
 
 async function testAnotherWorkSignUp(emailDomain: string, options?: {name?: string}) {
     const emailAddress = generateWorkTestEmailAddress(emailDomain);
-    return testSignUp({...options, emailAddress});
+    return await testSignUp({...options, emailAddress});
 }
 
 async function testSignUp(options: {name?: string; emailAddress: string}) {

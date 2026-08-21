@@ -1,4 +1,5 @@
 import {AvatarModelSchema} from "~/shared/avatar/avatar_schema.js";
+import {BotOwnerEntitySchema} from "~/shared/bots/owners/bot_owner_entity.js";
 import {assertId} from "~/shared/id/id.open_source.js";
 import {AccountId, BotId} from "~/shared/id/types/id_types.open_source.js";
 import {ReactionCharacterSchema} from "~/shared/reactions/reaction_character_schema.js";
@@ -25,8 +26,26 @@ export const AccountModelWithoutSpaceAndAvatarDataSchema = Schema.object({
     version: Schema.integer,
     name: LabelStringSchema,
     nameVersion: Schema.integer,
-    // If the account is a bot then this will be defined.
-    botId: Schema.id<BotId>().optional(),
+
+    /**
+     * If the account is a bot then this describes the bot, otherwise it's undefined.
+     *
+     * `owner` tells you who the bot belongs to without having to go read the bot: a
+     * `System` bot is a global one anybody may use, while an `Account` or `Space` bot
+     * is private to that owner. Resolve what an actor may do with it by passing this
+     * to `hasBotOperationAccessForOwnerEntity()` rather than by re-deriving the rules.
+     *
+     * The bot's ID stays serialized as the original `botId` property so clients that
+     * predate `owner` keep reading it.
+     */
+    bot: Schema.object({
+        id: Schema.id<BotId>(),
+        owner: BotOwnerEntitySchema,
+    })
+        .wrapOriginalPropertyInObject("id", {owner: {type: "System"}})
+        .originalPropertyKey("botId")
+        .optional(),
+
     plan: Schema.enum(["LifetimeAccess"]).optional(),
     reactionCharacter: ReactionCharacterSchema.nullable().default(null),
 });
@@ -88,7 +107,19 @@ export class AccountModelWithoutSpace {
         // `account.botId` instead of going through `AccountRegistry`.
         //
         // eslint-disable-next-line cyberworlds/no-model-initial-data
-        return this.initialData.botId;
+        return this.initialData.bot?.id;
+    }
+
+    /**
+     * Who owns the bot this account is an instantiation of, or undefined when the
+     * account isn't a bot. See the `bot` property on the schema for what the owner is
+     * good for.
+     *
+     * A bot's owner is immutable today, so like `botId` it's ok to access directly.
+     */
+    public get botOwner() {
+        // eslint-disable-next-line cyberworlds/no-model-initial-data
+        return this.initialData.bot?.owner;
     }
 
     /**

@@ -1,34 +1,52 @@
 import {dangerouslyUpdateBotAccountAvatarWithoutAuthorization} from "~/server/accounts/dangerously_update_bot_account_avatar_without_authorization.js";
-import {getBotWithAvatar} from "~/server/bots/get_bot_with_avatar.js";
+import {dangerouslyUpdateBotAccountNameWithoutAuthorization} from "~/server/accounts/dangerously_update_bot_account_name_without_authorization.js";
+import {dangerouslyUpdateBotAccountOwnerWithoutAuthorization} from "~/server/accounts/dangerously_update_bot_account_owner_without_authorization.js";
+import {dangerouslyGetBotWithAvatarWithoutAuthorization} from "~/server/bots/dangerously_get_bot_with_avatar_without_authorization.js";
+import {getBotItemForAuthorization} from "~/server/bots/internal/get_bot_item_for_authorization.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
-import {dangerouslyGetAllAccountIdsForBot} from "~/server/spaces/dangerously_get_all_account_ids_for_bot.js";
+import {dangerouslyGetAllSpaceAccountsForBot} from "~/server/spaces/dangerously_get_all_space_accounts_for_bot.js";
 import {Context} from "~/shared/context/context.js";
-import {UnimplementedError} from "~/shared/error/error.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.open_source.js";
 import {parallelProcessAsyncIterable} from "~/shared/helpers/iterable/parallel_process_async_iterable.js";
 
 export async function processUpdateBotAccountsJob(
     context: Context<Omit<ServerActionContextModules, "actor">>,
     {botId, update}: MaintenanceJobDescription & {type: "UpdateBotAccounts"},
 ) {
+    // Read strongly so we don't miss a space account that was just instantiated, and
+    // so we copy the bot's latest name/avatar rather than a stale one.
+    const options = {consistency: "StrongWithinCache"} as const;
+
     switch (update.type) {
         case "Name": {
-            throw new UnimplementedError("Updating bot name is not implemented");
+            const bot = await getBotItemForAuthorization(context, botId, options);
+
+            await parallelProcessAsyncIterable(
+                dangerouslyGetAllSpaceAccountsForBot(context, botId, options),
+                async ({spaceId, accountId}) => {
+                    await dangerouslyUpdateBotAccountNameWithoutAuthorization(context, {
+                        spaceId,
+                        accountId,
+                        name: bot.name,
+                    });
+                },
+            );
+            return;
         }
         case "Avatar": {
-            const options = {consistency: "Strong"} as const;
-
-            const botAvatar = await getBotWithAvatar(context, botId, options);
+            const botAvatar = await dangerouslyGetBotWithAvatarWithoutAuthorization(
+                context,
+                botId,
+                options,
+            );
             const avatarContent = assertExists(botAvatar.avatar?.content);
             const avatarId = assertExists(botAvatar.avatar?.avatarId);
 
-            // We use a parallel process here because There's built-in backpressure so we don't
-            // query the next page from the iterable unless we have the available concurrency
-            // to process the next item.
             await parallelProcessAsyncIterable(
-                dangerouslyGetAllAccountIdsForBot(context, botId, options),
-                async accountId => {
+                dangerouslyGetAllSpaceAccountsForBot(context, botId, options),
+                async ({accountId}) => {
                     await dangerouslyUpdateBotAccountAvatarWithoutAuthorization(
                         context,
                         accountId,
@@ -39,6 +57,23 @@ export async function processUpdateBotAccountsJob(
                     );
                 },
             );
+            return;
         }
+        case "Owner": {
+            const bot = await getBotItemForAuthorization(context, botId, options);
+
+            await parallelProcessAsyncIterable(
+                dangerouslyGetAllSpaceAccountsForBot(context, botId, options),
+                async ({accountId}) => {
+                    await dangerouslyUpdateBotAccountOwnerWithoutAuthorization(context, {
+                        accountId,
+                        ownerEntity: bot.ownerEntity,
+                    });
+                },
+            );
+            return;
+        }
+        default:
+            throw exhaustive(update);
     }
 }

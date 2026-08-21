@@ -74,7 +74,11 @@ export function renderContentMentionToHtml(
     const isCurrentAccountMention =
         mention.type === "Account" && currentAccount?.id === mention.accountId;
 
-    const isInert = isInertFromProps || spaceId === null;
+    const isInaccessibleBotMention =
+        mention.type === "Account" &&
+        references.inaccessibleBotAccountIds?.has(mention.accountId) === true;
+
+    const isInert = isInertFromProps || isInaccessibleBotMention || spaceId === null;
 
     const html = new HtmlElementGenerator("span");
     html.setAttribute(
@@ -84,6 +88,9 @@ export function renderContentMentionToHtml(
             isCurrentAccountMention && contentStyles.currentAccountMentionClassName,
         ),
     );
+    if (process.env.NODE_ENV !== "production" && isInaccessibleBotMention) {
+        html.setAttribute("data-testid", "InaccessibleBotMention");
+    }
 
     let href: string | null;
     let searchEntityData: SearchEntityModelData | {type: "Account"; account: AccountModel} | null =

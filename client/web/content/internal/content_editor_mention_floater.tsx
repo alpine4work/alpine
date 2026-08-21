@@ -329,12 +329,12 @@ export function ContentEditorMentionFloater({
                       .search(accountShortName)
                       .filter(
                           result =>
-                              !result.item.botId &&
+                              !result.item.bot &&
                               (typeof result.score !== "number" || result.score < 0.25),
                       ).length > 1
                 : true;
 
-            const isBot = !!accountData.botId;
+            const isBot = accountData.bot !== undefined;
 
             const mention: ContentMention = {
                 type: "Account",

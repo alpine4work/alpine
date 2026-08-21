@@ -2,7 +2,7 @@ import {getBotSettingsSchema} from "~/server/bots/get_bot_settings_schema.js";
 import {BotsTable} from "~/server/bots/internal/bots_table.js";
 import {isBotSpaceSettingsPropertyValueEmptySecret} from "~/server/bots/internal/is_bot_space_settings_property_value_empty_secret.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
-import {authorizeSpaceAccess} from "~/server/spaces/authorize_space_access.js";
+import {authorizeBotOperation} from "~/server/spaces/authorize_bot_operation.js";
 import {getBotAccountIdForSpaceIfExists} from "~/server/spaces/get_bot_account_id_for_space_if_exists.js";
 import {FailedPreconditionError} from "~/shared/error/error.open_source.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.open_source.js";
@@ -34,7 +34,7 @@ export async function updateBotSpaceSettingsPropertyValue(
     secretPropertyKeysWithValues: Set<string>;
 }> {
     const [, botAccountId, settings, spaceSettingsItem] = await runAllPromises([
-        authorizeSpaceAccess(context, spaceId, "Admin"),
+        authorizeBotOperation(context, botId, {type: "ManageSpaceSettings", spaceId}),
         getBotAccountIdForSpaceIfExists(context, botId, spaceId),
         getBotSettingsSchema(context, botId),
         BotsTable.getItemIfExists(context, {

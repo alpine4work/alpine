@@ -1,5 +1,5 @@
 import {getInteractionModality, setInteractionModality} from "@react-aria/interactions";
-import {SpinnerGap} from "phosphor-react";
+import {Plus, SpinnerGap} from "phosphor-react";
 import {useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/web/design/box.js";
@@ -9,7 +9,7 @@ import {useDelayLoadingIndicator} from "~/client/web/design/use_delay_loading_in
 import {buttonStyles, spinAnimationClassName} from "~/client/web/styles/styles.js";
 import {maxAvatarUploadContentLength} from "~/shared/avatar/avatar_constants.js";
 import {BorderRadius} from "~/shared/design/core/border_radius.js";
-import {spacing} from "~/shared/design/core/spacing.js";
+import {RemLength, Spacing, spacing} from "~/shared/design/core/spacing.js";
 import {ErrorBase, InvalidArgumentError} from "~/shared/error/error.open_source.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.open_source.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.open_source.js";
@@ -22,18 +22,28 @@ export const avatarUploaderSize = "12";
 
 export function AvatarUploader({
     borderRadius,
+    size = avatarUploaderSize,
     children,
     onUploadAvatar,
 }: {
     borderRadius?: BorderRadius;
+    size?: Spacing | RemLength;
     children: React.ReactNode;
     onUploadAvatar: (file: File) => Promise<void>;
 }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
+    const [isDraggingOver, setIsDraggingOver] = useState(false);
+
+    // `dragenter`/`dragleave` also fire when moving between our children, so count
+    // enters and leaves instead of tracking a boolean.
+    const dragEnterCountRef = useRef(0);
 
     const reporter = useReporter();
     const shouldShowLoadingIndicator = useDelayLoadingIndicator(isUploading);
+
+    const sizeRemLength = size in spacing ? spacing[size as Spacing] : (size as RemLength);
 
     const triggerFileInput = () => {
         const fileInputElement = assertExists(fileInputRef.current);
@@ -61,6 +71,35 @@ export function AvatarUploader({
         reporter.displayError("Unable to upload avatar", error);
     };
 
+    const handleUploadFile = (file: File) => {
+        if (isUploading) return;
+
+        if (!file.type.startsWith("image/")) {
+            displayError(
+                new InvalidArgumentError("Avatar must be an image", {
+                    displayMessage: errorDisplayMessage`Avatar must be an image`,
+                }),
+            );
+            return;
+        }
+
+        if (file.size > maxAvatarUploadContentLength) {
+            displayError(
+                new InvalidArgumentError("File size must be less than 4MB", {
+                    displayMessage: errorDisplayMessage`File size must be less than 4MB`,
+                }),
+            );
+            return;
+        }
+
+        setIsUploading(true);
+        onUploadAvatar(file)
+            .catch(error => {
+                displayError(error);
+            })
+            .finally(() => setIsUploading(false));
+    };
+
     return (
         <FocusRing isVisibleWhenFocusWithin>
             <Box position="relative" borderRadius={borderRadius}>
@@ -84,36 +123,63 @@ export function AvatarUploader({
                     aria-label="Upload avatar"
                     autoComplete="off"
                     onChange={event => {
-                        if (isUploading) return;
-
                         const file = event.target.files?.[0];
-                        if (file && onUploadAvatar) {
-                            if (file.size > maxAvatarUploadContentLength) {
-                                displayError(
-                                    new InvalidArgumentError("File size must be less than 4MB", {
-                                        displayMessage: errorDisplayMessage`File size must be less than 4MB`,
-                                    }),
-                                );
-                                return;
-                            }
-
-                            setIsUploading(true);
-                            onUploadAvatar(file)
-                                .catch(error => {
-                                    displayError(error);
-                                })
-                                .finally(() => setIsUploading(false));
-                        }
+                        if (file) handleUploadFile(file);
                     }}
                 />
                 <Box
                     position="relative"
-                    height={avatarUploaderSize}
-                    width={avatarUploaderSize}
                     {...pressProps}
                     cursor="pointer"
+                    style={{width: sizeRemLength, height: sizeRemLength}}
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
+                    onDragEnter={event => {
+                        event.preventDefault();
+                        dragEnterCountRef.current += 1;
+                        setIsDraggingOver(true);
+                    }}
+                    onDragOver={event => {
+                        // Allow dropping files by preventing the browser's default handling.
+                        event.preventDefault();
+                    }}
+                    onDragLeave={() => {
+                        dragEnterCountRef.current -= 1;
+                        if (dragEnterCountRef.current <= 0) {
+                            dragEnterCountRef.current = 0;
+                            setIsDraggingOver(false);
+                        }
+                    }}
+                    onDrop={event => {
+                        event.preventDefault();
+                        dragEnterCountRef.current = 0;
+                        setIsDraggingOver(false);
+
+                        const file = event.dataTransfer.files[0];
+                        if (file) handleUploadFile(file);
+                    }}
                 >
                     {children}
+
+                    {(isHovered || isDraggingOver) && !shouldShowLoadingIndicator && (
+                        <Box
+                            position="absolute"
+                            top="0"
+                            left="0"
+                            right="0"
+                            bottom="0"
+                            color="grey-0-const"
+                            backgroundColor="grey-100-const"
+                            pointerEvents="none"
+                            borderRadius={borderRadius}
+                            style={{opacity: 0.6}}
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                        >
+                            <Plus size={spacing[5]} />
+                        </Box>
+                    )}
 
                     {isPressed && (
                         <Box

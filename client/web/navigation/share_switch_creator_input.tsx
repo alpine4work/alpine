@@ -8,9 +8,24 @@ import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/client/web/style
 export function ShareSwitchCreatorInput({
     isPublic,
     onIsPublicChange,
+    label = "Share",
+    entityNoun = "channel",
+    publicTitle = "Public",
+    publicSubtitle,
+    privateTitle = "Private",
+    privateSubtitle = "Only specific people",
 }: {
     isPublic: boolean;
     onIsPublicChange: (isPublic: boolean) => void;
+    /** Heading rendered above the two options. */
+    label?: string;
+    /** Noun used for the switch's tooltip / accessibility copy. */
+    entityNoun?: string;
+    publicTitle?: string;
+    /** Defaults to "Everyone in {space name}". */
+    publicSubtitle?: ReactNode;
+    privateTitle?: string;
+    privateSubtitle?: ReactNode;
 }) {
     const {space} = useSpaceContext();
 
@@ -31,34 +46,38 @@ export function ShareSwitchCreatorInput({
                     paddingBottom: "1.5",
                 })}
             >
-                Share
+                {label}
             </label>
             <Box display="flex" flexDirection="column" gap="2">
                 <ShareSwitchCreatorInputItem
                     isSelected={isPublic}
                     onPress={() => onIsPublicChange(true)}
                     switchIcon="Buildings"
-                    title="Public"
+                    entityNoun={entityNoun}
+                    title={publicTitle}
                     subtitle={
-                        <>
-                            Everyone in{" "}
-                            <span
-                                className={sprinkles({
-                                    color: "grey-60",
-                                    fontStyle: "semi-bold",
-                                })}
-                            >
-                                {space.name}
-                            </span>
-                        </>
+                        publicSubtitle ?? (
+                            <>
+                                Everyone in{" "}
+                                <span
+                                    className={sprinkles({
+                                        color: "grey-60",
+                                        fontStyle: "semi-bold",
+                                    })}
+                                >
+                                    {space.name}
+                                </span>
+                            </>
+                        )
                     }
                 />
                 <ShareSwitchCreatorInputItem
                     isSelected={!isPublic}
                     onPress={() => onIsPublicChange(false)}
                     switchIcon="Lock"
-                    title="Private"
-                    subtitle="Only specific people"
+                    entityNoun={entityNoun}
+                    title={privateTitle}
+                    subtitle={privateSubtitle}
                 />
             </Box>
         </Box>
@@ -69,12 +88,14 @@ function ShareSwitchCreatorInputItem({
     switchIcon,
     isSelected,
     onPress,
+    entityNoun,
     title,
     subtitle,
 }: {
     switchIcon: "Lock" | "Buildings";
     isSelected: boolean;
     onPress: () => void;
+    entityNoun: string;
     title: string;
     subtitle: ReactNode;
 }) {
@@ -94,7 +115,7 @@ function ShareSwitchCreatorInputItem({
             boxShadow="elevation-5-with-grey-10-border"
             backgroundColor={isPressed ? "grey-5" : undefined}
         >
-            <ShareSwitchBase isInert={true} entityNoun="channel" icon={switchIcon} />
+            <ShareSwitchBase isInert={true} entityNoun={entityNoun} icon={switchIcon} />
             <Box flexGrow="1" display="flex" alignItems="baseline" gap="1.5">
                 <Box fontStyle="truncate" fontSize="75">
                     {title}

@@ -1,5 +1,5 @@
 import {seedTestAccounts} from "~/server/accounts/seed_test_accounts.js";
-import {seedTestBots} from "~/server/bots/seed_test_bots.js";
+import {seedTestBots} from "~/server/bots/test_helpers/seed_test_bots.js";
 import {SearchInjectionContextModule} from "~/server/context/injection_context_module.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {seedTestChannels} from "~/server/forum/data/seed_test_channels.js";

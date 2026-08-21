@@ -203,6 +203,7 @@ const shimmerOptionsByRouteId: Record<
     | false
 > = {
     "routes/_space.home.$spaceId._index": {component: FeedRouteShimmer},
+    "routes/_space.bot.new.$spaceId": {component: BotCreatorRouteShimmer},
     "routes/_space.channel.$channelId._index": {component: ChannelRouteShimmer},
     "routes/_space.channel.$channelId.files": {component: ChannelFilesRouteShimmer},
     "routes/_space.channel.new.$spaceId": {component: ChannelCreatorRouteShimmer},
@@ -1042,6 +1043,115 @@ function ChannelCreatorRouteShimmer() {
                     <TextShimmer fontSize="50" width="full" ragRight="3" />
                     <TextShimmer fontSize="50" width="64" />
                 </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function BotCreatorRouteShimmer() {
+    const platform = usePlatform();
+
+    return (
+        <Box display="flex" flexDirection="column" alignItems="center">
+            <Box
+                flexShrink="0"
+                paddingTop="safe-area-inset"
+                width="full"
+                maxWidth={peekNarrowLayoutWidth}
+            >
+                <Box
+                    display="flex"
+                    alignItems="center"
+                    position="relative"
+                    height={navigationBarHeight}
+                    paddingX={platform === "mobile" ? navigationBarMobileGap : screenPaddingX}
+                >
+                    {platform === "mobile" && <MobileBackButton />}
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        justifyContent="center"
+                        alignItems={platform !== "mobile" ? "flex-start" : "center"}
+                        width="full"
+                        height="full"
+                    >
+                        <TextShimmer
+                            fontSize={
+                                platform !== "mobile"
+                                    ? channelCreatorNavigationBarDesktopTitleFontSize
+                                    : "100"
+                            }
+                            width={platform !== "mobile" ? "32" : "20"}
+                            ragRight={platform !== "mobile" ? "4" : undefined}
+                        />
+                    </Box>
+                    <Box display="flex" justifyContent="flex-end" width="7">
+                        <Box
+                            className={pulseAnimationClassName}
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            backgroundColor="grey-10"
+                            paddingX="3"
+                            height="7"
+                            borderRadius="1"
+                        >
+                            <Box opacity="0" fontSize="100">
+                                Create
+                            </Box>
+                        </Box>
+                    </Box>
+                </Box>
+                <Box paddingTop={channelCreatorMarginTop} paddingX={screenPaddingX}>
+                    <TextShimmer fontSize="75" width="10" ragRight="2" />
+                    <Spacer space="1.5" />
+                    <Box height="9" className={textInputClassName}></Box>
+                    <Spacer space={channelCreatorFieldHelpMarginTop} />
+                    <TextShimmer fontSize="50" width="full" ragRight="4" />
+                    <TextShimmer fontSize="50" width="12" />
+                    <Spacer space={channelCreatorGap} />
+                    <TextShimmer fontSize="75" width="48" />
+                    <Spacer space="3" />
+                    <Box display="flex" flexDirection="column" gap="3">
+                        <BotCreatorRouteShimmerOwnerRadio
+                            titleWidth="20"
+                            subtitleWidth="48"
+                            subtitleRagRight="2"
+                        />
+                        <BotCreatorRouteShimmerOwnerRadio
+                            titleWidth="28"
+                            subtitleWidth="96"
+                            subtitleRagRight="0"
+                        />
+                    </Box>
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function BotCreatorRouteShimmerOwnerRadio({
+    titleWidth,
+    subtitleWidth,
+    subtitleRagRight,
+}: {
+    titleWidth: Sprinkles["maxWidth"];
+    subtitleWidth: Sprinkles["maxWidth"];
+    subtitleRagRight: Spacing;
+}) {
+    return (
+        <Box display="flex" alignItems="flex-start" gap="3">
+            <Box
+                className={pulseAnimationClassName}
+                flexShrink="0"
+                backgroundColor="grey-10"
+                borderRadius="full"
+                width="5"
+                height="5"
+            />
+            <Box flexGrow="1" minWidth="flex-fit">
+                <TextShimmer fontSize="75" width={titleWidth} />
+                <TextShimmer fontSize="75" width={subtitleWidth} ragRight={subtitleRagRight} />
             </Box>
         </Box>
     );

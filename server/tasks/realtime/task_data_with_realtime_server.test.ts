@@ -1,3 +1,5 @@
+import {createBotForTest} from "~/server/bots/test_helpers/create_bot_for_test.js";
+import {TestBot} from "~/server/bots/test_helpers/test_bot.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestFile} from "~/server/files/test_helpers/test_file.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -41,6 +43,57 @@ test("can duplicate a task", async () => {
 
     expect(getTaskTitleText(clonedTask.title.raw)).toEqual("foo (copy)");
     expect(clonedTask.priority.value).toEqual("High");
+});
+
+test("duplicating a task assigned to a bot the actor cannot view removes the assignment", async () => {
+    const space = await TestSpace.create(context);
+    const ownerSession = await space.createSession();
+    const nonOwnerSession = await space.createSession();
+
+    const server = new TestTaskRealtimeServer(context);
+    await server.wait();
+
+    // A personal bot owned by `ownerSession`. Only the owner can view or assign it.
+    const {id: botId} = await createBotForTest(ownerSession.context, {
+        name: "Personal Bot",
+        webhook: null,
+        ownerEntity: {type: "Account", accountId: ownerSession.account.id},
+    });
+    const bot = await TestBot.get(ownerSession.context, botId);
+    const botAccount = await bot.instantiate(ownerSession);
+
+    const task = await TestTask.create(ownerSession, {
+        title: "foo",
+        assignee: botAccount,
+        assigneeStatus: "Active",
+    });
+
+    await task.access.set(ownerSession, {
+        type: "Local",
+        accountGrantById: new Map([[ownerSession.account.id, {level: "Manage", generation: 0}]]),
+        defaultGrant: {level: "Edit"},
+        urlGrant: null,
+    });
+
+    const {taskId: clonedTaskId} = await duplicateTaskAndAllChildren(
+        server.action(nonOwnerSession),
+        {
+            sourceTaskId: task.id,
+            actionTime: testTaskClock.now(),
+            timeZone: defaultTimeZone,
+        },
+    );
+
+    const clonedTask = assertExists(
+        await getTaskIndexDocIfExistsForTest(context, space.id, clonedTaskId),
+    );
+
+    expect({
+        assigneeId: clonedTask.assignee.value?.assignee.accountId,
+        assigneeStatusType: clonedTask.rawAssigneeStatus.value.type,
+    }).toEqual({
+        assigneeStatusType: "Inactive",
+    });
 });
 
 test("can duplicate a task with subtasks", async () => {

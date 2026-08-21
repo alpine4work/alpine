@@ -1,9 +1,11 @@
+import {isBotItemDeleted} from "~/server/bots/internal/is_bot_item_deleted.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
-import {BotTokenPayloadScope} from "~/server/tokens/token_payload.js";
 import {AvatarSchema} from "~/shared/avatar/avatar_schema.js";
-import {BotWebhookSchema} from "~/shared/bots/bot_schema.js";
+import {BotWebhook, BotWebhookSchema} from "~/shared/bots/bot_schema.js";
 import {BotSettingsSchemaSchema} from "~/shared/bots/bot_settings_schema.js";
+import {BotTokenScope} from "~/shared/bots/bot_token_scope.js";
+import {BotOwnerEntityId, BotOwnerEntityIdSchema} from "~/shared/bots/owners/bot_owner_entity.js";
 import {SimpleContentSchema} from "~/shared/content/simple_content_schema.js";
 import {emptyMap} from "~/shared/helpers/map/empty_map.open_source.js";
 import {ApiKey} from "~/shared/id/api_key.js";
@@ -31,9 +33,77 @@ export const BotsTable = DynamoTableSchema.new({
                         createdTime: Schema.date,
 
                         /**
+                         * When was the bot last updated?
+                         */
+                        updatedTime: Schema.date.optional(),
+
+                        // TODO(#migrate-bot-owners): Temporarily nullable for backwards compatibility with
+                        // bots created before this field was added. Make it non-nullable once
+                        // `runBackfillBotOwnerAndCreatorMigration()` has run against production.
+                        /**
+                         * The account that created the bot. Used for auditing purposes.
+                         */
+                        createdByAccount: Schema.id<AccountId>().nullable().default(null),
+
+                        /**
+                         * Information about when this bot was soft-deleted and by whom. If this is null
+                         * then the bot is active. We keep a record of deleted bots so their accounts can
+                         * still be referenced by old content while they're cleaned up.
+                         *
+                         * Matches the shape documents use for soft deletion (see `documents_table.ts`).
+                         */
+                        deleted: Schema.object({
+                            time: Schema.date,
+                            deletor: Schema.object({
+                                /**
+                                 * The account that soft-deleted this bot.
+                                 */
+                                id: Schema.id<AccountId>().nullable().default(null),
+
+                                /**
+                                 * What soft-deleted this bot on behalf of the account ID, if anything.
+                                 */
+                                from: Schema.union({
+                                    Bot: Schema.object({
+                                        type: Schema.value("Bot"),
+                                        accountId: Schema.id<AccountId>(),
+                                    }),
+                                })
+                                    .nullable()
+                                    .default(null),
+                            }),
+                        })
+                            .nullable()
+                            .default(null),
+
+                        /**
+                         * When this bot was soft-deleted, duplicating `deleted.time`, because the
+                         * `BotsByOwner` index is `KEYS_ONLY`: it can only filter on attributes that are
+                         * part of the index key, and an index key can't be a nested property.
+                         *
+                         * Always write this in the same update as `deleted` so the two can't drift. Read
+                         * it through `isBotItemDeleted()` rather than directly.
+                         */
+                        isDeleted: Schema.date.nullable().default(null),
+
+                        /**
                          * Name of the bot. This name will be used for all of the bot's accounts.
                          */
                         name: Schema.string,
+
+                        /**
+                         * The entity that owns and manages the bot.
+                         *
+                         * `System` for a global/system bot that Alpine manages and that isn't owned by any
+                         * one entity. Bots created before ownership existed also read back as `System`
+                         * (hence the `.default("System")`), so they're treated as global bots.
+                         *
+                         * TODO(#migrate-bot-owners): Give the bots that predate ownership their real owner
+                         * with `runBackfillBotOwnerAndCreatorMigration()` and drop the default. Until that
+                         * runs, a personal bot we created for someone reads back as a system bot, so only
+                         * internal users can manage it.
+                         */
+                        ownerEntity: BotOwnerEntityIdSchema.default("System"),
 
                         /**
                          * When the bot is mentioned, send an event to this webhook.
@@ -50,6 +120,24 @@ export const BotsTable = DynamoTableSchema.new({
                         })
                             .originalPropertyKey("webhookUrl")
                             .nullable(),
+
+                        /**
+                         * How many API keys the bot has right now.
+                         *
+                         * The count lives here, on the item every API key write already locks with
+                         * `updateLockVersion`, so `maxApiKeyCountPerBot` can be enforced exactly. Counting
+                         * `BotApiKeysIndex` instead doesn't work: it's a GSI, so it's eventually
+                         * consistent and can miss a key written moments ago.
+                         *
+                         * Only written by `getBotApiKeyWriteLockTransactionEntry()` and by bot deletion,
+                         * always in the same transaction as the keys it accounts for.
+                         *
+                         * TODO(#migrate-bot-owners): Bot items written before this field existed read back
+                         * as zero however many keys they actually have.
+                         * `runBackfillBotOwnerAndCreatorMigration()` counts their keys and writes a real
+                         * number. Drop the default once it has run against production.
+                         */
+                        apiKeyCount: Schema.integer.default(0),
                     }),
                 },
 
@@ -79,7 +167,7 @@ export const BotsTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         /**
-                         * A description of the bot to render in the bot settings page.
+                         * The bot's description, rendered on the bot settings page.
                          */
                         description: SimpleContentSchema,
 
@@ -138,7 +226,7 @@ export const BotsTable = DynamoTableSchema.new({
                          */
                         space: Schema.object({
                             accountId: Schema.id<AccountId>(),
-                            scope: Schema.unknown<BotTokenPayloadScope>(),
+                            scope: Schema.unknown<BotTokenScope>(),
                         }).nullable(),
 
                         /**
@@ -202,8 +290,10 @@ export type BotSettingsSchemaItem = DynamoTableItemType<typeof BotsTable, "Bot",
 export type BotWithAvatarItem = {
     readonly id: BotId;
     readonly createdTime: Date;
+    readonly ownerEntity: BotOwnerEntityId;
     readonly name: string;
-    readonly hasWebhookUrl: boolean;
+    readonly description: string | null;
+    readonly webhook: BotWebhook | null;
     readonly avatar: BotAvatarItem | null;
 };
 
@@ -216,4 +306,17 @@ export const BotApiKeysIndex = BotsTable.addIndex({
     sortKeyAttributes: {
         spaceId: DynamoKeyAttributeSchema.id<SpaceId>().nullable(),
     },
+});
+
+export const BotsByOwnerIndex = BotsTable.addIndex({
+    name: "BotsByOwner",
+    itemTypes: [{partitionType: "Bot", sortRangeType: "Attributes"}],
+    partitionKeyAttributes: {
+        ownerEntity: DynamoKeyAttributeSchema.labelString<BotOwnerEntityId>(),
+    },
+    sortKeyAttributes: {
+        name: DynamoKeyAttributeSchema.labelString<string>(),
+        isDeleted: DynamoKeyAttributeSchema.date.nullable(),
+    },
+    filter: item => !isBotItemDeleted(item),
 });
