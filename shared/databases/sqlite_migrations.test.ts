@@ -1,9 +1,8 @@
 import * as Prettier from "prettier";
 import sqlPrettierPlugin from "prettier-plugin-sql";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
-import {SqliteDatabase} from "~/shared/databases/sqlite.js";
+import {type SqliteDatabase, loadSqlite3} from "~/shared/databases/sqlite.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {
     joinTableSqliteMigrations,
@@ -17,7 +16,7 @@ import {generateId} from "~/shared/id/id.open_source.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-const sqlite3Promise = sqlite3InitModule();
+const sqlite3Promise = loadSqlite3();
 let dbCounter = 0;
 
 // Deliberately does NOT run main migrations: the `main migration up to N` tests

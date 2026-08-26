@@ -6,6 +6,7 @@ js_library(
     srcs = [
         "ext/wasm/jswasm/sqlite3.mjs",
         "ext/wasm/jswasm/sqlite3.wasm",
+        "ext/wasm/jswasm/sqlite3-function-adapter.wasm",
     ],
     visibility = ["//visibility:public"],
 )
@@ -35,6 +36,7 @@ genrule(
         "ext/wasm/jswasm/esm/sqlite3.mjs",
         "ext/wasm/jswasm/esm/sqlite3.wasm",
         "ext/wasm/jswasm/sqlite3.wasm",
+        "ext/wasm/jswasm/sqlite3-function-adapter.wasm",
         "ext/wasm/jswasm/sqlite3-worker1-promiser.js",
         "ext/wasm/jswasm/sqlite3-worker1.mjs",
         "ext/wasm/jswasm/sqlite3-worker1-promiser.mjs",
@@ -146,7 +148,19 @@ make sqlite3.c --jobs=6 >> "$$cmd_log" 2>> "$$cmd_log" || (cat "$$cmd_log" && ex
 cd ext/wasm
 
 make dist --jobs=6 >> "$$cmd_log" 2>> "$$cmd_log" || (cat "$$cmd_log" && exit 1)
+
+wat2wasm \
+    "$$bazel_sandbox/$(location @//admin/bazel:third_party/sqlite3_wasm_function_adapter.wat)" \
+    -o "$$(pwd)/jswasm/sqlite3-function-adapter.wasm"
 """,
     tags = ["cpu:6"],
-    tools = ["@//:zig", "@//:emscripten", "@emsdk//:all", "@//:wabt", "@tcl//:build_tclsh", "@//:node"],
+    tools = [
+        "@//:zig",
+        "@//:emscripten",
+        "@emsdk//:all",
+        "@//:wabt",
+        "@tcl//:build_tclsh",
+        "@//:node",
+        "@//admin/bazel:third_party/sqlite3_wasm_function_adapter.wat",
+    ],
 )

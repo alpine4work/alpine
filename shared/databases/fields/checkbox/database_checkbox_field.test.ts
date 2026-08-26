@@ -1,10 +1,10 @@
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {getDatabaseFieldStrings} from "~/shared/databases/fields/database_field_test_helpers.js";
 import {generateDatabaseFieldCheckConstraint} from "~/shared/databases/fields/generate_database_field_check_constraint.js";
 import {parseDatabaseFieldValueString} from "~/shared/databases/fields/parse_database_field_value_string.js";
 import {sql} from "~/shared/databases/sql.js";
+import {loadSqlite3} from "~/shared/databases/sqlite.js";
 
-const sqlite3Promise = sqlite3InitModule();
+const sqlite3Promise = loadSqlite3();
 let dbCounter = 0;
 
 /**

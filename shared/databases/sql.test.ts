@@ -1,10 +1,10 @@
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
+import {loadSqlite3} from "~/shared/databases/sqlite.js";
 import type {DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 import {JsonStringifiableUint8Array, Schema} from "~/shared/schema/schema.js";
 
-const sqlite3Promise = sqlite3InitModule();
+const sqlite3Promise = loadSqlite3();
 const sqliteDoubleQuote = String.fromCharCode(34);
 
 let db: Database;

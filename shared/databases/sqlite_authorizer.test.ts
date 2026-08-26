@@ -1,4 +1,3 @@
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {
     Database,
     Sqlite3Static,
@@ -6,6 +5,7 @@ import type {
 } from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
 import {SqlQuery, sql} from "~/shared/databases/sql.js";
+import {loadSqlite3} from "~/shared/databases/sqlite.js";
 import {
     type InternalSqliteWriteLevel,
     type SqliteSchemaAccessResolver,
@@ -15,7 +15,7 @@ import {
     sqliteAuthorizerActionName,
 } from "~/shared/databases/sqlite_authorizer.js";
 
-const sqlite3Promise = sqlite3InitModule();
+const sqlite3Promise = loadSqlite3();
 
 let dbCounter = 0;
 let sqlite3: Sqlite3Static;

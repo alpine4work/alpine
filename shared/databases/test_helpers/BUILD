@@ -5,7 +5,9 @@ ts_project(
     testonly = True,
     visibility = ["//visibility:public"],
     deps = [
+        "@sqlite",
         "//shared/databases",
+        "//shared/helpers",
         "//shared/id",
     ],
 )

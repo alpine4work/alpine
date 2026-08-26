@@ -1,11 +1,11 @@
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {SqliteStorageType} from "~/shared/databases/fields/get_database_field_sqlite_type.js";
 import {formatSqliteColumnType} from "~/shared/databases/internal/format_sqlite_column_type.js";
 import {sql} from "~/shared/databases/sql.js";
+import {loadSqlite3} from "~/shared/databases/sqlite.js";
 import type {DatabaseFieldId, DatabaseTableId} from "~/shared/id/types/id_types.open_source.js";
 import {Schema} from "~/shared/schema/schema.js";
 
-const sqlite3Promise = sqlite3InitModule();
+const sqlite3Promise = loadSqlite3();
 const tableId = "table_id" as DatabaseTableId;
 const fieldId = "field_id" as DatabaseFieldId;
 let dbCounter = 0;

@@ -1,11 +1,10 @@
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {allowAllTableAccess} from "~/shared/databases/allow_all_table_access.js";
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {formatUniqueTableSqlName} from "~/shared/databases/format_unique_table_sql_name.js";
 import type {DatabaseFieldModel} from "~/shared/databases/model/database_field_model.js";
 import {DatabaseModel} from "~/shared/databases/model/database_root_model.js";
 import {databaseTableSchemaName, sql} from "~/shared/databases/sql.js";
-import {SqliteDatabase} from "~/shared/databases/sqlite.js";
+import {type SqliteDatabase, loadSqlite3} from "~/shared/databases/sqlite.js";
 import {databaseViewDefaultColumnWidth} from "~/shared/databases/sqlite_constants.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {
@@ -24,7 +23,7 @@ import type {
     DatabaseViewId,
 } from "~/shared/id/types/id_types.open_source.js";
 
-const sqlite3Promise = sqlite3InitModule();
+const sqlite3Promise = loadSqlite3();
 let dbCounter = 0;
 const testAccountId = generateId<AccountId>();
 

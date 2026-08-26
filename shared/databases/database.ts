@@ -1,5 +1,4 @@
 import type {Sqlite3Static, WasmPointer} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {AccessLevel} from "~/shared/access/access_policy.js";
 import type {
     DatabaseActionServerContext,
@@ -22,7 +21,7 @@ import {
     databaseTableSchemaNamePrefix,
     sql,
 } from "~/shared/databases/sql.js";
-import {SqliteDatabase, trySqlite3WasmLoader} from "~/shared/databases/sqlite.js";
+import {SqliteDatabase, loadSqlite3} from "~/shared/databases/sqlite.js";
 import {
     type InternalSqliteWriteLevel,
     type SqliteWriteLevel,
@@ -58,7 +57,6 @@ import {Schema} from "~/shared/schema/schema.js";
 
 const vfsNamePrefix = "alpine-database";
 let vfsCounter = 0;
-let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 /**
  * Read-only page storage backing a {@link Database}.
@@ -399,11 +397,7 @@ export class Database {
         if (options?.attachEvictionThresholdForTests !== undefined) {
             assert(import.meta.jest, "attachEvictionThresholdForTests is test-only");
         }
-        if (sqlite3Promise === undefined) {
-            const instantiateWasm = trySqlite3WasmLoader();
-            sqlite3Promise = sqlite3InitModule(instantiateWasm ? {instantiateWasm} : undefined);
-        }
-        const sqlite3 = await sqlite3Promise;
+        const sqlite3 = await loadSqlite3();
         return new Database(sqlite3, storage, {
             attachEvictionThreshold:
                 options?.attachEvictionThresholdForTests ?? sqliteAttachEvictionThreshold,

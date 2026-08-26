@@ -1,6 +1,6 @@
 --- sqlite3.d.mts
 +++ sqlite3.d.mts
-@@ -2551 +2551,11 @@
+@@ -2551 +2551,12 @@
 -export default function init(): Promise<Sqlite3Static>;
 +/**
 + * Alpine supplies a precompiled WASM module to sandboxed Workers. The default
@@ -12,4 +12,5 @@
 +    imports: WebAssembly.Imports,
 +    onSuccess: (instance: WebAssembly.Instance, module: WebAssembly.Module) => void,
 +  ) => void;
++  jsFuncToWasm?: WASM_API['jsFuncToWasm'];
 +}): Promise<Sqlite3Static>;

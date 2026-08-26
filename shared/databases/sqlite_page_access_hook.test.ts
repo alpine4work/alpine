@@ -1,8 +1,8 @@
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {sql} from "~/shared/databases/sql.js";
+import {loadSqlite3} from "~/shared/databases/sqlite.js";
 import {pageAccessFlagRead, pageAccessFlagWrite} from "~/shared/databases/sqlite_constants.js";
 
-const sqlite3Promise = sqlite3InitModule();
+const sqlite3Promise = loadSqlite3();
 
 test("sqlite works", async () => {
     const sqlite3 = await sqlite3Promise;

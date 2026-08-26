@@ -72,6 +72,13 @@ diff --git a/ext/wasm/api/pre-js.c-pp.js b/ext/wasm/api/pre-js.c-pp.js
 diff --git a/ext/wasm/api/sqlite3-api-glue.c-pp.js b/ext/wasm/api/sqlite3-api-glue.c-pp.js
 --- a/ext/wasm/api/sqlite3-api-glue.c-pp.js
 +++ b/ext/wasm/api/sqlite3-api-glue.c-pp.js
+@@ -21,3 +21,6 @@ globalThis.sqlite3ApiBootstrap.initializers.push(function(sqlite3){
+   const capi = sqlite3.capi, wasm = sqlite3.wasm, util = sqlite3.util;
+   globalThis.WhWasmUtilInstaller(wasm);
+   delete globalThis.WhWasmUtilInstaller;
++  if(sqlite3.config.jsFuncToWasm){
++    wasm.jsFuncToWasm = sqlite3.config.jsFuncToWasm;
++  }
 @@ -205,6 +205,15 @@ globalThis.sqlite3ApiBootstrap.initializers.push(function(sqlite3){
        ["sqlite3_next_stmt", "sqlite3_stmt*", ["sqlite3*","sqlite3_stmt*"]],
        ["sqlite3_open", "int", "string", "*"],
@@ -96,6 +103,19 @@ diff --git a/ext/wasm/api/sqlite3-api-glue.c-pp.js b/ext/wasm/api/sqlite3-api-gl
        ['sqlite3_preupdate_hook',3],
        ['sqlite3_progress_handler',4],
        ['sqlite3_rollback_hook',3],
+diff --git a/ext/wasm/api/post-js-footer.js b/ext/wasm/api/post-js-footer.js
+--- a/ext/wasm/api/post-js-footer.js
++++ b/ext/wasm/api/post-js-footer.js
+@@ -41,7 +41,8 @@ try{
+         : (Object.prototype.hasOwnProperty.call(EmscriptenModule,'wasmExports')
+            ? EmscriptenModule['wasmExports']
+            : EmscriptenModule['asm']/* emscripten <=3.1.43 */)
+-    },
++    },
++    {jsFuncToWasm: EmscriptenModule['jsFuncToWasm']},
+     globalThis.sqlite3ApiBootstrap.defaultConfig, // default options
+     globalThis.sqlite3ApiConfig || {} // optional client-provided options
+   );
 diff --git a/ext/wasm/api/sqlite3-api-oo1.c-pp.js b/ext/wasm/api/sqlite3-api-oo1.c-pp.js
 --- a/ext/wasm/api/sqlite3-api-oo1.c-pp.js
 +++ b/ext/wasm/api/sqlite3-api-oo1.c-pp.js

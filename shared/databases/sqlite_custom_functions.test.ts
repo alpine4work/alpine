@@ -1,11 +1,11 @@
-import sqlite3InitModule from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import type {Database} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {sql} from "~/shared/databases/sql.js";
+import {loadSqlite3} from "~/shared/databases/sqlite.js";
 import {registerSqliteCustomFunctions} from "~/shared/databases/sqlite_custom_functions.js";
 import {runMainMigrations} from "~/shared/databases/sqlite_migrations.js";
 import {isOrderKey} from "~/shared/helpers/sort/order_key.open_source.js";
 
-const sqlite3Promise = sqlite3InitModule();
+const sqlite3Promise = loadSqlite3();
 let dbCounter = 0;
 
 const openDbs: Array<Database> = [];

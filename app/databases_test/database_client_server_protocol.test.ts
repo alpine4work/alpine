@@ -38,6 +38,7 @@ import {DatabaseTableMetadataBroadcastRealtimeEventsSchema} from "~/shared/datab
 import {databaseTableAccessPolicyForCreator} from "~/shared/databases/database_table_access_policy.js";
 import {sql} from "~/shared/databases/sql.js";
 import {databaseMainTableId} from "~/shared/databases/sqlite_constants.js";
+import {registerSqlite3WasmForTest} from "~/shared/databases/test_helpers/register_sqlite3_wasm_for_test.js";
 import type {RynamoEventStub} from "~/shared/dynamo/rynamo_types.js";
 import {UnavailableError} from "~/shared/error/error.open_source.js";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
@@ -53,6 +54,8 @@ import type {
     SpaceId,
 } from "~/shared/id/types/id_types.open_source.js";
 import {Schema} from "~/shared/schema/schema.js";
+
+registerSqlite3WasmForTest();
 
 type DatabaseDurableStorage = Parameters<typeof DatabaseServer.create>[0];
 

@@ -1,6 +1,12 @@
+import sqlite3InitModule, {
+    type Sqlite3Static,
+    type WASM_API,
+} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
 import {assert} from "~/shared/helpers/control/assert.open_source.js";
 
 export type {Database as SqliteDatabase} from "~/external/sqlite/ext/wasm/jswasm/sqlite3.mjs";
+
+export type Sqlite3WasmFunctionAdapter = WASM_API["jsFuncToWasm"];
 
 /**
  * Callback that loads and instantiates the sqlite3 WASM binary. Matches the
@@ -14,38 +20,48 @@ export type Sqlite3InstantiateWasm = (
     onSuccess: (instance: WebAssembly.Instance, module: WebAssembly.Module) => void,
 ) => void;
 
-let loader: Sqlite3InstantiateWasm | undefined;
+let wasmConfiguration:
+    | {
+          instantiateWasm: Sqlite3InstantiateWasm;
+          functionAdapter: Sqlite3WasmFunctionAdapter | Promise<Sqlite3WasmFunctionAdapter>;
+      }
+    | undefined;
+let sqlite3Promise: Promise<Sqlite3Static> | undefined;
 
 /**
- * Register the platform-specific WASM loader. Called once from a side-effect
- * import at the service entry-point.
+ * Register the platform-specific SQLite WASM modules. Called once from a
+ * side-effect import at the service entry point.
  */
-export function registerSqlite3WasmLoader(fn: Sqlite3InstantiateWasm): void {
+export function registerSqlite3Wasm(configuration: {
+    instantiateWasm: Sqlite3InstantiateWasm;
+    functionAdapter: Sqlite3WasmFunctionAdapter | Promise<Sqlite3WasmFunctionAdapter>;
+}): void {
     assert(
-        loader === undefined,
-        "sqlite3 WASM loader already registered. " +
-            "registerSqlite3WasmLoader must only be called once.",
+        wasmConfiguration === undefined,
+        "sqlite3 WASM modules already registered. registerSqlite3Wasm must only be called once.",
     );
-    loader = fn;
+    assert(
+        sqlite3Promise === undefined,
+        "sqlite3 WASM modules must be registered before SQLite is loaded.",
+    );
+    wasmConfiguration = configuration;
 }
 
-/**
- * Returns the registered loader. Asserts if none was registered.
- */
-export function sqlite3WasmLoader(): Sqlite3InstantiateWasm {
-    assert(
-        loader !== undefined,
-        "No sqlite3 WASM loader registered. " +
-            "Import a platform-specific init file (e.g. " +
-            "sqlite3_wasm_init_worker.ts) before using sqlite3.",
-    );
-    return loader;
+/** Load the shared SQLite module for the current platform. */
+export function loadSqlite3(): Promise<Sqlite3Static> {
+    if (sqlite3Promise === undefined) {
+        sqlite3Promise = initializeSqlite3();
+    }
+    return sqlite3Promise;
 }
 
-/**
- * Returns the registered loader, or `undefined` if none was registered. Use this
- * when falling back to default Emscripten loading is acceptable (e.g. in tests).
- */
-export function trySqlite3WasmLoader(): Sqlite3InstantiateWasm | undefined {
-    return loader;
+async function initializeSqlite3(): Promise<Sqlite3Static> {
+    if (wasmConfiguration === undefined) {
+        return await sqlite3InitModule();
+    }
+    const jsFuncToWasm = await wasmConfiguration.functionAdapter;
+    return await sqlite3InitModule({
+        instantiateWasm: wasmConfiguration.instantiateWasm,
+        jsFuncToWasm,
+    });
 }

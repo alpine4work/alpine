@@ -2561,6 +2561,7 @@ export default function init(config?: {
     imports: WebAssembly.Imports,
     onSuccess: (instance: WebAssembly.Instance, module: WebAssembly.Module) => void,
   ) => void;
+  jsFuncToWasm?: WASM_API['jsFuncToWasm'];
 }): Promise<Sqlite3Static>;
 
 /** @deprecated Sqlite3Worker1Promiser is deprecated as of 2026-04-15. */

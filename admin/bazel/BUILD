@@ -7,6 +7,8 @@ platform(
     visibility = ["//visibility:public"],
 )
 
+exports_files(["third_party/sqlite3_wasm_function_adapter.wat"])
+
 config_setting(
     name = "compilation_mode_fastbuild",
     values = {"compilation_mode": "fastbuild"},
