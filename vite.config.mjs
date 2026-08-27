@@ -37,6 +37,20 @@ export default defineConfig(({mode}) => {
             // can code-split during build.
             format: "es",
         },
+        experimental: {
+            renderBuiltUrl(filename, {ssr}) {
+                // Worker scripts must have the same origin as the page. Other assets can use
+                // the resource service origin from `base`.
+                if (
+                    !ssr &&
+                    ["assets/database_worker-", "assets/unique_worker_broker-"].some(prefix =>
+                        filename.startsWith(prefix),
+                    )
+                ) {
+                    return {runtime: `window.location.origin + ${JSON.stringify(`/${filename}`)}`};
+                }
+            },
+        },
         // Vite will rewrite asset URLs to be prefixed with this value on build. In
         // development, Vite ignores the origin portion of the URL[1] and we override it
         // with an inline config in `app_service_wrapper.ts`. Must have a trailing slash as
