@@ -1,4 +1,6 @@
-# Cyberworlds
+# Alpine (aka Cyberworlds)
+
+(Cyberworlds was the code name for Alpine's codebase.)
 
 ## Getting started
 
