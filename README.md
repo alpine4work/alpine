@@ -2,6 +2,9 @@
 
 (Cyberworlds was the code name for Alpine's codebase.)
 
+This repository preserves Alpine’s source code as a historical archive. There will be no ongoing
+maintenance, support, or security updates.
+
 ## Getting started
 
 To develop for Cyberworlds, run the following after you've cloned the repo:
